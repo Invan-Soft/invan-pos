@@ -1,0 +1,12 @@
+{
+    "cmake.sourceDirectory": "${workspaceFolder}/windows/runner",
+    "cSpell.words": [
+        "Cupertino",
+        "humo",
+        "Invan",
+        "objectbox",
+        "payme",
+        "tiin",
+        "uzum"
+    ]
+}

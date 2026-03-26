@@ -1,0 +1,3969 @@
+// ignore_for_file: use_build_context_synchronously, unused_field
+import 'dart:convert';
+import 'dart:io';
+import 'package:collection/collection.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:internet_connection_checker/internet_connection_checker.dart';
+import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'package:invan2/app_navigation.dart';
+import 'package:invan2/changes/bloc/client_search/client_search_bloc.dart';
+import 'package:invan2/changes/bloc/payme/payme_bloc.dart';
+import 'package:invan2/changes/dialogs/client_search/client_search_dialog_with_bloc.dart';
+import 'package:invan2/changes/dialogs/contains_no_mxik_package_item_dialog.dart';
+import 'package:invan2/changes/dialogs/contains_zero_price_item_dialog.dart';
+import 'package:invan2/changes/dialogs/markirovka_dialog.dart';
+import 'package:invan2/changes/dialogs/not_found_product_dialog.dart';
+import 'package:invan2/changes/dialogs/payme_dialog.dart';
+import 'package:invan2/changes/models/ofd/epos_response_model.dart';
+import 'package:invan2/changes/models/ofd/incom_response_model.dart';
+import 'package:invan2/changes/models/ofd/payment_result_model.dart';
+import 'package:invan2/changes/models/product/item_model.dart';
+import 'package:invan2/changes/models/six_client_model.dart';
+import 'package:invan2/changes/services/api.dart';
+import 'package:invan2/changes/services/local_selling_service.dart';
+import 'package:invan2/changes/services/log_helper.dart';
+import 'package:invan2/features/features.dart';
+import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
+import 'package:invan2/features/home/bloc/invoice/invoice_bloc.dart';
+import 'package:invan2/features/home/features/home_orders/calculation_part/total_price_dialog/bloc/tp_bloc.dart';
+import 'package:invan2/features/home/features/home_orders/calculation_part/total_price_dialog/operation_on_total_price_dialog.dart';
+import 'package:invan2/features/payment/right/complete_button/uzum_pay_bloc/uzum_pay_bloc.dart';
+import 'package:invan2/features/payment/right/dilogs/click/bloc/click_bloc.dart';
+import 'package:invan2/features/payment/right/dilogs/click/clic_pass_dialog.dart';
+import 'package:invan2/features/payment/right/dilogs/uzum/uzum_dialog.dart';
+import 'package:invan2/utils/constants/mxik_constants.dart';
+import 'package:invan2/utils/utils.dart';
+import 'package:invan2/widgets/my_snackbar.dart';
+import 'package:provider/provider.dart';
+import 'package:shell/shell.dart';
+import 'package:windows1251/windows1251.dart';
+
+// ignore: depend_on_referenced_packages
+import 'package:file/local.dart' as fl;
+import '../../alice_service.dart';
+import '../../features/get_discounts/model/discounts_response.dart';
+import '../../features/home/features/home_orders/calculation_part/total_price_dialog/discount_type_status.dart';
+import '../../features/home/features/operation_on_product/operation_on_product.dart';
+import '../../features/payment/right/complete_button/complete_bloc/comlete_bloc.dart';
+import '../../features/payment/right/complete_button/pre_complete_bloc/per_comlete_bloc.dart';
+import '../bloc/supplier_search/supplier_search_bloc.dart';
+import '../dialogs/add_description/add_description.dart';
+import '../dialogs/client_search/client_search_with_inn_dialog.dart';
+import '../dialogs/contains_discount_item_dialog.dart';
+import '../dialogs/contains_discount_item_dialog_2.dart';
+import '../dialogs/creat_product/creat_product_dialog.dart';
+import '../dialogs/supplier_search/supplier_search_dialog.dart';
+import '../models/organization_model.dart';
+import '../models/product_discount_model.dart';
+import '../models/supplier_model.dart';
+import '../services/api/result_http_model.dart';
+import '../singletons/discounts/discount_singleton.dart';
+
+bool isTpEdited = true;
+
+enum PaymentType {
+  cash,
+  card,
+  card2,
+  card3,
+  click,
+  humo,
+  humo2,
+  humo3,
+  cashback,
+  payme,
+  debt,
+  uzum,
+  clickQr,
+  paymeQr,
+  uzumQr,
+  other
+}
+
+enum DiscountFromWhere {
+  single,
+  client,
+  total,
+}
+
+enum WherePath {
+  homeScreen,
+  paymentScreen,
+}
+
+class OrderingProvider4 extends ChangeNotifier {
+  List<SixClientModel4> _sixClient4List = [];
+  SixClientModel4 _currentClient = SixClientModel4(
+    clientNumber: 1,
+    lastAddedIndex: -1,
+    orderedProducts: [],
+    discountAmountFromNewClient: 0,
+  );
+  int _index = 0;
+  final GlobalKey<MarkingDialogState> _markingDialogKey =
+      GlobalKey<MarkingDialogState>();
+  int _clientNumber = 1;
+  int _tappedIndexToEdit = -1;
+
+  final int _amountActions = 0;
+  double _newClientPersentageDiscount = 0;
+
+  /* //////////////////////// PROVIDER GETTERS //////////////////////// */
+  /* //////////////////////// PROVIDER GETTERS //////////////////////// */
+  /* //////////////////////// PROVIDER GETTERS //////////////////////// */
+  /* //////////////////////// PROVIDER GETTERS //////////////////////// */
+  Employee currentEmployee = HiveBoxes.getCurrentEmployee!;
+
+  int get getAmountOfActions => _amountActions;
+
+  int get getSelectedIndex => _index;
+
+  List<SixClientModel4> get getSixClient4List => _sixClient4List;
+
+  int get getLastAddedIndex => _currentClient.lastAddedIndex;
+
+  SixClientModel4 get getCurrentClient => _currentClient;
+
+  double get getNewClientDiscountPercentage => _newClientPersentageDiscount;
+
+  List<ReceiptModelSoldItem4> get getCurrentClientOrderedProducts =>
+      _currentClient.orderedProducts;
+      // Mavjud provider ichiga qo'shiladi
+
+
+  /* //////////////////////// PROVIDER SETTERS //////////////////////// */
+  /* //////////////////////// PROVIDER SETTERS //////////////////////// */
+  /* //////////////////////// PROVIDER SETTERS //////////////////////// */
+
+  setNewClientDiscountPercentage(double percentage) {
+    _newClientPersentageDiscount = percentage;
+    var products = _currentClient.orderedProducts;
+    double newPRICE = 0;
+    for (int i = 0; i < products.length; i++) {
+      num basePrice = ItemsSingleton.getItemBasePrice(products[i], false);
+      num onlyBasePrice = products[i].price;
+      newPRICE = (onlyBasePrice / 100) * (100 - percentage);
+      for (int n = 0; n < products[i].discount.length; n++) {
+        if (products[i].discount[n].type == "sum") {
+          products[i].discount.removeAt(n);
+        }
+      }
+      products[i].discount.add(
+            ItemsSingleton.discounter(
+                howMuch: basePrice - newPRICE,
+                quantity: 1,
+                where: DiscountFromWhere.client),
+          );
+      products[i].price = newPRICE;
+      products[i].discountPercent = (100 - (newPRICE * 100 / basePrice));
+      products[i].isPriceChanged = true;
+    }
+    _currentClient.orderedProducts = [];
+    _currentClient.orderedProducts.addAll(products);
+    notifyListeners();
+  }
+
+  bool cancelOrdering(bool access) {
+    if (_currentClient.orderedProducts.isEmpty) return true;
+    if (!access) {
+      if (!(currentEmployee.access?.deleteS ?? false)) {
+        _currentClient.orderedProducts = [];
+        _currentClient.lastAddedIndex = -1;
+        notifyListeners();
+        return true;
+      } else {
+        return false;
+      }
+    }
+    _currentClient.orderedProducts = [];
+    _currentClient.lastAddedIndex = -1;
+
+    _returnedProducts.clear();
+    _returnedFreeGiftProducts.clear();
+    _giftProducts.clear();
+    _freeGiftDialogCount = 0;
+    _showCount = {};
+    _showCountFreeGift = {};
+    DiscountSingleton.maxPrice();
+
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> onMxikError(List<NoMxikItem> v) async {
+    for (int i = 0; i < _currentClient.orderedProducts.length; i++) {
+      for (int n = 0; n < v.length; n++) {
+        if (_currentClient.orderedProducts[i].barcode == v[n].barode) {
+          _currentClient.orderedProducts[i].mxikError = true;
+          break;
+        }
+      }
+    }
+    notifyListeners();
+    return;
+  }
+
+  void removeLastAdded() {
+    bool canDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
+
+    if (canDelete) {
+      if (getLastAddedIndex >= getLastAddedIndex) {
+        _currentClient.orderedProducts[getLastAddedIndex].isDeleted = true;
+        _currentClient.lastAddedIndex = 0;
+        notifyListeners();
+        return;
+      }
+    } else {
+      try {
+        _currentClient.orderedProducts.removeAt(getLastAddedIndex);
+        _currentClient.lastAddedIndex = 0;
+        notifyListeners();
+      } catch (e) {
+        return;
+      }
+      return;
+    }
+  }
+
+  /// /// /// /// /// /// /// /// /// /// /// /// ///
+  ///                Add Products                 ///
+  /// /// /// /// /// /// /// /// /// /// /// /// ///
+
+  void addProduct(
+      {required double value,
+      required ItemModel product,
+      required String where,
+      required BuildContext context,
+      bool isTarozi = false}) async {
+    try {
+      if (_currentClient.orderedProducts.isEmpty) {
+        _returnedProducts.clear();
+        _returnedFreeGiftProducts.clear();
+        _giftProducts.clear();
+        _freeGiftDialogCount = 0;
+        _showCount = {};
+        _showCountFreeGift = {};
+
+        DiscountSingleton.maxPrice();
+      }
+
+      final isKg = _isKg(product);
+      final price =
+          ItemsSingleton.finalPrice(product, value.toInt(), isKg, isFirst: true)
+              .toDouble();
+      final isMarking = product.isMarking == true;
+
+      if (isMarking) {
+        await _handleMarkingProduct(context, product, price);
+        return;
+      } else {
+        await _handleRegularProduct(context, product, value, price, isKg);
+      }
+
+      DiscountSingleton.productId(product.id ?? '');
+
+      findFreeProducts();
+
+      _currentClient.lastAddedIndex = 0;
+      isTpEdited = false;
+      notifyListeners();
+      final loc =
+          AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
+
+// ------------------- 1. Buy X Get Y (eski dialog) -------------------
+      bool isShowOld = false;
+      if (DiscountSingleton.availableDiscount.availableProducts != null) {
+        for (var p in DiscountSingleton.availableDiscount.availableProducts!) {
+          if (p.id == product.id) {
+            if ((_showCount[product.id ?? ''] ?? 0) < 1) {
+              isShowOld = true;
+            }
+            _showCount[product.id ?? ''] = 1;
+          }
+        }
+      }
+
+      if (isShowOld && !dialogForDiscount) {
+        setDialogForDiscount(true);
+        await showGeneralDialog(
+          barrierDismissible: false,
+          context: context,
+          pageBuilder: (_, __, ___) => ContainsDiscountItemDialog(
+            provider: this,
+            returnedProduct: DiscountSingleton.availableDiscount,
+            isFirst: true,
+          ),
+        );
+      }
+
+// ------------------- 2. Buy X Get X va Free Gift (bitta dialog) -------------------
+
+      bool isShowBuyXGetX = false;
+      String buyXGetXText = "";
+
+      final potentialBuyXGetX = DiscountSingleton.getBuyXGetXDiscounts(
+        _currentClient.orderedProducts,
+        getClientGroupId,
+        forDialogOnly: true,
+      );
+
+      final actualBuyXGetX = DiscountSingleton.getBuyXGetXDiscounts(
+        _currentClient.orderedProducts,
+        getClientGroupId,
+      );
+      ReturnedGiftX? buyXGetXItem = _returnedBuyXGetX.firstWhereOrNull(
+        (g) => g.getProduct?.id == product.id,
+      );
+      if (buyXGetXItem != null) {
+        final count = _showCountFreeGift[product.id ?? ''] ?? 0;
+        if (count < 1) {
+          isShowBuyXGetX = true;
+
+          final productName =
+              buyXGetXItem.getProduct?.name ?? product.name ?? 'mahsulot';
+          final buyAmount = buyXGetXItem.buyAmount;
+          final freeAmount = buyXGetXItem.getProductAmount;
+
+          buyXGetXText = loc.ha.toLowerCase() == 'ha'
+              ? '$productName dan $buyAmount ta sotib olgani uchun,\n$freeAmount ta tekin berish kerak!'
+              : ' За каждые $buyAmount $productName  $freeAmount бесплатно';
+
+          _showCountFreeGift[product.id ?? ''] = 1;
+        }
+      }
+
+      if (isShowBuyXGetX && !dialogForDiscount) {
+        setDialogForDiscount(true);
+        await showGeneralDialog(
+          barrierDismissible: false,
+          context: AppNavigation.navigatorKey.currentContext!,
+          pageBuilder: (_, __, ___) => ContainsDiscountItemDialog2(
+            provider: this,
+            text: buyXGetXText,
+            isFirst: true,
+          ),
+        );
+      }
+      await freeGiftDialog();
+      useFreeProducts();
+      useFreeGiftProducts();
+      useBuyXGetXProducts();
+      if (_currentClient.orderedProducts.isNotEmpty &&
+          _currentClient.orderedProducts[0].isKg &&
+          !isTarozi) {
+        _tappedIndexToEdit = 0;
+        await OperationOnProduct.operationOnProductDialog(
+          context: context,
+          item: _currentClient.orderedProducts[0],
+          isClientMinimumPrice: false,
+        );
+      }
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('Error in addProduct: $e\n$stackTrace');
+      }
+    }
+  }
+  // ==================== UTILITY (KOMMUNAL) MXIK CHEK ====================
+  /// Agar savatda kommunal xizmatlar (suv, gaz, elektr va h.k.) bo‘lsa — faqat KARTA orqali to‘lov mumkin
+  bool get isCardOnlyPaymentRequired {
+    if (_currentClient.orderedProducts.isEmpty) return false;
+
+    return _currentClient.orderedProducts.any((item) {
+      final mxik = item.mxik.trim();
+  return mxik.isNotEmpty && MxikConstants.cardOnlyMxikCodes.contains(mxik);
+    });
+  }
+  Future<void> loadInvoiceByBarcodeWithBloc({
+    required String barcode,
+    required BuildContext context,
+  }) async {
+    final bloc = context.read<InvoiceBloc>();
+    bloc.add(GetInvoiceProductsEvent(invoiceId: barcode));
+
+    try {
+      await for (final state in bloc.stream) {
+        if (state is GetInvoiceProductsLoading) {
+          continue;
+        }
+
+        if (state is GetInvoiceProductsLoaded) {
+          final invoice = state.invoice;
+
+          cancelOrdering(true);
+          if (invoice.client.firstName.isNotEmpty ||
+              invoice.client.lastName.isNotEmpty) {
+            _currentClient.selectedClient = ClientModel(
+              id: invoice.client.id,
+              firstName: invoice.client.firstName,
+              lastName: invoice.client.lastName,
+              phoneNumber: "",
+              discountValue: 0,
+            );
+          }
+          Pref.setString(
+              'invoice_id_for_order', "Invoice Id: ${invoice.externalId}");
+          bool hasMissingProduct = false;
+
+          for (var item in invoice.items) {
+            final product = ItemsSingleton.getProductById(item.productId);
+            if (product == null) {
+              hasMissingProduct = true;
+              continue;
+            }
+
+            double selectedPrice = 0;
+            if (item.prices.isNotEmpty) {
+              item.prices
+                  .sort((a, b) => b.minQuantity.compareTo(a.minQuantity));
+              selectedPrice = item.prices.first.price;
+            }
+            if (selectedPrice <= 0) {
+              final isKg = product.measurementUnit?.shortName == 'кг' ||
+                  product.measurementUnit?.shortName == 'kg';
+              selectedPrice =
+                  ItemsSingleton.finalPrice(product, 1, isKg).toDouble();
+            }
+
+            final soldItem = ReceiptModelSoldItem4(
+              productId: product.id ?? '',
+              productName: item.productName,
+              barcode: product.barcode?.isNotEmpty == true
+                  ? product.barcode!.first
+                  : '',
+              sku: int.tryParse(product.sku ?? '0') ?? 0,
+              value: item.expectedAmount.toDouble(),
+              price: selectedPrice,
+              realPrice: selectedPrice,
+              onlyPrice: selectedPrice,
+              isKg: _isKg(product),
+              isDeleted: false,
+              discountPercent: 0,
+              singleDiscount: 0,
+              vatPercent: product.vat?.percentage?.toDouble() ?? 12,
+              mxik: product.mxikCode ?? '',
+              packageCode: product.packageCode ?? '',
+              marking: product.isMarking ?? false,
+              createdTime: DateTime.now().millisecondsSinceEpoch,
+              cost: item.cost,
+              ownerType: product.ownerType != null
+                  ? int.tryParse(product.ownerType!) ?? 1
+                  : 1,
+              tin: product.commissionTin ?? '',
+              soldBy: product.categories?.isNotEmpty == true
+                  ? product.categories!.first.id ?? ''
+                  : '',
+              inBox: 0,
+              vat: product.vat?.percentage?.toDouble() ?? 0,
+              vatName: product.vat?.name ?? "",
+              sellerId: "",
+            );
+
+            _currentClient.orderedProducts.insert(0, soldItem);
+          }
+
+          if (hasMissingProduct && context.mounted) {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text("POS yangilanishi kerak"),
+                content: const Text(
+                    "Ba'zi mahsulotlar sizning qurilmangizga yuklanmagan.\nPOS versiyasini yangilashingiz kerak."),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text("Ok"))
+                ],
+              ),
+            );
+          }
+
+          _currentClient.lastAddedIndex = -1;
+          notifyListeners();
+          break;
+        }
+
+        if (state is GetInvoiceProductsField) {
+          break;
+        }
+      }
+    } catch (e) {
+      print("CATCH ERROR: $e");
+    }
+  }
+
+  bool _isKg(ItemModel product) {
+    final unit = product.measurementUnit?.shortName;
+    return unit == 'кг' || unit == 'kg';
+  }
+
+  // Future<void> _handleMarkingProduct(
+  //     BuildContext context, ItemModel product, double price) async {
+  //   final isPriceZero = price <= 0;
+  //   final isMxikOrPackageInvalid = product.mxikCode?.isEmpty != false ||
+  //       product.packageCode?.isEmpty != false;
+
+  //   if (isPriceZero) {
+  //     await _showZeroPriceDialog(context);
+  //     return;
+  //   }
+
+  //   if (isMxikOrPackageInvalid) {
+  //     _currentClient.orderedProducts.removeAt(_currentClient.lastAddedIndex);
+  //     await _showMxikPackageDialog(context);
+  //   }
+
+  //   await marking(context, product);
+  //   return;
+  // }
+
+  Future<void> _handleMarkingProduct(
+      BuildContext context, ItemModel product, double price) async {
+    final isPriceZero = price <= 0;
+
+    // null yoki empty bo'lsa invalid
+    final isMxikInvalid =
+        product.mxikCode == null || product.mxikCode!.trim().isEmpty;
+    final isPackageInvalid =
+        product.packageCode == null || product.packageCode!.trim().isEmpty;
+    final isMxikOrPackageInvalid = isMxikInvalid || isPackageInvalid;
+
+    if (isPriceZero) {
+      await _showZeroPriceDialog(context);
+      return;
+    }
+
+    if (isMxikOrPackageInvalid) {
+      _currentClient.orderedProducts.removeAt(_currentClient.lastAddedIndex);
+      await _showMxikPackageDialog(context);
+      return; // ← RETURN qo'shildi, marking() ga o'tmasin
+    }
+
+    await marking(context, product);
+  }
+
+  Future<void> _handleRegularProduct(BuildContext context, ItemModel product,
+      double value, double price, bool isKg) async {
+    final existingIndex = _currentClient.orderedProducts
+        .indexWhere((e) => e.productId == product.id);
+
+    if (existingIndex != -1) {
+      await _updateExistingProduct(context, product, value, existingIndex);
+    } else {
+      await _addNewProduct(context, product, value, price, isKg);
+    }
+  }
+
+  // Future<void> _updateExistingProduct(
+  //     BuildContext context, ItemModel product, double value, int index) async {
+  //   ReceiptModelSoldItem4 soldItem =
+  //       _currentClient.orderedProducts.removeAt(index);
+  //   final newValue = double.parse((soldItem.value + value).toStringAsFixed(2));
+  //
+  //   int priceValue = newValue.toInt();
+  //   if (soldItem.singleDiscount > 0) {
+  //     priceValue = 1;
+  //   }
+  //   final newPrice =
+  //       ItemsSingleton.finalPrice(product, priceValue, soldItem.isKg)
+  //           .toDouble();
+  //
+  //   soldItem.value = newValue;
+  //
+  //   if (!soldItem.isPriceOnlyChanged) {
+  //     soldItem.price = newPrice;
+  //     soldItem.onlyPrice = newPrice;
+  //   }
+  //   soldItem.realPrice = newPrice;
+  //
+  //   _applyDiscounts(product, soldItem);
+  //
+  //   if (await _checkAndShowDialogsIfNeeded(context, soldItem)) return;
+  //
+  //   _currentClient.orderedProducts.insert(0, soldItem);
+  // }
+  Future<void> _updateExistingProduct(
+      BuildContext context, ItemModel product, double value, int index) async {
+    ReceiptModelSoldItem4 soldItem =
+        _currentClient.orderedProducts.removeAt(index);
+
+    final newValue = double.parse((soldItem.value + value).toStringAsFixed(2));
+
+    int priceValue = newValue.toInt();
+    if (soldItem.singleDiscount > 0) {
+      priceValue = 1;
+    }
+
+    double newPrice;
+
+    if (soldItem.isPriceOnlyChanged) {
+      newPrice = soldItem.onlyPrice;
+    } else {
+      newPrice = ItemsSingleton.finalPrice(product, priceValue, soldItem.isKg)
+          .toDouble();
+    }
+    soldItem.value = newValue;
+
+    if (!soldItem.isPriceOnlyChanged) {
+      soldItem.price = newPrice;
+      soldItem.onlyPrice = newPrice;
+      soldItem.realPrice = newPrice;
+    }
+    // ← BU QISM TUGADI ↑
+
+    _applyDiscounts(product, soldItem);
+
+    if (await _checkAndShowDialogsIfNeeded(context, soldItem)) return;
+
+    _currentClient.orderedProducts.insert(0, soldItem);
+  }
+
+  Future<void> _addNewProduct(BuildContext context, ItemModel product,
+      double value, double price, bool isKg) async {
+    double val = double.parse(
+        value % 1 == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(3));
+
+    ReceiptModelSoldItem4 soldItem = _createSoldItem(product, price, val, isKg);
+
+    _applyDiscounts(product, soldItem);
+
+    if (await _checkAndShowDialogsIfNeeded(context, soldItem)) return;
+
+    _currentClient.orderedProducts.insert(0, soldItem);
+  }
+
+  // void _applyDiscounts(ItemModel product, ReceiptModelSoldItem4 soldItem) {
+  //   final categoryId = product.categories?.isNotEmpty == true
+  //       ? product.categories![0].id ?? ''
+  //       : '';
+  //   soldItem = DiscountSingleton.addDiscountOnProduct(
+  //       soldItem, categoryId, getClientGroupId);
+  //
+  //   if (_newClientPersentageDiscount > 0 &&
+  //       _newClientPersentageDiscount <= 100) {
+  //     final newPrice =
+  //         soldItem.price * (1 - _newClientPersentageDiscount / 100);
+  //     soldItem.price = newPrice;
+  //     soldItem.discountPercent = 100 - (newPrice * 100 / soldItem.onlyPrice);
+  //   }
+  // }
+  void _applyDiscounts(ItemModel product, ReceiptModelSoldItem4 soldItem) {
+    // Agar narx qo'lda o'zgartirilgan bo'lsa — discount qo'shma
+    if (soldItem.isPriceOnlyChanged) return;
+
+    final categoryId = product.categories?.isNotEmpty == true
+        ? product.categories![0].id ?? ''
+        : '';
+    soldItem = DiscountSingleton.addDiscountOnProduct(
+        soldItem, categoryId, getClientGroupId);
+
+    if (_newClientPersentageDiscount > 0 &&
+        _newClientPersentageDiscount <= 100) {
+      final newPrice =
+          soldItem.price * (1 - _newClientPersentageDiscount / 100);
+      soldItem.price = newPrice;
+      soldItem.discountPercent = 100 - (newPrice * 100 / soldItem.onlyPrice);
+    }
+  }
+
+  Future<bool> _checkAndShowDialogsIfNeeded(
+      BuildContext context, ReceiptModelSoldItem4 soldItem) async {
+    final isPriceZero = soldItem.price <= 0;
+    final isMxikOrPackageInvalid =
+        soldItem.mxik.isEmpty || soldItem.packageCode?.isEmpty != false;
+
+    if (soldItem.value <= 0) {
+      final loc = AppLocalizations.of(context)!;
+      await showGeneralDialog(
+        barrierDismissible: false,
+        context: context,
+        pageBuilder: (_, __, ___) => ContainsZeroPriceItemDialog(
+          provider: this,
+          text: loc.ha == 'Ha'
+              ? '0 kg mahsulotni sotish mumkin emas.'
+              : '0 кг продукта не может быть продано.',
+        ),
+      );
+      return true;
+    }
+
+    if (isPriceZero) {
+      await _showZeroPriceDialog(context);
+    }
+
+    if (isMxikOrPackageInvalid) {
+      await _showMxikPackageDialog(context);
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<void> _showZeroPriceDialog(BuildContext context) async {
+    await showGeneralDialog(
+      barrierDismissible: false,
+      context: context,
+      pageBuilder: (_, __, ___) => ContainsZeroPriceItemDialog(
+        provider: this,
+        delete: false,
+      ),
+    );
+  }
+
+  Future<void> _showMxikPackageDialog(BuildContext context) async {
+    await showGeneralDialog(
+      barrierDismissible: false,
+      context: context,
+      pageBuilder: (_, __, ___) =>
+          ContainsNoMxikPackageItemDialogg(provider: this),
+    );
+  }
+
+  ReceiptModelSoldItem4 _createSoldItem(
+      ItemModel product, double price, double value, bool isKg) {
+    return ReceiptModelSoldItem4(
+      inBox: 0,
+      tin: product.commissionTin ?? '',
+      isDeleted: false,
+      marking: product.isMarking ?? false,
+      soldBy: product.categories?.isNotEmpty == true
+          ? product.categories![0].id ?? ''
+          : '',
+      cost: product.shopPrices?.shID?.supplyPrice?.toDouble() ?? 0,
+      createdTime: DateTime.now().millisecondsSinceEpoch,
+      price: price,
+      realPrice: price,
+      singleDiscount: 0,
+      value: value,
+      ownerType: int.tryParse(product.ownerType ?? '1') ?? 1,
+      onlyPrice: price,
+      productId: product.id ?? '',
+      productName: product.name ?? '',
+      packageCode: product.packageCode ?? '',
+      packageName: product.packageName ?? '',
+      barcode:
+          product.barcode?.isNotEmpty == true ? product.barcode!.first : '',
+      sku: int.tryParse(product.sku ?? '0') ?? 0,
+      vat: price == 0
+          ? 0
+          : (price * (product.vat?.percentage ?? 12)) /
+              (100 + (product.vat?.percentage ?? 12)),
+      mxik: product.mxikCode ?? '',
+      sellerId: Pref.getString(PrefKeys.cashierId, ''),
+      vatName: product.vat?.name ?? '',
+      discountPercent: 0,
+      vatPercent: (product.vat?.percentage ?? 12).toDouble(),
+      isKg: isKg,
+    );
+  }
+
+  Map<String, int> _showCount = {};
+  Map<String, int> _showCountFreeGift = {};
+
+  Map<String, ReturnedProduct> _returnedProducts = {};
+
+  List<ReturnedGift> _returnedFreeGiftProducts = [];
+  List<ReturnedGiftX> _returnedBuyXGetX = [];
+  Map<String, String> _giftProducts = {};
+
+  int _freeGiftDialogCount = 0;
+
+  void findFreeProducts() {
+    _findFreeGiftProducts();
+    _findBuyXGetXProducts();
+
+    final returnedProducts = DiscountSingleton.buyXGetYOrFreeGifts(
+          _currentClient.orderedProducts,
+          getClientGroupId,
+          0,
+          false,
+        ) ??
+        [];
+
+    if (returnedProducts == null || returnedProducts.isEmpty) return;
+
+    for (final product in returnedProducts) {
+      final discountId = product.discountId;
+      if (discountId != null) {
+        _returnedProducts[discountId] = product;
+      }
+    }
+  }
+
+  void _findFreeGiftProducts() {
+    List<ReturnedGift> returned = DiscountSingleton.buyXGetYOrFreeGifts(
+          _currentClient.orderedProducts,
+          getClientGroupId,
+          _totalPriceForAllProduct(),
+          true,
+        ) ??
+        [];
+    if (returned.isNotEmpty) _returnedFreeGiftProducts = returned;
+  }
+
+  void _findBuyXGetXProducts() {
+    final buyXGetXList = DiscountSingleton.getBuyXGetXDiscounts(
+      _currentClient.orderedProducts,
+      getClientGroupId,
+    );
+
+    if (buyXGetXList.isNotEmpty) {
+      _returnedBuyXGetX = buyXGetXList;
+      _returnedBuyXGetX.forEach(
+        (element) {},
+      );
+    } else {
+      _returnedBuyXGetX = [];
+    }
+  }
+
+  void useFreeProducts() {
+    if (_returnedProducts.isEmpty) return;
+
+    final orderedProducts = _currentClient.orderedProducts;
+
+    for (final returnedProduct in _returnedProducts.values) {
+      final mustQty = returnedProduct.mustProductQuantity ?? 0;
+      final availableProducts = returnedProduct.availableProducts;
+      final returnedProductId = returnedProduct.returnedProductId;
+      final returnedProductQty =
+          returnedProduct.returnedProductQuantity?.toDouble() ?? 0;
+
+      if (availableProducts == null || availableProducts.isEmpty) continue;
+
+      final matchedCount = availableProducts
+          .where((productToBuy) => orderedProducts.any((orderedProduct) =>
+              orderedProduct.productId == productToBuy.id &&
+              orderedProduct.value >= mustQty &&
+              !orderedProduct.isPriceChanged &&
+              !orderedProduct.isPriceOnlyChanged))
+          .length;
+
+      if (matchedCount == availableProducts.length) {
+        for (var orderedProduct in orderedProducts) {
+          if (orderedProduct.productId != returnedProductId) continue;
+          if (orderedProduct.isPriceOnlyChanged ||
+              orderedProduct.isPriceChanged) continue;
+
+          final isSameProduct = availableProducts.isNotEmpty &&
+              availableProducts[0].id == returnedProductId;
+
+          if (isSameProduct) {
+            final effectiveFree = returnedProductQty;
+
+            if (effectiveFree > 0) {
+              final paidQty = orderedProduct.value - effectiveFree;
+
+              if (paidQty >= 0) {
+                orderedProduct.price =
+                    (orderedProduct.realPrice * paidQty) / orderedProduct.value;
+                orderedProduct.discountPercent = 100 -
+                    (orderedProduct.price / orderedProduct.realPrice * 100);
+                orderedProduct.singleDiscount =
+                    orderedProduct.realPrice - orderedProduct.price;
+                orderedProduct.discount.clear();
+
+                final discountModel = ProductDiscountModel(
+                  idd: returnedProduct.discountId ?? '',
+                  typeId: returnedProduct.discountGroupType ?? '',
+                  typeName: '',
+                  name: returnedProduct.discountName ?? '',
+                  value: orderedProduct.discountPercent ?? 0,
+                  total: (orderedProduct.singleDiscount * orderedProduct.value)
+                      .toInt()
+                      .toDouble(),
+                );
+
+                final existing = orderedProduct.productDiscount
+                    .any((e) => e.idd == discountModel.idd);
+
+                if (!existing) {
+                  orderedProduct.productDiscount.add(discountModel);
+                }
+
+                orderedProduct =
+                    DiscountSingleton.addDiscountForProduct(orderedProduct);
+
+                orderedProduct = _addDiscountForReceipt(
+                  orderedProduct,
+                  discountModel.name,
+                  discountModel.idd,
+                  discountModel.typeId,
+                );
+              } else {
+                orderedProduct
+                  ..price = 0
+                  ..discountPercent = 100
+                  ..singleDiscount = orderedProduct.onlyPrice
+                  ..discount.clear()
+                  ..value = effectiveFree;
+
+                // discountModel qo'shish...
+              }
+            } else {
+              // Chegirma yo'q — reset
+              orderedProduct
+                ..price = orderedProduct.realPrice
+                ..discountPercent = 0
+                ..singleDiscount = 0
+                ..discount.clear()
+                ..productDiscount
+                    .removeWhere((e) => e.idd == returnedProduct.discountId);
+            }
+          } else if (availableProducts.isNotEmpty ||
+              availableProducts[0].id != returnedProductId) {
+            if (orderedProduct.isPriceOnlyChanged &&
+                orderedProduct.isPriceChanged) continue;
+            final effectiveFree = returnedProductQty;
+            if (effectiveFree > 0) {
+              final paidQty = orderedProduct.value - effectiveFree;
+              if (paidQty >= 0) {
+                orderedProduct.price =
+                    (orderedProduct.realPrice * paidQty) / orderedProduct.value;
+                orderedProduct.discountPercent = 100 -
+                    (orderedProduct.price / orderedProduct.realPrice * 100);
+                orderedProduct.singleDiscount =
+                    orderedProduct.realPrice - orderedProduct.price;
+                orderedProduct.discount.clear();
+
+                final discountModel = ProductDiscountModel(
+                  idd: returnedProduct.discountId ?? '',
+                  typeId: returnedProduct.discountGroupType ?? '',
+                  typeName: '',
+                  name: returnedProduct.discountName ?? '',
+                  value: orderedProduct.discountPercent ?? 0,
+                  total: (orderedProduct.singleDiscount * orderedProduct.value)
+                      .toInt()
+                      .toDouble(),
+                );
+
+                final existing = orderedProduct.productDiscount
+                    .any((e) => e.idd == discountModel.idd);
+                if (!existing) {
+                  orderedProduct.productDiscount.add(discountModel);
+                }
+
+                orderedProduct =
+                    DiscountSingleton.addDiscountForProduct(orderedProduct);
+                orderedProduct = _addDiscountForReceipt(
+                  orderedProduct,
+                  discountModel.name,
+                  discountModel.idd,
+                  discountModel.typeId,
+                );
+              }
+            }
+          }
+        }
+      } else {
+        for (final orderedProduct in orderedProducts) {
+          if (orderedProduct.productId != returnedProductId) continue;
+          if (orderedProduct.isPriceOnlyChanged ||
+              orderedProduct.isPriceChanged) continue;
+          orderedProduct
+            ..discountPercent = 0
+            ..price = orderedProduct.realPrice
+            ..onlyPrice = orderedProduct.realPrice
+            ..singleDiscount = 0
+            ..discount.clear()
+            ..productDiscount
+                .removeWhere((e) => e.idd == returnedProduct.discountId);
+        }
+      }
+    }
+
+    _freeGiftDialogCount = 0;
+    _currentClient.orderedProducts = orderedProducts;
+  }
+
+  void useFreeGiftProducts() {
+    if (_returnedFreeGiftProducts.isEmpty) {
+      final orderedProducts = _currentClient.orderedProducts;
+
+      for (ReceiptModelSoldItem4 item in orderedProducts) {
+        if (item.isPriceOnlyChanged) continue;
+        if (_giftProducts.containsKey(item.productId) &&
+            item.price != item.realPrice) {
+          _resetItemDiscount(item);
+        }
+      }
+      _currentClient.orderedProducts = orderedProducts;
+      return;
+    }
+
+    final orderedProducts = _currentClient.orderedProducts;
+
+    for (ReturnedGift gift in _returnedFreeGiftProducts) {
+      for (ReceiptModelSoldItem4 item in orderedProducts) {
+        if (_giftProducts.containsKey(item.productId) &&
+            _giftProducts[item.productId].toString() != gift.discountId &&
+            item.price != item.realPrice) {
+          _resetItemDiscount(item);
+        } else {
+          if (item.productId == gift.getProduct?.id &&
+              !item.isPriceOnlyChanged &&
+              !item.isPriceChanged) {
+            num totalPrice = _totalPriceForAllProduct();
+            num value = 0;
+            for (int i = 1; i <= item.value.toInt(); i++) {
+              if (totalPrice - item.price > gift.buyAmount) {
+                totalPrice -= item.price;
+                value++;
+              }
+            }
+
+            if (value > 0) {
+              final giftAmount = gift.getProductAmount.toDouble();
+              final totalAmount = item.value.toDouble();
+              final usedGiftAmount = value.toDouble();
+
+              final effectiveGift = (giftAmount >= usedGiftAmount)
+                  ? usedGiftAmount
+                  : giftAmount.clamp(0, totalAmount);
+
+              final ratio = (totalAmount - effectiveGift) / totalAmount;
+
+              _giftProducts[item.productId] = gift.discountId ?? '';
+
+              item
+                ..price = item.realPrice * ratio
+                ..discountPercent = 100 - (ratio * 100)
+                ..singleDiscount = item.realPrice - item.price;
+
+              item = DiscountSingleton.addDiscountForProduct(item);
+
+              item = _addDiscountForReceipt(item, gift.discountName ?? '',
+                  gift.discountId ?? '', gift.discountGroupType ?? '');
+            }
+          }
+        }
+      }
+    }
+
+    _currentClient.orderedProducts = orderedProducts;
+  }
+
+  void useBuyXGetXProducts() {
+    if (_returnedBuyXGetX.isEmpty) {
+      return;
+    }
+    final orderedProducts = _currentClient.orderedProducts;
+
+    for (ReturnedGiftX gift in _returnedBuyXGetX) {
+      for (ReceiptModelSoldItem4 item in orderedProducts) {
+        if (item.isPriceOnlyChanged) continue;
+        if (_giftProducts.containsKey(item.productId) &&
+            _giftProducts[item.productId].toString() != gift.discountId &&
+            item.price != item.realPrice) {
+          _resetItemDiscount(item);
+        } else {
+          if (item.productId == gift.getProduct?.id &&
+              !item.isPriceOnlyChanged &&
+              !item.isPriceChanged) {
+            num freeQty = gift.getProductAmount;
+
+            if (freeQty > 0) {
+              final totalAmount = item.value.toDouble();
+              final effectiveGift =
+                  (freeQty >= totalAmount) ? totalAmount : freeQty.toDouble();
+              final ratio = (totalAmount - effectiveGift) / totalAmount;
+
+              _giftProducts[item.productId] = gift.discountId ?? '';
+
+              item
+                ..price = item.realPrice * ratio
+                ..discountPercent = 100 - (ratio * 100)
+                ..singleDiscount = item.realPrice - item.price;
+
+              item = DiscountSingleton.addDiscountForProduct(item);
+
+              item = _addDiscountForReceipt(item, gift.discountName ?? '',
+                  gift.discountId ?? '', gift.discountGroupType ?? '');
+            }
+          }
+        }
+      }
+    }
+
+    _currentClient.orderedProducts = orderedProducts;
+  }
+
+  void _resetItemDiscount(ReceiptModelSoldItem4 item) {
+    _freeGiftDialogCount = 0;
+    _showCount = {};
+    _showCountFreeGift = {};
+
+    item
+      ..price = item.realPrice
+      ..discountPercent = 0
+      ..singleDiscount = 0
+      ..discount.clear()
+      ..productDiscount.clear();
+  }
+
+  ReceiptModelSoldItem4 _addDiscountForReceipt(ReceiptModelSoldItem4 item,
+      String discountName, String discountId, String discountGroupType) {
+    ProductDiscountModel productDiscountModel = ProductDiscountModel(
+      idd: discountId,
+      typeId: discountGroupType,
+      typeName: discountName,
+      name: discountName,
+      value: item.singleDiscount,
+      total: 0,
+    );
+    if (item.value == 1) {
+      item.productDiscount.add(productDiscountModel);
+    } else if (item.value > 1) {
+      item.productDiscount
+          .removeWhere((e) => e.idd == productDiscountModel.idd);
+      item.productDiscount.add(productDiscountModel);
+    }
+    return item;
+  }
+
+  num _totalPriceForAllProduct() => _currentClient.orderedProducts
+      .fold(0, (sum, p) => sum + p.price * p.value);
+
+  bool isMarkingDialogDisplaying = false;
+  bool isMarkingChecking = false;
+
+  marking(BuildContext context, ItemModel item) async {
+    bool isKg = false;
+    if (item.measurementUnit != null &&
+        item.measurementUnit!.shortName != null &&
+        (item.measurementUnit!.shortName! == 'кг' ||
+            item.measurementUnit!.shortName! == 'kg')) {
+      isKg = true;
+    }
+
+    double price = ItemsSingleton.finalPrice(item, 1, isKg).toDouble();
+
+    if (item.mark == null || item.mark!.isEmpty) {
+      if (!isMarkingDialogDisplaying) {
+        isMarkingDialogDisplaying = true;
+        await showDialog(
+            barrierDismissible: false,
+            context: context,
+            builder: (context) {
+              return MarkingDialog(
+                key: _markingDialogKey,
+                price: price.toString(),
+                name: item.name.toString(),
+                onSubmitted: (v) async {
+                  if (v.isNotEmpty && v.length > 15) {
+                    AppNavigation.pop();
+                    AppNavigation.pop();
+                    isMarkingDialogDisplaying = false;
+                    isMarkingDialogDisplaying = false;
+
+                    if (v.isNotEmpty && v.length > 15) {
+                      v = _markirovka(v);
+                      await _markingCheck(item, v, context);
+                    } else {
+                      return;
+                    }
+                  }
+                },
+                onAddButtonPressed: (v) async {
+                  if (v.isNotEmpty && v.length > 15) {
+                    isMarkingDialogDisplaying = false;
+                    v = _markirovka(v);
+
+                    AppNavigation.pop();
+
+                    await _markingCheck(item, v, context);
+                  }
+                },
+                onCancelButtonPressed: () {
+                  isMarkingDialogDisplaying = false;
+                  AppNavigation.pop();
+                  AppNavigation.pop();
+                },
+              );
+            });
+        isMarkingDialogDisplaying = false;
+        isMarkingDialogDisplaying = false;
+        notifyListeners();
+      } else {
+        return;
+      }
+    } else {
+      await _markingCheck(item, item.mark ?? '', context);
+    }
+  }
+
+  String _markirovka(String v) {
+    String v2 = v;
+    if (v.startsWith('01') && v.length > 29) {
+      if (v.contains('21')) {
+        v2 = '';
+        v2 += '${v.split('21')[0]}21';
+        String s = v.split('21')[1];
+        if (s.contains('91')) {
+          v2 += s.split('91')[0];
+        } else if (s.contains('92')) {
+          v2 += s.split('92')[0];
+        } else if (s.contains('93')) {
+          v2 += s.split('93')[0];
+        } else if (s.contains('94')) {
+          v2 += s.split('94')[0];
+        } else if (s.contains('95')) {
+          v2 += s.split('95')[0];
+        } else if (s.contains('96')) {
+          v2 += s.split('96')[0];
+        } else if (s.contains('97')) {
+          v2 += s.split('97')[0];
+        } else if (s.contains('98')) {
+          v2 += s.split('98')[0];
+        } else if (s.contains('99')) {
+          v2 += s.split('99')[0];
+        }
+      }
+    } else if (v.length == 29) {
+      v2 = v2.substring(0, 21);
+    }
+    return v2;
+  }
+
+  bool isLoading = false;
+
+  bool dialogForMark = false;
+
+  void setDialogForMark(bool value) {
+    dialogForMark = value;
+    notifyListeners();
+  }
+
+  bool dialogForDiscount = false;
+
+  void setDialogForDiscount(bool value) {
+    dialogForDiscount = value;
+    notifyListeners();
+  }
+
+  Future<void> _markingCheck(
+      ItemModel item, String v, BuildContext context) async {
+    if (!dialogForMark) {
+      item.mark = v;
+      AppLocalizations loc = AppLocalizations.of(context)!;
+      String? gtinFromMark;
+      final m1 = RegExp(r'\(01\)(\d{13,14})').firstMatch(v);
+      if (m1 != null) {
+        gtinFromMark = m1.group(1)!.replaceFirst(RegExp(r'^0+'), '');
+      }
+
+      if (gtinFromMark == null && v.startsWith('01') && v.length > 16) {
+        final m2 = RegExp(r'^01(\d{14})').firstMatch(v);
+        if (m2 != null) {
+          gtinFromMark = m2.group(1)!.replaceFirst(RegExp(r'^0+'), '');
+        }
+      }
+      if (gtinFromMark != null) {
+        final productBarcodes = item.barcode ?? [];
+        final barcodeMatches = productBarcodes
+            .any((b) => b.replaceFirst(RegExp(r'^0+'), '') == gtinFromMark);
+
+        if (!barcodeMatches) {
+          if (!dialogForMark) {
+            dialogForMark = true;
+            await showGeneralDialog(
+              barrierDismissible: false,
+              context: AppNavigation.navigatorKey.currentContext!,
+              pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
+                text: loc.ha.toLowerCase() == 'ha'
+                    ? 'Noto\'g\'ri markirovka! Bu markirovka boshqa mahsulotga tegishli.'
+                    : 'Неверная маркировка! Эта маркировка принадлежит другому товару.',
+                text2: 'Ok',
+                delete: false,
+                isFirst: true,
+                provider: this,
+              ),
+            ).then((value) {});
+            dialogForMark = false;
+          }
+          return;
+        }
+
+        // ─── EXPIRY DATE TEKSHIRUV ────────────────────────────
+        DateTime? expiryDate;
+
+        // Qavsli format
+        final ai17 = RegExp(r'\(17\)(\d{6})').firstMatch(v);
+        if (ai17 != null) expiryDate = _parseGS1Date(ai17.group(1)!);
+
+        // Qavsiz: 01 + 14 raqamdan keyin kelgan qismdan qidirish
+        if (expiryDate == null && v.startsWith('01') && v.length > 16) {
+          final clean = v.replaceAll(RegExp(r'[\x1D\x1C\x1E]'), '');
+          final rest = clean.substring(16);
+          final ai17rest = RegExp(r'^17(\d{6})').firstMatch(rest);
+          if (ai17rest != null) expiryDate = _parseGS1Date(ai17rest.group(1)!);
+
+          if (expiryDate == null) {
+            final ai15rest = RegExp(r'^15(\d{6})').firstMatch(rest);
+            if (ai15rest != null)
+              expiryDate = _parseGS1Date(ai15rest.group(1)!);
+          }
+        }
+
+        // Qavsli AI 15
+        if (expiryDate == null) {
+          final ai15 = RegExp(r'\(15\)(\d{6})').firstMatch(v);
+          if (ai15 != null) expiryDate = _parseGS1Date(ai15.group(1)!);
+        }
+
+        if (expiryDate != null) {
+          final today = DateTime(
+              DateTime.now().year, DateTime.now().month, DateTime.now().day);
+          if (expiryDate.isBefore(today)) {
+            if (!dialogForMark) {
+              dialogForMark = true;
+              await showGeneralDialog(
+                barrierDismissible: false,
+                context: AppNavigation.navigatorKey.currentContext!,
+                pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
+                  text: loc.ha.toLowerCase() == 'ha'
+                      ? 'Bu mahsulotning muddati tugagan!'
+                      : 'Срок годности этого товара истёк!',
+                  text2: 'Ok',
+                  delete: false,
+                  isFirst: true,
+                  provider: this,
+                ),
+              ).then((value) {});
+              dialogForMark = false;
+            }
+            return; // ← if (!dialogForMark) dan TASHQARIDA
+          }
+        }
+        // ──────────────────────────────────────────────────────
+      }
+
+      if (!Pref.getBool('validation_onkm', false)) {
+        final existingWithMark = _currentClient.orderedProducts.indexWhere(
+          (e) =>
+              e.productId == item.id &&
+              e.mark != null &&
+              e.mark!.isNotEmpty &&
+              e.mark == v,
+        );
+
+        final existingNoMark = _currentClient.orderedProducts.indexWhere(
+          (e) => e.productId == item.id && (e.mark == null || e.mark!.isEmpty),
+        );
+
+        if (existingWithMark != -1) {
+          if (!dialogForMark) {
+            dialogForMark = true;
+            await showGeneralDialog(
+              barrierDismissible: false,
+              context: AppNavigation.navigatorKey.currentContext!,
+              pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
+                text: loc.ha.toLowerCase() == 'ha'
+                    ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
+                    : 'Этот отмеченный продукт уже был добавлен ранее!',
+                text2: 'Ok',
+                delete: false,
+                isFirst: true,
+                provider: this,
+              ),
+            ).then((value) {});
+            dialogForMark = false;
+          }
+        } else if (existingNoMark != -1) {
+          _currentClient.orderedProducts[existingNoMark].mark = v;
+          notifyListeners();
+        } else {
+          addSeperatedProduct(item..mark = v);
+        }
+        return;
+      }
+
+      bool hasInternet = await InternetConnectionChecker().hasConnection;
+
+      if (hasInternet) {
+        if (Pref.getBool(PrefKeys.markCheckWithOfd, false)) {
+          try {
+            final headers = {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization':
+                  'Basic cmVhY3RNYXJraW5nVXNlcjpkM0BUNypacEwhYU4kOW1R'
+            };
+            final body = {
+              "ownerTin": Pref.getString(PrefKeys.organizationINN, ''),
+              "refund": 0,
+              "products": [
+                {
+                  "kmIds": [item.mark],
+                  "commitentTin": item.commissionTin,
+                  "productCode": item.mxikCode,
+                  "packageCode": item.packageCode,
+                  "amount": 1
+                }
+              ]
+            };
+
+            isLoading = true;
+            notifyListeners();
+
+            http.Response response = await http.post(
+              Uri.parse(
+                  "https://tasnif.soliq.uz/api/cl-api/marking/validation-onkm"),
+              body: jsonEncode(body),
+              headers: headers,
+            );
+            print(response.body);
+            print(response.statusCode);
+
+            HttpResult httpResult = HttpResult(
+                statusCode: 1, isSuccess: false, result: null, reBytes: null);
+
+            if (response.statusCode == 200) {
+              httpResult = HttpResult(
+                statusCode: response.statusCode,
+                isSuccess: true,
+                result: jsonDecode(utf8.decode(response.bodyBytes)),
+                reBytes: null,
+              );
+            } else if (response.statusCode == 500) {
+              final alreadyExists = _currentClient.orderedProducts.any(
+                (e) => e.productId == item.id && e.mark != null && e.mark == v,
+              );
+              if (alreadyExists) {
+                if (!dialogForMark) {
+                  dialogForMark = true;
+                  await showGeneralDialog(
+                    barrierDismissible: false,
+                    context: AppNavigation.navigatorKey.currentContext!,
+                    pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
+                      text: loc.ha.toLowerCase() == 'ha'
+                          ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
+                          : 'Этот отмеченный продукт уже был добавлен ранее!',
+                      text2: 'Ok',
+                      delete: false,
+                      isFirst: true,
+                      provider: this,
+                    ),
+                  ).then((value) {});
+                  dialogForMark = false; // ← reset
+                }
+              } else {
+                addSeperatedProduct(item..mark = v);
+              }
+            }
+            isLoading = false;
+            notifyListeners();
+
+            if (httpResult.isSuccess) {
+              if (httpResult.result['success']) {
+                final alreadyExists = _currentClient.orderedProducts.any(
+                  (e) =>
+                      e.productId == item.id && e.mark != null && e.mark == v,
+                );
+
+                if (alreadyExists) {
+                  if (!dialogForMark) {
+                    dialogForMark = true;
+                    await showGeneralDialog(
+                      barrierDismissible: false,
+                      context: AppNavigation.navigatorKey.currentContext!,
+                      pageBuilder: (f, d, context) {
+                        return ContainsZeroPriceItemDialog(
+                          text: loc.ha.toLowerCase() == 'ha'
+                              ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
+                              : 'Этот отмеченный продукт уже был добавлен ранее!',
+                          text2: 'Ok',
+                          delete: false,
+                          isFirst: true,
+                          provider: this,
+                        );
+                      },
+                    ).then((value) {});
+                    dialogForMark = false;
+                  }
+                } else {
+                  addSeperatedProduct(item..mark = v);
+                }
+              } else {
+                // Soliq noto'g'ri dedi
+                if (!dialogForMark) {
+                  dialogForMark = true;
+                  await showGeneralDialog(
+                    barrierDismissible: false,
+                    context: AppNavigation.navigatorKey.currentContext!,
+                    pageBuilder: (f, d, context) {
+                      return ContainsZeroPriceItemDialog(
+                        text: loc.ha.toLowerCase() == 'ha'
+                            ? httpResult.result['messageLat']
+                            : httpResult.result['messageRu'],
+                        text2: 'Ok',
+                        provider: this,
+                        delete: false,
+                        isFirst: true,
+                      );
+                    },
+                  ).then((value) {});
+                  dialogForMark = false; // ← reset
+                }
+              }
+            }
+          } catch (e) {
+            if (!dialogForMark) {
+              dialogForMark = true;
+              await showGeneralDialog(
+                  barrierDismissible: false,
+                  context: AppNavigation.navigatorKey.currentContext!,
+                  pageBuilder: (f, d, context) {
+                    return ContainsZeroPriceItemDialog(
+                      text: e.toString(),
+                      text2: 'Ok',
+                      provider: this,
+                      delete: false,
+                      isFirst: true,
+                    );
+                  }).then((value) {});
+            }
+          }
+        } else {
+          int i = _currentClient.orderedProducts.indexWhere(
+            (e) => e.productId == item.id && e.mark == item.mark,
+          );
+          if (i == -1) {
+            addSeperatedProduct(item..mark = v);
+          } else {
+            if (!dialogForMark) {
+              setDialogForMark(true);
+              dialogForMark = true;
+              await showGeneralDialog(
+                  barrierDismissible: false,
+                  context: AppNavigation.navigatorKey.currentContext!,
+                  pageBuilder: (f, d, context) {
+                    return ContainsZeroPriceItemDialog(
+                      text: loc.ha.toLowerCase() == 'ha'
+                          ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
+                          : 'Этот отмеченный продукт уже был добавлен ранее!',
+                      text2: 'Ok',
+                      delete: false,
+                      provider: this,
+                      isFirst: true,
+                    );
+                  }).then((value) {});
+            }
+          }
+        }
+      } else {
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!dialogForMark) {
+          dialogForMark = true;
+          await showGeneralDialog(
+              barrierDismissible: false,
+              context: AppNavigation.navigatorKey.currentContext!,
+              pageBuilder: (f, d, context) {
+                return ContainsZeroPriceItemDialog(
+                  text: loc.ha.toLowerCase() == 'ha'
+                      ? "Hurmatli tadbirkor!\nSizning kassangiz hozirda oflayn-rejimda ishlamoqda."
+                          "\nSizdan tovarlarni sotish jarayonida raqamli markirovka qoidalariga qat'iy rioya etishingizni so'raymiz."
+                          "\nBelgilangan talablarga amal qilmaslik amaldagi normativ-huquqiy hujjatlarga muvofiq javobgarlikka sabab bo'lishi mumkin."
+                          "\nSiz internet tarmog'iga ulanmasdan operatsiyani amalga oshirishingizni tasdiqlaysizmi?"
+                      : "Уважаемый предприниматель!\nВаша касса в настоящее время работает в автономном режиме."
+                          "\nПросим вас строго соблюдать правила цифровой маркировки при продаже товаров."
+                          "\nНесоблюдение указанных требований может повлечь за собой ответственность в соответствии с действующими нормативными правовыми актами."
+                          "\nПодтверждаете ли вы, что будете осуществлять операции без подключения к сети Интернет?",
+                  text2: loc.ha.toLowerCase() == 'ha'
+                      ? 'Tasdiqlayman'
+                      : 'Подтверждаю',
+                  provider: this,
+                  delete: false,
+                  size: true,
+                  isFirst: true,
+                );
+              }).then((value) {});
+        }
+        int i = _currentClient.orderedProducts.indexWhere(
+          (e) => e.productId == item.id && e.mark == item.mark,
+        );
+        if (i == -1) {
+          addSeperatedProduct(item..mark = v);
+        } else {
+          if (!dialogForMark) {
+            dialogForMark = true;
+            await showGeneralDialog(
+                barrierDismissible: false,
+                context: AppNavigation.navigatorKey.currentContext!,
+                pageBuilder: (f, d, context) {
+                  return ContainsZeroPriceItemDialog(
+                    text: loc.ha.toLowerCase() == 'ha'
+                        ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
+                        : 'Этот отмеченный продукт уже был добавлен ранее!',
+                    text2: 'Ok',
+                    delete: false,
+                    provider: this,
+                    isFirst: true,
+                  );
+                }).then((value) {});
+          }
+        }
+      }
+    }
+  }
+
+  addSeperatedProduct(ItemModel product) async {
+    final freshProduct =
+        ItemsSingleton.getProductById(product.id ?? '') ?? product;
+
+    bool isKg = freshProduct.measurementUnit?.shortName == 'кг' ||
+        freshProduct.measurementUnit?.shortName == 'kg';
+
+    final markValue = product.mark;
+
+    // Basketdagi shu productlar soni + 1 (yangi qo'shilayotgan)
+    final existingCount = _currentClient.orderedProducts
+        .where((e) => e.productId == freshProduct.id && !(e.isDeleted ?? false))
+        .length;
+    final totalCount = existingCount + 1;
+
+    // totalCount bo'yicha narx olish
+    double price =
+        ItemsSingleton.finalPrice(freshProduct, totalCount, isKg).toDouble();
+
+    // Agar narx 0 bo'lsa 1talik narxini ol
+    if (price <= 0) {
+      price = ItemsSingleton.finalPrice(freshProduct, 1, isKg).toDouble();
+    }
+
+    print('=== addSeperatedProduct ===');
+    print('totalCount: $totalCount');
+    print('price: $price');
+    print(
+        'tiers: ${freshProduct.shopPrices?.shID?.shopPriceTiers?.map((t) => 'minQty=${t.minQuantity} price=${t.retailPrice}').join(', ')}');
+
+    final soldItem = ReceiptModelSoldItem4(
+      isDeleted: false,
+      inBox: 0,
+      tin: freshProduct.commissionTin,
+      marking: freshProduct.isMarking ?? false,
+      mark: markValue,
+      soldBy: freshProduct.measurementUnit?.shortName ?? "",
+      cost: 0,
+      createdTime: DateTime.now().millisecondsSinceEpoch,
+      price: price,
+      realPrice: price,
+      onlyPrice: price,
+      singleDiscount: 0,
+      value: 1,
+      productId: freshProduct.id!,
+      productName: freshProduct.name!,
+      ownerType:
+          (freshProduct.ownerType != null && freshProduct.ownerType!.isNotEmpty)
+              ? int.parse(freshProduct.ownerType!)
+              : 1,
+      packageCode: freshProduct.packageCode,
+      packageName: freshProduct.packageType,
+      barcode:
+          freshProduct.barcode!.isNotEmpty ? freshProduct.barcode!.first : "",
+      sku: int.parse(freshProduct.sku ?? "0"),
+      vat: price == 0
+          ? 0
+          : (price * (freshProduct.vat!.percentage ?? 12)) /
+              (100 + (freshProduct.vat!.percentage ?? 12)),
+      mxik: freshProduct.mxikCode!,
+      vatPercent: (freshProduct.vat!.percentage ?? 12).toDouble(),
+      sellerId: Pref.getString(PrefKeys.cashierId, ""),
+      vatName: freshProduct.vat?.name ?? "",
+      discountPercent: 0,
+    );
+
+    _currentClient.orderedProducts.insert(0, soldItem);
+
+    // Avvalgi barcha bir xil productlarning narxini ham yangilaymiz
+    for (final item in _currentClient.orderedProducts) {
+      if (item.productId == freshProduct.id && !(item.isDeleted ?? false)) {
+        item.price = price;
+        item.realPrice = price;
+        item.onlyPrice = price;
+      }
+    }
+
+    _currentClient.lastAddedIndex = 0;
+    notifyListeners();
+  } // ✅ Yangi method: bir xil productId dagi barcha marklarni qayta narxlash
+
+  void _repriceAllMarksForProduct(ItemModel product, bool isKg) {
+    final allMarks = _currentClient.orderedProducts
+        .where((e) => e.productId == product.id && !e.isDeleted!)
+        .toList();
+
+    final totalCount = allMarks.length;
+
+    final newPrice =
+        ItemsSingleton.finalPrice(product, totalCount, isKg).toDouble();
+
+    if (newPrice <= 0) return;
+
+    for (final item in _currentClient.orderedProducts) {
+      if (item.productId == product.id && !item.isDeleted!) {
+        item.price = newPrice;
+        item.realPrice = newPrice;
+        item.onlyPrice = newPrice;
+        item.vat = (newPrice * (product.vat?.percentage ?? 12)) /
+            (100 + (product.vat?.percentage ?? 12));
+        item.discountPercent = 0;
+        item.singleDiscount = 0;
+      }
+    }
+  }
+
+  /// /// /// /// /// /// /// /// /// /// /// /// ///
+  ///                Add Products                 ///
+  /// /// /// /// /// /// /// /// /// /// /// /// ///
+
+  void tapIndexToEdit(int i) {
+    _tappedIndexToEdit = i;
+  }
+
+  void pressDialogSaveButton(ReceiptModelSoldItem4 item) async {
+    if (item.value > 0) {
+      _currentClient.orderedProducts[_tappedIndexToEdit] = item;
+    } else {
+      pressDialogDeleteButton();
+    }
+
+    findFreeProducts();
+    useFreeProducts();
+    useFreeGiftProducts();
+    useBuyXGetXProducts();
+
+    notifyListeners();
+  }
+
+  void pressDialogDeleteButton() async {
+    bool isRedDeleteActivated =
+        Pref.getBool(PrefKeys.isRedDeleteActivated, false);
+
+    final currentEmployee = HiveBoxes.getCurrentEmployee!;
+    final employeeName = currentEmployee.user?.firstName ??
+        currentEmployee.user?.firstName ??
+        "Noma'lum xodim";
+
+    final deletedProduct = _currentClient.orderedProducts[_tappedIndexToEdit];
+    final productName = deletedProduct.productName ?? "Noma'lum mahsulot";
+    final productId = deletedProduct.productId ?? "-";
+    final posName = Pref.getString(PrefKeys.posName, "Noma'lum POS");
+    final deleteTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    final product_qunatity = deletedProduct.value ?? "0";
+
+    if (isRedDeleteActivated) {
+      _currentClient.orderedProducts[_tappedIndexToEdit].isDeleted = true;
+    } else {
+      _currentClient.orderedProducts.removeAt(_tappedIndexToEdit);
+    }
+
+    if (_currentClient.orderedProducts.isEmpty) {
+      _currentClient.selectedClient = null;
+      _newClientPersentageDiscount = 0;
+    }
+
+    useFreeProducts();
+    useFreeGiftProducts();
+    useBuyXGetXProducts();
+    notifyListeners();
+    await _sendToTelegram(
+      productName: productName,
+      productId: productId,
+      product_qunatity: product_qunatity.toString(),
+      posName: posName,
+      employeeName: employeeName,
+      deleteTime: deleteTime,
+    );
+  }
+
+  Future<void> _sendToTelegram({
+    required String productName,
+    required String productId,
+    required String posName,
+    required String employeeName,
+    required String deleteTime,
+    required String product_qunatity,
+  }) async {
+    const String botToken = '8534579686:AAHuob2SA0ZdnV_emG0kSKmOOoDLdNbvrKQ';
+    const String channelId = '-1003834151006';
+
+    final String message = """
+<b>🚨 Mahsulot o'chirildi!</b>
+
+<b>Product:</b> $productName
+<b>Quantity:</b> $product_qunatity
+<b>Pos Name:</b> $posName
+<b>Employee:</b> $employeeName
+<b>Time:</b> $deleteTime
+  """
+        .trim();
+
+    final Uri url = Uri.parse(
+      'https://api.telegram.org/bot$botToken/sendMessage?'
+      'chat_id=$channelId'
+      '&text=${Uri.encodeComponent(message)}'
+      '&parse_mode=HTML',
+    );
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode != 200) {
+        await LogHelper.logRequest(
+          method: "Sent DeletedProduct To Telegram",
+          path: "Ordering4Provider sendToTelegram",
+          statusCode: response.statusCode,
+          body: '',
+          response: response.body,
+        );
+      }
+    } catch (e) {}
+  }
+
+  // Future<void> freeGiftDialog() async {
+  //   if (_returnedFreeGiftProducts.isNotEmpty) {
+  //     final loc =
+  //         AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
+  //
+  //     for (ReturnedGift gift in _returnedFreeGiftProducts) {
+  //       if (_totalPriceForAllProduct() > gift.buyAmount &&
+  //           _freeGiftDialogCount == 0) {
+  //         String buyAmount = MoneyFormatter.formatter.format(gift.buyAmount);
+  //         if (!dialogForDiscount) {
+  //           setDialogForDiscount(true);
+  //           await showGeneralDialog(
+  //             barrierDismissible: false,
+  //             context: AppNavigation.navigatorKey.currentContext!,
+  //             pageBuilder: (_, __, ___) => ContainsDiscountItemDialog2(
+  //               provider: this,
+  //               text: loc.ha.toLowerCase() == 'ha'
+  //                   ? '$buyAmount dan oshgani uchun.\n\n${gift.getProduct?.name ?? ''} ]mahsulotdan ${gift.getProductAmount} ta berishingiz kerak!!!'
+  //                   : 'За превышение суммы $buyAmount.\n\nОбязательно ${gift.getProductAmount} товара категории ${gift.getProduct?.name ?? ''}!!!',
+  //               isFirst: true,
+  //             ),
+  //           );
+  //           _freeGiftDialogCount++;
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
+  Future<void> freeGiftDialog() async {
+    if (_returnedFreeGiftProducts.isEmpty) return;
+
+    final loc =
+        AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
+
+    for (ReturnedGift gift in _returnedFreeGiftProducts) {
+      final productId = gift.getProduct?.id;
+
+      if (productId == null) continue;
+
+      // Mapda bu product uchun count borligini tekshir
+      final currentCount = _showCount[productId] ?? 0;
+
+      if (currentCount >= 1) continue; // allaqachon chiqqan – o'tkaz
+
+      if (_totalPriceForAllProduct() > gift.buyAmount) {
+        String buyAmount = MoneyFormatter.formatter.format(gift.buyAmount);
+
+        if (!dialogForDiscount) {
+          setDialogForDiscount(true);
+          if (gift.isGetX == true ?? false) {
+            await showGeneralDialog(
+              barrierDismissible: false,
+              context: AppNavigation.navigatorKey.currentContext!,
+              pageBuilder: (_, __, ___) => ContainsDiscountItemDialog2(
+                provider: this,
+                text: loc.ha.toLowerCase() == 'ha'
+                    ? '${gift.getProduct?.name ?? ''} $buyAmount dan oshgani uchun.\n\n${gift.getProduct?.name ?? ''} mahsulotdan yana  ${gift.getProductAmount} ta berishingiz kerak!!!'
+                    : 'За превышение суммы $buyAmount.\n\nОбязательно ${gift.getProductAmount} товара категории ${gift.getProduct?.name ?? ''}!!!',
+                isFirst: true,
+              ),
+            );
+          } else {
+            await showGeneralDialog(
+              barrierDismissible: false,
+              context: AppNavigation.navigatorKey.currentContext!,
+              pageBuilder: (_, __, ___) => ContainsDiscountItemDialog2(
+                provider: this,
+                text: loc.ha.toLowerCase() == 'ha'
+                    ? '$buyAmount dan oshgani uchun.\n\n${gift.getProduct?.name ?? ''} mahsulotdan ${gift.getProductAmount} ta berishingiz kerak!!!'
+                    : 'За превышение суммы $buyAmount.\n\nОбязательно ${gift.getProductAmount} товара категории ${gift.getProduct?.name ?? ''}!!!',
+                isFirst: true,
+              ),
+            );
+          }
+
+          // Count ni oshiramiz – bu product uchun endi chiqmaydi
+          _showCount[productId] = 1;
+        }
+      }
+    }
+  }
+
+/////////////////// OPERATION ON SIX CLIENTS //////////////////////
+/////////////////// OPERATION ON SIX CLIENTS //////////////////////
+/////////////////// OPERATION ON SIX CLIENTS //////////////////////
+/////////////////// OPERATION ON SIX CLIENTS //////////////////////
+  int i = 0;
+
+  void addClient() {
+    i++;
+    if (_currentClient.orderedProducts.isNotEmpty) {
+      _clientNumber++;
+      final sixClientModel = SixClientModel4(
+        clientNumber: _clientNumber,
+        lastAddedIndex: -1,
+        orderedProducts: [],
+        discountAmountFromNewClient: 0,
+      );
+      if (_sixClient4List.isEmpty) {
+        _sixClient4List.add(_currentClient);
+      }
+
+      _sixClient4List.add(sixClientModel);
+      _currentClient = _sixClient4List.last;
+      _index = _sixClient4List.length - 1;
+      notifyListeners();
+    }
+  }
+
+  void selectClient(int i) {
+    _currentClient = _sixClient4List[i];
+    _index = i;
+    _clearEmptyClients();
+    notifyListeners();
+  }
+
+  void _clearEmptyClients() {
+    List<int> clientNumbers = [];
+    for (int i = 0; i < _sixClient4List.length; i++) {
+      if (_sixClient4List[i].orderedProducts.isEmpty) {
+        clientNumbers.add(_sixClient4List[i].clientNumber);
+      }
+    }
+    _sixClient4List.removeWhere((e) => e.orderedProducts.isEmpty);
+  }
+
+  void _paymentOnClients() {
+    _selectedSupplier = null;
+    if (_sixClient4List.isEmpty) {
+      _clientNumber = 1;
+      _currentClient = SixClientModel4(
+        clientNumber: _clientNumber,
+        lastAddedIndex: -1,
+        orderedProducts: [],
+        discountAmountFromNewClient: 0,
+      );
+    } else if (_sixClient4List.length == 1) {
+      _clientNumber = 1;
+      _currentClient = SixClientModel4(
+        clientNumber: _clientNumber,
+        lastAddedIndex: -1,
+        orderedProducts: [],
+        discountAmountFromNewClient: 0,
+      );
+      _sixClient4List[0].orderedProducts = [];
+      _clearEmptyClients();
+    } else {
+      _sixClient4List[_index].orderedProducts = [];
+      _clearEmptyClients();
+      _index = 0;
+      _currentClient = _sixClient4List.first;
+    }
+  }
+
+  clearSixClient4List() {
+    if (_sixClient4List.isNotEmpty) {
+      for (var v in _sixClient4List) {
+        v.orderedProducts.clear();
+        v.clientNumber = 0;
+        v.lastAddedIndex = -1;
+      }
+    }
+    _currentClient.orderedProducts.clear();
+    _sixClient4List = <SixClientModel4>[];
+
+    notifyListeners();
+  }
+
+/////////////////////////// PAYMENT ///////////////////////////////
+/////////////////////////// PAYMENT ///////////////////////////////
+/////////////////////////// PAYMENT ///////////////////////////////
+/////////////////////////// PAYMENT ///////////////////////////////
+
+/////////////////////////// INNER METHODS ///////////////////////////////
+/////////////////////////// INNER METHODS ///////////////////////////////
+/////////////////////////// INNER METHODS ///////////////////////////////
+/////////////////////////// INNER METHODS ///////////////////////////////
+
+//////////////////////////////////////////////////////
+//////////////////////////////////////////////////////
+//////////////////////////////////////////////////////
+  ///                                                ///
+  ///          ON TOTAL PRICE OPERATIONS             ///
+  ///                                                ///
+//////////////////////////////////////////////////////
+//////////////////////////////////////////////////////
+//////////////////////////////////////////////////////
+
+  FocusNode focusNodeTotal = FocusNode();
+
+  totalFocusRequest() {
+    focusNodeTotal.requestFocus();
+    notifyListeners();
+  }
+
+  onTotalPriceOperationCompleted({
+    required num discountPercent,
+    required List<ReceiptModelSoldItem4> products,
+  }) async {
+    _currentClient.discountPercent =
+        discountPercent > 0 ? discountPercent + 0 : 0;
+    _currentClient.orderedProducts = [];
+    _currentClient.orderedProducts.addAll(products);
+    notifyListeners();
+  }
+
+  onTotalPriceButtonPressed(BuildContext context) async {
+    if ((currentEmployee.access?.applyManualDiscountsNewSale ?? false) &&
+        getCurrentClient.orderedProducts.isNotEmpty) {
+      await showDialog(
+        context: context,
+        builder: (context) => OperationOnTotalPriceDialog(
+          currentClient: getCurrentClient,
+          totalPrice: ItemsSingleton.getRealTotalPrice(
+              getCurrentClient.orderedProducts),
+        ),
+      );
+    }
+    return;
+  }
+
+  Future<Object?> goToPaymentPage(BuildContext context) async {
+    Object? mxikError;
+    double totalPrice =
+        ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
+    if (getCurrentClient.orderedProducts.isNotEmpty && totalPrice > 0) {
+      initPaymentPageValues(
+        sixClientModel4: getCurrentClient,
+        totalPrice: totalPrice,
+        discountAmount: getCurrentClient.discountAmount ?? 0,
+      );
+      CmtBBloc ctBloc = BlocProvider.of(context, listen: false);
+      ctBloc.add(CmtBInitialEvent());
+      PreCmtBBloc prectBloc = BlocProvider.of(context, listen: false);
+      prectBloc.add(PreCmtBInitialEvent());
+      Log.d('=========', name: 'OrderingProvider.goToPaymentPage');
+      mxikError = await AppNavigation.push(PaymentPage(context));
+    }
+    return mxikError;
+  }
+
+  addedClientInPaymentScreen(BuildContext context) async {
+    double totalPrice =
+        ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
+    if (getCurrentClient.orderedProducts.isNotEmpty && totalPrice > 0) {
+      _totalPrice = totalPrice;
+      _mustPay = totalPrice;
+      _discountAmount = getCurrentClient.discountAmount ?? 0;
+      notifyListeners();
+    }
+  }
+
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+/////                                                     //////
+/////         Client Search Functions                     //////
+/////                                                     //////
+////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////
+
+  initClientByBloc(
+    ClientModel? client,
+  ) {
+    _currentClient.selectedClient = client;
+    _currentClient.discountPercent = _currentClient.discountPercent ??
+        0 + (client?.discountValue ?? 0).toDouble();
+    notifyListeners();
+  }
+
+///////////
+//////////////////////////
+//////////////////////////////////////////////
+//////////////////////////////////////////////////////
+///////////        /////////////////////////////////////
+///////////                          /////////////////////
+///////////                                     /////////////
+///////////                                           ///////////
+///////////                                             ///////////
+///////////                                              //////////
+///////////                                             ///////////
+///////////                                             ///////////
+///////////                                             ///////////
+///////////                                             ///////////
+///////////                                           /////////////
+///////////                                     /////////////////
+///////////                              //////////////////////
+//////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////
+////////////////////////////////////////////////
+/////////////////////////////////////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+///////////
+/////////// PAYMENT PROVIDER
+// _mustPay, _isChangeToCashback, _zdachaToCashBack, _sdacha, xClient
+// clientName, _fromPointBalance
+
+  getComment(String comment, bool isShow) {
+    _showComments = isShow;
+    _comments = comment;
+  }
+
+  String setComment() {
+    return _comments;
+  }
+
+  bool isShowComment() {
+    return _showComments;
+  }
+
+  Future<void> pressPaymentButton(BuildContext context) async {
+    for (int i = 0; i < _sixClientModel4.orderedProducts.length; i++) {
+      if (_sixClientModel4.orderedProducts[i].isDeleted!) {
+        _sixClientModel4.orderedProducts.removeAt(i);
+        i--;
+      }
+    }
+    if (_isChangeToCashback && _mustPay < 0) {
+      _zdachaToCashBack = _sdachaa;
+      _sdachaa = 0;
+    } else {
+      _zdachaToCashBack = 0;
+    }
+
+    ClientModel? xClient = _sixClientModel4.selectedClient;
+    String clientPhone = xClient == null ? "" : xClient.phoneNumber!;
+    String clientId = xClient == null ? "" : xClient.id!;
+    //---------------------------------------------------------------------
+    double clientDiscountVat = xClient == null ? 0 : xClient.discountValue!;
+    String clientDiscountID = xClient == null
+        ? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd"
+        : xClient.discountId ?? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd";
+    String? clientName = xClient?.firstName ?? "";
+
+    if (DiscountTypeStatus.disTypeStatus == TpStatus.summa) {
+      double totalPrice =
+          ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
+      clientDiscountID = "9fb3ada6-a73b-4b81-9295-5c1605e54552";
+      clientDiscountVat = DiscountTypeStatus.summa - totalPrice;
+    } else if (DiscountTypeStatus.disTypeStatus == TpStatus.discount) {
+      if (_currentClient.discountPercent != null &&
+          _currentClient.discountPercent != 0) {
+        clientDiscountID = "1fe92aa8-2a61-4bf1-b907-182b497584ad";
+        clientDiscountVat = _currentClient.discountPercent!;
+      }
+    }
+    DiscountTypeStatus.disTypeStatus = TpStatus.discount;
+
+    double allDiscountVat = clientDiscountVat;
+    String allDiscountID = clientDiscountID;
+    //-----------     PREFS -----------------------------------------------
+    final cashierId = Pref.getString(PrefKeys.cashierId, "not initialized");
+    final cashierName = Pref.getString(PrefKeys.cashierName, "not initialized");
+    final posName = Pref.getString(PrefKeys.posName, "not initialized");
+    // ignore: unused_local_variable
+    final donate = Pref.getDonate('donate', false);
+    String supplierId = _selectedSupplier?.id ?? "";
+    //-------------------------------------------------------
+    final receiptModel4 = ReceiptModel4(
+      newid: xClient?.id ?? "",
+      zdachiToCashback: _zdachaToCashBack,
+      clientPhone: clientPhone,
+      cashierId: cashierId,
+      supplierId: supplierId,
+      cashierName: cashierName,
+      date: DateTime.now().millisecondsSinceEpoch,
+      isRefund: false,
+      externalId: "",
+      createdDate:
+          DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()),
+      totalPrice: _totalPrice + 0,
+      discountVat: double.parse(allDiscountVat.round().toStringAsFixed(1)),
+      discountID: allDiscountID,
+      uploaded: false,
+      rejected: false,
+      clientName: clientName,
+      clientId: clientId,
+      cashback: _fromPointBalance.round(),
+      sdacha: _sdachaa,
+      returnForCheck: "",
+      posName: posName,
+      isDonate: true,
+      cashboxId: Pref.getString(PrefKeys.activatedPosId, ""),
+      orderId: "",
+      orderType: "sale",
+      comment: _comments,
+      isShow: _showComments,
+      shopId: Pref.getString(PrefKeys.storeId, ""),
+      userId: Pref.getString(PrefKeys.userId, ""),
+    );
+    receiptModel4.payment.addAll(paymentsMapAsList);
+    receiptModel4.soldItemList.addAll(_sixClientModel4.orderedProducts);
+    //-------------------------------------------------------------------------
+    bool isChanged = false;
+    if (!isTpEdited) {
+      isChanged = true;
+    } else {
+      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
+        if (receiptModel4.soldItemList[i].isPriceOnlyChanged ||
+            receiptModel4.soldItemList[i].isPriceChanged) {
+          isChanged = true;
+          break;
+        }
+      }
+    }
+    if (isChanged) {
+      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
+        double discountSingle =
+            receiptModel4.soldItemList[i].discount.isNotEmpty
+                ? receiptModel4.soldItemList[i].discount.first.total
+                : 0;
+
+        if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
+          if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
+            receiptModel4.soldItemList[i].singleDiscount =
+                double.parse(discountSingle.round().toStringAsFixed(1));
+          } else {
+            receiptModel4.soldItemList[i].singleDiscount =
+                double.parse(discountSingle.round().toStringAsFixed(1));
+          }
+        }
+      }
+      receiptModel4.discountVat = 0;
+    } else {
+      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
+        double discountSingle =
+            receiptModel4.soldItemList[i].discount.isNotEmpty
+                ? receiptModel4.soldItemList[i].discount.first.total
+                : 0;
+
+        if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
+          if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
+            receiptModel4.soldItemList[i].singleDiscount =
+                double.parse(discountSingle.round().toStringAsFixed(1));
+          }
+        }
+      }
+    }
+    receiptModel4.discountVat =
+        double.parse(receiptModel4.discountVat.round().toStringAsFixed(1));
+    if (receiptModel4.payment.isNotEmpty &&
+        receiptModel4.soldItemList.isNotEmpty) {
+      await ReceiptSingleton4.toOBJECTBOX(
+        receiptModel4,
+        clientBalance: getCurrentClient.selectedClient?.pointBalance,
+      );
+
+      /// Tekin maxsulotlarni tozalash ///
+      _returnedProducts = {};
+      _returnedFreeGiftProducts = [];
+      _giftProducts = {};
+      _freeGiftDialogCount = 0;
+      _showCount = {};
+      _showCountFreeGift = {};
+
+      DiscountSingleton.maxPrice();
+    }
+    _paymentOnClients();
+    _newClientPersentageDiscount = 0;
+    controller.text = '0';
+    _comments = "";
+    _showComments = true;
+    notifyListeners();
+  }
+
+  List<ReceiptModelPaymentType4> get paymentsMapAsList =>
+      paymentsMap.entries.map((e) {
+        String name = e.value.name ?? '';
+        double paymentValue = e.value.value ?? 0;
+        if (e.key == Pref.getString(PrefKeys.cashId, "")) {
+          name = 'CASH';
+        }
+
+        if (e.key.replaceFirst('@', '') ==
+            Pref.getString(PrefKeys.cardId, "")) {
+          name = 'UZCARD';
+        }
+        if (e.key.replaceFirst('@', '') ==
+                Pref.getString(PrefKeys.cardId, "") &&
+            e.value.type == 1) {
+          name = 'HUMO';
+        }
+
+        if (e.key == Pref.getString(PrefKeys.cashbackId, "")) {
+          name = 'CASHBACK';
+        }
+        if (e.key == Pref.getString(PrefKeys.debtId, "")) {
+          name = 'DEBT';
+        }
+        if (_sdachaa > 0 && e.key == Pref.getString(PrefKeys.cashId, "")) {
+          paymentValue -= _sdachaa;
+        }
+        if (_zdachaToCashBack > 0 &&
+            e.key == Pref.getString(PrefKeys.cashId, "")) {
+          paymentValue -= _zdachaToCashBack;
+        }
+
+        if (e.key.replaceFirst('@', '') ==
+            Pref.getString(PrefKeys.paymeId, "")) {
+          name = 'PAYME GO';
+        }
+        if (e.key.replaceFirst('@', '') ==
+            Pref.getString(PrefKeys.clickId, "")) {
+          name = 'CLICK PASS';
+        }
+        if (e.key.replaceFirst('@', '') ==
+            Pref.getString(PrefKeys.uzumId, "")) {
+          name = 'UZUM';
+        }
+
+        if (e.key.replaceFirst('@', '') ==
+                Pref.getString(PrefKeys.paymeId, "") &&
+            e.value.type == 1) {
+          name = 'PAYME QR';
+        }
+        if (e.key.replaceFirst('@', '') ==
+                Pref.getString(PrefKeys.clickId, "") &&
+            e.value.type == 1) {
+          name = 'CLICK QR';
+        }
+        if (e.key.replaceFirst('@', '') ==
+                Pref.getString(PrefKeys.uzumId, "") &&
+            e.value.type == 1) {
+          name = 'UZUM QR';
+        }
+
+        paymentValue = double.parse(paymentValue.round().toStringAsFixed(3));
+        return ReceiptModelPaymentType4(
+          name: name,
+          payId: e.key,
+          value: paymentValue,
+        );
+      }).toList();
+
+  Future<PaymentResult> pressPaymentButtonOnlyOFD(BuildContext context) async {
+    AppLocalizations loc = AppLocalizations.of(context)!;
+    if (_isChangeToCashback && _sdachaa > 0) {
+      _zdachaToCashBack = _sdachaa;
+      _sdachaa = 0;
+    } else {
+      _zdachaToCashBack = 0;
+    }
+
+    ClientModel? xClient = _sixClientModel4.selectedClient;
+    String clientPhone = xClient == null ? "" : xClient.phoneNumber!;
+    String clientId = xClient == null ? "" : xClient.id!;
+    //---------------------------------------------------------------------
+    double clientDiscountVat = xClient == null ? 0 : xClient.discountValue!;
+    String clientDiscountID = xClient == null
+        ? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd"
+        : xClient.discountId ?? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd";
+    String? clientName = xClient?.firstName ?? "";
+
+    if (DiscountTypeStatus.disTypeStatus == TpStatus.summa) {
+      double totalPrice =
+          ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
+      clientDiscountID = "9fb3ada6-a73b-4b81-9295-5c1605e54552";
+      clientDiscountVat = DiscountTypeStatus.summa - totalPrice;
+    } else if (DiscountTypeStatus.disTypeStatus == TpStatus.discount) {
+      if (_currentClient.discountPercent != null &&
+          _currentClient.discountPercent != 0) {
+        clientDiscountID = "1fe92aa8-2a61-4bf1-b907-182b497584ad";
+        clientDiscountVat = _currentClient.discountPercent!;
+      }
+    }
+    DiscountTypeStatus.disTypeStatus = TpStatus.discount;
+
+    double allDiscountVat = clientDiscountVat;
+    String allDiscountID = clientDiscountID;
+
+    //----------- PREFS --------------------------------
+    final cashierId = Pref.getString(PrefKeys.cashierId, "");
+    final cashierName = Pref.getString(PrefKeys.cashierName, "");
+    final posName = Pref.getString(PrefKeys.posName, '');
+    String supplierId = _selectedSupplier?.id ?? "";
+    //-------------------------------------------------------
+    final receiptModel4 = ReceiptModel4(
+      createdDate: DateFormat('yyyy-MM-dd HH:mm:ss').format(
+        DateTime.now().subtract(
+          const Duration(hours: 5),
+        ),
+      ),
+      newid: xClient?.id ?? "",
+      supplierId: supplierId,
+      zdachiToCashback: _zdachaToCashBack,
+      clientPhone: clientPhone,
+      cashierId: cashierId,
+      cashierName: cashierName,
+      date: DateTime.now().millisecondsSinceEpoch,
+      isRefund: false,
+      discountVat: allDiscountVat,
+      discountID: allDiscountID,
+      totalPrice: _totalPrice + 0,
+      uploaded: false,
+      rejected: false,
+      clientName: clientName,
+      clientId: clientId,
+      cashback: _fromPointBalance.round(),
+      sdacha: _sdachaa,
+      returnForCheck: "",
+      posName: posName,
+      commissionTIN: '',
+      isDonate: Pref.getBool('donate', false),
+      cashboxId: Pref.getString(PrefKeys.activatedPosId, ""),
+      orderType: "sale",
+      shopId: Pref.getString(PrefKeys.organization, ""),
+      userId: Pref.getString(PrefKeys.userId, ""),
+      orderId: "",
+      externalId: "",
+      comment: _comments,
+      isShow: _showComments,
+    );
+    receiptModel4.payment.addAll(paymentsMapAsList);
+    receiptModel4.soldItemList.addAll(_sixClientModel4.orderedProducts);
+
+    bool isChanged = false;
+    if (!isTpEdited) {
+      isChanged = true;
+    } else {
+      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
+        if (receiptModel4.soldItemList[i].isPriceOnlyChanged ||
+            receiptModel4.soldItemList[i].isPriceChanged) {
+          isChanged = true;
+          break;
+        }
+      }
+    }
+    if (isChanged) {
+      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
+        if (receiptModel4.soldItemList[i].price ==
+            receiptModel4.soldItemList[i].onlyPrice) {
+          receiptModel4.soldItemList[i].discount.clear();
+        } else {
+          double discountSingle =
+              receiptModel4.soldItemList[i].discount.isNotEmpty
+                  ? receiptModel4.soldItemList[i].discount.first.total
+                  : 0;
+
+          if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
+            if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
+              receiptModel4.soldItemList[i].singleDiscount =
+                  double.parse(discountSingle.round().toStringAsFixed(1));
+            } else {
+              receiptModel4.soldItemList[i].singleDiscount =
+                  double.parse(discountSingle.round().toStringAsFixed(1));
+            }
+          }
+        }
+      }
+      receiptModel4.discountVat = 0;
+    } else {
+      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
+        if (receiptModel4.soldItemList[i].price ==
+            receiptModel4.soldItemList[i].onlyPrice) {
+          receiptModel4.soldItemList[i].discount.clear();
+        } else {
+          double discountSingle =
+              receiptModel4.soldItemList[i].discount.isNotEmpty
+                  ? receiptModel4.soldItemList[i].discount.first.total
+                  : 0;
+
+          if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
+            if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
+              receiptModel4.soldItemList[i].singleDiscount =
+                  double.parse(discountSingle.round().toStringAsFixed(1));
+            }
+          }
+        }
+      }
+    }
+    receiptModel4.discountVat =
+        double.parse(receiptModel4.discountVat.round().toStringAsFixed(1));
+    PaymentResult paymentResult = await LocalService.sell(
+      loc: loc,
+      receiptData: receiptModel4,
+    ).then(
+      (CommunicatorRESPONSE response) async {
+        if (!response.error! && response.info != null) {
+          receiptModel4.url = response.info?.qrCodeUrl ?? '';
+          receiptModel4.payment.clear();
+          receiptModel4.payment.addAll(paymentsMapAsList);
+          receiptModel4.refundInfo = jsonEncode(
+            response.info!.toJson(),
+          );
+          if (receiptModel4.payment.isNotEmpty &&
+              receiptModel4.soldItemList.isNotEmpty) {
+            await ReceiptSingleton4.toOBJECTBOX(
+              receiptModel4,
+              communicatorRECEIPT: response,
+              clientBalance: getCurrentClient.selectedClient?.pointBalance,
+            );
+          }
+
+          return PaymentResult(mxikError: null, success: true);
+        } else {
+          if (response.mxikError == null) {
+            ScaffoldMessenger.of(context).showSnackBar(mySnackBar(context,
+                msg: response.paycheck.toString(), duration: 1500));
+          }
+          return PaymentResult(
+            mxikError: response.mxikError,
+            success: false,
+          );
+        }
+      },
+    ).catchError((err) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(mySnackBar(context, msg: err.toString()));
+      return PaymentResult(mxikError: err, success: false);
+    });
+
+    if (paymentResult.success) {
+      /// Tekin maxsulotlarni tozalash ///
+      _returnedProducts = {};
+      _giftProducts = {};
+      _freeGiftDialogCount = 0;
+      _showCount = {};
+      _showCountFreeGift = {};
+
+      DiscountSingleton.maxPrice();
+      _paymentOnClients();
+    }
+
+    _comments = "";
+    _showComments = true;
+    controller.text = '0';
+    _newClientPersentageDiscount = 0;
+    notifyListeners();
+    return paymentResult;
+  }
+
+  initPaymentPageValues({
+    required SixClientModel4 sixClientModel4,
+    required double totalPrice,
+    required num discountAmount,
+  }) {
+    _isChangeToCashback = false;
+    _zdachaToCashBack = 0;
+    _selectedPaymentType = null;
+    _sixClientModel4 = sixClientModel4;
+    _paymentInProgress = false;
+    _totalPrice = totalPrice;
+    _mustPay = totalPrice;
+    _sdachaa = 0;
+    paymentsMap = {};
+    _showComments = true;
+    _comments = "";
+    _fromPointBalance = 0;
+    _gettingPointBalance = false;
+    _isButtonEnabled = false;
+    controller.text = '';
+    _discountAmount = discountAmount;
+    _isChangeToCashback = false;
+    clickedCount = 0;
+    controller = TextEditingController(text: '0');
+    _isOfdWithOfd = false;
+    ////////////////////////////////////////
+    ////////////////////////////////////////
+    _cardEnabled = Pref.getBool(PrefKeys.cardEnabled, false);
+    _cashEnabled = Pref.getBool(PrefKeys.cashEnabled, false);
+    _giftEnabled = Pref.getBool(PrefKeys.giftEnabled, false);
+    _nfcEnabled = Pref.getBool(PrefKeys.nfcEnabled, false);
+    _debtEnabled = Pref.getBool(PrefKeys.debtEnabled, false);
+  }
+
+  late bool _paymentInProgress;
+
+  int selectedPaymentIndex = -1;
+  TextEditingController controller = TextEditingController(text: '0');
+
+  late SixClientModel4 _sixClientModel4;
+  late num _totalPrice;
+  final focusNodeListener = FocusNode();
+  late String _comments = "";
+  late bool _showComments = true;
+
+  double _zdachaToCashBack = 0;
+  double _mustPay = 0;
+
+  double _sdachaa = 0;
+  double _fromPointBalance = 0;
+  bool _gettingPointBalance = false;
+
+  num _discountAmount = 0;
+  bool _isButtonEnabled = false;
+  bool _isOfdWithOfd = false;
+  bool _isChangeToCashback = false;
+
+/////////////////////////////////////////////////////////////////////
+  bool _cardEnabled = Pref.getBool(PrefKeys.cardEnabled, false);
+  bool _cashEnabled = Pref.getBool(PrefKeys.cashEnabled, false);
+  bool _giftEnabled = Pref.getBool(PrefKeys.giftEnabled, false);
+  bool _nfcEnabled = Pref.getBool(PrefKeys.nfcEnabled, false);
+  bool _debtEnabled = Pref.getBool(PrefKeys.debtEnabled, false);
+
+/////////////////////////////////////////////////////////////////////
+///////////////   GETTERS   /////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+  ///
+  bool get getOfdIsWithOfd => _isOfdWithOfd;
+
+  bool get getPaymentInProgress => _paymentInProgress;
+
+  SixClientModel4 get getSixClientModel4 => _sixClientModel4;
+
+  num get getTotalPaymentPrice => _totalPrice;
+
+  bool get isDidox => _isDidox;
+
+  double get getMustPay => _mustPay;
+
+  double get getSdacha => _sdachaa;
+
+  bool get getIsButtonEnabled => _isButtonEnabled;
+
+  double get getFromPointBalance => _fromPointBalance;
+
+  String get getClientGroupId => _currentClient.selectedClient?.groupId ?? "";
+
+  String get getClientType =>
+      _currentClient.selectedClient?.discountGroupType ?? "";
+
+  num get getClientPointBalance =>
+      _currentClient.selectedClient?.pointBalance ?? 0;
+
+  String get getClientFirstname =>
+      _currentClient.selectedClient?.firstName ?? "";
+
+  String get getClientLastName => _currentClient.selectedClient?.lastName ?? "";
+
+  bool get getGettingPointBalance => _gettingPointBalance;
+
+  bool get isChangeToCashback => _isChangeToCashback;
+
+  bool get getCurrentClientIsNotNULL => _currentClient.selectedClient != null;
+
+  bool get getCurrentClientIsAvailableForDebt =>
+      _currentClient.selectedClient != null &&
+      _currentClient.selectedClient!.isAvailableForDebt != null &&
+      _currentClient.selectedClient!.isAvailableForDebt!;
+
+  num get getDiscountAmount => _discountAmount;
+
+  bool get isEnabledPettyCashToCashbackButton {
+    return (_sixClientModel4.selectedClient != null) && _mustPay < 0;
+  }
+
+  List<bool> get _isBonusCardEnabled {
+    num point = 0;
+    bool clintIsNotNull = false;
+    if (_sixClientModel4.selectedClient != null) {
+      point = _sixClientModel4.selectedClient?.pointBalance ?? 0;
+      clintIsNotNull = _sixClientModel4.selectedClient != null;
+    }
+
+    return <bool>[clintIsNotNull, point > 0];
+  }
+
+////////////////////////////////////////////////////////////
+/////                                           ////////////
+/////               SETTERS                     ////////////
+/////                                           ////////////
+////////////////////////////////////////////////////////////
+
+  bool _isDidox = false;
+
+  setDidox(bool isDidox) {
+    _isDidox = isDidox;
+    notifyListeners();
+  }
+
+  setIsOfdWithOfd() {
+    _isOfdWithOfd = !_isOfdWithOfd;
+    notifyListeners();
+  }
+
+  setPaymentInProgress(bool v) {
+    _paymentInProgress = v;
+    notifyListeners();
+  }
+
+  void removeFromPaymentList() {
+    if (selectedPaymentIndex >= 0 && paymentsMap.isNotEmpty) {
+      final paymentKeyList = paymentsMap.keys.toList();
+      if (selectedPaymentIndex < paymentKeyList.length) {
+        final selectedPaymentKey = paymentKeyList[selectedPaymentIndex];
+
+        if (selectedPaymentKey == Pref.getString(PrefKeys.debtId, '')) {
+          Pref.setBool(PrefKeys.debtClick, false);
+        }
+
+        paymentsMap.remove(selectedPaymentKey);
+      }
+
+      selectedPaymentIndex = -1;
+    } else {
+      paymentsMap.clear();
+      selectedPaymentIndex = -1;
+      Pref.setBool(PrefKeys.debtClick, false);
+    }
+
+    _checkButtonIsEnable();
+    notifyListeners();
+  }
+
+  selectPaymentIndex(int v) {
+    selectedPaymentIndex = v;
+    notifyListeners();
+  }
+
+  changeTheSelectedPaymentIndex(bool up) {
+    if (!up) {
+      if (selectedPaymentIndex < paymentsMap.length - 1) {
+        selectedPaymentIndex++;
+      } else {
+        selectedPaymentIndex = 0;
+      }
+    } else {
+      if (selectedPaymentIndex <= 0) {
+        selectedPaymentIndex = paymentsMap.length - 1;
+      } else {
+        selectedPaymentIndex--;
+      }
+    }
+    notifyListeners();
+  }
+
+//////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+
+  int clickedCount = 0;
+
+  void switchIsChangeToCashback() {
+    _isChangeToCashback = !_isChangeToCashback;
+    clickedCount++;
+    if (clickedCount == 2) {
+      _mustPay = 0;
+      _isChangeToCashback = true;
+      clickedCount = 0;
+    }
+    notifyListeners();
+  }
+
+//////////////////////////////////////////////////////////////////
+//////////////                                 ///////////////////
+//////////////         KEYBOARD FUNCTIONS       ///////////////////
+//////////////                                 ///////////////////
+//////////////////////////////////////////////////////////////////
+
+  onCButtonPressed() {
+    controller.text = '0';
+    focusNodeListener.requestFocus();
+    notifyListeners();
+  }
+
+  onDotPressed() {
+    controller.text = MoneyFormatter.remover(controller.text);
+    double parsed = double.tryParse(controller.text) ?? 0;
+
+    if (controller.text.contains('.') || controller.text.isEmpty) {
+      controller.text = MoneyFormatter.inputMoneyFormatter.format(parsed);
+      notifyListeners();
+      return;
+    } else {
+      controller.text += '.';
+
+      focusNodeListener.requestFocus();
+      controller.text = MoneyFormatter.inputMoneyFormatter
+          .format(double.tryParse(controller.text));
+      notifyListeners();
+    }
+  }
+
+  void onNumPressed(num num) {
+    if (controller.text.length < 15) {
+      controller.text = MoneyFormatter.remover(controller.text);
+      if (controller.text.startsWith('0')) {
+        controller.text = controller.text.substring(1);
+      }
+      controller.text += num.toString();
+      double parsed = double.parse(controller.text);
+      controller.text = MoneyFormatter.inputMoneyFormatter.format(parsed);
+      focusNodeListener.requestFocus();
+      notifyListeners();
+    }
+  }
+
+  onBackSpacePressed() {
+    if (controller.text == "0") {
+      if (paymentsMap.isEmpty) {}
+      return;
+    }
+    if (controller.text.length == 1) {
+      controller.text = '0';
+      notifyListeners();
+      return;
+    }
+    if (controller.text.isNotEmpty) {
+      controller.text = MoneyFormatter.remover(controller.text);
+      double parsed = double.tryParse(
+              controller.text.substring(0, controller.text.length - 1)) ??
+          0;
+
+      controller.text = MoneyFormatter.inputMoneyFormatter.format(parsed);
+    } else {
+      controller.text = '0';
+    }
+
+    focusNodeListener.requestFocus();
+    notifyListeners();
+  }
+
+  BuildContext? cont;
+
+  onAddComments(BuildContext context) async {
+    cont = context;
+    await showDialog(
+      context: cont!,
+      builder: (cont) => Builder(builder: (context) {
+        return AddDescriptionDialog(
+          context,
+        );
+      }),
+    );
+    return;
+  }
+
+  BuildContext? con;
+
+  onClientSearchButtonPressed(BuildContext context, WherePath route) async {
+    ClientBloc clientBloc = BlocProvider.of(context, listen: false);
+    clientBloc.add(ClientInitialEvent());
+    con = context;
+    await showDialog(
+      context: con!,
+      builder: (con) => Builder(
+        builder: (context) {
+          return ClientSearchDialogWithBloc(
+            context,
+            client: _currentClient.selectedClient,
+            onDelClientPressed: () {
+              _currentClient.selectedClient = null;
+              Provider.of<OrderingProvider4>(context, listen: false)
+                  .setNewClientDiscountPercentage(0);
+              OrderingProvider4().getCurrentClient.discountAmountFromNewClient =
+                  0;
+              AppNavigation.pop();
+              notifyListeners();
+            },
+            currentClient: getCurrentClient,
+            totalPrice:
+                ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts),
+            route: route,
+          );
+        },
+      ),
+    );
+    if (getClientGroupId.isNotEmpty) {
+      _currentClient.orderedProducts = _currentClient.orderedProducts
+          .map((item) => DiscountSingleton.addDiscountOnProduct(
+              item, item.soldBy, getClientGroupId))
+          .toList();
+      notifyListeners();
+    }
+    return;
+  }
+
+  SupplierModel? _selectedSupplier;
+
+  SupplierModel? get getSelectedSupplier => _selectedSupplier;
+
+  BuildContext? supplierCon;
+
+  onSupplierSearchButtonPressed(BuildContext context) async {
+    SupplierBloc supplierBloc = BlocProvider.of(context, listen: false);
+    supplierBloc.add(SupplierInitialEvent());
+    supplierCon = context;
+
+    await showDialog(
+      context: supplierCon!,
+      builder: (con) => Builder(
+        builder: (context) {
+          return SupplierSearchDialog(
+            currentSupplier: _selectedSupplier,
+            onSupplierSelected: (supplier) {
+              _selectedSupplier = supplier;
+              notifyListeners();
+            },
+            onDeleteSupplier: () {
+              _selectedSupplier = null;
+              notifyListeners();
+              AppNavigation.pop();
+            },
+          );
+        },
+      ),
+    );
+    return;
+  }
+
+  onCreateProductButtonPressed(BuildContext context, {String? barcode}) async {
+    con = context;
+    await showDialog(
+      context: con!,
+      builder: (con) => Builder(
+        builder: (context) {
+          return CreateProductDialog(barcode: barcode ?? "");
+        },
+      ),
+    );
+    return;
+  }
+
+/////////////////////////////////////////////////////////
+/////                                               /////
+/////            CARD BUTTON PRESSED                /////
+/////                                               /////
+/////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////
+/////                                    /////
+/////    MAJOR PAYMENT FUNCTIONS         /////
+/////                                    /////
+//////////////////////////////////////////////
+
+  /// OTHER ///
+
+  Map<String, Payment> paymentsMap = {};
+
+  String? _selectedPaymentType;
+
+  void allPaymentType(Payment payment) {
+    _selectedPaymentType =
+        payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
+    double parsed =
+        double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
+    double available = getAvailableSumma();
+    double currentPaymentValue = getSelectedPaymentSumma();
+
+    double summa = parsed > 0
+        ? (available - currentPaymentValue >= parsed
+            ? parsed
+            : available - currentPaymentValue)
+        : available - currentPaymentValue;
+
+    if (payment.id == Pref.getString(PrefKeys.cashId, "")) {
+      if (parsed > 0) {
+        _payByAll(parsed + currentPaymentValue, payment);
+      } else {
+        _payByAll(summa + currentPaymentValue, payment);
+      }
+    } else if (summa > 0) {
+      _payByAll(summa + currentPaymentValue, payment);
+    }
+    controller.text = '0';
+    notifyListeners();
+  }
+
+  void _payByAll(double v, Payment payment) {
+    final updatedPayment = Payment(
+      id: payment.id,
+      name: payment.name,
+      title: payment.title,
+      enable: payment.enable,
+      isAdded: payment.isAdded,
+      merchantId: payment.merchantId,
+      merchantUserId: payment.merchantUserId,
+      password: payment.password,
+      secretKey: payment.secretKey,
+      serviceId: payment.serviceId,
+      type: payment.type,
+      value: v,
+    );
+
+    String key = updatedPayment.type == 1
+        ? '@${updatedPayment.id}'
+        : updatedPayment.id ?? '';
+
+    paymentsMap = {
+      ...paymentsMap,
+      key: updatedPayment,
+    };
+
+    _checkButtonIsEnable();
+    notifyListeners();
+  }
+
+  void _checkButtonIsEnable() {
+    num currentMoney = 0;
+    paymentsMap.forEach(
+      (key, value) {
+        currentMoney += value.value ?? 0;
+      },
+    );
+    _mustPay = _totalPrice - currentMoney + _zdachaToCashBack;
+
+    _sdachaa = (currentMoney - _totalPrice).roundToDouble();
+
+    if (_mustPay > 0) {
+      _isButtonEnabled = false;
+    } else {
+      _isButtonEnabled = true;
+    }
+
+    notifyListeners();
+  }
+
+  double getAvailableSumma() {
+    double paid = 0;
+    paymentsMap.forEach((key, payment) {
+      if (key != _selectedPaymentType) {
+        paid += payment.value ?? 0;
+      }
+    });
+    double a = _totalPrice - paid;
+    return a;
+  }
+
+  double getSelectedPaymentSumma() {
+    double paid = 0;
+    paymentsMap.forEach((key, payment) {
+      if (key == _selectedPaymentType) {
+        paid += payment.value ?? 0;
+      }
+    });
+    return paid;
+  }
+
+  /// OTHER ///
+
+//#####FOR DOUBLE UZCARD  COUNT ###########
+
+  void typeUzcard(BuildContext context, Payment payment) async {
+    // if (!(Pref.getBool(PrefKeys.isUzcardEnabled, false))) {
+    //   allPaymentType(payment);
+    //   controller.text = '0';
+    //   return;
+    // }
+
+    _selectedPaymentType =
+        payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
+    AppLocalizations loc = AppLocalizations.of(context)!;
+
+    double available = getAvailableSumma();
+    double currentPaymentValue = getSelectedPaymentSumma();
+    double parsed =
+        double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
+    double summa = parsed > 0
+        ? (available - currentPaymentValue >= parsed
+            ? parsed
+            : available - currentPaymentValue)
+        : available - currentPaymentValue;
+
+    const fs = fl.LocalFileSystem();
+    final shell = Shell();
+
+    if (!(Pref.getBool(PrefKeys.isUzcardEnabled, false))) {
+      allPaymentType(payment);
+      controller.text = '0';
+      return;
+    }
+
+    if (summa > 0) {
+      String summaAsString = summa.toStringAsFixed(2);
+      summaAsString = (double.parse(summaAsString) * 100).round().toString();
+      await shell.startAndReadAsString(
+        'C:/Arcus2/CommandLineTool/bin/CommandLineTool.exe',
+        arguments: ['/o1', '/a$summaAsString', '/c860'],
+      ).then(
+        (value) async {
+          var logsDirectory = fs.directory('C:\\Arcus2\\Logs\\');
+          var log = await logsDirectory
+              .list(recursive: true, followLinks: false)
+              .last;
+          final file = File(log.path);
+          var data = await file.readAsBytes();
+          String asString = windows1251.decode(data);
+          /////////// receipt uzcard
+          var receiptDirectory = fs.directory('C:\\Arcus2\\cheq.out');
+          final file2 = File(receiptDirectory.path);
+          var data2 = await file2.readAsBytes();
+          String asString2 = windows1251.decode(data2);
+          ////////////
+
+          if (asString.contains("ОДОБРЕНО") ||
+              asString.contains("TASDIQLANDI")) {
+            allPaymentType(payment);
+
+            controller.text = '0';
+            await PrintingMethods.printHumoRecipts(asString2.toString());
+            ScaffoldMessenger.of(context)
+                .showSnackBar(mySnackBar(context, msg: "ОДОБРЕНО"));
+          } else {
+            String message = '';
+            String subMessage = '';
+            if (asString.contains("ОТКЛОНЕНА") ||
+                asString.contains("TASDIQLANDI")) {
+              message = 'ОТКЛОНЕНА';
+              if (asString.contains("НЕВЕРНЫЙ PIN")) {
+                subMessage = "НЕВЕРНЫЙ PIN";
+              } else if (asString.contains("ЛИМИТ ПОПЫТОК PIN")) {
+                subMessage = "ЛИМИТ ПОПЫТОК PIN";
+              } else if (asString.contains("КАРТА НЕДЕЙСТВИТЕЛЬНА")) {
+                subMessage = "КАРТА НЕДЕЙСТВИТЕЛЬНА";
+              }
+            } else if (asString.contains("ОДОБРЕНО")) {
+              message = 'ОТКЛОНЕНА';
+            } else if (asString.contains("ОДОБРЕНО")) {
+              message = 'ОТКЛОНЕНА';
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(mySnackBar(context,
+                msg: message.isEmpty
+                    ? "Nimadir hato bo'ldi"
+                    : "$message\n\n$subMessage"));
+          }
+        },
+      ).catchError((error) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(mySnackBar(context, msg: error.info));
+      });
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(mySnackBar(context, msg: loc.qiymat_kiriting));
+    }
+  }
+
+//#####FOR DOUBLE HUMO CARDS COUNT ###########
+
+  void typeHumo(BuildContext context, Payment payment) async {
+    // if (!(Pref.getBool(PrefKeys.isHumoEnabled, false))) {
+    //   allPaymentType(payment);
+    //   controller.text = '0';
+    //   return;
+    // }
+
+    _selectedPaymentType =
+        payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
+    AppLocalizations loc = AppLocalizations.of(context)!;
+
+    double available = getAvailableSumma();
+    double currentPaymentValue = getSelectedPaymentSumma();
+    double parsed =
+        double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
+    double summa = parsed > 0
+        ? (available - currentPaymentValue >= parsed
+            ? parsed
+            : available - currentPaymentValue)
+        : available - currentPaymentValue;
+
+    const fs = fl.LocalFileSystem();
+    final shell = Shell();
+
+    if (!(Pref.getBool(PrefKeys.isUzcardEnabled, false))) {
+      allPaymentType(payment);
+      controller.text = '0';
+      return;
+    }
+
+    if (summa > 0) {
+      String summaAsString = summa.toStringAsFixed(2);
+      summaAsString = (double.parse(summaAsString) * 100).round().toString();
+      await shell.startAndReadAsString(
+        'C:/Arcus2/CommandLineTool/bin/CommandLineTool.exe',
+        arguments: ['/o1', '/a$summaAsString', '/c860'],
+      ).then(
+        (value) async {
+          var logsDirectory = fs.directory('C:\\Arcus2\\Logs\\');
+          var log = await logsDirectory
+              .list(recursive: true, followLinks: false)
+              .last;
+          final file = File(log.path);
+          var data = await file.readAsBytes();
+          String asString = windows1251.decode(data);
+          /////////// recipt humo
+          var reciptDirectory = fs.directory('C:\\Arcus2\\cheq.out');
+          final file2 = File(reciptDirectory.path);
+          var data2 = await file2.readAsBytes();
+          String asString2 = windows1251.decode(data2);
+          ////////////
+
+          if (asString.contains("ОДОБРЕНО") ||
+              asString.contains("TASDIQLANDI")) {
+            allPaymentType(payment);
+
+            controller.text = '0';
+            await PrintingMethods.printHumoRecipts(asString2.toString());
+            ScaffoldMessenger.of(context)
+                .showSnackBar(mySnackBar(context, msg: "ОДОБРЕНО"));
+          } else {
+            String message = '';
+            String subMessage = '';
+            if (asString.contains("ОТКЛОНЕНА") ||
+                asString.contains("TASDIQLANDI")) {
+              message = 'ОТКЛОНЕНА';
+              if (asString.contains("НЕВЕРНЫЙ PIN")) {
+                subMessage = "НЕВЕРНЫЙ PIN";
+              } else if (asString.contains("ЛИМИТ ПОПЫТОК PIN")) {
+                subMessage = "ЛИМИТ ПОПЫТОК PIN";
+              } else if (asString.contains("КАРТА НЕДЕЙСТВИТЕЛЬНА")) {
+                subMessage = "КАРТА НЕДЕЙСТВИТЕЛЬНА";
+              }
+            } else if (asString.contains("ОДОБРЕНО")) {
+              message = 'ОТКЛОНЕНА';
+            } else if (asString.contains("ОДОБРЕНО")) {
+              message = 'ОТКЛОНЕНА';
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(mySnackBar(context,
+                msg: message.isEmpty
+                    ? "Nimadir hato bo'ldi"
+                    : "$message\n\n$subMessage"));
+          }
+        },
+      ).catchError((error) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(mySnackBar(context, msg: error.info));
+      });
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(mySnackBar(context, msg: loc.qiymat_kiriting));
+    }
+  }
+
+  void typeFromCashbackBalance(BuildContext context, Payment payment) {
+    AppLocalizations loc = AppLocalizations.of(context)!;
+
+    _selectedPaymentType = Pref.getString(PrefKeys.cashbackId, '');
+    if (_isBonusCardEnabled[0] && _isBonusCardEnabled[1]) {
+      double parsed =
+          double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
+      double available = getAvailableSumma();
+      num balance = _sixClientModel4.selectedClient?.pointBalance ?? 0.0;
+
+      if (parsed > 0) {
+        if (balance > parsed) {
+          if (available >= parsed) {
+            allPaymentType(payment);
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+              mySnackBar(context, msg: loc.client_cartasida_yetarli_emas));
+        }
+      } else if (available > 0) {
+        if (available <= balance) {
+          allPaymentType(payment);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+              mySnackBar(context, msg: loc.client_cartasida_yetarli_emas));
+        }
+      }
+    } else {
+      Log.d('====== if (parsed > 0) || ELSE =======');
+      if (_isBonusCardEnabled[0] && !_isBonusCardEnabled[1]) {
+        Log.d('_isBonusCardEnabled[0] && !_isBonusCardEnabled[1]');
+        ScaffoldMessenger.of(context).showSnackBar(
+            mySnackBar(context, msg: loc.client_cartasida_yetarli_emas));
+      } else {
+        Log.d('_isBonusCardEnabled[0] && !_isBonusCardEnabled[1] || ELSE');
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(mySnackBar(context, msg: loc.clint_tanlanmagan));
+      }
+    }
+    controller.text = '0';
+    notifyListeners();
+  }
+
+  Future<void> typePayme(BuildContext context, Payment payment) async {
+    AppLocalizations loc = AppLocalizations.of(context)!;
+
+    if (!(Pref.getBool(PrefKeys.isPaymegoActivated, false))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        mySnackBar(context, msg: "PAYME ${loc.tolov_turi_activlashtirilmagan}"),
+      );
+      return;
+    }
+
+    _selectedPaymentType =
+        payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
+
+    double available = getAvailableSumma();
+    double parsed =
+        double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
+
+    double amount =
+        parsed > 0 ? (available >= parsed ? parsed : available) : available;
+    PaymeBloc paymeBloc = BlocProvider.of(context, listen: false);
+
+    paymeBloc.add(PaymeCreateReceiptEvent(
+        amount: amount.toInt(), items: _currentClient.orderedProducts));
+    await showDialog(
+      context: context,
+      builder: (_) => PaymeDialog(
+        callback: () {
+          AppNavigation.pop();
+          allPaymentType(payment);
+        },
+      ),
+    );
+
+    controller.text = '0';
+    notifyListeners();
+  }
+
+  bool _clickPayIsWorking = false;
+
+  Future<void> typeClick(BuildContext context, Payment payment) async {
+    _selectedPaymentType =
+        payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
+
+    ClickBloc clickBloc = BlocProvider.of(context);
+    final int number = MyObjectbox.saleStore
+        .box<ReceiptModel4>()
+        .query()
+        .build()
+        .find()
+        .length;
+
+    final String receiptNumber =
+        "${Pref.getString(PrefKeys.checkId, "0")}$number";
+    AppLocalizations loc = AppLocalizations.of(context)!;
+
+    if (!(Pref.getBool(PrefKeys.isClickPassActivated, false))) {
+      ScaffoldMessenger.of(context).showSnackBar(mySnackBar(context,
+          msg: "CLICK ${loc.tolov_turi_activlashtirilmagan}"));
+      return;
+    }
+
+    double available = getAvailableSumma();
+    double parsed =
+        double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
+    double summa =
+        parsed > 0 ? (available >= parsed ? parsed : available) : available;
+
+    if (summa > 0 && !_clickPayIsWorking) {
+      _clickPayIsWorking = true;
+      notifyListeners();
+      clickBloc.add(ClickCallInitialEvent());
+      await showGeneralDialog(
+        context: context,
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return ClickPassDialog(
+            summa: summa,
+            receiptNumber: receiptNumber,
+            pay: () => allPaymentType(payment),
+          );
+        },
+        barrierDismissible: false,
+        barrierLabel:
+            MaterialLocalizations.of(context).modalBarrierDismissLabel,
+        barrierColor: Colors.transparent,
+        transitionDuration: const Duration(milliseconds: 100),
+      );
+      _clickPayIsWorking = false;
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        mySnackBar(context, msg: loc.qiymat_kiriting),
+      );
+    }
+    _clickPayIsWorking = false;
+    notifyListeners();
+    controller.text = '0';
+    notifyListeners();
+  }
+
+  Future<void> typeUzum(BuildContext context, Payment payment) async {
+    final int number = MyObjectbox.saleStore
+        .box<ReceiptModel4>()
+        .query()
+        .build()
+        .find()
+        .length;
+
+    final String receiptNumber =
+        "${Pref.getString(PrefKeys.checkId, "0")}$number";
+    AppLocalizations loc = AppLocalizations.of(context)!;
+
+    double available = getAvailableSumma();
+    double parsed =
+        double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
+    double summa =
+        parsed > 0 ? (available >= parsed ? parsed : available) : available;
+
+    if (summa > 0) {
+      notifyListeners();
+      await showGeneralDialog(
+        context: context,
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return BlocProvider(
+            create: (context) => UzumPayBloc(),
+            child: UzumDialogContent(
+              pay: () => allPaymentType(payment),
+              summa: summa,
+              receiptNumber: receiptNumber,
+            ),
+          );
+        },
+        barrierDismissible: false,
+        barrierLabel:
+            MaterialLocalizations.of(context).modalBarrierDismissLabel,
+        barrierColor: Colors.transparent,
+        transitionDuration: const Duration(milliseconds: 100),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        mySnackBar(context, msg: loc.qiymat_kiriting),
+      );
+    }
+    notifyListeners();
+    controller.text = '0';
+    notifyListeners();
+  }
+
+  List<dynamic> _items = CategorySingleton.topCategories;
+  List<CategoryData> _pathList = [];
+
+  bool displayingNotFoundDialog = false;
+
+/* //////////////////////// PROVIDER GETTERS //////////////////////// */
+
+  List<dynamic> get getItems {
+    List<CategoryData> categoryList =
+        HiveBoxes.getCategories().values.toList().cast<CategoryData>();
+
+    List<dynamic> list = [];
+
+    List<CategoryData> categoryListForLength = [];
+    for (var element in _items) {
+      if (element is CategoryData) {
+        categoryListForLength.add(element);
+      } else {
+        break;
+      }
+    }
+    for (var element in _items) {
+      if (element is LocalCategoryItemModel) {
+        if (element.isCategory) {
+          final category = CategorySingleton.getCategoryById(element.id);
+          list.add(category);
+        } else {
+          final product = ItemsSingleton.getProductById(element.id);
+          list.add(product);
+        }
+      } else if (element is CategoryData) {
+        if (element.parentId == null || element.parentId!.isEmpty) {
+          if (categoryListForLength.length == 1) {
+            if (element.id != null &&
+                element.id!.isEmpty &&
+                categoryList.length < 2 &&
+                _items.length == 1) {
+              list.add(element);
+            }
+            for (CategoryData c in categoryList) {
+              if (element.id != null &&
+                  element.id!.isNotEmpty &&
+                  element.id == c.parentId) {
+                list.add(c);
+              }
+            }
+          } else if (categoryListForLength.length > 1) {
+            for (CategoryData c in categoryList) {
+              if (c.id == element.id) {
+                list.add(c);
+              }
+            }
+          }
+        } else {
+          if (categoryListForLength.length == 1) {
+            for (CategoryData c in categoryList) {
+              if (element.id != null &&
+                  element.id!.isNotEmpty &&
+                  element.id == c.parentId) {
+                list.add(c);
+              }
+            }
+          }
+        }
+      } else if (element is ItemModel) {
+        list.add(element);
+      } else {
+        list.add(null);
+      }
+    }
+
+    return list;
+  }
+
+  List<CategoryData> get getPathList => _pathList;
+
+/////////////////////////////////////////////////////////////////////
+
+/* //////////////////////// PROVIDER METHODS //////////////////////// */
+
+
+  onBarcodeScanned(String barcode, GlobalKey<ScaffoldState> scaffoldKey) async {
+    if (barcode.isEmpty || barcode.startsWith('http')) return;
+    if (isMarkingDialogDisplaying) return;
+
+    int taroziPrefix = Pref.getInt(PrefKeys.taroziPrefix, 28);
+    if (barcode.startsWith('$taroziPrefix') && barcode.length == 13) {
+      scanWeightItem(barcode, scaffoldKey);
+      return;
+    }
+
+    String pattern = barcode;
+    ItemModel? item;
+
+    DateTime? expiryDate;
+
+    final ai17Match = RegExp(r'\(17\)(\d{6})').firstMatch(barcode);
+    if (ai17Match != null) expiryDate = _parseGS1Date(ai17Match.group(1)!);
+
+    // Qavsiz: 01(14 raqam) dan keyin kelgan AI larni parse qilish
+    if (expiryDate == null && barcode.startsWith('01') && barcode.length > 16) {
+      final rest = barcode.substring(16); // "1726032510BATCH123..."
+      final ai17 = RegExp(r'^17(\d{6})').firstMatch(rest);
+      if (ai17 != null) expiryDate = _parseGS1Date(ai17.group(1)!);
+
+      if (expiryDate == null) {
+        final ai15 = RegExp(r'^15(\d{6})').firstMatch(rest);
+        if (ai15 != null) expiryDate = _parseGS1Date(ai15.group(1)!);
+      }
+    }
+
+    // Qavsli AI 15
+    if (expiryDate == null) {
+      final ai15Match = RegExp(r'\(15\)(\d{6})').firstMatch(barcode);
+      if (ai15Match != null) expiryDate = _parseGS1Date(ai15Match.group(1)!);
+    }
+
+    if (expiryDate != null) {
+      final today = DateTime(
+          DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      if (expiryDate.isBefore(today)) {
+        // dialogForMark tekshirmasdan to'g'ridan return
+        if (!dialogForMark) {
+          dialogForMark = true;
+          await showGeneralDialog(
+            barrierDismissible: false,
+            context: AppNavigation.navigatorKey.currentContext!,
+            pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
+              text: 'Срок годности этого товара истёк!',
+              text2: 'Ok',
+              delete: false,
+              isFirst: true,
+              provider: this,
+            ),
+          ).then((value) {});
+          dialogForMark = false;
+        }
+        return; // ← bu dialogForMark dan TASHQARIDA bo'lishi kerak
+      }
+    }
+    // ─────────────────────────────────────────────────────────
+    if (barcode.contains('(01)')) {
+      final gtinMatch = RegExp(r'\(01\)(\d{13,14})').firstMatch(barcode);
+      if (gtinMatch != null) {
+        String gtin = gtinMatch.group(1)!;
+        gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
+        item = ItemsSingleton.getProductByBarcode(gtin);
+        if (item != null) {
+          item.mark = barcode;
+        }
+      }
+    }
+
+    // ─── Format 2: 010478005107039421... qavsiz ───────────────
+    if (item == null && barcode.startsWith('01') && barcode.length > 16) {
+      final gtinMatch = RegExp(r'^01(\d{14})').firstMatch(barcode);
+      if (gtinMatch != null) {
+        String gtin = gtinMatch.group(1)!;
+        gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
+        item = ItemsSingleton.getProductByBarcode(gtin);
+        if (item != null) {
+          item.mark = barcode;
+        }
+      }
+    }
+
+    // ─── Oddiy barcode ────────────────────────────────────────
+    if (item == null) {
+      if (pattern.length > 18) {
+        pattern = ItemsSingleton.extractBarcode(
+            barcode.startsWith('01') ? barcode.substring(2) : barcode);
+        pattern = pattern.endsWith('21')
+            ? pattern.substring(0, pattern.length - 2)
+            : pattern;
+      }
+      item = ItemsSingleton.getProductByBarcode(pattern);
+      if (item != null) {
+        item.mark = null;
+      }
+    }
+
+    // ─── Product topildi ─────────────────────────────────────
+    if (item != null) {
+      addProduct(
+        context: scaffoldKey.currentState!.context,
+        value: item.hasBoxBarcode == true
+            ? (item.boxBarcodeQuantity ?? 0).toDouble()
+            : 1,
+        product: item,
+        where: "PRODUCTS GRID VIEW / scanBarcode",
+      );
+      return;
+    }
+
+    // ─── Box barcode ─────────────────────────────────────────
+    ItemModel? boxItem = ItemsSingleton.getProductByBoxBarcode(barcode);
+    if (boxItem != null) {
+      addProduct(
+        context: scaffoldKey.currentState!.context,
+        value: 0,
+        product: boxItem,
+        where: "PRODUCTS GRID VIEW / scanBarcode box item",
+      );
+      return;
+    }
+
+    // ─── Topilmadi ───────────────────────────────────────────
+    if (!displayingNotFoundDialog) {
+      displayingNotFoundDialog = true;
+      await showDialog(
+        barrierDismissible: false,
+        context: scaffoldKey.currentState!.context,
+        builder: (context) {
+          return NotFoundProductDialog(
+            onOKButtonPressed: () {
+              displayingNotFoundDialog = false;
+              AppNavigation.pop();
+            },
+            onCreateButtonPressed: () {
+              AppNavigation.pop();
+              Provider.of<OrderingProvider4>(context, listen: false)
+                  .onCreateProductButtonPressed(context, barcode: barcode);
+            },
+          );
+        },
+      );
+      displayingNotFoundDialog = false;
+      notifyListeners();
+    }
+  }
+
+  // ─── GS1 sana formati: YYMMDD → DateTime ─────────────────
+  DateTime? _parseGS1Date(String yymmdd) {
+    try {
+      int yy = int.parse(yymmdd.substring(0, 2));
+      int mm = int.parse(yymmdd.substring(2, 4));
+      int dd = int.parse(yymmdd.substring(4, 6));
+      int year = yy <= 49 ? 2000 + yy : 1900 + yy;
+      if (dd == 0) dd = DateTime(year, mm + 1, 0).day;
+      return DateTime(year, mm, dd);
+    } catch (_) {
+      return null;
+    }
+  }
+//   int taroziPrefix = Pref.getInt(PrefKeys.taroziPrefix, 28);
+
+//   if (barcode.startsWith('$taroziPrefix') && barcode.length == 13) {
+//     // vaznli item
+//     scanWeightItem(barcode, scaffoldKey);
+//   } else {
+//     String pattern = barcode;
+
+//     // DataMatrix tekshiruvi
+//     bool isDataMatrix = barcode.contains('(01)') || barcode.startsWith('01');
+
+//     // Oddiy barcodelarni kesish
+//     if (!isDataMatrix && pattern.length > 18) {
+//       pattern = ItemsSingleton.extractBarcode(barcode);
+
+//       pattern = pattern.endsWith('21')
+//           ? pattern.substring(0, pattern.length - 2)
+//           : pattern;
+//     }
+
+//     // 1️⃣ Oddiy barcode va SKU bo'yicha qidirish
+//     ItemModel? item = ItemsSingleton.getProductByBarcode(pattern);
+//       if (item != null) {
+//     print('=== TOPILGAN PRODUCT ===');
+//     print('name    : ${item.name}');
+//     print('mark    : ${item.mark}');
+//     print('isMarking: ${item.isMarking}');
+//     print('mxikCode: ${item.mxikCode}');
+//     print('barcode : ${item.barcode}');
+//     print('=======================');
+//   }
+
+//     // 2️⃣ MARKIROVKA TEKSHIRISH (DataMatrix)
+//     if (item == null && barcode.contains('(01)')) {
+//       try {
+//         final gtinMatch = RegExp(r'\(01\)(\d{14})').firstMatch(barcode);
+
+//         if (gtinMatch != null) {
+//           final gtin = gtinMatch.group(1);
+//           print('Markirovka GTIN: $gtin');
+
+//           item = ItemsSingleton.getProductByBarcode(gtin.toString());
+
+//           if (item != null) {
+//             item.mark = barcode; // markirovka kodni saqlaymiz
+//           }
+//         }
+//       } catch (_) {}
+//     }
+
+//     // 3️⃣ Agar product topildi → basketga qo‘shish
+//     if (item != null) {
+//       // eski markirovka tozalash
+//       if (item.isMarking != null && item.isMarking! && barcode != pattern) {
+//         item.mark = barcode;
+//       }
+
+//       addProduct(
+//         context: scaffoldKey.currentState!.context,
+//         value: item.hasBoxBarcode != null && item.hasBoxBarcode!
+//             ? (item.boxBarcodeQuantity ?? 0).toDouble()
+//             : 1,
+//         product: item,
+//         where: "PRODUCTS GRID VIEW / scanBarcode",
+//       );
+//       return;
+//     } else {
+//       // 4️⃣ Box barcode tekshirish
+//       ItemModel? boxItem = ItemsSingleton.getProductByBoxBarcode(barcode);
+
+//       if (boxItem != null) {
+//         addProduct(
+//           context: scaffoldKey.currentState!.context,
+//           value: 0,
+//           product: boxItem,
+//           where: "PRODUCTS GRID VIEW / scanBarcode box item",
+//         );
+//         return;
+//       }
+
+//       // 5️⃣ Product topilmadi → dialog
+//       if (!displayingNotFoundDialog) {
+//         displayingNotFoundDialog = true;
+
+//         await showDialog(
+//           barrierDismissible: false,
+//           context: scaffoldKey.currentState!.context,
+//           builder: (context) {
+//             return NotFoundProductDialog(
+//               onOKButtonPressed: () {
+//                 displayingNotFoundDialog = false;
+//                 AppNavigation.pop();
+//               },
+//               onCreateButtonPressed: () {
+//                 AppNavigation.pop();
+//                 Provider.of<OrderingProvider4>(context, listen: false)
+//                     .onCreateProductButtonPressed(context, barcode: barcode);
+//               },
+//             );
+//           },
+//         );
+
+//         displayingNotFoundDialog = false;
+//         notifyListeners();
+//       }
+//     }
+//   }
+// }
+
+  void scanWeightItem(
+    String barcode,
+    GlobalKey<ScaffoldState> scaffoldKey,
+  ) async {
+    String gramString = barcode.substring(7, barcode.length);
+
+    double gram = double.tryParse(gramString) ?? 0;
+    double value = (gram / 10000);
+
+    double val = (value * 1000).floorToDouble() / 1000;
+
+    final item = ItemsSingleton.getProductByBarcode(barcode.substring(2, 7));
+    if (item != null) {
+      addProduct(
+        context: scaffoldKey.currentState!.context,
+        value: val,
+        product: item,
+        where: "PRODUCTS GRID VIEW / scanWeightItem",
+        isTarozi: true,
+      );
+    } else {
+      if (!displayingNotFoundDialog) {
+        displayingNotFoundDialog = true;
+        await showDialog(
+          context: scaffoldKey.currentState!.context,
+          builder: (context) {
+            return Theme(
+              data: ThemeData.dark(),
+              child: CupertinoAlertDialog(
+                title: Text(
+                  'Нет продукта с этим штрих-кодом',
+                  style: MyThemes.txtStyle(
+                    color: Theme.of(context).canvasColor,
+                  ),
+                ),
+                actions: [
+                  CupertinoButton(
+                    onPressed: () {
+                      displayingNotFoundDialog = false;
+                      AppNavigation.pop();
+                    },
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        displayingNotFoundDialog = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  void pressCategory(CategoryData categoryData) {
+    _collectItemsByCategory(categoryData.id!);
+    _pathList.add(categoryData);
+    notifyListeners();
+  }
+
+  void pressSubCategory(SubCategoryModel subModel) {
+    _collectItemsBySubCategory(subModel.id!);
+    CategoryData categoryData = CategoryData(
+      id: subModel.id,
+      children: [],
+      name: subModel.name,
+    );
+    _pathList.add(categoryData);
+    notifyListeners();
+  }
+
+  void pressProduct(BuildContext context, ItemModel product, String where) {
+    product.mark = null;
+    addProduct(context: context, product: product, value: 1, where: where);
+  }
+
+  void pressPath(CategoryData categoryData) {
+    _collectItemsByCategory(categoryData.id!);
+    _pathList = _pathList.sublist(0, _pathList.indexOf(categoryData) + 1);
+    notifyListeners();
+  }
+
+  void pressAllPath() {
+    _items = <dynamic>[];
+    _items.addAll(CategorySingleton.topCategories);
+    _pathList = [];
+    notifyListeners();
+  }
+
+  void clearPathList() {
+    _pathList = [];
+    notifyListeners();
+  }
+
+  void changeGridviewItems(List<dynamic>? items) {
+    if (items != null) {
+      _items = items;
+      notifyListeners();
+    } else {
+      pressAllPath();
+    }
+  }
+
+/* //////////////////////// INNER METHODS //////////////////////// */
+/* //////////////////////// INNER METHODS //////////////////////// */
+/* //////////////////////// INNER METHODS //////////////////////// */
+/* //////////////////////// INNER METHODS //////////////////////// */
+
+  void _collectItemsByCategory(String categoryId) {
+    _items = <dynamic>[];
+
+    _items.addAll(
+      CategorySingleton.collectCategoryByParentCategory(categoryId),
+    );
+    _items.addAll(
+      ItemsSingleton.collectProductsByCategory(categoryId),
+    );
+  }
+
+  void _collectItemsBySubCategory(String subCategoryId) {
+    _items = <dynamic>[];
+    _items.addAll(
+      ItemsSingleton.collectProductsBySubategory(subCategoryId),
+    );
+  }
+
+  onClientSearchButtonPressedWithInn(BuildContext context) async {
+    ClientBloc clientBloc = BlocProvider.of(context, listen: false);
+    clientBloc.add(ClientInitialEvent());
+
+    con = context;
+    await showDialog(
+      context: con!,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.transparent,
+      builder: (con) => Builder(builder: (context) {
+        return TransferWithInnDialog(
+          context,
+          client: _currentClient.selectedClient,
+          onDelClientPressed: () {
+            _currentClient.selectedClient = null;
+            removeFromPaymentList();
+            AppNavigation.pop();
+            notifyListeners();
+          },
+        );
+      }),
+    );
+    return;
+  }
+}

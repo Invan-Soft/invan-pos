@@ -1,0 +1,6 @@
+{
+  "uz": [
+    "yakunlash",
+    "employee_yuklash_yakunlanmadi"
+  ]
+}

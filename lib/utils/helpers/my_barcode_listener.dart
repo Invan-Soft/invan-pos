@@ -1,0 +1,361 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
+
+typedef MyBarcodeScannedCallback = void Function(String barcode);
+
+typedef OnDeLPressedCallback = void Function();
+
+typedef OnHomePressedCallback = void Function();
+typedef Onf1PressedCallback = void Function();
+
+typedef Onf2PressedCallback = void Function();
+
+typedef Onf3PressedCallback = void Function();
+typedef OnUpPressedCallback = void Function();
+typedef OnDownPressedCallback = void Function();
+
+typedef OnF12PressedCallback = void Function();
+typedef OnShiftDeletePressedCallback = void Function();
+
+const int _lineFeed = 10;
+
+class MyBarcodeListener extends StatefulWidget {
+  const MyBarcodeListener(
+      {super.key,
+      required this.child,
+      required Function(String) onBarcodeScannedClick,
+      required Function(String) onBarcodeScannedClient,
+      required Function(String) onBarcodeScannedMagnetic,
+      required Function(String) onBarcodeScannedPayme,
+      required Function(String) onBarcodeScanned,
+      required Duration bufferDuration,
+      required Function() onF5pressed,
+      required Function() onF1pressed,
+      required Function() onF2pressed,
+      required Function() onF3pressed,
+      required Function() onDelPressed,
+      required Function() onF12Pressed,
+      required Function() onUpPressed,
+      required Function() onDownPressed,
+      required Function() onShiftDeletePressed})
+      : _onBarcodeScannedClick = onBarcodeScannedClick,
+        _onBarcodeScannedClient = onBarcodeScannedClient,
+        _onBarcodeScannedMagnetic = onBarcodeScannedMagnetic,
+        _onBarcodeScannedPayme = onBarcodeScannedPayme,
+        _onBarcodeScanned = onBarcodeScanned,
+        _bufferDuration = bufferDuration,
+        _onF5pressed = onF5pressed,
+        _onF1pressed = onF1pressed,
+        _onF2pressed = onF2pressed,
+        _onF3pressed = onF3pressed,
+        _onUpPressed = onUpPressed,
+        _onDownPressed = onDownPressed,
+        _onDelPressed = onDelPressed,
+        _onF12Pressed = onF12Pressed,
+        _onShiftDeletePressed = onShiftDeletePressed;
+
+  final Widget child;
+
+  final MyBarcodeScannedCallback _onBarcodeScanned;
+  final MyBarcodeScannedCallback _onBarcodeScannedClick;
+  final MyBarcodeScannedCallback _onBarcodeScannedClient;
+
+  final MyBarcodeScannedCallback _onBarcodeScannedMagnetic;
+  final MyBarcodeScannedCallback _onBarcodeScannedPayme;
+  final Duration _bufferDuration;
+  final OnDeLPressedCallback _onDelPressed;
+  final OnHomePressedCallback _onF5pressed;
+  final Onf1PressedCallback _onF1pressed;
+  final Onf2PressedCallback _onF2pressed;
+  final Onf3PressedCallback _onF3pressed;
+  final Onf3PressedCallback _onUpPressed;
+
+  final Onf3PressedCallback _onDownPressed;
+
+  final OnF12PressedCallback _onF12Pressed;
+  final OnShiftDeletePressedCallback _onShiftDeletePressed;
+
+  @override
+  // ignore: no_logic_in_create_state
+  MyBarcodeListenerState createState() => MyBarcodeListenerState(
+        _onBarcodeScanned,
+        _onBarcodeScannedClick,
+        _onBarcodeScannedClient,
+        _onBarcodeScannedMagnetic,
+        _onBarcodeScannedPayme,
+        _bufferDuration,
+        _onDelPressed,
+        _onF5pressed,
+        _onF1pressed,
+        _onF2pressed,
+        _onF3pressed,
+        _onDownPressed,
+        _onUpPressed,
+        _onF12Pressed,
+        _onShiftDeletePressed,
+      );
+}
+
+class MyBarcodeListenerState extends State<MyBarcodeListener> {
+  MyBarcodeListenerState(
+    this._onBarcodeScannedCallback,
+    this._onBarcodeScannedClickCallback,
+    this._onBarcodeScannedClientCallback,
+    this._onBarcodeScannedMagneticCallback,
+    this._onBarcodeScannedPaymeCallback,
+    this._bufferDuration,
+    this._onDeLPressedCallback,
+    this._onF5PressedCallback,
+    this._onF1PressedCallback,
+    this._onF2PressedCallback,
+    this._onF3PressedCallback,
+    this._onDownPressedCallback,
+    this._onUpPressedCallback,
+    this._onF12PressedCallback,
+    this._onShiftDeletePressedCallback,
+  ) {
+    RawKeyboard.instance.addListener(_keyboardCallback);
+    _keyboardSubscription = _controller.stream.listen(onKeyEvent);
+  }
+
+  final MyBarcodeScannedCallback _onBarcodeScannedCallback;
+  final MyBarcodeScannedCallback _onBarcodeScannedClickCallback;
+  final MyBarcodeScannedCallback _onBarcodeScannedClientCallback;
+
+  final MyBarcodeScannedCallback _onBarcodeScannedMagneticCallback;
+  final MyBarcodeScannedCallback _onBarcodeScannedPaymeCallback;
+  final Duration _bufferDuration;
+  final OnDeLPressedCallback _onDeLPressedCallback;
+  final OnHomePressedCallback _onF5PressedCallback;
+  final Onf1PressedCallback _onF1PressedCallback;
+  final Onf2PressedCallback _onF2PressedCallback;
+  final Onf3PressedCallback _onF3PressedCallback;
+  final OnF12PressedCallback _onF12PressedCallback;
+  final OnDownPressedCallback _onDownPressedCallback;
+  final OnUpPressedCallback _onUpPressedCallback;
+  final OnShiftDeletePressedCallback _onShiftDeletePressedCallback;
+
+  List<int> _scannedCharCodes = [];
+
+  DateTime? _lastScannedCharCodeTime;
+
+  StreamSubscription<int>? _keyboardSubscription;
+
+  final _controller = StreamController<int>();
+
+  bool isShiftPressed = false;
+  late BlBloc blBloc;
+
+  @override
+  Widget build(BuildContext context) {
+    blBloc = BlocProvider.of(context);
+    return BlocBuilder<BlBloc, BlState>(
+      builder: (context, state) {
+        return widget.child;
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _keyboardSubscription?.cancel();
+    _controller.close();
+    RawKeyboard.instance.removeListener(_keyboardCallback);
+    super.dispose();
+  }
+
+  //---------------------------------
+
+  DateTime lastEnter = DateTime.now();
+
+  void onKeyEvent(int charCode) {
+    if (!(blBloc.isVisible && blBloc.status != BLStatus.other)) {
+      return;
+    }
+
+    checkPendingCharCodesToClear();
+    _lastScannedCharCodeTime = DateTime.now();
+
+    if (charCode == _lineFeed) {
+      String scanned = String.fromCharCodes(_scannedCharCodes);
+      final now = DateTime.now();
+      if ((now.millisecondsSinceEpoch - lastEnter.millisecondsSinceEpoch) >
+          300) {
+        switch (blBloc.status) {
+          case BLStatus.home:
+            _onBarcodeScannedCallback.call(scanned);
+            break;
+          case BLStatus.click:
+            _onBarcodeScannedClickCallback(scanned);
+            break;
+          case BLStatus.client:
+            _onBarcodeScannedClientCallback(scanned);
+            break;
+          case BLStatus.payme:
+            _onBarcodeScannedPaymeCallback(scanned);
+            break;
+          case BLStatus.magneticStripe:
+            _onBarcodeScannedMagneticCallback(scanned);
+            break;
+          case BLStatus.uzum:
+            break;
+          case BLStatus.other:
+            return;
+        }
+      }
+
+      resetScannedCharCodes();
+      lastEnter = now;
+      return;
+    }
+
+    _scannedCharCodes.add(charCode);
+  }
+
+  void checkPendingCharCodesToClear() {
+    if (_lastScannedCharCodeTime == null) return;
+    if (_lastScannedCharCodeTime!
+        .isBefore(DateTime.now().subtract(_bufferDuration))) {
+      resetScannedCharCodes();
+      return;
+    }
+  }
+
+  void resetScannedCharCodes() {
+    _scannedCharCodes = [];
+  }
+
+  void addScannedCharCode(int charCode) {
+    _scannedCharCodes.add(charCode);
+  }
+
+  void _keyboardCallback(RawKeyEvent keyEvent) {
+    if (!(blBloc.isVisible && blBloc.status != BLStatus.other)) return;
+
+    if (keyEvent is RawKeyDownEvent) {
+      if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
+        _controller.sink.add(_lineFeed);
+      } else {
+        final String? char = keyEvent.character;
+        if (char != null && char.isNotEmpty) {
+          final int code = char.codeUnitAt(0);
+          _controller.sink.add(code);
+        }
+      }
+    }
+  }
+}
+
+/*void onKeyEvent(int charCode) {
+    if (blBloc.isVisible && blBloc.status != BLStatus.other) {
+      checkPendingCharCodesToClear();
+      _lastScannedCharCodeTime = DateTime.now();
+      if (charCode == _lineFeed) {
+        String scanned = String.fromCharCodes(_scannedCharCodes);
+        print('++++++++++++++++++++');
+        print(scanned);
+        if ((DateTime.now().millisecondsSinceEpoch -
+                lastEnter.millisecondsSinceEpoch) >
+            300) {
+          switch (blBloc.status) {
+            case BLStatus.home:
+              _onBarcodeScannedCallback.call(scanned);
+              break;
+            case BLStatus.other:
+              return;
+            case BLStatus.click:
+              _onBarcodeScannedClickCallback(scanned);
+              break;
+            case BLStatus.client:
+              _onBarcodeScannedClientCallback(scanned);
+              break;
+            case BLStatus.payme:
+              _onBarcodeScannedPaymeCallback(scanned);
+              break;
+            case BLStatus.magneticStripe:
+              _onBarcodeScannedMagneticCallback(scanned);
+              break;
+            case BLStatus.uzum:
+              break;
+          }
+
+          lastEnter = DateTime.now();
+          return;
+        }
+
+        resetScannedCharCodes();
+        lastEnter = DateTime.now();
+        return;
+      } else {
+        //add character to list of scanned characters;
+        _scannedCharCodes.add(charCode);
+        return;
+      }
+    } else {
+      return;
+    }
+  }*/
+
+/*void _keyboardCallback(RawKeyEvent keyEvent) {
+    if (blBloc.isVisible && blBloc.status != BLStatus.other) {
+      if ((keyEvent.data.logicalKey == LogicalKeyboardKey.delete ||
+              keyEvent.data.logicalKey == LogicalKeyboardKey.f5 ||
+              keyEvent.data.logicalKey == LogicalKeyboardKey.f1 ||
+              keyEvent.data.logicalKey == LogicalKeyboardKey.f2 ||
+              keyEvent.data.logicalKey == LogicalKeyboardKey.f3 ||
+              keyEvent.data.logicalKey == LogicalKeyboardKey.f12 ||
+              keyEvent.data.logicalKey == LogicalKeyboardKey.arrowDown ||
+              keyEvent.data.logicalKey == LogicalKeyboardKey.arrowUp ||
+              keyEvent.isShiftPressed) &&
+          keyEvent is RawKeyUpEvent) {
+        if (keyEvent.data.logicalKey == LogicalKeyboardKey.delete) {
+          if (isShiftPressed) {
+            _onShiftDeletePressedCallback.call();
+            return;
+          }
+          _onDeLPressedCallback.call();
+        } else if (keyEvent.data.logicalKey == LogicalKeyboardKey.f5) {
+          _onF5PressedCallback.call();
+        } else if (keyEvent.data.logicalKey == LogicalKeyboardKey.f1) {
+          _onF1PressedCallback.call();
+        } else if (keyEvent.data.logicalKey == LogicalKeyboardKey.f2) {
+          _onF2PressedCallback.call();
+        } else if (keyEvent.data.logicalKey == LogicalKeyboardKey.f3) {
+          _onF3PressedCallback.call();
+        } else if (keyEvent.data.logicalKey == LogicalKeyboardKey.f12) {
+          _onF12PressedCallback.call();
+        } else if (keyEvent.data.logicalKey == LogicalKeyboardKey.shiftRight) {
+        } else if (keyEvent.data.logicalKey == LogicalKeyboardKey.numpad8) {
+          _onUpPressedCallback.call();
+        } else if (keyEvent.data.logicalKey == LogicalKeyboardKey.numpad2) {
+          _onDownPressedCallback.call();
+        }
+
+        return;
+      }
+      if (keyEvent.isShiftPressed && keyEvent is RawKeyDownEvent) {
+        isShiftPressed = true;
+      } else if (keyEvent is! RawKeyUpEvent) {
+        isShiftPressed = false;
+      }
+
+      if (keyEvent.logicalKey.keyId > 255 &&
+          keyEvent.data.logicalKey != LogicalKeyboardKey.enter) {
+        return;
+      }
+
+      if (keyEvent is RawKeyDownEvent) {
+        if (keyEvent.data.logicalKey == LogicalKeyboardKey.enter) {
+          _controller.sink.add(_lineFeed);
+        } else {
+          _controller.sink.add(keyEvent.logicalKey.keyId);
+        }
+      }
+    } else {
+      return;
+    }
+  }*/

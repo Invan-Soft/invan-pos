@@ -1,0 +1,11 @@
+export '../utils/l10n/app_localizations.dart';
+export 'home/home.dart';
+export 'authentication/authentication.dart';
+export 'get_employees/get_employees.dart';
+export 'drawer/my_drawer.dart';
+export 'printing/printing.dart';
+export 'get_categories/get_categories.dart';
+export 'rule_cash/rule_cash_page.dart';
+export 'payment/payment_page.dart';
+export 'get_service/get_service.dart';
+export '../changes/providers/update_provider.dart';
