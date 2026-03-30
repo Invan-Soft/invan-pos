@@ -110,7 +110,9 @@ class OrderingProvider4 extends ChangeNotifier {
       GlobalKey<MarkingDialogState>();
   int _clientNumber = 1;
   int _tappedIndexToEdit = -1;
-
+  String _lastRRN = '';
+  String _lastCardNumber = '';
+  int _lastCardType = 0;
   final int _amountActions = 0;
   double _newClientPersentageDiscount = 0;
 
@@ -2453,6 +2455,10 @@ class OrderingProvider4 extends ChangeNotifier {
       comment: _comments,
       isShow: _showComments,
     );
+receiptModel4.cardType = _lastCardType;
+    receiptModel4.cardNumber = _lastCardNumber;
+    receiptModel4.pptId = _lastRRN;
+
     receiptModel4.payment.addAll(paymentsMapAsList);
     receiptModel4.soldItemList.addAll(_sixClientModel4.orderedProducts);
 
@@ -3073,7 +3079,67 @@ class OrderingProvider4 extends ChangeNotifier {
   /// OTHER ///
 
 //#####FOR DOUBLE UZCARD  COUNT ###########
+  /// cheq.out yoki log matnidan RRN va karta raqamini ajratib olish
+  Map<String, String?> parseTerminalReceipt(String receiptText) {
+    String? rrn;
+    String? cardNumber;
+    String? authCode;
+    String? amount;
+    String? date;
+    String? cardType;
 
+    // Chek matnidagi har bir qatorni tekshiramiz
+    for (final line in receiptText.split('\n')) {
+      // RECV <- PRINT: prefiksini olib tashlaymiz (log formatida bo'lsa)
+      final content = line.replaceFirst(RegExp(r'^.*RECV <- PRINT:'), '').trim();
+
+      // RRN: "RRN :608610728951" yoki "RRN:608610728951"
+      if (rrn == null) {
+        final m = RegExp(r'RRN\s*:?\s*(\d{6,20})').firstMatch(content);
+        if (m != null) rrn = m.group(1);
+      }
+
+      // Karta raqami: "4916********3620:01"
+      if (cardNumber == null) {
+        final m = RegExp(r'(\d{4}[\*\s]{4,8}\d{4})').firstMatch(content);
+        if (m != null) cardNumber = m.group(1);
+      }
+
+      // Avtorizatsiya kodi
+      if (authCode == null) {
+        final m = RegExp(r'[Aa]vtorizatsiya\s+kodi\s*:?\s*(\w+)').firstMatch(content);
+        if (m != null) authCode = m.group(1);
+      }
+
+      // Miqdor/Summa
+      if (amount == null) {
+        final m = RegExp(r'MIQDOR\s*:\s*([\d\s,.]+UZS?)').firstMatch(content);
+        if (m != null) amount = m.group(1)?.trim();
+      }
+
+      // Sana
+      if (date == null) {
+        final m = RegExp(r'Sana\s*:?\s*(.+)').firstMatch(content);
+        if (m != null) date = m.group(1)?.trim();
+      }
+
+      // Karta turi
+      if (cardType == null) {
+        if (content.contains('HUMO')) cardType = 'HUMO';
+        else if (content.contains('UZCARD')) cardType = 'UZCARD';
+        else if (content.contains('VISA')) cardType = 'VISA INT';
+      }
+    }
+
+    return {
+      'rrn': rrn,
+      'cardNumber': cardNumber,
+      'authCode': authCode,
+      'amount': amount,
+      'date': date,
+      'cardType': cardType,
+    };
+  }
   void typeUzcard(BuildContext context, Payment payment) async {
     // if (!(Pref.getBool(PrefKeys.isUzcardEnabled, false))) {
     //   allPaymentType(payment);
@@ -3131,6 +3197,17 @@ class OrderingProvider4 extends ChangeNotifier {
             allPaymentType(payment);
 
             controller.text = '0';
+            final paymentInfo = parseTerminalReceipt(asString2);
+            _lastRRN = paymentInfo['rrn'] ?? '';
+            _lastCardNumber = paymentInfo['cardNumber'] ?? '';
+            _lastCardType = 2;
+            print('=== HUMO TO\'LOV MA\'LUMOTLARI ===');
+            print('RRN       : ${paymentInfo['rrn']}');
+            print('Karta     : ${paymentInfo['cardNumber']}');
+            print('Auth kodi : ${paymentInfo['authCode']}');
+            print('Miqdor    : ${paymentInfo['amount']}');
+            print('Sana      : ${paymentInfo['date']}');
+            print('================================');
             await PrintingMethods.printHumoRecipts(asString2.toString());
             ScaffoldMessenger.of(context)
                 .showSnackBar(mySnackBar(context, msg: "ОДОБРЕНО"));
@@ -3226,8 +3303,18 @@ class OrderingProvider4 extends ChangeNotifier {
           if (asString.contains("ОДОБРЕНО") ||
               asString.contains("TASDIQLANDI")) {
             allPaymentType(payment);
-
             controller.text = '0';
+            final paymentInfo = parseTerminalReceipt(asString2);
+            _lastRRN = paymentInfo['rrn'] ?? '';
+            _lastCardNumber = paymentInfo['cardNumber'] ?? '';
+            _lastCardType = 2;
+            print('=== HUMO TO\'LOV MA\'LUMOTLARI ===');
+            print('RRN       : ${paymentInfo['rrn']}');
+            print('Karta     : ${paymentInfo['cardNumber']}');
+            print('Auth kodi : ${paymentInfo['authCode']}');
+            print('Miqdor    : ${paymentInfo['amount']}');
+            print('Sana      : ${paymentInfo['date']}');
+            print('================================');
             await PrintingMethods.printHumoRecipts(asString2.toString());
             ScaffoldMessenger.of(context)
                 .showSnackBar(mySnackBar(context, msg: "ОДОБРЕНО"));

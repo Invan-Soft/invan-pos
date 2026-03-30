@@ -197,16 +197,35 @@ class LocalService {
       location: location,
     );
     DateTime dateTime = await AppFormatter.getTimeZoneTime();
+    // var extraInfo = ExtraInfo(
+    //   carNumber: "",
+    //   phoneNumber: body['params']['externalInfo']['phoneNumber'],
+    //   cardType: body['params']['externalInfo']['cardType'],
+    //   pinfl: "",
+    //   tin: "",
+    //   qrPaymentID: body['params']['externalInfo']['qrPaymentID'],
+    //   qrPaymentProvider: int.parse(
+    //     body['params']['externalInfo']['qrPaymentProvider'] ?? 0,
+    //   ),
+    // );
     var extraInfo = ExtraInfo(
       carNumber: "",
-      phoneNumber: body['params']['externalInfo']['phoneNumber'],
+      phoneNumber: body['params']['externalInfo']['phoneNumber'] ?? '',
       cardType: body['params']['externalInfo']['cardType'],
       pinfl: "",
       tin: "",
-      qrPaymentID: body['params']['externalInfo']['qrPaymentID'],
-      qrPaymentProvider: int.parse(
-        body['params']['externalInfo']['qrPaymentProvider'] ?? 0,
-      ),
+      qrPaymentID: body['params']['externalInfo']['qrPaymentID'] ?? '',
+      qrPaymentProvider: int.tryParse(
+        body['params']['externalInfo']['qrPaymentProvider']?.toString() ?? '0',
+      ) ?? 0,
+
+      // ==================== YANGI QO‘SHILGAN MAYDONLAR ====================
+      cardNumber: body['params']['externalInfo']['cardNumber'] ?? '',
+      pptId: body['params']['externalInfo']['pptId'] ??
+          body['params']['externalInfo']['RRN'] ??
+          body['params']['externalInfo']['PPTID'] ?? '',                     // RRN / PPTID
+      cashedOutFromCard: body['params']['externalInfo']['cashedOutFromCard'] ?? 0,
+      // ==================================================================
     );
     FiscalReceiptModel receiptModel = FiscalReceiptModel.fromRequest(
       model,

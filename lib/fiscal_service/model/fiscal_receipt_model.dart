@@ -339,6 +339,82 @@ ExtraInfo extraInfoFromJson(String str) => ExtraInfo.fromJson(json.decode(str));
 
 String extraInfoToJson(ExtraInfo data) => json.encode(data.toJson());
 
+// class ExtraInfo {
+//   ExtraInfo({
+//     String? pinfl,
+//     String? carNumber,
+//     String? tin,
+//     String? phoneNumber,
+//     num? cardType,
+//     String? qrPaymentID,
+//     int? qrPaymentProvider,
+//   }) {
+//     _pinfl = pinfl;
+//     _carNumber = carNumber;
+//     _tin = tin;
+//     _phoneNumber = phoneNumber;
+//     _cardType = cardType;
+//     _qrPaymentProvider = qrPaymentProvider;
+//     _qrPaymentID = qrPaymentID;
+//   }
+//
+//   ExtraInfo.fromJson(dynamic json) {
+//     _pinfl = json['PINFL'];
+//     _carNumber = json['CarNumber'];
+//     _tin = json['TIN'];
+//     _phoneNumber = json['PhoneNumber'];
+//     _cardType = json['CardType'];
+//     _qrPaymentID = json['qrPaymentID'];
+//     _qrPaymentProvider = json['qrPaymentProvider'];
+//   }
+//
+//   String? _pinfl;
+//   String? _carNumber;
+//   String? _tin;
+//   String? _phoneNumber;
+//   num? _cardType;
+//   String? _qrPaymentID;
+//   int? _qrPaymentProvider;
+//
+//   ExtraInfo copyWith({
+//     String? pinfl,
+//     String? carNumber,
+//     String? tin,
+//     String? phoneNumber,
+//     num? cardType,
+//     String? qrPaymentID,
+//     int? qrPaymentProvider,
+//   }) =>
+//       ExtraInfo(
+//         pinfl: pinfl ?? _pinfl,
+//         carNumber: carNumber ?? _carNumber,
+//         tin: tin ?? _tin,
+//         phoneNumber: phoneNumber ?? _phoneNumber,
+//         cardType: cardType ?? _cardType,
+//         qrPaymentID: qrPaymentID ?? _qrPaymentID,
+//         qrPaymentProvider: qrPaymentProvider ?? _qrPaymentProvider,
+//       );
+//   String? get pinfl => _pinfl;
+//   String? get carNumber => _carNumber;
+//   String? get tin => _tin;
+//   String? get phoneNumber => _phoneNumber;
+//   num? get cardType => _cardType;
+//   String? get qrPaymentID => _qrPaymentID;
+//   int? get qrPaymentProvider => _qrPaymentProvider;
+//
+//   Map<String, dynamic> toJson() {
+//     final map = <String, dynamic>{};
+//     map['PINFL'] = _pinfl;
+//     map['CarNumber'] = _carNumber;
+//     map['TIN'] = _tin;
+//     map['phoneNumber'] = _phoneNumber;
+//     map['CardType'] = _cardType;
+//     map['qrPaymentProvider'] = _qrPaymentProvider;
+//     map['qrPaymentID'] = _qrPaymentID;
+//
+//     return map;
+//   }
+// }
 class ExtraInfo {
   ExtraInfo({
     String? pinfl,
@@ -348,14 +424,20 @@ class ExtraInfo {
     num? cardType,
     String? qrPaymentID,
     int? qrPaymentProvider,
+    String? cardNumber,          // Yangi
+    String? pptId,               // Yangi (RRN o'rniga)
+    num? cashedOutFromCard,      // Yangi
   }) {
     _pinfl = pinfl;
     _carNumber = carNumber;
     _tin = tin;
     _phoneNumber = phoneNumber;
     _cardType = cardType;
-    _qrPaymentProvider = qrPaymentProvider;
     _qrPaymentID = qrPaymentID;
+    _qrPaymentProvider = qrPaymentProvider;
+    _cardNumber = cardNumber;          // Yangi
+    _pptId = pptId;                    // Yangi
+    _cashedOutFromCard = cashedOutFromCard; // Yangi
   }
 
   ExtraInfo.fromJson(dynamic json) {
@@ -364,8 +446,11 @@ class ExtraInfo {
     _tin = json['TIN'];
     _phoneNumber = json['PhoneNumber'];
     _cardType = json['CardType'];
-    _qrPaymentID = json['qrPaymentID'];
-    _qrPaymentProvider = json['qrPaymentProvider'];
+    _qrPaymentID = json['QRPaymentID'];
+    _qrPaymentProvider = json['QRPaymentProvider'];
+    _cardNumber = json['CardNumber'];           // Yangi
+    _pptId = json['PPTID'];                     // Yangi
+    _cashedOutFromCard = json['CashedOutFromCard']; // Yangi
   }
 
   String? _pinfl;
@@ -375,6 +460,9 @@ class ExtraInfo {
   num? _cardType;
   String? _qrPaymentID;
   int? _qrPaymentProvider;
+  String? _cardNumber;           // Yangi
+  String? _pptId;                // Yangi
+  num? _cashedOutFromCard;       // Yangi
 
   ExtraInfo copyWith({
     String? pinfl,
@@ -384,6 +472,9 @@ class ExtraInfo {
     num? cardType,
     String? qrPaymentID,
     int? qrPaymentProvider,
+    String? cardNumber,          // Yangi
+    String? pptId,               // Yangi
+    num? cashedOutFromCard,      // Yangi
   }) =>
       ExtraInfo(
         pinfl: pinfl ?? _pinfl,
@@ -393,7 +484,12 @@ class ExtraInfo {
         cardType: cardType ?? _cardType,
         qrPaymentID: qrPaymentID ?? _qrPaymentID,
         qrPaymentProvider: qrPaymentProvider ?? _qrPaymentProvider,
+        cardNumber: cardNumber ?? _cardNumber,           // Yangi
+        pptId: pptId ?? _pptId,                         // Yangi
+        cashedOutFromCard: cashedOutFromCard ?? _cashedOutFromCard, // Yangi
       );
+
+  // Getters
   String? get pinfl => _pinfl;
   String? get carNumber => _carNumber;
   String? get tin => _tin;
@@ -401,21 +497,25 @@ class ExtraInfo {
   num? get cardType => _cardType;
   String? get qrPaymentID => _qrPaymentID;
   int? get qrPaymentProvider => _qrPaymentProvider;
+  String? get cardNumber => _cardNumber;           // Yangi
+  String? get pptId => _pptId;                     // Yangi
+  num? get cashedOutFromCard => _cashedOutFromCard; // Yangi
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
     map['PINFL'] = _pinfl;
     map['CarNumber'] = _carNumber;
     map['TIN'] = _tin;
-    map['phoneNumber'] = _phoneNumber;
+    map['PhoneNumber'] = _phoneNumber;        // to'g'rilangan (oldingi xato edi)
     map['CardType'] = _cardType;
-    map['qrPaymentProvider'] = _qrPaymentProvider;
-    map['qrPaymentID'] = _qrPaymentID;
-
+    map['QRPaymentID'] = _qrPaymentID;        // to'g'rilangan
+    map['QRPaymentProvider'] = _qrPaymentProvider;
+    map['CardNumber'] = _cardNumber;          // Yangi
+    map['PPTID'] = _pptId;                    // Yangi
+    map['CashedOutFromCard'] = _cashedOutFromCard; // Yangi
     return map;
   }
 }
-
 /// TerminalID : "VG300750000021"
 /// ReceiptSeq : "108"
 /// DateTime : "20220527151528"

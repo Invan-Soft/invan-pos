@@ -229,6 +229,9 @@ class ReceiptApi4 {
       shopId: Pref.getString(PrefKeys.storeId, ""),
       userId: Pref.getString(PrefKeys.userId, ""),
       comment: finalComment,
+      cardNumber: r.cardNumber,
+      cardType: r.cardType,
+      pptId: r.pptId,
     );
 
     receipt.soldItemList.addAll(r.soldItemList);

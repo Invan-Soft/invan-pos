@@ -317,7 +317,9 @@ class ReceiptSingleton4 {
           "qrPaymentProvider": Pref.getInt('epayPay_Id', 0).toString(),
           "qrPaymentID": Pref.getString('epay_Id', "").toString(),
           "phoneNumber": Pref.getString('epay_phone', "").toString(),
-          "cardType": Pref.getInt('card_type', 0),
+          "cardType": receipt.cardType ?? Pref.getInt('card_type', 0),
+          "cardNumber": receipt.cardNumber ?? '',
+          "pptId": receipt.pptId ?? '',
         },
         "items": receipt.soldItemList.map((e) {
           double discount = _countDiscountOFD(e);

@@ -51,6 +51,9 @@ class ReceiptModel4 {
   String? comment;
   bool? isShow = true;
   String? url;
+  String? cardNumber;   // "4916********3620"
+  String? pptId;        // RRN: "608610728951"
+  int? cardType;
 
   ReceiptModel4({
     required this.createdDate,
@@ -92,6 +95,9 @@ class ReceiptModel4 {
     this.isShow,
     this.comment,
     required this.isDonate,
+    this.cardNumber,
+    this.cardType,
+    this.pptId,
   });
 
   thePayment() => payment;
@@ -136,8 +142,6 @@ class ReceiptModel4 {
           );
         }).toList() ??
         [];
-
-    // Pays (payment) ni olish
     final paysJson = orderJson['pays'] as Map<String, dynamic>?;
     final pays =
         (paysJson?['pays'] as List<dynamic>?)?.map((pay) {
