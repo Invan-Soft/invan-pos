@@ -1250,10 +1250,34 @@ class OrderingProvider4 extends ChangeNotifier {
   }
 
   Future<void> _markingCheck(
+    //ideal
       ItemModel item, String v, BuildContext context) async {
     if (!dialogForMark) {
       item.mark = v;
       AppLocalizations loc = AppLocalizations.of(context)!;
+
+      // ✅ URL bo'lsa (http/https) — darhol rad etish
+      if (v.startsWith('http://') || v.startsWith('https://')) {
+        if (!dialogForMark) {
+          dialogForMark = true;
+          await showGeneralDialog(
+            barrierDismissible: false,
+            context: AppNavigation.navigatorKey.currentContext!,
+            pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
+              text: loc.ha.toLowerCase() == 'ha'
+                  ? 'Noto\'g\'ri markirovka kodi! Faqat GS1 DataMatrix formatidagi kod qabul qilinadi.'
+                  : 'Неверный код маркировки! Принимаются только коды в формате GS1 DataMatrix.',
+              text2: 'Ok',
+              delete: false,
+              isFirst: true,
+              provider: this,
+            ),
+          ).then((value) {});
+          dialogForMark = false;
+        }
+        return;
+      }
+
       String? gtinFromMark;
       final m1 = RegExp(r'\(01\)(\d{13,14})').firstMatch(v);
       if (m1 != null) {
@@ -1266,12 +1290,86 @@ class OrderingProvider4 extends ChangeNotifier {
           gtinFromMark = m2.group(1)!.replaceFirst(RegExp(r'^0+'), '');
         }
       }
-      if (gtinFromMark != null) {
-        final productBarcodes = item.barcode ?? [];
-        final barcodeMatches = productBarcodes
-            .any((b) => b.replaceFirst(RegExp(r'^0+'), '') == gtinFromMark);
 
-        if (!barcodeMatches) {
+      // ✅ GTIN topilmasa — GS1 DataMatrix emas, rad etish
+      if (gtinFromMark == null) {
+        if (!dialogForMark) {
+          dialogForMark = true;
+          await showGeneralDialog(
+            barrierDismissible: false,
+            context: AppNavigation.navigatorKey.currentContext!,
+            pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
+              text: loc.ha.toLowerCase() == 'ha'
+                  ? 'Noto\'g\'ri markirovka kodi! Faqat GS1 DataMatrix formatidagi kod qabul qilinadi.'
+                  : 'Неверный код маркировки! Принимаются только коды в формате GS1 DataMatrix.',
+              text2: 'Ok',
+              delete: false,
+              isFirst: true,
+              provider: this,
+            ),
+          ).then((value) {});
+          dialogForMark = false;
+        }
+        return;
+      }
+
+      final productBarcodes = item.barcode ?? [];
+      final barcodeMatches = productBarcodes
+          .any((b) => b.replaceFirst(RegExp(r'^0+'), '') == gtinFromMark);
+
+      if (!barcodeMatches) {
+        if (!dialogForMark) {
+          dialogForMark = true;
+          await showGeneralDialog(
+            barrierDismissible: false,
+            context: AppNavigation.navigatorKey.currentContext!,
+            pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
+              text: loc.ha.toLowerCase() == 'ha'
+                  ? 'Noto\'g\'ri markirovka! Bu markirovka boshqa mahsulotga tegishli.'
+                  : 'Неверная маркировка! Эта маркировка принадлежит другому товару.',
+              text2: 'Ok',
+              delete: false,
+              isFirst: true,
+              provider: this,
+            ),
+          ).then((value) {});
+          dialogForMark = false;
+        }
+        return;
+      }
+
+      // ─── EXPIRY DATE TEKSHIRUV ────────────────────────────
+      DateTime? expiryDate;
+
+      // Qavsli format
+      final ai17 = RegExp(r'\(17\)(\d{6})').firstMatch(v);
+      if (ai17 != null) expiryDate = _parseGS1Date(ai17.group(1)!);
+
+      // Qavsiz: 01 + 14 raqamdan keyin kelgan qismdan qidirish
+      if (expiryDate == null && v.startsWith('01') && v.length > 16) {
+        final clean = v.replaceAll(RegExp(r'[\x1D\x1C\x1E]'), '');
+        final rest = clean.substring(16);
+        final ai17rest = RegExp(r'^17(\d{6})').firstMatch(rest);
+        if (ai17rest != null) expiryDate = _parseGS1Date(ai17rest.group(1)!);
+
+        if (expiryDate == null) {
+          final ai15rest = RegExp(r'^15(\d{6})').firstMatch(rest);
+          if (ai15rest != null) {
+            expiryDate = _parseGS1Date(ai15rest.group(1)!);
+          }
+        }
+      }
+
+      // Qavsli AI 15
+      if (expiryDate == null) {
+        final ai15 = RegExp(r'\(15\)(\d{6})').firstMatch(v);
+        if (ai15 != null) expiryDate = _parseGS1Date(ai15.group(1)!);
+      }
+
+      if (expiryDate != null) {
+        final today = DateTime(
+            DateTime.now().year, DateTime.now().month, DateTime.now().day);
+        if (expiryDate.isBefore(today)) {
           if (!dialogForMark) {
             dialogForMark = true;
             await showGeneralDialog(
@@ -1279,8 +1377,8 @@ class OrderingProvider4 extends ChangeNotifier {
               context: AppNavigation.navigatorKey.currentContext!,
               pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
                 text: loc.ha.toLowerCase() == 'ha'
-                    ? 'Noto\'g\'ri markirovka! Bu markirovka boshqa mahsulotga tegishli.'
-                    : 'Неверная маркировка! Эта маркировка принадлежит другому товару.',
+                    ? 'Bu mahsulotning muddati tugagan!'
+                    : 'Срок годности этого товара истёк!',
                 text2: 'Ok',
                 delete: false,
                 isFirst: true,
@@ -1291,60 +1389,8 @@ class OrderingProvider4 extends ChangeNotifier {
           }
           return;
         }
-
-        // ─── EXPIRY DATE TEKSHIRUV ────────────────────────────
-        DateTime? expiryDate;
-
-        // Qavsli format
-        final ai17 = RegExp(r'\(17\)(\d{6})').firstMatch(v);
-        if (ai17 != null) expiryDate = _parseGS1Date(ai17.group(1)!);
-
-        // Qavsiz: 01 + 14 raqamdan keyin kelgan qismdan qidirish
-        if (expiryDate == null && v.startsWith('01') && v.length > 16) {
-          final clean = v.replaceAll(RegExp(r'[\x1D\x1C\x1E]'), '');
-          final rest = clean.substring(16);
-          final ai17rest = RegExp(r'^17(\d{6})').firstMatch(rest);
-          if (ai17rest != null) expiryDate = _parseGS1Date(ai17rest.group(1)!);
-
-          if (expiryDate == null) {
-            final ai15rest = RegExp(r'^15(\d{6})').firstMatch(rest);
-            if (ai15rest != null)
-              expiryDate = _parseGS1Date(ai15rest.group(1)!);
-          }
-        }
-
-        // Qavsli AI 15
-        if (expiryDate == null) {
-          final ai15 = RegExp(r'\(15\)(\d{6})').firstMatch(v);
-          if (ai15 != null) expiryDate = _parseGS1Date(ai15.group(1)!);
-        }
-
-        if (expiryDate != null) {
-          final today = DateTime(
-              DateTime.now().year, DateTime.now().month, DateTime.now().day);
-          if (expiryDate.isBefore(today)) {
-            if (!dialogForMark) {
-              dialogForMark = true;
-              await showGeneralDialog(
-                barrierDismissible: false,
-                context: AppNavigation.navigatorKey.currentContext!,
-                pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
-                  text: loc.ha.toLowerCase() == 'ha'
-                      ? 'Bu mahsulotning muddati tugagan!'
-                      : 'Срок годности этого товара истёк!',
-                  text2: 'Ok',
-                  delete: false,
-                  isFirst: true,
-                  provider: this,
-                ),
-              ).then((value) {});
-              dialogForMark = false;
-            }
-            return; // ← if (!dialogForMark) dan TASHQARIDA
-          }
-        }
-        // ──────────────────────────────────────────────────────
       }
+      // ──────────────────────────────────────────────────────
 
       if (!Pref.getBool('validation_onkm', false)) {
         final existingWithMark = _currentClient.orderedProducts.indexWhere(
@@ -1390,6 +1436,7 @@ class OrderingProvider4 extends ChangeNotifier {
 
       if (hasInternet) {
         if (Pref.getBool(PrefKeys.markCheckWithOfd, false)) {
+          print("Item marking_number == ${item.mark}");
           try {
             final headers = {
               'Accept': 'application/json',
@@ -3787,6 +3834,7 @@ receiptModel4.cardType = _lastCardType;
       return null;
     }
   }
+
 //   int taroziPrefix = Pref.getInt(PrefKeys.taroziPrefix, 28);
 
 //   if (barcode.startsWith('$taroziPrefix') && barcode.length == 13) {
