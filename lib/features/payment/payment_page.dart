@@ -1,4 +1,3 @@
-// ignore_for_file: deprecated_member_use
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,7 +14,6 @@ import 'package:provider/provider.dart';
 import 'right/right.dart';
 import 'left/left.dart';
 
-// ignore: must_be_immutable
 class PaymentPage extends StatefulWidget {
   BuildContext con;
 

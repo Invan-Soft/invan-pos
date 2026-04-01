@@ -136,8 +136,8 @@ class OrderingProvider4 extends ChangeNotifier {
 
   List<ReceiptModelSoldItem4> get getCurrentClientOrderedProducts =>
       _currentClient.orderedProducts;
-      // Mavjud provider ichiga qo'shiladi
 
+  // Mavjud provider ichiga qo'shiladi
 
   /* //////////////////////// PROVIDER SETTERS //////////////////////// */
   /* //////////////////////// PROVIDER SETTERS //////////////////////// */
@@ -259,7 +259,14 @@ class OrderingProvider4 extends ChangeNotifier {
       final price =
           ItemsSingleton.finalPrice(product, value.toInt(), isKg, isFirst: true)
               .toDouble();
-      final isMarking = product.isMarking == true;
+
+      final mxikStr = (product.mxikCode ?? product.mxikCode ?? '').trim();
+      final bool sellWithMarkingEnabled =
+          Pref.getBool(PrefKeys.sellProductsWithMarking, true);
+      final bool isMarkingByMxik = sellWithMarkingEnabled &&
+          (mxikStr.startsWith('022') || mxikStr.startsWith('024'));
+
+      final isMarking = product.isMarking == true || isMarkingByMxik;
 
       if (isMarking) {
         await _handleMarkingProduct(context, product, price);
@@ -372,6 +379,7 @@ class OrderingProvider4 extends ChangeNotifier {
       }
     }
   }
+
   // ==================== UTILITY (KOMMUNAL) MXIK CHEK ====================
   /// Agar savatda kommunal xizmatlar (suv, gaz, elektr va h.k.) bo‘lsa — faqat KARTA orqali to‘lov mumkin
   bool get isCardOnlyPaymentRequired {
@@ -379,9 +387,10 @@ class OrderingProvider4 extends ChangeNotifier {
 
     return _currentClient.orderedProducts.any((item) {
       final mxik = item.mxik.trim();
-  return mxik.isNotEmpty && MxikConstants.cardOnlyMxikCodes.contains(mxik);
+      return mxik.isNotEmpty && MxikConstants.cardOnlyMxikCodes.contains(mxik);
     });
   }
+
   Future<void> loadInvoiceByBarcodeWithBloc({
     required String barcode,
     required BuildContext context,
@@ -1250,13 +1259,13 @@ class OrderingProvider4 extends ChangeNotifier {
   }
 
   Future<void> _markingCheck(
-    //ideal
-      ItemModel item, String v, BuildContext context) async {
+      //ideal
+      ItemModel item,
+      String v,
+      BuildContext context) async {
     if (!dialogForMark) {
       item.mark = v;
       AppLocalizations loc = AppLocalizations.of(context)!;
-
-      // ✅ URL bo'lsa (http/https) — darhol rad etish
       if (v.startsWith('http://') || v.startsWith('https://')) {
         if (!dialogForMark) {
           dialogForMark = true;
@@ -2502,7 +2511,7 @@ class OrderingProvider4 extends ChangeNotifier {
       comment: _comments,
       isShow: _showComments,
     );
-receiptModel4.cardType = _lastCardType;
+    receiptModel4.cardType = _lastCardType;
     receiptModel4.cardNumber = _lastCardNumber;
     receiptModel4.pptId = _lastRRN;
 
@@ -3138,7 +3147,8 @@ receiptModel4.cardType = _lastCardType;
     // Chek matnidagi har bir qatorni tekshiramiz
     for (final line in receiptText.split('\n')) {
       // RECV <- PRINT: prefiksini olib tashlaymiz (log formatida bo'lsa)
-      final content = line.replaceFirst(RegExp(r'^.*RECV <- PRINT:'), '').trim();
+      final content =
+          line.replaceFirst(RegExp(r'^.*RECV <- PRINT:'), '').trim();
 
       // RRN: "RRN :608610728951" yoki "RRN:608610728951"
       if (rrn == null) {
@@ -3154,7 +3164,8 @@ receiptModel4.cardType = _lastCardType;
 
       // Avtorizatsiya kodi
       if (authCode == null) {
-        final m = RegExp(r'[Aa]vtorizatsiya\s+kodi\s*:?\s*(\w+)').firstMatch(content);
+        final m =
+            RegExp(r'[Aa]vtorizatsiya\s+kodi\s*:?\s*(\w+)').firstMatch(content);
         if (m != null) authCode = m.group(1);
       }
 
@@ -3172,8 +3183,10 @@ receiptModel4.cardType = _lastCardType;
 
       // Karta turi
       if (cardType == null) {
-        if (content.contains('HUMO')) cardType = 'HUMO';
-        else if (content.contains('UZCARD')) cardType = 'UZCARD';
+        if (content.contains('HUMO'))
+          cardType = 'HUMO';
+        else if (content.contains('UZCARD'))
+          cardType = 'UZCARD';
         else if (content.contains('VISA')) cardType = 'VISA INT';
       }
     }
@@ -3187,6 +3200,7 @@ receiptModel4.cardType = _lastCardType;
       'cardType': cardType,
     };
   }
+
   void typeUzcard(BuildContext context, Payment payment) async {
     // if (!(Pref.getBool(PrefKeys.isUzcardEnabled, false))) {
     //   allPaymentType(payment);
@@ -3670,7 +3684,6 @@ receiptModel4.cardType = _lastCardType;
 
 /* //////////////////////// PROVIDER METHODS //////////////////////// */
 
-
   onBarcodeScanned(String barcode, GlobalKey<ScaffoldState> scaffoldKey) async {
     if (barcode.isEmpty || barcode.startsWith('http')) return;
     if (isMarkingDialogDisplaying) return;
@@ -3711,7 +3724,6 @@ receiptModel4.cardType = _lastCardType;
       final today = DateTime(
           DateTime.now().year, DateTime.now().month, DateTime.now().day);
       if (expiryDate.isBefore(today)) {
-        // dialogForMark tekshirmasdan to'g'ridan return
         if (!dialogForMark) {
           dialogForMark = true;
           await showGeneralDialog(
@@ -3743,7 +3755,6 @@ receiptModel4.cardType = _lastCardType;
       }
     }
 
-    // ─── Format 2: 010478005107039421... qavsiz ───────────────
     if (item == null && barcode.startsWith('01') && barcode.length > 16) {
       final gtinMatch = RegExp(r'^01(\d{14})').firstMatch(barcode);
       if (gtinMatch != null) {
@@ -3756,7 +3767,6 @@ receiptModel4.cardType = _lastCardType;
       }
     }
 
-    // ─── Oddiy barcode ────────────────────────────────────────
     if (item == null) {
       if (pattern.length > 18) {
         pattern = ItemsSingleton.extractBarcode(
@@ -3771,8 +3781,21 @@ receiptModel4.cardType = _lastCardType;
       }
     }
 
-    // ─── Product topildi ─────────────────────────────────────
     if (item != null) {
+      print(item.mxikCode);
+      final mxikStr = (item.mxikCode ?? '').trim();
+
+      final bool sellWithMarkingEnabled =
+          Pref.getBool(PrefKeys.sellProductsWithMarking, true);
+
+      final bool isMarkingByMxik = sellWithMarkingEnabled &&
+          (mxikStr.startsWith('022') || mxikStr.startsWith('024'));
+
+      if (isMarkingByMxik) {
+        await marking(scaffoldKey.currentState!.context, item);
+        return;
+      }
+
       addProduct(
         context: scaffoldKey.currentState!.context,
         value: item.hasBoxBarcode == true
@@ -3783,7 +3806,6 @@ receiptModel4.cardType = _lastCardType;
       );
       return;
     }
-
     // ─── Box barcode ─────────────────────────────────────────
     ItemModel? boxItem = ItemsSingleton.getProductByBoxBarcode(barcode);
     if (boxItem != null) {

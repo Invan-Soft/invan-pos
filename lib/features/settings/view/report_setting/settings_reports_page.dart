@@ -44,10 +44,9 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
   late bool preCheck;
   late bool ofd;
   late bool validation_onkm;
+  late bool sellProductsWithMarking;
 
-
-  // Yangi switch uchun
-  late bool switchMarking;  // Soliqdan marking sinxronizatsiyasi
+  late bool switchMarking;
 
   String casshierId = Pref.getString(PrefKeys.cashierId, "not initialized");
   String casshierName = Pref.getString(PrefKeys.cashierName, "not initialized");
@@ -64,8 +63,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
     switchClient = Pref.getBool('switchClients', true);
     switchProductName = Pref.getBool('switchProductName', true);
     validation_onkm = Pref.getBool('validation_onkm', false);
-
-
+    sellProductsWithMarking = Pref.getBool(PrefKeys.sellProductsWithMarking, true);
     transfer = Pref.getBool(PrefKeys.transfer, false);
     preCheck = Pref.getBool(PrefKeys.preCheck, false);
     ofd = Pref.getBool(PrefKeys.withOFD, false);
@@ -75,12 +73,12 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
     AppLocalizations loc = AppLocalizations.of(context)!;
     SettingsBloc settingsBloc = BlocProvider.of(context);
     String? markingLastUpdated = Pref.getString('markingLastUpdated', '');
-// markingLastUpdated bo'sh bo'lsa null deb hisoblaymiz
-    final String? markingSubtitle = (markingLastUpdated != null && markingLastUpdated.isNotEmpty)
-        ? (loc.ha.toLowerCase() == 'ha'
-        ? "Oxirgi yangilanish: $markingLastUpdated"
-        : "Последнее обновление: $markingLastUpdated")
-        : null;
+    final String? markingSubtitle =
+        (markingLastUpdated != null && markingLastUpdated.isNotEmpty)
+            ? (loc.ha.toLowerCase() == 'ha'
+                ? "Oxirgi yangilanish: $markingLastUpdated"
+                : "Последнее обновление: $markingLastUpdated")
+            : null;
     return Stack(children: [
       SingleChildScrollView(
         child: SizedBox(
@@ -120,14 +118,14 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
               ),
               Pref.getBool(PrefKeys.withOFD, false)
                   ? SwitchTileOfReportPage(
-                onChanged: (v) {
-                  Pref.setBool(PrefKeys.preCheck, v);
-                  setState(() {});
-                },
-                onTap: () {},
-                title: "Enable or disable pre-check",
-                activ: preCheck,
-              )
+                      onChanged: (v) {
+                        Pref.setBool(PrefKeys.preCheck, v);
+                        setState(() {});
+                      },
+                      onTap: () {},
+                      title: "Enable or disable pre-check",
+                      activ: preCheck,
+                    )
                   : const SizedBox.shrink(),
               SwitchTileOfReportPage(
                 onChanged: (v) {
@@ -165,8 +163,15 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                 title: "Access search by product name",
                 activ: switchProductName,
               ),
-
-
+              SwitchTileOfReportPage(
+                onChanged: (v) {
+                  Pref.setBool(PrefKeys.sellProductsWithMarking, v);
+                  setState(() {});
+                },
+                onTap: () {},
+                title: "Sell Products With marking",
+                activ: sellProductsWithMarking,
+              ),
               // SwitchTileOfReportPage(
               //   subtitle: markingSubtitle,
               //   onChanged: (v) async {
@@ -217,20 +222,20 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
 
               !Pref.getBool(PrefKeys.withOFD, false)
                   ? setQrCode("Enter url for qr code", () {
-                showDialog(
-                  context: context,
-                  barrierDismissible: true,
-                  barrierLabel: MaterialLocalizations.of(context)
-                      .modalBarrierDismissLabel,
-                  barrierColor: Colors.transparent,
-                  builder: (_) {
-                    return const AlertDialog(
-                        alignment: Alignment.topRight,
-                        backgroundColor: Colors.transparent,
-                        content: QRCodeDialog());
-                  },
-                );
-              })
+                      showDialog(
+                        context: context,
+                        barrierDismissible: true,
+                        barrierLabel: MaterialLocalizations.of(context)
+                            .modalBarrierDismissLabel,
+                        barrierColor: Colors.transparent,
+                        builder: (_) {
+                          return const AlertDialog(
+                              alignment: Alignment.topRight,
+                              backgroundColor: Colors.transparent,
+                              content: QRCodeDialog());
+                        },
+                      );
+                    })
                   : const Text(''),
 
               setQrCode("Enter Terminal ID", () {
@@ -250,7 +255,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
               }),
               setQrCode(
                 "Enter store location",
-                    () {
+                () {
                   showDialog(
                     context: context,
                     barrierDismissible: true,
@@ -268,7 +273,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
               ),
               setQrCode(
                 "Edit rejected receipts",
-                    () {
+                () {
                   showDialog(
                     context: context,
                     barrierDismissible: true,
@@ -288,7 +293,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                 loc.ha.toLowerCase() == 'ha'
                     ? 'Shtrix M-ni yangilash'
                     : 'Обновление штрихкода M',
-                    () async {
+                () async {
                   setState(() {
                     isWaiting = true;
                   });
@@ -328,30 +333,30 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
       ),
       isWaiting
           ? Positioned.fill(
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(
-              SizeConfig.v * 1.1,
-            ),
-            color: Theme.of(context).primaryColor.withOpacity(.4),
-          ),
-          child: Center(
-            child: SpinKitCircle(
-              color: Theme.of(context).primaryColor,
-            ),
-          ),
-        ),
-      )
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(
+                    SizeConfig.v * 1.1,
+                  ),
+                  color: Theme.of(context).primaryColor.withOpacity(.4),
+                ),
+                child: Center(
+                  child: SpinKitCircle(
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
+              ),
+            )
           : const Positioned(
-        top: 0,
-        left: 0,
-        child: SizedBox(
-          height: 0,
-          width: 0,
-        ),
-      )
+              top: 0,
+              left: 0,
+              child: SizedBox(
+                height: 0,
+                width: 0,
+              ),
+            )
     ]);
   }
 
