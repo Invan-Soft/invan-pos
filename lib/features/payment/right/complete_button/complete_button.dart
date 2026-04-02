@@ -22,58 +22,71 @@ class CompleteButtonOfPaymentPageOnBloc extends StatelessWidget {
   Widget build(BuildContext context) {
     CmtBBloc ctBloc = BlocProvider.of(context, listen: false);
     AppLocalizations loc = AppLocalizations.of(context)!;
+
     return SizedBox(
       height: SizeConfig.v * 15.75,
       child: BlocConsumer<CmtBBloc, CtState>(
         listener: (context, state) async {
           if (state is CtPrepereState) {
-            OrderingProvider4 ordProvider4 =
-                Provider.of<OrderingProvider4>(context, listen: false);
-            ordProvider4.setPaymentInProgress(true);
-            double sdacha = ordProvider4.getSdacha;
-            bool sdachaToCashback = ordProvider4.isChangeToCashback;
-            bool ofd = Pref.getBool(PrefKeys.withOFD, false);
+            final OrderingProvider4 ordProvider4 =
+            Provider.of<OrderingProvider4>(context, listen: false);
 
-            ctBloc.add(
-              CtPayEvent(
-                sdacha: sdacha,
-                ofd: ofd,
-                sdachaToCashbak: sdachaToCashback,
-              ),
-            );
-          }
-          if (state is CtPayingState) {
-            if (state.ofd && !Pref.getBool(PrefKeys.debtClick, false)) {
-              PaymentResult result = await Provider.of<OrderingProvider4>(
-                context,
-                listen: false,
-              ).pressPaymentButtonOnlyOFD(homeContextt);
+            ordProvider4.setPaymentInProgress(true);
+
+            final double sdacha = ordProvider4.getSdacha;
+            final bool sdachaToCashback = ordProvider4.isChangeToCashback;
+
+            // Click Pass orqali to'lov muvaffaqiyatli bo'lgan bo'lsa —
+            // OFD yoniq/o'chiq farqi yo'q, har doim pressPaymentButtonOnlyOFD
+            if (ordProvider4.clickPassPaid) {
+              final PaymentResult result =
+                  await ordProvider4.pressPaymentButtonOnlyOFD(homeContextt);
+
               if (result.success) {
-                ctBloc.add(
-                  CtPaySuccessedEvent(
-                    sdacha: state.sdacha,
-                    showSdachaDialog:
-                        (state.sdacha > 0 && !state.sdachaToCashback),
-                  ),
-                );
+                ctBloc.add(CtPaySuccessedEvent(
+                  sdacha: sdacha,
+                  showSdachaDialog: (sdacha > 0 && !sdachaToCashback),
+                ));
               } else {
-                ctBloc.add(
-                  CtErrorEvent(
-                      error: loc.tolov_amalga_oshmadi,
-                      subError: result.mxikError ?? "none"),
-                );
+                ctBloc.add(CtErrorEvent(
+                  error: loc.tolov_amalga_oshmadi,
+                  subError: result.mxikError ?? "Click to'lov xatosi",
+                ));
               }
               return;
             }
-            await Provider.of<OrderingProvider4>(context, listen: false)
-                .pressPaymentButton(homeContextt);
-            Pref.setBool(PrefKeys.debtClick, false);
-            ctBloc.add(
-              CtPaySuccessedEvent(
-                sdacha: state.sdacha,
-                showSdachaDialog: (state.sdacha > 0 && !state.sdachaToCashback),
-              ),
-            );
+
+            // Boshqa to'lov turlari uchun eski logika
+            final bool withOFD = Pref.getBool(PrefKeys.withOFD, false);
+
+            if (withOFD && !Pref.getBool(PrefKeys.debtClick, false)) {
+              final PaymentResult result =
+                  await ordProvider4.pressPaymentButtonOnlyOFD(homeContextt);
+
+              if (result.success) {
+                ctBloc.add(CtPaySuccessedEvent(
+                  sdacha: sdacha,
+                  showSdachaDialog: (sdacha > 0 && !sdachaToCashback),
+                ));
+              } else {
+                ctBloc.add(CtErrorEvent(
+                  error: loc.tolov_amalga_oshmadi,
+                  subError: result.mxikError ?? "none",
+                ));
+              }
+            } else {
+              await ordProvider4.pressPaymentButton(homeContextt);
+              Pref.setBool(PrefKeys.debtClick, false);
+              ctBloc.add(CtPaySuccessedEvent(
+                sdacha: sdacha,
+                showSdachaDialog: (sdacha > 0 && !sdachaToCashback),
+              ));
+            }
+          }
+
+          // Qolgan holatlar o'zgarmaydi
+          if (state is CtPayingState) {
+            // Bu yerda eski kod saqlanadi, lekin CtPrepereState da biz allaqachon boshqarib bo'ldik
           }
 
           if (state is CtSucceedState) {
@@ -90,11 +103,11 @@ class CompleteButtonOfPaymentPageOnBloc extends StatelessWidget {
             await Pref.setBool("credit", false);
             AppNavigation.pop();
           }
+
           if (state is CtErrorState) {
             if (state.subError is! MxikError) {
               await Future.delayed(const Duration(seconds: 3));
             }
-
             AppNavigation.pop(v: state.subError);
           }
         },
@@ -113,28 +126,32 @@ class CompleteButtonOfPaymentPageOnBloc extends StatelessWidget {
               );
             }
           }
+
           if (state is CtSucceedState) {
             return ButtonWidget(
               title: "COMLETE",
               onPredssed: () {},
             );
           }
+
           if (state is CtErrorState) {
             return ButtonWidget(
               title: state.error.toString(),
               onPredssed: () {},
             );
           }
-          if (state is CtLoadingState || state is CtPayingState) {
+
+          if (state is CtLoadingState ||
+              state is CtPayingState ||
+              state is CtPrepereState) {
             return ButtonWidget(
               title: "${loc.kuting}...",
               onPredssed: () {},
             );
-            // return const LoadingWidgetOfCompleteButton();
           }
 
           return ButtonWidget(
-            title: "ERROR",
+            title: loc.yakunlash,
             onPredssed: () {},
           );
         },

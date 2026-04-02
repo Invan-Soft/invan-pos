@@ -236,6 +236,7 @@ class LocalService {
     ApiState state = await BaseService.post(receiptModel.toJson());
 
     if (state is Success) {
+      
       LastReceiptModel returned = LastReceiptModel.fromJson(
         state.decodeResult(),
       );

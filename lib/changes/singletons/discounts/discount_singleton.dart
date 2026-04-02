@@ -91,7 +91,6 @@ class ReturnedGift {
     this.isGetX,
   });
 }
-
 class ReturnedGiftX {
   num buyAmount;
   ProductIds? getProduct;
@@ -99,8 +98,7 @@ class ReturnedGiftX {
   String? discountId;
   String? discountName;
   String? discountGroupType;
-  num actualFreeQty;
-  bool isRepetable;
+  bool isRepeatable;          // ← YANGI MAYDON
 
   ReturnedGiftX({
     required this.buyAmount,
@@ -109,7 +107,6 @@ class ReturnedGiftX {
     this.discountId,
     this.discountName,
     this.discountGroupType,
-    this.actualFreeQty = 0,
-    this.isRepetable = false,
+    this.isRepeatable = false,   // default false
   });
 }

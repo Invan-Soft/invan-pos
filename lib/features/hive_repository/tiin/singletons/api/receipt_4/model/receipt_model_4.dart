@@ -435,7 +435,7 @@ class ReceiptModelSoldItem4 {
       "vat_percentage": vatPercent,
       'single_item_discount': singleDiscount,
       'discounts': discounts,
-      'marking_number': mark ??""
+      'marking_name': mark ??""
     };
     return json;
   }

@@ -300,9 +300,17 @@ class DiscountHelpers {
     double length2 = 0;
     double value = 0;
 
+    // Markirovkali mahsulotlar bir xil productId bilan alohida entry sifatida
+    // qo'shiladi (har biri value=1). Umumiy sonni yig'amiz.
+    final Map<String, double> totalQtyByProductId = {};
+    for (final p in products) {
+      totalQtyByProductId[p.productId] =
+          (totalQtyByProductId[p.productId] ?? 0) + p.value;
+    }
+
     for (final productsToBuy in buyXGetY.productsToBuy!) {
+      // _availableDiscount faqat bir marta o'rnatiladi (UI uchun)
       for (final product in products) {
-        /// Available Discounts ///
         if (productsToBuy.id == product.productId &&
             productsToBuy.id == _productId) {
           _availableDiscount = ReturnedProduct(
@@ -314,20 +322,22 @@ class DiscountHelpers {
             discountName: dis.displayName ?? '',
             discountGroupType: dis.discountGroupType!.id,
           );
+          break;
         }
+      }
 
-        if (productsToBuy.id == product.productId &&
-            buyXGetY.buyProductsAmount! <= product.value &&
-            productsToBuy.id != buyXGetY.productToGet!.id) {
-          length1++;
-          value = product.value;
-        }
-        // Eski % shartini olib tashladik — endi faqat mahsulot mosligi yetarli
-        else if (productsToBuy.id == product.productId &&
-            productsToBuy.id == buyXGetY.productToGet!.id) {
-          length2++;
-          value = product.value;
-        }
+      // Umumiy qty (markirovkali va oddiy mahsulotlar uchun ham to'g'ri)
+      final totalQty = totalQtyByProductId[productsToBuy.id] ?? 0;
+
+      if (totalQty > 0 &&
+          productsToBuy.id != buyXGetY.productToGet!.id &&
+          buyXGetY.buyProductsAmount! <= totalQty) {
+        length1++;
+        value = totalQty;
+      } else if (productsToBuy.id == buyXGetY.productToGet!.id &&
+          totalQty > 0) {
+        length2++;
+        value = totalQty;
       }
     }
 
@@ -470,72 +480,138 @@ class DiscountHelpers {
   //
   //   return result;
   // }
-  static List<ReturnedGiftX> _getBuyXGetXAsGift(
-    List<ReceiptModelSoldItem4> products,
-    DiscountItem dis, {
-    bool forDialogOnly = false,
-  }) {
-    final buyXGetX = dis.buyXGetX;
-    List<ReturnedGiftX> result = [];
+  // static List<ReturnedGiftX> _getBuyXGetXAsGift(
+  //   List<ReceiptModelSoldItem4> products,
+  //   DiscountItem dis, {
+  //   bool forDialogOnly = false,
+  // }) {
+  //   final buyXGetX = dis.buyXGetX;
+  //   List<ReturnedGiftX> result = [];
 
-    if (buyXGetX == null ||
-        buyXGetX.buyProductsAmount == null ||
-        buyXGetX.getProductsAmount == null ||
-        buyXGetX.productsToBuy == null ||
-        buyXGetX.productsToBuy!.isEmpty) {
-      return result;
-    }
+  //   if (buyXGetX == null ||
+  //       buyXGetX.buyProductsAmount == null ||
+  //       buyXGetX.getProductsAmount == null ||
+  //       buyXGetX.productsToBuy == null ||
+  //       buyXGetX.productsToBuy!.isEmpty) {
+  //     return result;
+  //   }
 
-    for (final productToBuy in buyXGetX.productsToBuy!) {
-      double totalQty = 0.0;
+  //   for (final productToBuy in buyXGetX.productsToBuy!) {
+  //     double totalQty = 0.0;
 
-      for (final product in products) {
-        if (product.productId == productToBuy.id) {
-          totalQty += product.value.toDouble();
-        }
-      }
-      if (forDialogOnly) {
-        if (totalQty + 1 >= buyXGetX.buyProductsAmount!.toDouble()) {
-          result.add(ReturnedGiftX(
-            buyAmount: buyXGetX.buyProductsAmount ?? 0,
-            getProduct:
-                ProductIds(id: productToBuy.id, name: productToBuy.name),
-            getProductAmount: buyXGetX.getProductsAmount ?? 0,
-            discountId: dis.id ?? '',
-            discountName: dis.displayName ?? '',
-            discountGroupType: dis.discountGroupType!.id,
-          ));
-        }
-      }
+  //     for (final product in products) {
+  //       if (product.productId == productToBuy.id) {
+  //         totalQty += product.value.toDouble();
+  //       }
+  //     }
+  //     if (forDialogOnly) {
+  //       if (totalQty + 1 >= buyXGetX.buyProductsAmount!.toDouble()) {
+  //         result.add(ReturnedGiftX(
+  //           buyAmount: buyXGetX.buyProductsAmount ?? 0,
+  //           getProduct:
+  //               ProductIds(id: productToBuy.id, name: productToBuy.name),
+  //           getProductAmount: buyXGetX.getProductsAmount ?? 0,
+  //           discountId: dis.id ?? '',
+  //           discountName: dis.displayName ?? '',
+  //           discountGroupType: dis.discountGroupType!.id,
+  //         ));
+  //       }
+  //     }
 
-      if (totalQty < buyXGetX.buyProductsAmount!.toDouble()) continue;
+  //     if (totalQty < buyXGetX.buyProductsAmount!.toDouble()) continue;
 
-      num freeQty = 0;
+  //     num freeQty = 0;
 
-      if (dis.isRepeatable == true) {
-        final perSet =
-            buyXGetX.buyProductsAmount! + buyXGetX.getProductsAmount!;
-        final sets = (totalQty / perSet.toDouble()).floor();
-        freeQty = sets * buyXGetX.getProductsAmount!;
-      } else {
-        freeQty = buyXGetX.getProductsAmount!;
-      }
+  //     if (dis.isRepeatable == true) {
+  //       final perSet =
+  //           buyXGetX.buyProductsAmount! + buyXGetX.getProductsAmount!;
+  //       final sets = (totalQty / perSet.toDouble()).floor();
+  //       freeQty = sets * buyXGetX.getProductsAmount!;
+  //     } else {
+  //       freeQty = buyXGetX.getProductsAmount!;
+  //     }
 
-      if (freeQty > 0) {
-        result.add(ReturnedGiftX(
-          buyAmount: buyXGetX.buyProductsAmount ?? 0,
-          getProduct: ProductIds(id: productToBuy.id, name: productToBuy.name),
-          getProductAmount: freeQty.toInt(),
-          discountId: dis.id ?? '',
-          discountName: dis.displayName ?? '',
-          discountGroupType: dis.discountGroupType!.id,
-        ));
-      }
-    }
+  //     if (freeQty > 0) {
+  //       result.add(ReturnedGiftX(
+  //         buyAmount: buyXGetX.buyProductsAmount ?? 0,
+  //         getProduct: ProductIds(id: productToBuy.id, name: productToBuy.name),
+  //         getProductAmount: freeQty.toInt(),
+  //         discountId: dis.id ?? '',
+  //         discountName: dis.displayName ?? '',
+  //         discountGroupType: dis.discountGroupType!.id,
+  //       ));
+  //     }
+  //   }
 
+  //   return result;
+  // }
+static List<ReturnedGiftX> _getBuyXGetXAsGift(
+  List<ReceiptModelSoldItem4> products,
+  DiscountItem dis, {
+  bool forDialogOnly = false,
+}) {
+  final buyXGetX = dis.buyXGetX;
+  List<ReturnedGiftX> result = [];
+
+  if (buyXGetX == null ||
+      buyXGetX.buyProductsAmount == null ||
+      buyXGetX.getProductsAmount == null ||
+      buyXGetX.productsToBuy == null ||
+      buyXGetX.productsToBuy!.isEmpty) {
     return result;
   }
 
+  for (final productToBuy in buyXGetX.productsToBuy!) {
+    double totalQty = 0.0;
+    for (final product in products) {
+      if (product.productId == productToBuy.id) {
+        totalQty += product.value.toDouble();
+      }
+    }
+
+    if (forDialogOnly) {
+      if (totalQty + 1 >= buyXGetX.buyProductsAmount!.toDouble()) {
+        result.add(ReturnedGiftX(
+          buyAmount: buyXGetX.buyProductsAmount ?? 0,
+          getProduct: ProductIds(id: productToBuy.id, name: productToBuy.name),
+          getProductAmount: buyXGetX.getProductsAmount ?? 0,
+          discountId: dis.id ?? '',
+          discountName: dis.displayName ?? '',
+          discountGroupType: dis.discountGroupType!.id,
+          isRepeatable: dis.isRepeatable ?? false,   // ← BU YERDA UZATAMIZ
+        ));
+      }
+      continue;
+    }
+
+    if (totalQty < buyXGetX.buyProductsAmount!.toDouble()) continue;
+
+    num freeQty = 0;
+    final buy = buyXGetX.buyProductsAmount!.toDouble();
+    final get = buyXGetX.getProductsAmount!.toDouble();
+
+    if (dis.isRepeatable == true) {
+      final perSet = buy + get;
+      freeQty = perSet > 0 ? (totalQty / perSet).floor() * get : 0;
+    } else {
+      freeQty = totalQty >= (buy + get) ? get : 0;
+    }
+
+    if (freeQty > 0) {
+      result.add(ReturnedGiftX(
+        buyAmount: buyXGetX.buyProductsAmount ?? 0,
+        getProduct: ProductIds(id: productToBuy.id, name: productToBuy.name),
+        getProductAmount: freeQty.toInt(),
+        discountId: dis.id ?? '',
+        discountName: dis.displayName ?? '',
+        discountGroupType: dis.discountGroupType!.id,
+        isRepeatable: dis.isRepeatable ?? false,
+      ));
+    }
+  }
+
+  return result;
+}
   /// Get Free Gift
   static List<ReturnedGift> _getFreeGift(num totalPrice, DiscountItem dis) {
     final gifts = dis.gifts;

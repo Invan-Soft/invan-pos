@@ -363,6 +363,7 @@ class OrderingProvider4 extends ChangeNotifier {
       useFreeProducts();
       useFreeGiftProducts();
       useBuyXGetXProducts();
+
       if (_currentClient.orderedProducts.isNotEmpty &&
           _currentClient.orderedProducts[0].isKg &&
           !isTarozi) {
@@ -786,6 +787,8 @@ class OrderingProvider4 extends ChangeNotifier {
   int _freeGiftDialogCount = 0;
 
   void findFreeProducts() {
+    // Free Gift threshold har safar qayta hisoblansin
+    DiscountSingleton.maxPrice();
     _findFreeGiftProducts();
     _findBuyXGetXProducts();
 
@@ -815,7 +818,7 @@ class OrderingProvider4 extends ChangeNotifier {
           true,
         ) ??
         [];
-    if (returned.isNotEmpty) _returnedFreeGiftProducts = returned;
+    _returnedFreeGiftProducts = returned;
   }
 
   void _findBuyXGetXProducts() {
@@ -848,126 +851,185 @@ class OrderingProvider4 extends ChangeNotifier {
 
       if (availableProducts == null || availableProducts.isEmpty) continue;
 
+      // Markirovkali mahsulotlar uchun umumiy qty hisoblanadi
+      final Map<String, double> totalQtyForCheck = {};
+      for (final op in orderedProducts) {
+        if (!op.isPriceChanged && !op.isPriceOnlyChanged) {
+          totalQtyForCheck[op.productId] =
+              (totalQtyForCheck[op.productId] ?? 0) + op.value;
+        }
+      }
+
       final matchedCount = availableProducts
-          .where((productToBuy) => orderedProducts.any((orderedProduct) =>
-              orderedProduct.productId == productToBuy.id &&
-              orderedProduct.value >= mustQty &&
-              !orderedProduct.isPriceChanged &&
-              !orderedProduct.isPriceOnlyChanged))
+          .where((productToBuy) =>
+              (totalQtyForCheck[productToBuy.id] ?? 0) >= mustQty)
           .length;
 
       if (matchedCount == availableProducts.length) {
-        for (var orderedProduct in orderedProducts) {
-          if (orderedProduct.productId != returnedProductId) continue;
-          if (orderedProduct.isPriceOnlyChanged ||
-              orderedProduct.isPriceChanged) continue;
+        // Markirovkali mahsulot: bir xil productId bilan ko'p entry (har biri value=1)
+        final eligibleEntries = orderedProducts
+            .where((op) =>
+                op.productId == returnedProductId &&
+                !op.isPriceChanged &&
+                !op.isPriceOnlyChanged)
+            .toList();
 
-          final isSameProduct = availableProducts.isNotEmpty &&
-              availableProducts[0].id == returnedProductId;
+        final isMarkingProduct = eligibleEntries.length > 1 &&
+            eligibleEntries.every((e) => e.value == 1);
 
-          if (isSameProduct) {
-            final effectiveFree = returnedProductQty;
-
-            if (effectiveFree > 0) {
-              final paidQty = orderedProduct.value - effectiveFree;
-
-              if (paidQty >= 0) {
-                orderedProduct.price =
-                    (orderedProduct.realPrice * paidQty) / orderedProduct.value;
-                orderedProduct.discountPercent = 100 -
-                    (orderedProduct.price / orderedProduct.realPrice * 100);
-                orderedProduct.singleDiscount =
-                    orderedProduct.realPrice - orderedProduct.price;
-                orderedProduct.discount.clear();
-
-                final discountModel = ProductDiscountModel(
-                  idd: returnedProduct.discountId ?? '',
-                  typeId: returnedProduct.discountGroupType ?? '',
-                  typeName: '',
-                  name: returnedProduct.discountName ?? '',
-                  value: orderedProduct.discountPercent ?? 0,
-                  total: (orderedProduct.singleDiscount * orderedProduct.value)
-                      .toInt()
-                      .toDouble(),
-                );
-
-                final existing = orderedProduct.productDiscount
-                    .any((e) => e.idd == discountModel.idd);
-
-                if (!existing) {
-                  orderedProduct.productDiscount.add(discountModel);
-                }
-
-                orderedProduct =
-                    DiscountSingleton.addDiscountForProduct(orderedProduct);
-
-                orderedProduct = _addDiscountForReceipt(
-                  orderedProduct,
-                  discountModel.name,
-                  discountModel.idd,
-                  discountModel.typeId,
-                );
-              } else {
-                orderedProduct
-                  ..price = 0
-                  ..discountPercent = 100
-                  ..singleDiscount = orderedProduct.onlyPrice
-                  ..discount.clear()
-                  ..value = effectiveFree;
-
-                // discountModel qo'shish...
+        if (isMarkingProduct) {
+          // Faqat effectiveFree ta entry tekin, qolganlar oddiy narxda
+          final effectiveFree = returnedProductQty;
+          int freed = 0;
+          for (final entry in eligibleEntries) {
+            if (freed < effectiveFree) {
+              entry
+                ..price = 0
+                ..discountPercent = 100
+                ..singleDiscount = entry.realPrice
+                ..discount.clear();
+              final dm = ProductDiscountModel(
+                idd: returnedProduct.discountId ?? '',
+                typeId: returnedProduct.discountGroupType ?? '',
+                typeName: '',
+                name: returnedProduct.discountName ?? '',
+                value: 100,
+                total: entry.realPrice,
+              );
+              if (!entry.productDiscount.any((e) => e.idd == dm.idd)) {
+                entry.productDiscount.add(dm);
               }
+              DiscountSingleton.addDiscountForProduct(entry);
+              _addDiscountForReceipt(entry, dm.name, dm.idd, dm.typeId);
+              freed++;
             } else {
-              // Chegirma yo'q — reset
-              orderedProduct
-                ..price = orderedProduct.realPrice
+              // Bu entry tekin emas — reset
+              entry
+                ..price = entry.realPrice
                 ..discountPercent = 0
                 ..singleDiscount = 0
                 ..discount.clear()
                 ..productDiscount
                     .removeWhere((e) => e.idd == returnedProduct.discountId);
             }
-          } else if (availableProducts.isNotEmpty ||
-              availableProducts[0].id != returnedProductId) {
-            if (orderedProduct.isPriceOnlyChanged &&
+          }
+        } else {
+          for (var orderedProduct in orderedProducts) {
+            if (orderedProduct.productId != returnedProductId) continue;
+            if (orderedProduct.isPriceOnlyChanged ||
                 orderedProduct.isPriceChanged) continue;
-            final effectiveFree = returnedProductQty;
-            if (effectiveFree > 0) {
-              final paidQty = orderedProduct.value - effectiveFree;
-              if (paidQty >= 0) {
-                orderedProduct.price =
-                    (orderedProduct.realPrice * paidQty) / orderedProduct.value;
-                orderedProduct.discountPercent = 100 -
-                    (orderedProduct.price / orderedProduct.realPrice * 100);
-                orderedProduct.singleDiscount =
-                    orderedProduct.realPrice - orderedProduct.price;
-                orderedProduct.discount.clear();
 
-                final discountModel = ProductDiscountModel(
-                  idd: returnedProduct.discountId ?? '',
-                  typeId: returnedProduct.discountGroupType ?? '',
-                  typeName: '',
-                  name: returnedProduct.discountName ?? '',
-                  value: orderedProduct.discountPercent ?? 0,
-                  total: (orderedProduct.singleDiscount * orderedProduct.value)
-                      .toInt()
-                      .toDouble(),
-                );
+            final isSameProduct = availableProducts.isNotEmpty &&
+                availableProducts[0].id == returnedProductId;
 
-                final existing = orderedProduct.productDiscount
-                    .any((e) => e.idd == discountModel.idd);
-                if (!existing) {
-                  orderedProduct.productDiscount.add(discountModel);
+            if (isSameProduct) {
+              final effectiveFree = returnedProductQty;
+
+              if (effectiveFree > 0) {
+                final paidQty = orderedProduct.value - effectiveFree;
+
+                if (paidQty >= 0) {
+                  orderedProduct.price =
+                      (orderedProduct.realPrice * paidQty) /
+                          orderedProduct.value;
+                  orderedProduct.discountPercent = 100 -
+                      (orderedProduct.price / orderedProduct.realPrice * 100);
+                  orderedProduct.singleDiscount =
+                      orderedProduct.realPrice - orderedProduct.price;
+                  orderedProduct.discount.clear();
+
+                  final discountModel = ProductDiscountModel(
+                    idd: returnedProduct.discountId ?? '',
+                    typeId: returnedProduct.discountGroupType ?? '',
+                    typeName: '',
+                    name: returnedProduct.discountName ?? '',
+                    value: orderedProduct.discountPercent ?? 0,
+                    total:
+                        (orderedProduct.singleDiscount * orderedProduct.value)
+                            .toInt()
+                            .toDouble(),
+                  );
+
+                  final existing = orderedProduct.productDiscount
+                      .any((e) => e.idd == discountModel.idd);
+
+                  if (!existing) {
+                    orderedProduct.productDiscount.add(discountModel);
+                  }
+
+                  orderedProduct =
+                      DiscountSingleton.addDiscountForProduct(orderedProduct);
+
+                  orderedProduct = _addDiscountForReceipt(
+                    orderedProduct,
+                    discountModel.name,
+                    discountModel.idd,
+                    discountModel.typeId,
+                  );
+                } else {
+                  orderedProduct
+                    ..price = 0
+                    ..discountPercent = 100
+                    ..singleDiscount = orderedProduct.onlyPrice
+                    ..discount.clear()
+                    ..value = effectiveFree;
+
+                  // discountModel qo'shish...
                 }
+              } else {
+                // Chegirma yo'q — reset
+                orderedProduct
+                  ..price = orderedProduct.realPrice
+                  ..discountPercent = 0
+                  ..singleDiscount = 0
+                  ..discount.clear()
+                  ..productDiscount
+                      .removeWhere((e) => e.idd == returnedProduct.discountId);
+              }
+            } else if (availableProducts.isNotEmpty ||
+                availableProducts[0].id != returnedProductId) {
+              if (orderedProduct.isPriceOnlyChanged &&
+                  orderedProduct.isPriceChanged) continue;
+              final effectiveFree = returnedProductQty;
+              if (effectiveFree > 0) {
+                final paidQty = orderedProduct.value - effectiveFree;
+                if (paidQty >= 0) {
+                  orderedProduct.price =
+                      (orderedProduct.realPrice * paidQty) /
+                          orderedProduct.value;
+                  orderedProduct.discountPercent = 100 -
+                      (orderedProduct.price / orderedProduct.realPrice * 100);
+                  orderedProduct.singleDiscount =
+                      orderedProduct.realPrice - orderedProduct.price;
+                  orderedProduct.discount.clear();
 
-                orderedProduct =
-                    DiscountSingleton.addDiscountForProduct(orderedProduct);
-                orderedProduct = _addDiscountForReceipt(
-                  orderedProduct,
-                  discountModel.name,
-                  discountModel.idd,
-                  discountModel.typeId,
-                );
+                  final discountModel = ProductDiscountModel(
+                    idd: returnedProduct.discountId ?? '',
+                    typeId: returnedProduct.discountGroupType ?? '',
+                    typeName: '',
+                    name: returnedProduct.discountName ?? '',
+                    value: orderedProduct.discountPercent ?? 0,
+                    total:
+                        (orderedProduct.singleDiscount * orderedProduct.value)
+                            .toInt()
+                            .toDouble(),
+                  );
+
+                  final existing = orderedProduct.productDiscount
+                      .any((e) => e.idd == discountModel.idd);
+                  if (!existing) {
+                    orderedProduct.productDiscount.add(discountModel);
+                  }
+
+                  orderedProduct =
+                      DiscountSingleton.addDiscountForProduct(orderedProduct);
+                  orderedProduct = _addDiscountForReceipt(
+                    orderedProduct,
+                    discountModel.name,
+                    discountModel.idd,
+                    discountModel.typeId,
+                  );
+                }
               }
             }
           }
@@ -994,122 +1056,248 @@ class OrderingProvider4 extends ChangeNotifier {
   }
 
   void useFreeGiftProducts() {
-    if (_returnedFreeGiftProducts.isEmpty) {
-      final orderedProducts = _currentClient.orderedProducts;
+    final orderedProducts = _currentClient.orderedProducts;
 
-      for (ReceiptModelSoldItem4 item in orderedProducts) {
+    if (_returnedFreeGiftProducts.isEmpty) {
+      for (final item in orderedProducts) {
         if (item.isPriceOnlyChanged) continue;
         if (_giftProducts.containsKey(item.productId) &&
             item.price != item.realPrice) {
           _resetItemDiscount(item);
         }
       }
+      _giftProducts.clear();
       _currentClient.orderedProducts = orderedProducts;
       return;
     }
 
-    final orderedProducts = _currentClient.orderedProducts;
+    for (final gift in _returnedFreeGiftProducts) {
+      final giftProductId = gift.getProduct?.id;
+      if (giftProductId == null) continue;
 
-    for (ReturnedGift gift in _returnedFreeGiftProducts) {
-      for (ReceiptModelSoldItem4 item in orderedProducts) {
-        if (_giftProducts.containsKey(item.productId) &&
-            _giftProducts[item.productId].toString() != gift.discountId &&
-            item.price != item.realPrice) {
-          _resetItemDiscount(item);
-        } else {
-          if (item.productId == gift.getProduct?.id &&
+      // Threshold ni faqat gift mahsulotidan TASHQARI narsalar summasidan hisoblaymiz.
+      // Shunday qilinsa "birinchi pepsi tekin bo'lganda ikkinchisi ham tekin bo'ladi"
+      // degan muammoning oldi olinadi.
+      final nonGiftTotal = orderedProducts
+          .where((p) => p.productId != giftProductId && !p.isPriceOnlyChanged)
+          .fold<num>(0, (sum, p) => sum + p.realPrice * p.value);
+
+      // Shu gift mahsulotiga tegishli barcha qatorlar
+      final giftItems = orderedProducts
+          .where((item) =>
+              item.productId == giftProductId &&
               !item.isPriceOnlyChanged &&
-              !item.isPriceChanged) {
-            num totalPrice = _totalPriceForAllProduct();
-            num value = 0;
-            for (int i = 1; i <= item.value.toInt(); i++) {
-              if (totalPrice - item.price > gift.buyAmount) {
-                totalPrice -= item.price;
-                value++;
-              }
-            }
+              !item.isPriceChanged)
+          .toList();
 
-            if (value > 0) {
-              final giftAmount = gift.getProductAmount.toDouble();
-              final totalAmount = item.value.toDouble();
-              final usedGiftAmount = value.toDouble();
+      if (nonGiftTotal >= gift.buyAmount) {
+        // Threshold qondirildi — faqat gift.getProductAmount miqdorini tekin ber
+        _giftProducts[giftProductId] = gift.discountId ?? '';
+        num freeLeft = gift.getProductAmount.toDouble();
 
-              final effectiveGift = (giftAmount >= usedGiftAmount)
-                  ? usedGiftAmount
-                  : giftAmount.clamp(0, totalAmount);
+        for (final item in giftItems) {
+          if (freeLeft <= 0) {
+            // Kvota tugadi — bu qatorni to'liq narxda qoldirish kerak
+            _resetItemDiscount(item);
+            continue;
+          }
 
-              final ratio = (totalAmount - effectiveGift) / totalAmount;
+          final itemQty = item.value.toDouble();
+          final effectiveFree = freeLeft >= itemQty ? itemQty : freeLeft;
+          freeLeft -= effectiveFree;
 
-              _giftProducts[item.productId] = gift.discountId ?? '';
+          final ratio = (itemQty - effectiveFree) / itemQty;
+          item
+            ..price = item.realPrice * ratio
+            ..discountPercent = 100 - (ratio * 100)
+            ..singleDiscount = item.realPrice * effectiveFree;
 
-              item
-                ..price = item.realPrice * ratio
-                ..discountPercent = 100 - (ratio * 100)
-                ..singleDiscount = item.realPrice - item.price;
-
-              item = DiscountSingleton.addDiscountForProduct(item);
-
-              item = _addDiscountForReceipt(item, gift.discountName ?? '',
-                  gift.discountId ?? '', gift.discountGroupType ?? '');
-            }
+          item.discount.clear();
+          DiscountSingleton.addDiscountForProduct(item);
+          _addDiscountForReceipt(item, gift.discountName ?? '',
+              gift.discountId ?? '', gift.discountGroupType ?? '');
+        }
+      } else {
+        // Threshold qondirilmadi — hammasini reset qil
+        for (final item in giftItems) {
+          if (item.price != item.realPrice) {
+            _resetItemDiscount(item);
           }
         }
+        _giftProducts.remove(giftProductId);
       }
     }
 
     _currentClient.orderedProducts = orderedProducts;
   }
 
-  void useBuyXGetXProducts() {
-    if (_returnedBuyXGetX.isEmpty) {
-      return;
-    }
-    final orderedProducts = _currentClient.orderedProducts;
+  // void useBuyXGetXProducts() {
+  //   if (_returnedBuyXGetX.isEmpty) {
+  //     return;
+  //   }
+  //   final orderedProducts = _currentClient.orderedProducts;
 
-    for (ReturnedGiftX gift in _returnedBuyXGetX) {
-      for (ReceiptModelSoldItem4 item in orderedProducts) {
-        if (item.isPriceOnlyChanged) continue;
-        if (_giftProducts.containsKey(item.productId) &&
-            _giftProducts[item.productId].toString() != gift.discountId &&
-            item.price != item.realPrice) {
-          _resetItemDiscount(item);
-        } else {
-          if (item.productId == gift.getProduct?.id &&
-              !item.isPriceOnlyChanged &&
-              !item.isPriceChanged) {
-            num freeQty = gift.getProductAmount;
+  //   for (ReturnedGiftX gift in _returnedBuyXGetX) {
+  //     for (ReceiptModelSoldItem4 item in orderedProducts) {
+  //       if (item.isPriceOnlyChanged) continue;
+  //       if (_giftProducts.containsKey(item.productId) &&
+  //           _giftProducts[item.productId].toString() != gift.discountId &&
+  //           item.price != item.realPrice) {
+  //         _resetItemDiscount(item);
+  //       } else {
+  //         if (item.productId == gift.getProduct?.id &&
+  //             !item.isPriceOnlyChanged &&
+  //             !item.isPriceChanged) {
+  //           num freeQty = gift.getProductAmount;
 
-            if (freeQty > 0) {
-              final totalAmount = item.value.toDouble();
-              final effectiveGift =
-                  (freeQty >= totalAmount) ? totalAmount : freeQty.toDouble();
-              final ratio = (totalAmount - effectiveGift) / totalAmount;
+  //           if (freeQty > 0) {
+  //             final totalAmount = item.value.toDouble();
+  //             final effectiveGift =
+  //                 (freeQty >= totalAmount) ? totalAmount : freeQty.toDouble();
+  //             final ratio = (totalAmount - effectiveGift) / totalAmount;
 
-              _giftProducts[item.productId] = gift.discountId ?? '';
+  //             _giftProducts[item.productId] = gift.discountId ?? '';
 
-              item
-                ..price = item.realPrice * ratio
-                ..discountPercent = 100 - (ratio * 100)
-                ..singleDiscount = item.realPrice - item.price;
+  //             item
+  //               ..price = item.realPrice * ratio
+  //               ..discountPercent = 100 - (ratio * 100)
+  //               ..singleDiscount = item.realPrice - item.price;
 
-              item = DiscountSingleton.addDiscountForProduct(item);
+  //             item = DiscountSingleton.addDiscountForProduct(item);
 
-              item = _addDiscountForReceipt(item, gift.discountName ?? '',
-                  gift.discountId ?? '', gift.discountGroupType ?? '');
-            }
-          }
+  //             item = _addDiscountForReceipt(item, gift.discountName ?? '',
+  //                 gift.discountId ?? '', gift.discountGroupType ?? '');
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+
+  //   _currentClient.orderedProducts = orderedProducts;
+  // }
+void useBuyXGetXProducts() {
+  if (_returnedBuyXGetX.isEmpty) return;
+
+  final orderedProducts = _currentClient.orderedProducts;
+
+  for (ReturnedGiftX gift in _returnedBuyXGetX) {
+    final productId = gift.getProduct?.id;
+    if (productId == null) continue;
+
+    // Shu productId ga tegishli barcha normal qatorlar
+    final items = orderedProducts
+        .where((item) =>
+            item.productId == productId &&
+            !item.isPriceOnlyChanged &&
+            !item.isPriceChanged)
+        .toList();
+
+    if (items.isEmpty) continue;
+
+
+    num freeQtyLeft = gift.getProductAmount;   // nechta tekin berish kerak
+
+    // ================== 1. BITTA QATOR (oddiy mahsulot) ==================
+    if (items.length == 1) {
+      final item = items.first;
+      final totalQty = item.value.toDouble();
+      final buy = gift.buyAmount.toDouble();
+      final get = gift.getProductAmount.toDouble();
+
+
+      num freeQty = 0;
+      final setSize = buy + get;
+      if (gift.isRepeatable) {
+        // isRepeatable=true: nechta set bo'lsa shuncha tekin
+        if (totalQty >= setSize) {
+          freeQty = (totalQty / setSize).floor() * get;
+        }
+      } else {
+        // isRepeatable=false: faqat bitta set, qancha olmasin
+        if (totalQty >= setSize) {
+          freeQty = get;
         }
       }
-    }
 
-    _currentClient.orderedProducts = orderedProducts;
+      final paidQty = totalQty - freeQty;
+
+      if (paidQty > 0) {
+        final ratio = paidQty / totalQty;
+        item.price = item.realPrice * ratio;
+        item.discountPercent = 100 - (ratio * 100);
+        item.singleDiscount = item.realPrice * freeQty;
+      } else {
+        item.price = 0;
+        item.discountPercent = 100;
+        item.singleDiscount = item.realPrice * totalQty;
+      }
+
+      // Discount model
+      item.discount.clear();
+      final discountModel = ProductDiscountModel(
+        idd: gift.discountId ?? '',
+        typeId: gift.discountGroupType ?? '',
+        typeName: 'Buy X Get X',
+        name: gift.discountName ?? '',
+        value: item.discountPercent ?? 100,
+        total: item.singleDiscount * item.value,
+      );
+
+      item.productDiscount.removeWhere((e) => e.idd == discountModel.idd);
+      item.productDiscount.add(discountModel);
+      DiscountSingleton.addDiscountForProduct(item);
+    }
+    // ================== 2. BIR NECHTA QATOR (markirovka mahsulotlari) ==================
+    else {
+
+      // Eng yangi qo‘shilganlarga birinchi bo‘lib tekin beramiz
+      for (final item in items.reversed) {
+        if (freeQtyLeft <= 0) {
+          _resetItemDiscount(item);
+          continue;
+        }
+
+        final itemQty = item.value.toDouble(); // odatda 1
+
+        if (itemQty <= freeQtyLeft) {
+          // Butun qator tekin
+          item.price = 0;
+          item.discountPercent = 100;
+          item.singleDiscount = item.realPrice * itemQty;
+          freeQtyLeft -= itemQty;
+        } else {
+          // Qisman tekin (lekin markirovka uchun odatda kerak emas)
+          final freeInThis = freeQtyLeft;
+          final paidQty = itemQty - freeInThis;
+          final ratio = paidQty / itemQty;
+
+          item.price = item.realPrice * ratio;
+          item.discountPercent = 100 - (ratio * 100);
+          item.singleDiscount = item.realPrice * freeInThis;
+          freeQtyLeft = 0;
+        }
+
+        // Discount model
+        item.discount.clear();
+        final discountModel = ProductDiscountModel(
+          idd: gift.discountId ?? '',
+          typeId: gift.discountGroupType ?? '',
+          typeName: 'Buy X Get X',
+          name: gift.discountName ?? '',
+          value: item.discountPercent ?? 100,
+          total: item.singleDiscount * item.value,
+        );
+
+        item.productDiscount.removeWhere((e) => e.idd == discountModel.idd);
+        item.productDiscount.add(discountModel);
+        DiscountSingleton.addDiscountForProduct(item);
+      }
+    }
   }
 
+  notifyListeners();
+}
   void _resetItemDiscount(ReceiptModelSoldItem4 item) {
-    _freeGiftDialogCount = 0;
-    _showCount = {};
-    _showCountFreeGift = {};
-
     item
       ..price = item.realPrice
       ..discountPercent = 0
@@ -1300,7 +1488,6 @@ class OrderingProvider4 extends ChangeNotifier {
         }
       }
 
-      // ✅ GTIN topilmasa — GS1 DataMatrix emas, rad etish
       if (gtinFromMark == null) {
         if (!dialogForMark) {
           dialogForMark = true;
@@ -1445,7 +1632,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
       if (hasInternet) {
         if (Pref.getBool(PrefKeys.markCheckWithOfd, false)) {
-          print("Item marking_number == ${item.mark}");
           try {
             final headers = {
               'Accept': 'application/json',
@@ -1458,7 +1644,7 @@ class OrderingProvider4 extends ChangeNotifier {
               "refund": 0,
               "products": [
                 {
-                  "kmIds": [item.mark],
+                  "kmIds": [v],
                   "commitentTin": item.commissionTin,
                   "productCode": item.mxikCode,
                   "packageCode": item.packageCode,
@@ -1466,7 +1652,6 @@ class OrderingProvider4 extends ChangeNotifier {
                 }
               ]
             };
-
             isLoading = true;
             notifyListeners();
 
@@ -1476,8 +1661,8 @@ class OrderingProvider4 extends ChangeNotifier {
               body: jsonEncode(body),
               headers: headers,
             );
-            print(response.body);
-            print(response.statusCode);
+            // Alice ga ham yozish (agar kerak bo'lsa)
+          alice.onHttpResponse(response);
 
             HttpResult httpResult = HttpResult(
                 statusCode: 1, isSuccess: false, result: null, reBytes: null);
@@ -1680,6 +1865,39 @@ class OrderingProvider4 extends ChangeNotifier {
 
     final markValue = product.mark;
 
+    // Bir xil markirovka kodi ikkinchi marta qo'shilishini oldini olamiz
+    if (markValue != null && markValue.isNotEmpty) {
+      final alreadyAdded = _currentClient.orderedProducts.any(
+        (e) =>
+            !(e.isDeleted ?? false) &&
+            e.productId == freshProduct.id &&
+            e.mark != null &&
+            e.mark == markValue,
+      );
+      if (alreadyAdded) {
+        if (!dialogForMark) {
+          dialogForMark = true;
+          final loc = AppLocalizations.of(
+              AppNavigation.navigatorKey.currentContext!)!;
+          await showGeneralDialog(
+            barrierDismissible: false,
+            context: AppNavigation.navigatorKey.currentContext!,
+            pageBuilder: (f, d, ctx) => ContainsZeroPriceItemDialog(
+              text: loc.ha.toLowerCase() == 'ha'
+                  ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
+                  : 'Этот отмеченный продукт уже был добавлен ранее!',
+              text2: 'Ok',
+              delete: false,
+              isFirst: true,
+              provider: this,
+            ),
+          ).then((value) {});
+          dialogForMark = false;
+        }
+        return;
+      }
+    }
+
     // Basketdagi shu productlar soni + 1 (yangi qo'shilayotgan)
     final existingCount = _currentClient.orderedProducts
         .where((e) => e.productId == freshProduct.id && !(e.isDeleted ?? false))
@@ -1695,11 +1913,6 @@ class OrderingProvider4 extends ChangeNotifier {
       price = ItemsSingleton.finalPrice(freshProduct, 1, isKg).toDouble();
     }
 
-    print('=== addSeperatedProduct ===');
-    print('totalCount: $totalCount');
-    print('price: $price');
-    print(
-        'tiers: ${freshProduct.shopPrices?.shID?.shopPriceTiers?.map((t) => 'minQty=${t.minQuantity} price=${t.retailPrice}').join(', ')}');
 
     final soldItem = ReceiptModelSoldItem4(
       isDeleted: false,
@@ -1748,7 +1961,90 @@ class OrderingProvider4 extends ChangeNotifier {
       }
     }
 
+    // Markirovkali mahsulotlarga ham product/category chegirmalarini qo'llaymiz
+    for (final item in _currentClient.orderedProducts) {
+      if (item.productId == freshProduct.id &&
+          !(item.isDeleted ?? false) &&
+          !item.isPriceOnlyChanged) {
+        item.singleDiscount = 0;
+        _applyDiscounts(freshProduct, item);
+      }
+    }
+
+    // BuyXGetY, Free Gift, BuyXGetX chegirmalarini tekshiramiz
+    DiscountSingleton.productId(freshProduct.id ?? '');
+    findFreeProducts();
+
     _currentClient.lastAddedIndex = 0;
+    isTpEdited = false;
+    notifyListeners();
+
+    final loc = AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
+
+    // Dialog 1: BuyXGetY — "X ta olsang Y ta tekin"
+    bool isShowOld = false;
+    if (DiscountSingleton.availableDiscount.availableProducts != null) {
+      for (final p in DiscountSingleton.availableDiscount.availableProducts!) {
+        if (p.id == freshProduct.id) {
+          if ((_showCount[freshProduct.id ?? ''] ?? 0) < 1) {
+            isShowOld = true;
+          }
+          _showCount[freshProduct.id ?? ''] = 1;
+        }
+      }
+    }
+    if (isShowOld && !dialogForDiscount) {
+      setDialogForDiscount(true);
+      await showGeneralDialog(
+        barrierDismissible: false,
+        context: AppNavigation.navigatorKey.currentContext!,
+        pageBuilder: (_, __, ___) => ContainsDiscountItemDialog(
+          provider: this,
+          returnedProduct: DiscountSingleton.availableDiscount,
+          isFirst: true,
+        ),
+      );
+    }
+
+    // Dialog 2: BuyXGetX — "X ta olsang X ta tekin"
+    bool isShowBuyXGetX = false;
+    String buyXGetXText = '';
+    final buyXGetXItem = _returnedBuyXGetX.firstWhereOrNull(
+      (g) => g.getProduct?.id == freshProduct.id,
+    );
+    if (buyXGetXItem != null) {
+      final count = _showCountFreeGift[freshProduct.id ?? ''] ?? 0;
+      if (count < 1) {
+        isShowBuyXGetX = true;
+        final productName =
+            buyXGetXItem.getProduct?.name ?? freshProduct.name ?? 'mahsulot';
+        final buyAmount = buyXGetXItem.buyAmount;
+        final freeAmount = buyXGetXItem.getProductAmount;
+        buyXGetXText = loc.ha.toLowerCase() == 'ha'
+            ? '$productName dan $buyAmount ta sotib olgani uchun,\n$freeAmount ta tekin berish kerak!'
+            : 'За каждые $buyAmount $productName  $freeAmount бесплатно';
+        _showCountFreeGift[freshProduct.id ?? ''] = 1;
+      }
+    }
+    if (isShowBuyXGetX && !dialogForDiscount) {
+      setDialogForDiscount(true);
+      await showGeneralDialog(
+        barrierDismissible: false,
+        context: AppNavigation.navigatorKey.currentContext!,
+        pageBuilder: (_, __, ___) => ContainsDiscountItemDialog2(
+          provider: this,
+          text: buyXGetXText,
+          isFirst: true,
+        ),
+      );
+    }
+
+    // Dialog 3: Free Gift — "Jami X sum oshganda tekin mahsulot"
+    await freeGiftDialog();
+
+    useFreeProducts();
+    useFreeGiftProducts();
+    useBuyXGetXProducts();
     notifyListeners();
   } // ✅ Yangi method: bir xil productId dagi barcha marklarni qayta narxlash
 
@@ -2434,6 +2730,7 @@ class OrderingProvider4 extends ChangeNotifier {
       }).toList();
 
   Future<PaymentResult> pressPaymentButtonOnlyOFD(BuildContext context) async {
+    print('ofdli sotuv!!!!!');
     AppLocalizations loc = AppLocalizations.of(context)!;
     if (_isChangeToCashback && _sdachaa > 0) {
       _zdachaToCashBack = _sdachaa;
@@ -2613,7 +2910,6 @@ class OrderingProvider4 extends ChangeNotifier {
           .showSnackBar(mySnackBar(context, msg: err.toString()));
       return PaymentResult(mxikError: err, success: false);
     });
-
     if (paymentResult.success) {
       /// Tekin maxsulotlarni tozalash ///
       _returnedProducts = {};
@@ -2659,6 +2955,7 @@ class OrderingProvider4 extends ChangeNotifier {
     clickedCount = 0;
     controller = TextEditingController(text: '0');
     _isOfdWithOfd = false;
+    _clickPassPaid = false;
     ////////////////////////////////////////
     ////////////////////////////////////////
     _cardEnabled = Pref.getBool(PrefKeys.cardEnabled, false);
@@ -3033,6 +3330,10 @@ class OrderingProvider4 extends ChangeNotifier {
 
   Map<String, Payment> paymentsMap = {};
 
+  // Click Pass muvaffaqiyatli to'langan bo'lsa true
+  bool _clickPassPaid = false;
+  bool get clickPassPaid => _clickPassPaid;
+
   String? _selectedPaymentType;
 
   void allPaymentType(Payment payment) {
@@ -3262,13 +3563,7 @@ class OrderingProvider4 extends ChangeNotifier {
             _lastRRN = paymentInfo['rrn'] ?? '';
             _lastCardNumber = paymentInfo['cardNumber'] ?? '';
             _lastCardType = 2;
-            print('=== HUMO TO\'LOV MA\'LUMOTLARI ===');
-            print('RRN       : ${paymentInfo['rrn']}');
-            print('Karta     : ${paymentInfo['cardNumber']}');
-            print('Auth kodi : ${paymentInfo['authCode']}');
-            print('Miqdor    : ${paymentInfo['amount']}');
-            print('Sana      : ${paymentInfo['date']}');
-            print('================================');
+          
             await PrintingMethods.printHumoRecipts(asString2.toString());
             ScaffoldMessenger.of(context)
                 .showSnackBar(mySnackBar(context, msg: "ОДОБРЕНО"));
@@ -3369,13 +3664,7 @@ class OrderingProvider4 extends ChangeNotifier {
             _lastRRN = paymentInfo['rrn'] ?? '';
             _lastCardNumber = paymentInfo['cardNumber'] ?? '';
             _lastCardType = 2;
-            print('=== HUMO TO\'LOV MA\'LUMOTLARI ===');
-            print('RRN       : ${paymentInfo['rrn']}');
-            print('Karta     : ${paymentInfo['cardNumber']}');
-            print('Auth kodi : ${paymentInfo['authCode']}');
-            print('Miqdor    : ${paymentInfo['amount']}');
-            print('Sana      : ${paymentInfo['date']}');
-            print('================================');
+        
             await PrintingMethods.printHumoRecipts(asString2.toString());
             ScaffoldMessenger.of(context)
                 .showSnackBar(mySnackBar(context, msg: "ОДОБРЕНО"));
@@ -3535,7 +3824,10 @@ class OrderingProvider4 extends ChangeNotifier {
           return ClickPassDialog(
             summa: summa,
             receiptNumber: receiptNumber,
-            pay: () => allPaymentType(payment),
+            pay: () {
+              allPaymentType(payment);
+              _clickPassPaid = true;
+            },
           );
         },
         barrierDismissible: false,
@@ -3750,7 +4042,7 @@ class OrderingProvider4 extends ChangeNotifier {
         gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
         item = ItemsSingleton.getProductByBarcode(gtin);
         if (item != null) {
-          item.mark = barcode;
+          item.mark = _markirovka(barcode);
         }
       }
     }
@@ -3762,7 +4054,7 @@ class OrderingProvider4 extends ChangeNotifier {
         gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
         item = ItemsSingleton.getProductByBarcode(gtin);
         if (item != null) {
-          item.mark = barcode;
+          item.mark = _markirovka(barcode);
         }
       }
     }
