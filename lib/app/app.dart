@@ -232,6 +232,8 @@ class AppState extends State<App> {
                         Provider.of<UpdateProvider>(context, listen: false)
                             .autoUpdate(context, mounted);
                       }
+                      // Discountlarni har 10 minutda yangilash
+                      DiscountWsService.startPeriodicFetch(context, mounted);
                     }
                   }
                 }

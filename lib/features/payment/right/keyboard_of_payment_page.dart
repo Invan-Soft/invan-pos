@@ -183,6 +183,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
               Navigator.pop(context);
               p.type = 1;
               orderingProvider.allPaymentType(p);
+              orderingProvider.setPaymePaid(true);
             });
           });
         }

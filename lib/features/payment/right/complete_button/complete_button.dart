@@ -36,9 +36,9 @@ class CompleteButtonOfPaymentPageOnBloc extends StatelessWidget {
             final double sdacha = ordProvider4.getSdacha;
             final bool sdachaToCashback = ordProvider4.isChangeToCashback;
 
-            // Click Pass orqali to'lov muvaffaqiyatli bo'lgan bo'lsa —
+            // Click Pass yoki Payme (Go/QR) orqali to'lov muvaffaqiyatli bo'lgan bo'lsa —
             // OFD yoniq/o'chiq farqi yo'q, har doim pressPaymentButtonOnlyOFD
-            if (ordProvider4.clickPassPaid) {
+            if (ordProvider4.clickPassPaid || ordProvider4.paymePaid) {
               final PaymentResult result =
                   await ordProvider4.pressPaymentButtonOnlyOFD(homeContextt);
 
@@ -50,7 +50,7 @@ class CompleteButtonOfPaymentPageOnBloc extends StatelessWidget {
               } else {
                 ctBloc.add(CtErrorEvent(
                   error: loc.tolov_amalga_oshmadi,
-                  subError: result.mxikError ?? "Click to'lov xatosi",
+                  subError: result.mxikError ?? "To'lov xatosi",
                 ));
               }
               return;

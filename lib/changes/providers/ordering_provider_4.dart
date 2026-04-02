@@ -1398,36 +1398,28 @@ void useBuyXGetXProducts() {
   }
 
   String _markirovka(String v) {
-    String v2 = v;
-    if (v.startsWith('01') && v.length > 29) {
-      if (v.contains('21')) {
-        v2 = '';
-        v2 += '${v.split('21')[0]}21';
-        String s = v.split('21')[1];
-        if (s.contains('91')) {
-          v2 += s.split('91')[0];
-        } else if (s.contains('92')) {
-          v2 += s.split('92')[0];
-        } else if (s.contains('93')) {
-          v2 += s.split('93')[0];
-        } else if (s.contains('94')) {
-          v2 += s.split('94')[0];
-        } else if (s.contains('95')) {
-          v2 += s.split('95')[0];
-        } else if (s.contains('96')) {
-          v2 += s.split('96')[0];
-        } else if (s.contains('97')) {
-          v2 += s.split('97')[0];
-        } else if (s.contains('98')) {
-          v2 += s.split('98')[0];
-        } else if (s.contains('99')) {
-          v2 += s.split('99')[0];
-        }
-      }
-    } else if (v.length == 29) {
-      v2 = v2.substring(0, 21);
+    // GS1 DataMatrix format: 01{14-digit GTIN}[GS]21{serial}[GS][other AIs...]
+    // Soliqqa faqat: 01{GTIN}21{serial} ketsin, qolgan narsalar (17, 15, 93, 91-99 va h.k.) ketmasin
+    if (!v.startsWith('01') || v.length < 18) return v;
+
+    // '01' dan keyin GTIN har doim aniq 14 ta raqam (fixed-length AI)
+    final gtinPart = v.substring(0, 16); // '01' + 14 raqam
+
+    // GTIN dan keyin GS (0x1D) separator bo'lishi mumkin, o'tkazib yuboramiz
+    int pos = 16;
+    while (pos < v.length && v.codeUnitAt(pos) == 0x1D) {
+      pos++;
     }
-    return v2;
+
+    // '21' AI bo'lishi shart (serial number)
+    if (pos + 2 > v.length || v.substring(pos, pos + 2) != '21') return v;
+    pos += 2; // '21' ni o'tkazib yuboramiz
+
+    // Serial GS belgisigacha yoki string oxirigacha davom etadi
+    final gsIndex = v.indexOf('\x1d', pos);
+    final serialEnd = gsIndex >= 0 ? gsIndex : v.length;
+
+    return '${gtinPart}21${v.substring(pos, serialEnd)}';
   }
 
   bool isLoading = false;
@@ -2956,6 +2948,7 @@ void useBuyXGetXProducts() {
     controller = TextEditingController(text: '0');
     _isOfdWithOfd = false;
     _clickPassPaid = false;
+    _paymePaid = false;
     ////////////////////////////////////////
     ////////////////////////////////////////
     _cardEnabled = Pref.getBool(PrefKeys.cardEnabled, false);
@@ -3333,6 +3326,11 @@ void useBuyXGetXProducts() {
   // Click Pass muvaffaqiyatli to'langan bo'lsa true
   bool _clickPassPaid = false;
   bool get clickPassPaid => _clickPassPaid;
+
+  // Payme (Go yoki QR) muvaffaqiyatli to'langan bo'lsa true
+  bool _paymePaid = false;
+  bool get paymePaid => _paymePaid;
+  void setPaymePaid(bool v) => _paymePaid = v;
 
   String? _selectedPaymentType;
 
@@ -3776,6 +3774,7 @@ void useBuyXGetXProducts() {
         callback: () {
           AppNavigation.pop();
           allPaymentType(payment);
+          _paymePaid = true;
         },
       ),
     );
