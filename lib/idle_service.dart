@@ -41,9 +41,57 @@ class IdleService {
   final Duration _checkInterval = const Duration(seconds: 10);
   final Duration _idleTimeout = const Duration(minutes: 10);
 
+  /// true bo'lsa idle redirect ishlaydi (faqat AccessLevelPage da).
+  bool _enabled = false;
+
+  /// AccessLevelPage da turganligini bildiradi.
+  bool _isOnLockPage = false;
+
+  /// Yangi flag: Critical auth sahifalarda (PhoneNumber, ChooseStore va h.k.) turganda idle umuman ishlamaydi.
+  bool _isOnCriticalAuthPage = false;
+
+  /// Idle redirect ni yoqish (AccessLevelPage.initState da chaqiriladi).
+  void enable() {
+    _enabled = true;
+  }
+
+  /// Idle redirect ni o'chirish (Auth sahifalariga o'tilganda chaqiriladi).
+  void disable() {
+    _enabled = false;
+  }
+
+  /// AccessLevelPage ochilganda.
+  void onLockPageEntered() {
+    _isOnLockPage = true;
+  }
+
+  /// AccessLevelPage yopilganda.
+  void onLockPageExited() {
+    _isOnLockPage = false;
+  }
+
+  /// Critical auth sahifaga kirilganda (PhoneNumberPage, ChooseStorePage va h.k.).
+  void onCriticalAuthPageEntered() {
+    _isOnCriticalAuthPage = true;
+  }
+
+  /// Critical auth sahifadan chiqilganda.
+  void onCriticalAuthPageExited() {
+    _isOnCriticalAuthPage = false;
+  }
+
   void start(BuildContext context) {
     _timer?.cancel();
     _timer = Timer.periodic(_checkInterval, (_) {
+      // Auth sahifalarida hech qachon redirect qilmaymiz
+      if (!_enabled) return;
+
+      // Allaqachon AccessLevelPage da turgan bo'lsa
+      if (_isOnLockPage) return;
+
+      // YANGI: Critical auth sahifalarda (PhoneNumber, ChooseStore va h.k.) umuman redirect qilmaymiz
+      if (_isOnCriticalAuthPage) return;
+
       if (_isIdle()) {
         _goToProdaja(context);
       }

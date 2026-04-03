@@ -43,6 +43,7 @@ class LocalService {
     } else {
       body = receiptData;
     }
+
     var data;
 
     try {

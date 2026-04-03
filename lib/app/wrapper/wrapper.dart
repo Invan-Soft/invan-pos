@@ -23,6 +23,7 @@ import 'package:invan2/utils/helpers/size_config.dart';
 import 'package:invan2/utils/themes.dart';
 import 'package:provider/provider.dart';
 import '../../changes/providers/update_provider.dart';
+import '../../idle_service.dart';
 
 class Wrapper extends StatefulWidget {
   const Wrapper({super.key});
@@ -70,6 +71,7 @@ class _WrapperState extends State<Wrapper> {
       try {
         if (!Pref.getBool(PrefKeys.authenticationBool, false) &&
             Pref.getString(PrefKeys.token, '').isEmpty) {
+          IdleService().disable(); // auth sahifalarida idle redirect ishlamasin
           AppNavigation.pushAndRemoveUntil(const PhoneNumberPage());
         } else {
           if (!kDebugMode) {

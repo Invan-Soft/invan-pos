@@ -19,6 +19,7 @@ import '../../../../utils/utils.dart';
 import '../../../../widgets/alice_pincode.dart';
 import '../../../authentication/view/phone_number_page.dart';
 import '../../../hive_repository/hive_boxes.dart';
+import '../../../../idle_service.dart';
 
 bool isWebSocketConnected = false;
 
@@ -49,7 +50,15 @@ class _AccessLevelPageState extends State<AccessLevelPage> {
   @override
   void initState() {
     super.initState();
+    IdleService().enable();
+    IdleService().onLockPageEntered(); // Endi bu pageda turibmiz
     versionUpdate();
+  }
+
+  @override
+  void dispose() {
+    IdleService().onLockPageExited(); // Bu pagedan chiqildi (login qilindi)
+    super.dispose();
   }
 
   Future<void> versionUpdate() async {
@@ -64,7 +73,7 @@ class _AccessLevelPageState extends State<AccessLevelPage> {
       child: Stack(
         children: [
           Scaffold(
-            floatingActionButtonLocation:
+                        floatingActionButtonLocation:
                 FloatingActionButtonLocation.startFloat,
             floatingActionButton: Pref.getBool(PrefKeys.isDevAlice, false)
                 ? FloatingActionButton(

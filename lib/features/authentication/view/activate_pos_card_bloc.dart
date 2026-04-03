@@ -8,6 +8,7 @@ import 'package:invan2/features/authentication/bloc/bloc_activate_pos/components
 import 'package:invan2/features/authentication/view/apd_loading_for_products.dart';
 import 'package:invan2/features/drawer/my_drawer.dart';
 import 'package:invan2/features/lock/access_level/view/access_level_page.dart';
+import 'package:invan2/idle_service.dart';
 import 'package:invan2/widgets/apd_text_widget.dart';
 import 'package:invan2/widgets/widgets.dart';
 import 'package:percent_indicator/percent_indicator.dart';
@@ -18,7 +19,7 @@ import '../../../changes/services/web_socket_service/web_socket_options/ws_servi
 import '../../../utils/l10n/app_localizations.dart';
 
 // ignore: must_be_immutable
-class ActivatePosCardBloc extends StatelessWidget {
+class ActivatePosCardBloc extends StatefulWidget {
   final String acceptService;
   final String token;
   final String macAddress;
@@ -29,8 +30,24 @@ class ActivatePosCardBloc extends StatelessWidget {
     required this.token,
     super.key,
   });
-  late AppLocalizations loc;
 
+  @override
+  State<ActivatePosCardBloc> createState() => _ActivatePosCardBlocState();
+}
+
+class _ActivatePosCardBlocState extends State<ActivatePosCardBloc> {
+  late AppLocalizations loc;
+@override
+void initState() {
+  super.initState();
+  IdleService().onCriticalAuthPageEntered();   // ← YANGI
+}
+
+@override
+void dispose() {
+  IdleService().onCriticalAuthPageExited();    // ← YANGI
+  super.dispose();
+}
   @override
   Widget build(BuildContext context) {
     APDblocc apDbloc = BlocProvider.of(context, listen: false);
@@ -50,10 +67,10 @@ class ActivatePosCardBloc extends StatelessWidget {
               case APDstatus.posDevice:
                 {
                   APDactivatePosDeviceEvent(
-                    macAddress: macAddress,
+                    macAddress: widget.macAddress,
                     selectedPos: apDbloc.selectedPos!,
                     selectedStore: apDbloc.selectedStore,
-                    token: token,
+                    token: widget.token,
                   );
                 }
                 break;
@@ -102,10 +119,10 @@ class ActivatePosCardBloc extends StatelessWidget {
             if (state.selectedPos != null) {
               if (state.availablePosList.length == 1) {
                 apDbloc.add(APDactivatePosDeviceEvent(
-                  macAddress: macAddress,
+                  macAddress: widget.macAddress,
                   selectedPos: state.availablePosList.first,
                   selectedStore: state.selectedStore,
-                  token: token,
+                  token: widget.token,
                 ));
               }
 
@@ -115,10 +132,10 @@ class ActivatePosCardBloc extends StatelessWidget {
                 isButtonEnabled: state.isButtonEnabled,
                 defaultButtonPressed: () async {
                   apDbloc.add(APDactivatePosDeviceEvent(
-                    macAddress: macAddress,
+                    macAddress: widget.macAddress,
                     selectedPos: state.selectedPos!,
                     selectedStore: state.selectedStore,
-                    token: token,
+                    token: widget.token,
                   ));
                 },
               );

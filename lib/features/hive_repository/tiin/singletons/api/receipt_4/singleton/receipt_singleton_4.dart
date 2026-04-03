@@ -349,7 +349,7 @@ class ReceiptSingleton4 {
         }).toList(),
       },
     };
-    print('=== SALE ON OFD — EXTERNAL INFO YUBORILDI ===');
+    // print('=== SALE ON OFD — EXTERNAL INFO YUBORILDI ===');
 print(jsonEncode(receiptMap['params']['externalInfo']));
     return receiptMap;
   }

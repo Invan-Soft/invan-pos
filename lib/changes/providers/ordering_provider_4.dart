@@ -1397,31 +1397,26 @@ void useBuyXGetXProducts() {
     }
   }
 
-  String _markirovka(String v) {
-    // GS1 DataMatrix format: 01{14-digit GTIN}[GS]21{serial}[GS][other AIs...]
-    // Soliqqa faqat: 01{GTIN}21{serial} ketsin, qolgan narsalar (17, 15, 93, 91-99 va h.k.) ketmasin
-    if (!v.startsWith('01') || v.length < 18) return v;
+  String _markirovka(String rawMark) {
+    if (rawMark.trim().isEmpty) return rawMark;
 
-    // '01' dan keyin GTIN har doim aniq 14 ta raqam (fixed-length AI)
-    final gtinPart = v.substring(0, 16); // '01' + 14 raqam
+    String clean = rawMark.replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '');
+    clean = clean.replaceAll(RegExp(r'\(\d{2}\)'), '');               
 
-    // GTIN dan keyin GS (0x1D) separator bo'lishi mumkin, o'tkazib yuboramiz
-    int pos = 16;
-    while (pos < v.length && v.codeUnitAt(pos) == 0x1D) {
-      pos++;
-    }
+    // 01 + 14 raqam (GTIN)
+    final gtinMatch = RegExp(r'01(\d{14})').firstMatch(clean);
+    if (gtinMatch == null) return rawMark; // 01 topilmasa — o'zgartirmaymiz
 
-    // '21' AI bo'lishi shart (serial number)
-    if (pos + 2 > v.length || v.substring(pos, pos + 2) != '21') return v;
-    pos += 2; // '21' ni o'tkazib yuboramiz
+    final gtin = gtinMatch.group(1)!;
 
-    // Serial GS belgisigacha yoki string oxirigacha davom etadi
-    final gsIndex = v.indexOf('\x1d', pos);
-    final serialEnd = gsIndex >= 0 ? gsIndex : v.length;
+    // 21 dan keyingi serialni olish
+    final serialMatch = RegExp(r'21([A-Za-z0-9\-+/%\s]+?)(?=\d{2}|$)').firstMatch(clean);
+    final serial = serialMatch != null ? serialMatch.group(1)! : '';
 
-    return '${gtinPart}21${v.substring(pos, serialEnd)}';
+    final result = '01$gtin' '21$serial';
+
+    return result;
   }
-
   bool isLoading = false;
 
   bool dialogForMark = false;
@@ -2721,9 +2716,9 @@ void useBuyXGetXProducts() {
         );
       }).toList();
 
-  Future<PaymentResult> pressPaymentButtonOnlyOFD(BuildContext context) async {
-    print('ofdli sotuv!!!!!');
+    Future<PaymentResult> pressPaymentButtonOnlyOFD(BuildContext context) async {
     AppLocalizations loc = AppLocalizations.of(context)!;
+
     if (_isChangeToCashback && _sdachaa > 0) {
       _zdachaToCashBack = _sdachaa;
       _sdachaa = 0;
@@ -2734,7 +2729,6 @@ void useBuyXGetXProducts() {
     ClientModel? xClient = _sixClientModel4.selectedClient;
     String clientPhone = xClient == null ? "" : xClient.phoneNumber!;
     String clientId = xClient == null ? "" : xClient.id!;
-    //---------------------------------------------------------------------
     double clientDiscountVat = xClient == null ? 0 : xClient.discountValue!;
     String clientDiscountID = xClient == null
         ? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd"
@@ -2742,13 +2736,11 @@ void useBuyXGetXProducts() {
     String? clientName = xClient?.firstName ?? "";
 
     if (DiscountTypeStatus.disTypeStatus == TpStatus.summa) {
-      double totalPrice =
-          ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
+      double totalPrice = ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
       clientDiscountID = "9fb3ada6-a73b-4b81-9295-5c1605e54552";
       clientDiscountVat = DiscountTypeStatus.summa - totalPrice;
     } else if (DiscountTypeStatus.disTypeStatus == TpStatus.discount) {
-      if (_currentClient.discountPercent != null &&
-          _currentClient.discountPercent != 0) {
+      if (_currentClient.discountPercent != null && _currentClient.discountPercent != 0) {
         clientDiscountID = "1fe92aa8-2a61-4bf1-b907-182b497584ad";
         clientDiscountVat = _currentClient.discountPercent!;
       }
@@ -2758,17 +2750,14 @@ void useBuyXGetXProducts() {
     double allDiscountVat = clientDiscountVat;
     String allDiscountID = clientDiscountID;
 
-    //----------- PREFS --------------------------------
     final cashierId = Pref.getString(PrefKeys.cashierId, "");
     final cashierName = Pref.getString(PrefKeys.cashierName, "");
     final posName = Pref.getString(PrefKeys.posName, '');
     String supplierId = _selectedSupplier?.id ?? "";
-    //-------------------------------------------------------
+
     final receiptModel4 = ReceiptModel4(
       createdDate: DateFormat('yyyy-MM-dd HH:mm:ss').format(
-        DateTime.now().subtract(
-          const Duration(hours: 5),
-        ),
+        DateTime.now().subtract(const Duration(hours: 5)),
       ),
       newid: xClient?.id ?? "",
       supplierId: supplierId,
@@ -2800,12 +2789,21 @@ void useBuyXGetXProducts() {
       comment: _comments,
       isShow: _showComments,
     );
+
     receiptModel4.cardType = _lastCardType;
     receiptModel4.cardNumber = _lastCardNumber;
     receiptModel4.pptId = _lastRRN;
 
     receiptModel4.payment.addAll(paymentsMapAsList);
     receiptModel4.soldItemList.addAll(_sixClientModel4.orderedProducts);
+
+    // MARKIROVKA TOZALASH (eng muhim qism)
+    for (var item in receiptModel4.soldItemList) {
+      if (item.mark != null && item.mark!.isNotEmpty) {
+        final originalMark = item.mark!;
+        item.mark = _markirovka(originalMark);
+      }
+    }
 
     bool isChanged = false;
     if (!isTpEdited) {
@@ -2819,24 +2817,21 @@ void useBuyXGetXProducts() {
         }
       }
     }
+
     if (isChanged) {
       for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
-        if (receiptModel4.soldItemList[i].price ==
-            receiptModel4.soldItemList[i].onlyPrice) {
+        if (receiptModel4.soldItemList[i].price == receiptModel4.soldItemList[i].onlyPrice) {
           receiptModel4.soldItemList[i].discount.clear();
         } else {
-          double discountSingle =
-              receiptModel4.soldItemList[i].discount.isNotEmpty
-                  ? receiptModel4.soldItemList[i].discount.first.total
-                  : 0;
+          double discountSingle = receiptModel4.soldItemList[i].discount.isNotEmpty
+              ? receiptModel4.soldItemList[i].discount.first.total
+              : 0;
 
           if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
             if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
-              receiptModel4.soldItemList[i].singleDiscount =
-                  double.parse(discountSingle.round().toStringAsFixed(1));
+              receiptModel4.soldItemList[i].singleDiscount = double.parse(discountSingle.round().toStringAsFixed(1));
             } else {
-              receiptModel4.soldItemList[i].singleDiscount =
-                  double.parse(discountSingle.round().toStringAsFixed(1));
+              receiptModel4.soldItemList[i].singleDiscount = double.parse(discountSingle.round().toStringAsFixed(1));
             }
           }
         }
@@ -2844,26 +2839,24 @@ void useBuyXGetXProducts() {
       receiptModel4.discountVat = 0;
     } else {
       for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
-        if (receiptModel4.soldItemList[i].price ==
-            receiptModel4.soldItemList[i].onlyPrice) {
+        if (receiptModel4.soldItemList[i].price == receiptModel4.soldItemList[i].onlyPrice) {
           receiptModel4.soldItemList[i].discount.clear();
         } else {
-          double discountSingle =
-              receiptModel4.soldItemList[i].discount.isNotEmpty
-                  ? receiptModel4.soldItemList[i].discount.first.total
-                  : 0;
+          double discountSingle = receiptModel4.soldItemList[i].discount.isNotEmpty
+              ? receiptModel4.soldItemList[i].discount.first.total
+              : 0;
 
           if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
             if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
-              receiptModel4.soldItemList[i].singleDiscount =
-                  double.parse(discountSingle.round().toStringAsFixed(1));
+              receiptModel4.soldItemList[i].singleDiscount = double.parse(discountSingle.round().toStringAsFixed(1));
             }
           }
         }
       }
     }
-    receiptModel4.discountVat =
-        double.parse(receiptModel4.discountVat.round().toStringAsFixed(1));
+
+    receiptModel4.discountVat = double.parse(receiptModel4.discountVat.round().toStringAsFixed(1));
+
     PaymentResult paymentResult = await LocalService.sell(
       loc: loc,
       receiptData: receiptModel4,
@@ -2873,11 +2866,9 @@ void useBuyXGetXProducts() {
           receiptModel4.url = response.info?.qrCodeUrl ?? '';
           receiptModel4.payment.clear();
           receiptModel4.payment.addAll(paymentsMapAsList);
-          receiptModel4.refundInfo = jsonEncode(
-            response.info!.toJson(),
-          );
-          if (receiptModel4.payment.isNotEmpty &&
-              receiptModel4.soldItemList.isNotEmpty) {
+          receiptModel4.refundInfo = jsonEncode(response.info!.toJson());
+
+          if (receiptModel4.payment.isNotEmpty && receiptModel4.soldItemList.isNotEmpty) {
             await ReceiptSingleton4.toOBJECTBOX(
               receiptModel4,
               communicatorRECEIPT: response,
@@ -2891,19 +2882,15 @@ void useBuyXGetXProducts() {
             ScaffoldMessenger.of(context).showSnackBar(mySnackBar(context,
                 msg: response.paycheck.toString(), duration: 1500));
           }
-          return PaymentResult(
-            mxikError: response.mxikError,
-            success: false,
-          );
+          return PaymentResult(mxikError: response.mxikError, success: false);
         }
       },
     ).catchError((err) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(mySnackBar(context, msg: err.toString()));
+      ScaffoldMessenger.of(context).showSnackBar(mySnackBar(context, msg: err.toString()));
       return PaymentResult(mxikError: err, success: false);
     });
+
     if (paymentResult.success) {
-      /// Tekin maxsulotlarni tozalash ///
       _returnedProducts = {};
       _giftProducts = {};
       _freeGiftDialogCount = 0;
@@ -2921,7 +2908,6 @@ void useBuyXGetXProducts() {
     notifyListeners();
     return paymentResult;
   }
-
   initPaymentPageValues({
     required SixClientModel4 sixClientModel4,
     required double totalPrice,
