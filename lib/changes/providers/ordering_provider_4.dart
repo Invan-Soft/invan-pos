@@ -1397,26 +1397,51 @@ void useBuyXGetXProducts() {
     }
   }
 
-  String _markirovka(String rawMark) {
-    if (rawMark.trim().isEmpty) return rawMark;
+  // String _markirovka(String rawMark) {
+  //   if (rawMark.trim().isEmpty) return rawMark;
 
-    String clean = rawMark.replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '');
-    clean = clean.replaceAll(RegExp(r'\(\d{2}\)'), '');               
+  //   String clean = rawMark.replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '');
+  //   clean = clean.replaceAll(RegExp(r'\(\d{2}\)'), '');               
 
-    // 01 + 14 raqam (GTIN)
-    final gtinMatch = RegExp(r'01(\d{14})').firstMatch(clean);
-    if (gtinMatch == null) return rawMark; // 01 topilmasa — o'zgartirmaymiz
+  //   // 01 + 14 raqam (GTIN)
+  //   final gtinMatch = RegExp(r'01(\d{14})').firstMatch(clean);
+  //   if (gtinMatch == null) return rawMark; // 01 topilmasa — o'zgartirmaymiz
 
-    final gtin = gtinMatch.group(1)!;
+  //   final gtin = gtinMatch.group(1)!;
 
-    // 21 dan keyingi serialni olish
-    final serialMatch = RegExp(r'21([A-Za-z0-9\-+/%\s]+?)(?=\d{2}|$)').firstMatch(clean);
-    final serial = serialMatch != null ? serialMatch.group(1)! : '';
+  //   // 21 dan keyingi serialni olish (GS1 serial barcha printable belgilarni qo'llab-quvvatlaydi)
+  //   final serialMatch = RegExp(r'21([^\x00-\x1F\x7F]+?)(?=\d{2}|$)').firstMatch(clean);
+  //   final serial = serialMatch != null ? serialMatch.group(1)! : '';
 
-    final result = '01$gtin' '21$serial';
+  //   final result = '01$gtin' '21$serial';
 
-    return result;
-  }
+  //   return result;
+  // }
+ /// Har qanday GS1 DataMatrix kodini to'g'ri tozalaydi va saqlaydi
+// String _markirovka(String rawMark) {
+//   if (rawMark.trim().isEmpty) return rawMark;
+
+//   String clean = rawMark
+//       .replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '')  
+//       .replaceAll(RegExp(r'\(\d{2}\)'), '');     
+
+//   if (clean.startsWith(RegExp(r'0[0-9]'))) {
+//     return clean;
+//   }
+
+//   return clean;
+// }
+String _markirovka(String rawMark) {
+  if (rawMark.trim().isEmpty) return rawMark;
+
+  // GS1 separatorlarni tozalash (hech narsani kesmaymiz)
+  String clean = rawMark
+      .replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '')   // group separatorlarni olib tashlaydi
+      .replaceAll(RegExp(r'\(\d{2}\)'), '');       // qavsli AI ni olib tashlaydi
+
+  return clean;   // toza GS1 kodini qaytaradi (01, 00, 02, 11, 17 va h.k.)
+}
+
   bool isLoading = false;
 
   bool dialogForMark = false;
@@ -1432,7 +1457,6 @@ void useBuyXGetXProducts() {
     dialogForDiscount = value;
     notifyListeners();
   }
-
   Future<void> _markingCheck(
       //ideal
       ItemModel item,
@@ -1462,16 +1486,20 @@ void useBuyXGetXProducts() {
         return;
       }
 
+      // ─── YANGI GTIN TOPISH ────────────────────────────
+      // Har qanday GS1 formatni (01, 02, 00, 11, 17, 10 va boshqalar) qo'llab-quvvatlaydi
       String? gtinFromMark;
-      final m1 = RegExp(r'\(01\)(\d{13,14})').firstMatch(v);
-      if (m1 != null) {
-        gtinFromMark = m1.group(1)!.replaceFirst(RegExp(r'^0+'), '');
-      }
 
-      if (gtinFromMark == null && v.startsWith('01') && v.length > 16) {
-        final m2 = RegExp(r'^01(\d{14})').firstMatch(v);
-        if (m2 != null) {
-          gtinFromMark = m2.group(1)!.replaceFirst(RegExp(r'^0+'), '');
+      // 1. Klassik 01 yoki 02 bilan boshlanadigan GTIN
+      final gtinMatch = RegExp(r'(?:01|02)(\d{12,14})').firstMatch(v);
+      if (gtinMatch != null) {
+        gtinFromMark = gtinMatch.group(1)!.replaceFirst(RegExp(r'^0+'), '');
+      } 
+      // 2. Boshqa AI (00, 11, 17, 10 va h.k.) bo'lsa — birinchi 12-14 ta raqamni GTIN deb olamiz
+      else {
+        final numbers = RegExp(r'\d{12,14}').firstMatch(v);
+        if (numbers != null) {
+          gtinFromMark = numbers.group(0)!.replaceFirst(RegExp(r'^0+'), '');
         }
       }
 
@@ -1495,6 +1523,7 @@ void useBuyXGetXProducts() {
         }
         return;
       }
+      // ──────────────────────────────────────────────────────
 
       final productBarcodes = item.barcode ?? [];
       final barcodeMatches = productBarcodes
@@ -1577,12 +1606,11 @@ void useBuyXGetXProducts() {
 
       if (!Pref.getBool('validation_onkm', false)) {
         final existingWithMark = _currentClient.orderedProducts.indexWhere(
-          (e) =>
-              e.productId == item.id &&
-              e.mark != null &&
-              e.mark!.isNotEmpty &&
-              e.mark == v,
-        );
+  (e) => !(e.isDeleted ?? false) &&
+         e.mark != null &&
+         e.mark!.isNotEmpty &&
+         e.mark == v,
+);
 
         final existingNoMark = _currentClient.orderedProducts.indexWhere(
           (e) => e.productId == item.id && (e.mark == null || e.mark!.isEmpty),
@@ -1648,8 +1676,7 @@ void useBuyXGetXProducts() {
               body: jsonEncode(body),
               headers: headers,
             );
-            // Alice ga ham yozish (agar kerak bo'lsa)
-          alice.onHttpResponse(response);
+            alice.onHttpResponse(response);
 
             HttpResult httpResult = HttpResult(
                 statusCode: 1, isSuccess: false, result: null, reBytes: null);
@@ -1681,7 +1708,7 @@ void useBuyXGetXProducts() {
                       provider: this,
                     ),
                   ).then((value) {});
-                  dialogForMark = false; // ← reset
+                  dialogForMark = false;
                 }
               } else {
                 addSeperatedProduct(item..mark = v);
@@ -1707,7 +1734,7 @@ void useBuyXGetXProducts() {
                         return ContainsZeroPriceItemDialog(
                           text: loc.ha.toLowerCase() == 'ha'
                               ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
-                              : 'Этот отмеченный продукт уже был добавлен ранее!',
+                              : 'Этот отмеченный продукт уже был добавlen ранее!',
                           text2: 'Ok',
                           delete: false,
                           isFirst: true,
@@ -1721,7 +1748,6 @@ void useBuyXGetXProducts() {
                   addSeperatedProduct(item..mark = v);
                 }
               } else {
-                // Soliq noto'g'ri dedi
                 if (!dialogForMark) {
                   dialogForMark = true;
                   await showGeneralDialog(
@@ -1739,7 +1765,7 @@ void useBuyXGetXProducts() {
                       );
                     },
                   ).then((value) {});
-                  dialogForMark = false; // ← reset
+                  dialogForMark = false;
                 }
               }
             }
@@ -1777,7 +1803,7 @@ void useBuyXGetXProducts() {
                     return ContainsZeroPriceItemDialog(
                       text: loc.ha.toLowerCase() == 'ha'
                           ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
-                          : 'Этот отмеченный продукт уже был добавлен ранее!',
+                          : 'Этот отмеченный продукт уже был добавlen ранее!',
                       text2: 'Ok',
                       delete: false,
                       provider: this,
@@ -1830,7 +1856,7 @@ void useBuyXGetXProducts() {
                   return ContainsZeroPriceItemDialog(
                     text: loc.ha.toLowerCase() == 'ha'
                         ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
-                        : 'Этот отмеченный продукт уже был добавлен ранее!',
+                        : 'Этот отмеченный продукт уже был добавlen ранее!',
                     text2: 'Ok',
                     delete: false,
                     provider: this,
@@ -1842,25 +1868,21 @@ void useBuyXGetXProducts() {
       }
     }
   }
-
   addSeperatedProduct(ItemModel product) async {
     final freshProduct =
         ItemsSingleton.getProductById(product.id ?? '') ?? product;
 
     bool isKg = freshProduct.measurementUnit?.shortName == 'кг' ||
         freshProduct.measurementUnit?.shortName == 'kg';
-
     final markValue = product.mark;
-
-    // Bir xil markirovka kodi ikkinchi marta qo'shilishini oldini olamiz
+   
     if (markValue != null && markValue.isNotEmpty) {
+
       final alreadyAdded = _currentClient.orderedProducts.any(
-        (e) =>
-            !(e.isDeleted ?? false) &&
-            e.productId == freshProduct.id &&
-            e.mark != null &&
-            e.mark == markValue,
-      );
+  (e) => !(e.isDeleted ?? false) &&
+         e.mark != null &&
+         e.mark == markValue,   
+);
       if (alreadyAdded) {
         if (!dialogForMark) {
           dialogForMark = true;
@@ -4059,7 +4081,10 @@ void useBuyXGetXProducts() {
     }
 
     if (item != null) {
-      print(item.mxikCode);
+      // print('Product Found');
+      // print('name == ${item.name}');
+      // print('mxik code == ${item.mxikCode}');
+      // print(item.mxikCode);
       final mxikStr = (item.mxikCode ?? '').trim();
 
       final bool sellWithMarkingEnabled =

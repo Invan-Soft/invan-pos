@@ -88,40 +88,37 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
               ],
             ),
           ),
+               // ====================== PASTKI QISM ======================
           Expanded(
             flex: 2,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                !Pref.getBool(PrefKeys.withOFD, false)
-                    ? const SizedBox.shrink()
-                    : !Pref.getBool(PrefKeys.preCheck, false)
-                        ? const SizedBox.shrink()
-                        : Expanded(
-                            flex: 3,
-                            child: Padding(
-                              padding: EdgeInsets.zero,
-                              child: SimpleCheck(widget.homeContextt),
-                            ),
-                          ),
-                orderingProvider4.paymentsMapAsList.any((element) =>
-                        element.name.toLowerCase() == "debt" &&
-                        Pref.getBool(PrefKeys.withOFD, false))
-                    ? const SizedBox()
-                    : Expanded(
-                        flex: 10,
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                              left: Pref.getBool(PrefKeys.withOFD, false)
-                                  ? Pref.getBool(PrefKeys.preCheck, false)
-                                      ? SizeConfig.h * 1.9
-                                      : 0
-                                  : 0),
-                          child: CompleteButtonOfPaymentPageOnBloc(
-                              widget.homeContextt),
-                        ),
-                      ),
+                // Simple Check tugmasi
+                if (_shouldShowSimpleCheck(orderingProvider4))
+                  Expanded(
+                    flex: 3,
+                    child: Padding(
+                      padding: EdgeInsets.zero,
+                      child: SimpleCheck(widget.homeContextt),
+                    ),
+                  ),
+
+                // Complete Button (Simple Check bo'lsa 10, bo'lmasa 13)
+                Expanded(
+                  flex: _shouldShowSimpleCheck(orderingProvider4) ? 10 : 13,
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: _shouldShowSimpleCheck(orderingProvider4)
+                          ? SizeConfig.h * 1.9
+                          : 0,
+                    ),
+                    child: CompleteButtonOfPaymentPageOnBloc(
+                      widget.homeContextt,
+                    ),
+                  ),
+                ),
               ],
             ),
           )
@@ -129,7 +126,18 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
       ),
     );
   }
+  bool _shouldShowSimpleCheck(OrderingProvider4 provider) {
+    if (!Pref.getBool(PrefKeys.withOFD, false)) return false;
+    if (!Pref.getBool(PrefKeys.preCheck, false)) return false;
 
+
+    final bool hasSpecialPayment = provider.paymentsMapAsList.any((payment) {
+      final name = payment.name.toUpperCase();
+      return name.contains('QR') || name.contains('PASS');
+    });
+
+    return !hasSpecialPayment;  
+  }
   Column _buildPayments(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final orderingProvider = context.watch<OrderingProvider4>();

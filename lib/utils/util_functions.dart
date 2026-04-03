@@ -111,67 +111,179 @@ class UtilFunctions {
     return error;
   }
 
-  static Future<String?> fullUpdateProduct({bool apd = false}) async {
-    DateTime time = DateTime.now();
-    List<ItemModel> allProducts = [];
-    String getError = '';
-    await TasnifService.setPackageCode();
+  // static Future<String?> fullUpdateProduct({bool apd = false}) async {
+  //   DateTime time = DateTime.now();
+  //   List<ItemModel> allProducts = [];
+  //   String getError = '';
+  //   await TasnifService.setPackageCode();
 
-    HttpResult httpResult = await OrdersService.getItems();
+  //   HttpResult httpResult = await OrdersService.getItems();
 
-    if (httpResult.isSuccess) {
-      try {
-        var decodedJson = json.decode(httpResult.result);
+  //   if (httpResult.isSuccess) {
+  //     try {
+  //       var decodedJson = json.decode(httpResult.result);
 
-        if (decodedJson is List) {
-          final i = <ItemModel>[];
-          for (final e in decodedJson) {
-            i.add(ItemModel.fromJson(e));
+  //       if (decodedJson is List) {
+  //         final i = <ItemModel>[];
+  //         for (final e in decodedJson) {
+  //           i.add(ItemModel.fromJson(e));
+  //         }
+
+  //         allProducts = ItemsSingleton.addPackageCodeAndMxikCode(
+  //           i,
+  //           Pref.getString(PrefKeys.mxikCode, ''),
+  //           Pref.getString(PrefKeys.packageCode, ''),
+  //         );
+  //       } else {
+  //         getError = "Ma'lumotlar formati noto'g'ri.";
+  //       }
+  //     } catch (e) {
+  //       getError = "Ma'lumotlar o'qishda xatolik: $e";
+  //     }
+  //   } else {
+  //     getError = httpResult.getError;
+  //   }
+
+  //   if (kDebugMode) {
+  //     print('----- = =    LENGTH    = = -----');
+  //     print(allProducts.length);
+  //     print('----- = =    LENGTH    = = -----');
+  //   }
+
+  //   await Pref.setInt(PrefKeys.lastSyncTime, time.millisecondsSinceEpoch);
+  //   if (allProducts.isNotEmpty) {
+  //     await ItemsSingleton.clearAndPutItems(allProducts);
+  //     if (apd) {
+  //       await hiveOpen().then((value) async {
+  //         await Pref.setBool(PrefKeys.authenticationBool, true);
+  //       });
+  //     }
+  //     await ItemsSingleton.storeProducts();
+  //     CategorySingleton.init();
+  //     await Pref.setInt(
+  //       PrefKeys.lastSyncTime,
+  //       DateTime.now()
+  //           .subtract(const Duration(seconds: 3))
+  //           .millisecondsSinceEpoch,
+  //     );
+  //     allProducts = [];
+  //     return null;
+  //   }
+  //   return getError;
+  // }
+static Future<String?> fullUpdateProduct({bool apd = false}) async {
+  DateTime time = DateTime.now();
+  List<ItemModel> allProducts = [];
+  String getError = '';
+
+  print('🔄 fullUpdateProduct chaqirildi - ${DateTime.now()}');
+
+  await TasnifService.setPackageCode();
+
+  HttpResult httpResult = await OrdersService.getItems();
+
+  if (httpResult.isSuccess) {
+    try {
+      var decodedJson = json.decode(httpResult.result);
+
+      // ==================== BARCODE BO‘YICHA IZLASH (XOM JSON) ====================
+      const String targetBarcode = "4780136570023";
+      bool found = false;
+
+      print("🔍 API dan kelgan xom JSON ichidan qidirilmoqda: $targetBarcode");
+
+      if (decodedJson is List) {
+        for (final e in decodedJson) {
+          if (e is Map<String, dynamic>) {
+            final barcodeField = e['barcode'];
+
+            bool hasTargetBarcode = false;
+
+            if (barcodeField is String) {
+              hasTargetBarcode = barcodeField == targetBarcode;
+            } else if (barcodeField is List) {
+              hasTargetBarcode = barcodeField.any((b) => b.toString() == targetBarcode);
+            }
+
+            if (hasTargetBarcode) {
+              found = true;
+              print("✅ MAHSULOT TOPILDI (XOM JSON):");
+              print("   Nomi          : ${e['name'] ?? 'NOMA\'LUM'}");
+              print("   MXIK Code     : ${e['mxikCode'] ?? e['mxik'] ?? e['mxikCode'] ?? 'MXIK yo\'q'}");
+              print("   Barcode       : $targetBarcode");
+              print("   Package Code  : ${e['packageCode'] ?? 'yo\'q'}");
+              print("   O'lchov       : ${e['measurementUnit'] ?? 'yo\'q'}");
+              print("   Narx turi     : ${e['shopPrices'] != null ? 'Bor' : 'Yo\'q'}");
+              print("   --------------------------------------------------");
+            }
           }
-
-          allProducts = ItemsSingleton.addPackageCodeAndMxikCode(
-            i,
-            Pref.getString(PrefKeys.mxikCode, ''),
-            Pref.getString(PrefKeys.packageCode, ''),
-          );
-        } else {
-          getError = "Ma'lumotlar formati noto'g'ri.";
         }
-      } catch (e) {
-        getError = "Ma'lumotlar o'qishda xatolik: $e";
-      }
-    } else {
-      getError = httpResult.getError;
-    }
 
-    if (kDebugMode) {
-      print('----- = =    LENGTH    = = -----');
-      print(allProducts.length);
-      print('----- = =    LENGTH    = = -----');
-    }
-
-    await Pref.setInt(PrefKeys.lastSyncTime, time.millisecondsSinceEpoch);
-    if (allProducts.isNotEmpty) {
-      await ItemsSingleton.clearAndPutItems(allProducts);
-      if (apd) {
-        await hiveOpen().then((value) async {
-          await Pref.setBool(PrefKeys.authenticationBool, true);
-        });
+        if (!found) {
+          print("❌ Bu barcode bilan mahsulot API javobida topilmadi: $targetBarcode");
+        }
+      } else {
+        print("⚠️ decodedJson List emas, balki ${decodedJson.runtimeType} turida keldi");
       }
-      await ItemsSingleton.storeProducts();
-      CategorySingleton.init();
-      await Pref.setInt(
-        PrefKeys.lastSyncTime,
-        DateTime.now()
-            .subtract(const Duration(seconds: 3))
-            .millisecondsSinceEpoch,
-      );
-      allProducts = [];
-      return null;
+      // =====================================================================
+
+      // Oddiy mahsulotlar ro'yxatini yaratish
+      if (decodedJson is List) {
+        final i = <ItemModel>[];
+        for (final e in decodedJson) {
+          i.add(ItemModel.fromJson(e));
+        }
+
+        allProducts = ItemsSingleton.addPackageCodeAndMxikCode(
+          i,
+          Pref.getString(PrefKeys.mxikCode, ''),
+          Pref.getString(PrefKeys.packageCode, ''),
+        );
+
+        print('📦 Jami mahsulotlar soni: ${allProducts.length}');
+      } else {
+        getError = "Ma'lumotlar formati noto'g'ri.";
+      }
+    } catch (e, stack) {
+      getError = "Ma'lumotlar o'qishda xatolik: $e";
+      print('❌ JSON parse xatosi: $e');
+      print('Stack: $stack');
     }
-    return getError;
+  } else {
+    getError = httpResult.getError ?? "API xatosi";
+    print('❌ API xatosi: $getError');
   }
 
+  // Vaqtni saqlash
+  await Pref.setInt(PrefKeys.lastSyncTime, time.millisecondsSinceEpoch);
+
+  if (allProducts.isNotEmpty) {
+    print('💾 Mahsulotlar localga saqlanmoqda...');
+    
+    await ItemsSingleton.clearAndPutItems(allProducts);
+    
+    if (apd) {
+      await hiveOpen().then((value) async {
+        await Pref.setBool(PrefKeys.authenticationBool, true);
+      });
+    }
+
+    await ItemsSingleton.storeProducts();
+    CategorySingleton.init();
+
+    await Pref.setInt(
+      PrefKeys.lastSyncTime,
+      DateTime.now().subtract(const Duration(seconds: 3)).millisecondsSinceEpoch,
+    );
+
+    print('✅ Mahsulotlar muvaffaqiyatli yangilandi!');
+    allProducts = [];
+    return null;
+  } else {
+    print('⚠️ Mahsulotlar bo‘sh keldi yoki xatolik yuz berdi.');
+    return getError;
+  }
+}
   static Future<bool> downloadShtrixM() async {
     String token = Pref.getString(PrefKeys.token, "not initialized");
     String shopId = Pref.getString(PrefKeys.storeId, "not initialized");

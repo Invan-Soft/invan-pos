@@ -27,6 +27,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart' as pp;
 import 'package:invan2/features/features.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'changes/dialogs/creat_product/model/mes_vat_unit_model/mes_unit.dart';
 import 'changes/services/log_service.dart';
@@ -57,10 +58,11 @@ class MyHttpOverrides extends HttpOverrides {
 }
 
 Future<void> main() async {
-  
+
   PackageInfo.fromPlatform();
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   await windowManager.ensureInitialized();
   windowManager.addListener(MyWindowListener());
