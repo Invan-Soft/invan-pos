@@ -1,9 +1,7 @@
 // ignore_for_file: use_build_context_synchronously, invalid_use_of_protected_member
 
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -12,7 +10,6 @@ import 'package:http/http.dart' as http;
 import 'package:invan2/changes/services/log_helper.dart';
 import 'package:invan2/changes/services/web_socket_service/product/model/product_price_edit_response.dart';
 import 'package:invan2/changes/services/web_socket_service/urls/urls.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../alice_service.dart';
@@ -28,24 +25,6 @@ import '../../get_items_service.dart';
 
 class DiscountWsService {
   DiscountWsService._();
-
-  /// Har 10 minutda discountlarni serverdan qayta oladi.
-  /// [app.dart] da bir marta chaqiriladi.
-  static Future<void> startPeriodicFetch(
-      BuildContext context, bool mounted) async {
-    await Future.delayed(const Duration(minutes: 10));
-    do {
-      if ((await Connectivity().checkConnectivity()) != ConnectivityResult.none &&
-          mounted) {
-        final String endTime =
-            DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc());
-        final String startTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(
-            DateTime.now().toUtc().subtract(const Duration(minutes: 15)));
-        await getReceivedWS(mounted, context, startTime, endTime);
-      }
-      await Future.delayed(const Duration(minutes: 10));
-    } while (true);
-  }
 
   static Future<void> getReceivedWS(bool mounted, BuildContext context,
       String startDate, String endDate) async {

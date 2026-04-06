@@ -50,6 +50,8 @@ class DiscountSingleton {
   static void productId(String value) => DiscountHelpers.productId(value);
 
   static void maxPrice() => DiscountHelpers.maxPrice();
+
+  static void resetAll() => DiscountHelpers.resetAll();
 }
 
 class ReturnedProduct {

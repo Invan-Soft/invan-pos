@@ -12,10 +12,16 @@ import 'app_constants.dart';
 class DiscountService {
   static final box = HiveBoxes.getDiscounts();
 
+  /// OrderingProvider4 bu callbackni o'rnatadi.
+  /// Discountlar tozalanganda chaqiriladi.
+  static void Function()? onDiscountsCleared;
+
   static Future<HttpResult> findDiscounts() async {
     final shopId = Pref.getString(PrefKeys.storeId, 'not initialized');
+    final url = 'api/v1/company_discounts_for_pos?shop_ids=$shopId';
+    // ignore: avoid_print
     final response = await ApiProvider.getResponse(
-      path: 'api/v1/company_discounts_for_pos?shop_ids=$shopId',
+      path: url,
       headers: AppConstants.getHeaders(),
     );
     return response;
@@ -24,7 +30,6 @@ class DiscountService {
 
   static Future<String?> discounts() async {
     HttpResult httpResult = await DiscountService.findDiscounts();
-
 
     if (httpResult.isSuccess) {
       DiscountsResponse discountsResponse =
@@ -37,6 +42,12 @@ class DiscountService {
           await box.put(discountItem.id, discountItem);
         }
       }
+
+      // Agar discountlar yo'q bo'lsa, OrderingProvider4 ga xabar ber
+      if (box.isEmpty) {
+        onDiscountsCleared?.call();
+      }
+
       return null;
     } else {
       return httpResult.getError;

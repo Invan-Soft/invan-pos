@@ -40,7 +40,7 @@ class ShiftingSerivce {
       LogRepository.addLog(e.toString(),
           file: 'ShiftingSerivce / isShiftOpened',
           method: "POST",
-          path: "-",
+          path: "Shifting_service.dart",
           statusCode: _statusCode,
           where: "IS SHIFT OPENED / CATCH ",
           url: AppConstants.localhost);
@@ -125,7 +125,7 @@ class ShiftingSerivce {
         e.toString(),
         file: 'ShiftingSerivce / openeZetReport',
         method: "POST",
-        path: "-",
+        path: "shifting_service.dart",
         statusCode: _statusCode,
         where: "OPEN Z REPORT / CATCH ",
         url: AppConstants.localhost,

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:invan2/app_navigation.dart';
 import 'package:invan2/features/features.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:provider/provider.dart';
 import '../../../../../../changes/providers/operation_on_product_provider.dart';
+import '../../delete_item/input_alert_dialog.dart';
 
 class OPDQuantity extends StatefulWidget {
   const OPDQuantity({
@@ -103,6 +106,29 @@ class OPDQuantityState extends State<OPDQuantity> {
       onPressed: () async {
         final provider =
             Provider.of<OperationOnProductProvider>(context, listen: false);
+
+        if (item.value <= 1) {
+          final Employee currentEmployee = HiveBoxes.getCurrentEmployee!;
+          if (currentEmployee.access?.deletePrice ?? false) {
+            Provider.of<OrderingProvider4>(context, listen: false)
+                .pressDialogDeleteButton();
+            AppNavigation.pop();
+          } else {
+            await showDialog(
+              context: context,
+              builder: (_) => InputAlertDialog(
+                onUniversalPinEntered: () {},
+                onValueEntered: (employee) {
+                  Provider.of<OrderingProvider4>(context, listen: false)
+                      .pressDialogDeleteButton();
+                  AppNavigation.pop();
+                  AppNavigation.pop();
+                },
+              ),
+            );
+          }
+          return;
+        }
 
         await provider.attemptDecreaseQuantity(1, context);
       },

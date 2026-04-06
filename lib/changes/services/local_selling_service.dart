@@ -32,7 +32,23 @@ class LocalService {
   static final Uri _url = Uri.parse(AppConstants.localhost);
 
   static String errorMessage = '';
+  static String cleanMarkForFiscal(String rawMark) {
+    if (rawMark.trim().isEmpty) return rawMark;
 
+    String clean = rawMark
+        .replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '')
+        .replaceAll(RegExp(r'\(\d{2}\)'), '');
+
+
+    final match = RegExp(r'(01\d{14}21[^0-9].*?)(?=\d{2}|$)').firstMatch(clean);
+    if (match != null) {
+      final result = match.group(1)!;
+      return result;
+    }
+
+    return clean;
+  }
+  
   static Future<CommunicatorRESPONSE> sell({
     required AppLocalizations loc,
     required dynamic receiptData,
@@ -43,7 +59,15 @@ class LocalService {
     } else {
       body = receiptData;
     }
+if (receiptData is ReceiptModel4) {
+      for (var item in receiptData.soldItemList) {
+        if (item.mark != null && item.mark!.isNotEmpty) {
+          final originalMark = item.mark!;
+          item.mark = cleanMarkForFiscal(originalMark);
 
+        }
+      }
+    }
     var data;
 
     try {
@@ -59,7 +83,7 @@ class LocalService {
             .timeout(_duration);
         await LogHelper.logRequest(
             method: "POST",
-            path: _url.toString(),
+            path:"LocalService sell function $_url.toString()",
             statusCode: response.statusCode,
             body: body,
             response: response.body);
@@ -114,7 +138,7 @@ class LocalService {
           file: "LocalService / sell",
           method: "POST",
           where: "LOCAL SALING / TRY / SUCCESS",
-          path: "",
+          path: "LocaleService communicator response",
           statusCode: response.statusCode,
           success: true,
           url: AppConstants.localhost,
@@ -128,19 +152,19 @@ class LocalService {
       }
       LogRepository.addLog(
         """
- RESPONSE BODY:   => ${jsonDecode(decoded)}, headers: => {'Content-Type': 'application/json'}, REQUEST BODY:: =>  ${body['params']['items'].map((e) => e).toList().toString()}""",
+ RESPONSE BODY:   => $decoded, headers: => {'Content-Type': 'application/json'}, REQUEST BODY:: =>  ${body['params']['items'].map((e) => e).toList().toString()}""",
         method: "POST",
         path: AppConstants.localhost,
         where: "LOCAL SALING / TRY / FAILED",
         statusCode: _statusCode,
         url: AppConstants.localhost,
-        file: 'LocalService / sell / try',
+        file: 'LocalService / sell / try 161 code line',
       );
 
       MxikError? mxikError = _checkForMxikError(response);
       return CommunicatorRESPONSE()
         ..mxikError = mxikError
-        ..paycheck = _sintezERROR(decoded)
+        ..paycheck = errorMessage.isNotEmpty ? errorMessage : _sintezERROR(decoded)
         ..error = true
         ..info = null;
     } on SocketException catch (_) {
@@ -158,7 +182,7 @@ class LocalService {
       LogRepository.addLog(
         e.toString(),
         method: "POST",
-        path: "-",
+        path: "Local Saling catch metod",
         where: "LOCAL SALING / CATCH ",
         statusCode: _statusCode,
         url: AppConstants.localhost,
@@ -428,7 +452,7 @@ class LocalService {
           file: "LocalService / sell",
           method: "POST",
           where: "LOCAL SALING / TRY / SUCCESS",
-          path: "",
+          path: "455 LocalService Communicator response",
           statusCode: response.statusCode,
           success: true,
           url: AppConstants.localhost,
@@ -453,7 +477,7 @@ class LocalService {
       LogRepository.addLog(
         e.toString(),
         method: "POST",
-        path: "-",
+        path: "480 communicator response",
         where: "LOCAL SALING / CATCH ",
         statusCode: _statusCode,
         url: AppConstants.localhost,
@@ -497,7 +521,7 @@ class LocalService {
           file: "LocalService / sell",
           method: "POST",
           where: "LOCAL SALING / TRY / SUCCESS",
-          path: "",
+          path: "524 communicator response",
           statusCode: response.statusCode,
           success: true,
           url: AppConstants.localhost,
@@ -522,7 +546,7 @@ class LocalService {
       LogRepository.addLog(
         e.toString(),
         method: "POST",
-        path: "-",
+        path: "549 local selling response",
         where: "LOCAL SALING / CATCH ",
         statusCode: _statusCode,
         url: AppConstants.localhost,

@@ -177,6 +177,8 @@ class PrefKeys {
   static const String version = 'version';
   static const String companyAppsFetched = 'companyAppsFetched';
   static const String sellProductsWithMarking = 'sellProductsWithMarking';
+  static const String isCashDisableForAlcohol = 'isCashDisableForAlcohol';
+
 
 
 }

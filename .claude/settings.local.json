@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter analyze:*)"
+      "Bash(flutter analyze:*)",
+      "Bash(python \"d:/flutter_projects/pos-invan-2-ayyubxon/fix_quotes.py\")",
+      "Bash(python3 -c \"print\\('test'\\)\")",
+      "Bash(py -3 -c \"print\\('test'\\)\")",
+      "Bash(powershell -Command \"\\(Get-Content 'd:/flutter_projects/pos-invan-2-ayyubxon/lib/changes/providers/ordering_provider_4.dart' -Raw\\) -replace [char]0x2018, [char]39 -replace [char]0x2019, [char]39 | Set-Content 'd:/flutter_projects/pos-invan-2-ayyubxon/lib/changes/providers/ordering_provider_4.dart' -NoNewline\")",
+      "Bash(python -c ':*)",
+      "Bash(del \"d:\\\\flutter_projects\\\\pos-invan-2-ayyubxon\\\\fix_quotes.ps1\")"
     ]
   }
 }

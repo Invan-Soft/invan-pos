@@ -62,7 +62,7 @@ Future<void> main() async {
   PackageInfo.fromPlatform();
   HttpOverrides.global = MyHttpOverrides();
   WidgetsFlutterBinding.ensureInitialized();
-  GoogleFonts.config.allowRuntimeFetching = false;
+  GoogleFonts.config.allowRuntimeFetching = true;
 
   await windowManager.ensureInitialized();
   windowManager.addListener(MyWindowListener());

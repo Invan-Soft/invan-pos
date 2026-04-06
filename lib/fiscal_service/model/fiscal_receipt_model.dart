@@ -10,7 +10,8 @@ FiscalReceiptModel fiscalreceiptModelFromJson(String str) =>
 
 String fiscalreceiptModelToJson(FiscalReceiptModel data) =>
     json.encode(data.toJson());
-
+// String fiscalreceiptModelToJson(FiscalReceiptModel data) =>
+//     json.encode([data.toJson()]);
 class FiscalReceiptModel {
   FiscalReceiptModel({
     String? method,

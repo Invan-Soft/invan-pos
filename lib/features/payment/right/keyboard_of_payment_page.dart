@@ -16,7 +16,6 @@ import 'package:provider/provider.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
-import '../../../changes/models/organization_model.dart';
 import 'complete_button/complete_bloc/comlete_bloc.dart';
 import 'complete_button/pri_check.dart';
 
@@ -88,37 +87,67 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
               ],
             ),
           ),
-               // ====================== PASTKI QISM ======================
+          // ====================== PASTKI QISM ======================
           Expanded(
             flex: 2,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Simple Check tugmasi
-                if (_shouldShowSimpleCheck(orderingProvider4))
+                // 1. Agar Payme/Click + Debt birga bo'lsa → ikkala tugma ham chiqmasin, text chiqsin
+                if (_isSpecialPaymentAndDebtTogether(orderingProvider4))
                   Expanded(
-                    flex: 3,
+                    flex: 13,
                     child: Padding(
-                      padding: EdgeInsets.zero,
-                      child: SimpleCheck(widget.homeContextt),
+                      padding: EdgeInsets.all(SizeConfig.v * 1.5),
+                      child: Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withOpacity(0.15),
+                          borderRadius:
+                              BorderRadius.circular(SizeConfig.v * 1.5),
+                        ),
+                        child: Text(
+                          loc.ha == "Ha"
+                              ? "Payme yoki Click bilan\nDebt birga tanlangan!\nBitta turini tanlang\n\n"
+                              : "Payme или Click вместе с Долгом!\nВыберите один тип оплаты",
+                          textAlign: TextAlign.center,
+                          style: MyThemes.txtStyle(
+                            color: Colors.redAccent,
+                            fontSize: 2.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  )
+                else ...[
+                  if (_shouldShowSimpleCheck(orderingProvider4) ||
+                      _isDebtSelected(orderingProvider4))
+                    Expanded(
+                      flex: _isDebtSelected(orderingProvider4) ? 13 : 3,
+                      child: Padding(
+                        padding: EdgeInsets.zero,
+                        child: SimpleCheck(widget.homeContextt),
+                      ),
+                    ),
 
-                // Complete Button (Simple Check bo'lsa 10, bo'lmasa 13)
-                Expanded(
-                  flex: _shouldShowSimpleCheck(orderingProvider4) ? 10 : 13,
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      left: _shouldShowSimpleCheck(orderingProvider4)
-                          ? SizeConfig.h * 1.9
-                          : 0,
+                  // Complete Button
+                  if (_shouldShowCompleteButton(orderingProvider4))
+                    Expanded(
+                      flex: _shouldShowSimpleCheck(orderingProvider4) ? 10 : 13,
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          left: _shouldShowSimpleCheck(orderingProvider4)
+                              ? SizeConfig.h * 1.9
+                              : 0,
+                        ),
+                        child: CompleteButtonOfPaymentPageOnBloc(
+                          widget.homeContextt,
+                        ),
+                      ),
                     ),
-                    child: CompleteButtonOfPaymentPageOnBloc(
-                      widget.homeContextt,
-                    ),
-                  ),
-                ),
+                ],
               ],
             ),
           )
@@ -126,34 +155,63 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
       ),
     );
   }
+
+  /// ==================== 1. Payme/Click + Debt birga tanlanganmi? ====================
+  /// FAQAT Payme va Click uchun ishlaydi (Uzum emas!)
+  bool _isSpecialPaymentAndDebtTogether(OrderingProvider4 provider) {
+    final bool hasSpecial = provider.paymentsMapAsList.any((payment) {
+      final name = payment.name.toUpperCase();
+      return name.contains('PAYME') || name.contains('CLICK');
+    });
+
+    final bool hasDebt = provider.paymentsMap.keys.any((key) =>
+        key == Pref.getString(PrefKeys.debtId, '') ||
+        key.toUpperCase().contains('DEBT'));
+
+    return hasSpecial && hasDebt;
+  }
+
+  /// ==================== SimpleCheck chiqishi kerakmi? ====================
   bool _shouldShowSimpleCheck(OrderingProvider4 provider) {
     if (!Pref.getBool(PrefKeys.withOFD, false)) return false;
     if (!Pref.getBool(PrefKeys.preCheck, false)) return false;
 
+    // FAQAT Click Pass muvaffaqiyatli to'langan bo'lsa Simple Check chiqmasin
+    if (provider.clickPassPaid == true) {
+      return false;
+    }
 
-    final bool hasSpecialPayment = provider.paymentsMapAsList.any((payment) {
-      final name = payment.name.toUpperCase();
-      return name.contains('QR') || name.contains('PASS');
-    });
-
-    return !hasSpecialPayment;  
+  
+    return true;
   }
+
+  bool _isDebtSelected(OrderingProvider4 provider) {
+    return provider.paymentsMap.keys.any((key) =>
+        key == Pref.getString(PrefKeys.debtId, '') ||
+        key.toUpperCase().contains('DEBT'));
+  }
+
+  bool _shouldShowCompleteButton(OrderingProvider4 provider) {
+    return !_isDebtSelected(provider);
+  }
+
   Column _buildPayments(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final orderingProvider = context.watch<OrderingProvider4>();
-      final bool cardOnly = orderingProvider.isCardOnlyPaymentRequired;
+    final bool cardOnly = orderingProvider.isCardOnlyPaymentRequired;
 
+    final String cashId = Pref.getString(PrefKeys.cashId, "");
     final String cashbackId = Pref.getString(PrefKeys.cashbackId, "");
     final String debtId = Pref.getString(PrefKeys.debtId, "");
     final String paymeId = Pref.getString(PrefKeys.paymeId, "");
     final String clickId = Pref.getString(PrefKeys.clickId, "");
     final String uzumId = Pref.getString(PrefKeys.uzumId, "");
     final String cardId = Pref.getString(PrefKeys.cardId, "");
+    final bool isCashHidden = orderingProvider.isCashPaymentHidden;
 
     final bool isPaymeEnabled = Pref.getBool(PrefKeys.paymeEnable, false);
     final bool isClickEnabled = Pref.getBool(PrefKeys.clickEnable, false);
     final bool isUzumEnabled = Pref.getBool(PrefKeys.uzumEnable, false);
-
 
     return Column(
       children: otherPaymentsGlobal.map((p) {
@@ -172,7 +230,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
         }
 
         if (id == debtId) {
-           if (cardOnly) return const SizedBox.shrink();
+          if (cardOnly) return const SizedBox.shrink();
           return orderingProvider.getCurrentClientIsNotNULL &&
                   orderingProvider.getCurrentClientIsAvailableForDebt
               ? _functionalButton(loc.qarz, () {
@@ -180,9 +238,8 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
                 })
               : const SizedBox.shrink();
         }
-
         if (id == paymeId) {
-         if (!isPaymeEnabled || cardOnly) return const SizedBox.shrink();
+          if (!isPaymeEnabled || cardOnly) return const SizedBox.shrink();
           return _functionalButtonWithImg("payme", () async {
             await typeDialog("Payme Go", "Payme QR", () async {
               Navigator.pop(context);
@@ -197,7 +254,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
         }
 
         if (id == clickId) {
-        if (!isClickEnabled || cardOnly) return const SizedBox.shrink();
+          if (!isClickEnabled || cardOnly) return const SizedBox.shrink();
           return _functionalButtonWithImg("click", () async {
             await typeDialog("CLICK PASS", "CLICK QR", () async {
               Navigator.pop(context);
@@ -211,7 +268,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
         }
 
         if (id == uzumId) {
-      if (!isUzumEnabled || cardOnly) return const SizedBox.shrink();
+          if (!isUzumEnabled || cardOnly) return const SizedBox.shrink();
           return _functionalButtonWithImg("Uzum", () async {
             await typeDialog("UZUM PASS", "UZUM QR", () async {
               Navigator.pop(context);
@@ -230,6 +287,9 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
             });
           });
         }
+        if (id == cashId && (isCashHidden || cardOnly)) {
+          return const SizedBox.shrink();
+        }
         if (id == cardId) {
           return _functionalButton("${loc.plastik} ${loc.karta}", () async {
             await typeDialog("Uzcard", "Humo", () async {
@@ -242,7 +302,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
             }, isCard: true);
           });
         }
-if (cardOnly) return const SizedBox.shrink();
+        if (cardOnly) return const SizedBox.shrink();
         return _functionalButton(p.name ?? '', () {
           orderingProvider.allPaymentType(p);
         });

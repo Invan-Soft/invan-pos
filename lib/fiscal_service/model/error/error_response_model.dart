@@ -18,8 +18,8 @@ class ErrorModel {
 
   ErrorModel.fromJson(dynamic json) {
     _code = json['code'];
-    _message = json['message'];
-    _data = json['data'];
+    _message = json['message']?.toString();
+    _data = json['data']?.toString();
   }
 
   int? _code;

@@ -93,7 +93,6 @@ class ReceiptApi4 {
     /////////////////////////////////////////////////////////////
     final body = jsonEncode({"order": jsonList});
     Pref.setString("bodyForDiscountError", body);
-
     HttpResult res = await ApiProvider.postResponse(
       path: uri,
       body: body,

@@ -53,6 +53,11 @@ class DiscountHelpers {
 
   static void maxPrice() => _maxPrice = 0;
 
+  static void resetAll() {
+    _maxPrice = 0;
+    _availableDiscount = ReturnedProduct();
+  }
+
   /// Product & Category
   static ReceiptModelSoldItem4 addDiscountOnProduct(
     ReceiptModelSoldItem4 product,
@@ -61,7 +66,14 @@ class DiscountHelpers {
   ) {
     final box = HiveBoxes.getDiscounts();
 
-    if (box.isEmpty) return product;
+    if (box.isEmpty) {
+      product.discount.clear();
+      product.productDiscount.clear();
+      product.singleDiscount = 0;
+      product.discountPercent = 0;
+      product.price = product.realPrice;
+      return product;
+    }
 
     _priceCat = 0;
     _priceProd = 0;
@@ -105,7 +117,15 @@ class DiscountHelpers {
     bool isGift,
   ) {
     final box = HiveBoxes.getDiscounts();
-    if (box.isEmpty) return null;
+    if (box.isEmpty) {
+      _availableDiscount = ReturnedProduct();
+      for (var p in products) {
+        p.discount.clear();
+        p.productDiscount.clear();
+        p.singleDiscount = 0;
+      }
+      return null;
+    }
     List<ReturnedProduct> returnedProducts = [];
     List<ReturnedGift> returnedGifts = [];
 
@@ -124,8 +144,8 @@ class DiscountHelpers {
           typeId == 'a9f3ceb1-4fa3-4f71-ab81-00889e26616b') {
         final returnedProduct = _getProductIdAndQty(products, dis);
         if (returnedProduct != null) {
-          print('Discount bor');
-          print(returnedProduct.availableProducts!.first.name);
+          // print('Discount bor');
+          // print(returnedProduct.availableProducts!.first.name);
 
 
 

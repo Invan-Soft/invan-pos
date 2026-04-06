@@ -36,9 +36,13 @@ class BaseService {
       dynamic errorBody =
           Pref.getString("bodyForDiscountError", "body not found");
       LogRepository.requestSend(failure.errorMessage(),
+      file: 'baseservice.dart 39 line',
+      method: 'Post Method',
+      path: '41 line in baseservice.dart',
           where: "",
           body: "BaseService Body== $body,\n\n Order Body == $errorBody");
       _requestSend(
+        path: '42 line in baseservice',
         failure.errorMessage(),
         method: method,
         url: _url.toString(),
@@ -60,9 +64,12 @@ class BaseService {
       return Failure(102, ApiErrorResponses.noInternet);
     } catch (err) {
       LogRepository.requestSend(
-        " Error berdi ${err.toString()}",
+        method: "POSt Method",
+        
+      " Error berdi ${err.toString()}",
         where: "",
-        file: "BaseService",
+        file: "BaseService 65",
+        path: "lib/fiscal_service/base_service.dart 68 line",
         body: body.toString(),
       );
       _addLog(
@@ -131,7 +138,7 @@ class BaseService {
   }) {
     LogRepository.addLog(
       message,
-      file: 'BaseService eror',
+      file: 'BaseService eror 135',
       method: method,
       where: "",
 

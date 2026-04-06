@@ -25,7 +25,6 @@ class ApiProvider {
 
   static const baseUrlINVAN2 = INVAN2PRO;
   static const imageUrl = imageUrlPro;
-
   // static const baseUrlINVAN2 = INVAN2DEV;
   // static const imageUrl = imageUrlDev;
 
@@ -118,7 +117,7 @@ class ApiProvider {
             where: "ApiProvider.postResponse",
             file: "api_provider.dart",
             method: "POST",
-            path: path,
+            path: "120 line in api provider $path",
             url: baseUrlINVAN2,
             statusCode: response.statusCode,
             body: body?.toString() ?? "body yo'q",
@@ -152,7 +151,7 @@ class ApiProvider {
         where: "ApiProvider.postResponse",
         file: "api_provider.dart",
         method: "POST",
-        path: path,
+        path: "154 lin in api provider $path",
         url: baseUrlINVAN2,
         body: body?.toString() ?? "body mavjud emas",
         success: false,
@@ -341,7 +340,7 @@ class ApiProvider {
       method: method,
       where: "API PROVIDER",
       url: baseUrlINVAN2,
-      path: path,
+      path: "343 in api $path",
       statusCode: res.statusCode,
       body: body,
       createdDate: receiptModel4?.createdDate ?? "",

@@ -7,7 +7,6 @@ import 'package:invan2/utils/util_functions.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:flutter/material.dart';
 import '../services/web_socket_service/category/categories_ws_service.dart';
-import '../services/web_socket_service/discount/discount_ws_service.dart';
 import '../services/web_socket_service/product/products_ws_service.dart';
 
 class UpdateProvider extends ChangeNotifier {
@@ -65,8 +64,6 @@ class UpdateProvider extends ChangeNotifier {
       await CategoriesWsService.getReceivedWS(
           mounted, context, startTime, endTime);
       await ProductsWsService.getReceivedWS(
-          mounted, context, startTime, endTime);
-      await DiscountWsService.getReceivedWS(
           mounted, context, startTime, endTime);
     }
   }

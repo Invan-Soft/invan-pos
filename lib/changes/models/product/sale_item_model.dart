@@ -19,6 +19,9 @@ class SalingItemModel {
   String? _packageName;
   int? _ownerType;
 
+  // Fiskal server uchun muhim maydon
+  Map<String, dynamic>? _commissionInfo;
+
   SalingItemModel({
     dynamic discount,
     num? price,
@@ -35,108 +38,80 @@ class SalingItemModel {
     String? packageCode,
     String? packageName,
     int? ownerType,
+    Map<String, dynamic>? commissionInfo,
   }) {
-    if (id != null) {
-      _id = id;
-    }
-    if (ownerType != null) {
-      _ownerType = ownerType;
-    }
-    if (discount != null) {
-      _discount = discount;
-    }
-    if (price != null) {
-      _price = price;
-    }
-    if (barcode != null) {
-      _barcode = barcode;
-    }
-    if (amount != null) {
-      _amount = amount;
-    }
-    if (vatPercent != null) {
-      _vatPercent = vatPercent;
-    }
-    if (vat != null) {
-      _vat = vat;
-    }
-    if (name != null) {
-      _name = name;
-    }
-    if (label != null) {
-      _label = label;
-    }
-    if (classCode != null) {
-      _classCode = classCode;
-    }
-    if (other != null) {
-      _other = other;
-    }
-    if (tin != null) {
-      _tin = tin;
-    }
-    if (packageCode != null) {
-      _packageCode = packageCode;
-    }
-    if (packageName != null) {
-      _packageName = packageName;
-    }
+    _id = id;
+    _ownerType = ownerType;
+    _discount = discount;
+    _price = price;
+    _barcode = barcode;
+    _amount = amount;
+    _vatPercent = vatPercent;
+    _vat = vat;
+    _name = name;
+    _label = label;
+    _classCode = classCode;
+    _other = other;
+    _tin = tin;
+    _packageCode = packageCode;
+    _packageName = packageName;
+    _commissionInfo = commissionInfo;
   }
 
+  // Getters & Setters
   List<DiscountModel>? get discount => _discount;
   set discount(dynamic discount) => _discount = discount;
+
   num? get price => _price;
   set price(num? price) => _price = price;
+
   String? get barcode => _barcode;
   set barcode(String? barcode) => _barcode = barcode;
+
   num? get amount => _amount;
   set amount(num? amount) => _amount = amount;
+
   num? get vatPercent => _vatPercent;
   set vatPercent(num? vatPercent) => _vatPercent = vatPercent;
+
   num? get vat => _vat;
   set vat(num? vat) => _vat = vat;
+
   String? get name => _name;
   set name(String? name) => _name = name;
+
   String? get label => _label;
   set label(String? label) => _label = label;
+
   String? get classCode => _classCode;
   set classCode(String? classCode) => _classCode = classCode;
+
   num? get other => _other;
   set other(num? other) => _other = other;
+
   String? get tin => _tin;
-  set tin(String? tin) => _tin;
+  set tin(String? tin) => _tin = tin;
+
   String? get id => _id;
-  set id(String? id) => _id;
+  set id(String? id) => _id = id;
 
   int? get ownerType => _ownerType;
-  set ownerType(int? ownerType) => _ownerType;
+  set ownerType(int? ownerType) => _ownerType = ownerType;
 
   String? get packageCode => _packageCode;
-  set packageCode(String? packageCode) => _packageCode;
+  set packageCode(String? packageCode) => _packageCode = packageCode;
 
   String? get packageName => _packageName;
-  set packageName(String? packageName) => _packageName;
+  set packageName(String? packageName) => _packageName = packageName;
 
-  SalingItemModel.fromJson(Map<String, dynamic> json) {
-    _discount = json['discount'];
-    _price = json['price'];
-    _barcode = json['barcode'];
-    _amount = json['amount'];
-    _vatPercent = json['vatPercent'];
-    _vat = json['vat'];
-    _name = json['name'];
-    _label = json['label'];
-    _classCode = json['classCode'];
-    _other = json['other'];
-    _tin = json['commissionTIN'];
-    _id = json['id'];
-    _packageCode = json['packageCode'];
-    _packageName = json['packageName'];
-    _ownerType = json['owner_type'];
-  }
+  Map<String, dynamic>? get commissionInfo => _commissionInfo;
+  set commissionInfo(Map<String, dynamic>? commissionInfo) => _commissionInfo = commissionInfo;
 
+  // ==================== TO‘G‘RILANGAN toJson ====================
+  // ==================== TO‘G‘RILANGAN toJson ====================
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
+
     data['id'] = _id;
     data['discount'] = _discount;
     data['price'] = _price;
@@ -151,8 +126,14 @@ class SalingItemModel {
     data['ownerType'] = _ownerType;
     data['packageCode'] = _packageCode;
     data['packageName'] = _packageName;
-    // Log.d(_tin, name: 'sale_item_model');
-    if (!(_tin?.isEmpty ?? true) || (_tin?.length != 9 || _tin?.length != 14)) {
+
+    // ← ENG MUHIM O‘ZGARISH: CommissionInfo ARRAY bo‘lishi kerak!
+    data['commissionInfo'] = _commissionInfo != null 
+        ? [_commissionInfo] 
+        : [{"TIN": _tin ?? "", "PINFL": ""}];
+
+    // Eski commissionTIN ni ham saqlab qo‘yamiz (kerak bo‘lsa)
+    if (_tin != null && _tin!.isNotEmpty) {
       data['commissionTIN'] = _tin;
     }
 

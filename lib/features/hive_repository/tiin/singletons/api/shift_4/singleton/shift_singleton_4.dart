@@ -85019,7 +85019,7 @@ class ShiftSingleton4 {
                       file: "ShiftSingleton_4 / openShift / catchError",
                       method: "OPEN SHIFT",
                       where: "SHIFT SINGLETON / CATCH ERROR",
-                      path: "-",
+                      path: "ShiftSingleton_4.dart",
                       statusCode: 0,
                       url: '-',
                     );

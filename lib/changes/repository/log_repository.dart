@@ -149,10 +149,10 @@ LogRepository {
   static Future requestSend(
     String message, {
     required String where,
-    String file = '',
+    required String file,
     bool success = false,
-    String? method,
-    String? path,
+    required String method,
+    required String path,
     int? statusCode,
     String? url,
     String? body,
