@@ -369,7 +369,11 @@ class ReceiptSingleton4 {
   }
   static num _countPrice(ReceiptModelSoldItem4 e) {
     if ((e.discountPercent ?? 0) > 0) {
-      return UtilFunctions.roundToNearest(e.value * e.onlyPrice) * 100;
+      // Use realPrice (original price) as the fiscal "Price" field.
+      // _countDiscountOFD also uses realPrice, so:
+      //   Price - Discount = realPrice*value*100 - (realPrice-price)*value*100
+      //                    = price * value * 100 = actual selling amount ✓
+      return UtilFunctions.roundToNearest(e.value * e.realPrice) * 100;
     }
     return UtilFunctions.roundToNearest(e.value * e.price) * 100;
   }

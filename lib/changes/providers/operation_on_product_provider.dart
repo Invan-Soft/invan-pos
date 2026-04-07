@@ -70,6 +70,7 @@ class OperationOnProductProvider extends ChangeNotifier {
   String get onlyPriceStr =>
       MoneyFormatter.inputMoneyFormatter.format(target.onlyPrice);
   bool onlyPriceIsEdited = false;
+  bool _usedDiscountInput = false;
   double _oldValue = 0;
 
   String get valueStr {
@@ -83,10 +84,6 @@ class OperationOnProductProvider extends ChangeNotifier {
   double get _outsideBox => target.value.toDouble() % target.inBox;
 
   double get basePrice {
-    if (target.isPriceOnlyChanged) {
-      return target.onlyPrice.toDouble();
-    }
-
     return target.realPrice.toDouble();
   }
 
@@ -130,9 +127,8 @@ class OperationOnProductProvider extends ChangeNotifier {
           .toDouble();
     }
 
-    target.realPrice = price;
-
     if (!target.isPriceOnlyChanged) {
+      target.realPrice = price;
       target.price = price;
       target.onlyPrice = price;
     }
@@ -157,9 +153,8 @@ class OperationOnProductProvider extends ChangeNotifier {
                 .toDouble();
       }
 
-      target.realPrice = price;
-
       if (!target.isPriceOnlyChanged) {
+        target.realPrice = price;
         target.price = price;
         target.onlyPrice = price;
       }
@@ -171,7 +166,6 @@ class OperationOnProductProvider extends ChangeNotifier {
   }
 
   void _updatePricesAfterQuantityChange() {
-
     ItemModel item = ItemsSingleton.getProductById(target.productId)!;
 
     double price;
@@ -182,8 +176,8 @@ class OperationOnProductProvider extends ChangeNotifier {
           .toDouble();
     }
 
-    target.realPrice = price;
     if (!target.isPriceOnlyChanged) {
+      target.realPrice = price;
       target.price = price;
       target.onlyPrice = price;
     }
@@ -263,7 +257,14 @@ class OperationOnProductProvider extends ChangeNotifier {
 
     if (priceManuallyEdited) {
       target.discount.clear();
-      target.discountPercent = 0;
+      if (_usedDiscountInput) {
+        // Discount input used: preserve discountPercent for strikethrough.
+        // Also sync onlyPrice to the actual selling price so the server/adminka
+        // receives the correct discounted price (onlyPrice is what toJson sends).
+        target.onlyPrice = target.price;
+      } else {
+        target.discountPercent = 0;
+      }
       target.isPriceOnlyChanged = true;
       target.isPriceChanged = true;
     } else {
@@ -365,12 +366,13 @@ class OperationOnProductProvider extends ChangeNotifier {
     target.discountPercent = 0;
     target.isPriceOnlyChanged = true;
     target.isPriceChanged = true;
-    onlyPriceIsEdited = true;
+    _usedDiscountInput = true;
     // ====================================================
 
     target.price = newPrice;
     target.onlyPrice = newPrice;
-    target.realPrice = newPrice;
+    // target.realPrice is intentionally NOT changed here:
+    // it holds the original price so strikethrough is shown in the order list.
 
     if (newPrice < basePrice && basePrice > 0) {
       target.discountPercent = ((basePrice - newPrice) / basePrice) * 100;
@@ -551,9 +553,8 @@ class OperationOnProductProvider extends ChangeNotifier {
                   .toDouble();
         }
 
-        target.realPrice = price;
-
         if (!target.isPriceOnlyChanged) {
+          target.realPrice = price;
           target.price = price;
           target.onlyPrice = price;
         }
@@ -590,9 +591,8 @@ class OperationOnProductProvider extends ChangeNotifier {
                 .toDouble();
       }
 
-      target.realPrice = price;
-
       if (!target.isPriceOnlyChanged) {
+        target.realPrice = price;
         target.price = price;
         target.onlyPrice = price;
       }
@@ -970,6 +970,7 @@ class OperationOnProductProvider extends ChangeNotifier {
       target.price =
           basePrice - ((target.discountPercent ?? 0) * (basePrice / 100));
       target.isPriceChanged = true;
+      _usedDiscountInput = true;
     }
   }
 
