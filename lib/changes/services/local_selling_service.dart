@@ -32,23 +32,36 @@ class LocalService {
   static final Uri _url = Uri.parse(AppConstants.localhost);
 
   static String errorMessage = '';
-  static String cleanMarkForFiscal(String rawMark) {
-    if (rawMark.trim().isEmpty) return rawMark;
+  // static String cleanMarkForFiscal(String rawMark) {
+  //   if (rawMark.trim().isEmpty) return rawMark;
 
-    String clean = rawMark
-        .replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '')
-        .replaceAll(RegExp(r'\(\d{2}\)'), '');
+  //   String clean = rawMark
+  //       .replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '')
+  //       .replaceAll(RegExp(r'\(\d{2}\)'), '');
 
 
-    final match = RegExp(r'(01\d{14}21[^0-9].*?)(?=\d{2}|$)').firstMatch(clean);
-    if (match != null) {
-      final result = match.group(1)!;
-      return result;
-    }
+  //   final match = RegExp(r'(01\d{14}21[^0-9].*?)(?=\d{2}|$)').firstMatch(clean);
+  //   if (match != null) {
+  //     final result = match.group(1)!;
+  //     return result;
+  //   }
 
-    return clean;
-  }
+  //   return clean;
+  // }
+static String cleanMarkForFiscal(String rawMark) {
+  if (rawMark.trim().isEmpty) return rawMark;
+
+  String clean = rawMark
+      .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '')
+      .replaceAll(RegExp(r'\(\d{2,3}\)'), '');
+
+  // 01+14raqam+21 topamiz, keyin belgilarni 93 kelguncha olamiz
+  final match = RegExp(r'(01\d{14}21.*?)(?=93)').firstMatch(clean);
   
+  if (match != null) return match.group(1)!;
+
+  return clean;
+}
   static Future<CommunicatorRESPONSE> sell({
     required AppLocalizations loc,
     required dynamic receiptData,

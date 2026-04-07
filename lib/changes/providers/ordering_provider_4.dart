@@ -1363,49 +1363,15 @@ void useBuyXGetXProducts() {
     }
   }
 
-  // String _markirovka(String rawMark) {
-  //   if (rawMark.trim().isEmpty) return rawMark;
-
-  //   String clean = rawMark.replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '');
-  //   clean = clean.replaceAll(RegExp(r'\(\d{2}\)'), '');               
-
-  //   // 01 + 14 raqam (GTIN)
-  //   final gtinMatch = RegExp(r'01(\d{14})').firstMatch(clean);
-  //   if (gtinMatch == null) return rawMark; // 01 topilmasa — o'zgartirmaymiz
-
-  //   final gtin = gtinMatch.group(1)!;
-
-  //   // 21 dan keyingi serialni olish (GS1 serial barcha printable belgilarni qo'llab-quvvatlaydi)
-  //   final serialMatch = RegExp(r'21([^\x00-\x1F\x7F]+?)(?=\d{2}|$)').firstMatch(clean);
-  //   final serial = serialMatch != null ? serialMatch.group(1)! : '';
-
-  //   final result = '01$gtin' '21$serial';
-
-  //   return result;
-  // }
- /// Har qanday GS1 DataMatrix kodini to'g'ri tozalaydi va saqlaydi
-// String _markirovka(String rawMark) {
-//   if (rawMark.trim().isEmpty) return rawMark;
-
-//   String clean = rawMark
-//       .replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '')  
-//       .replaceAll(RegExp(r'\(\d{2}\)'), '');     
-
-//   if (clean.startsWith(RegExp(r'0[0-9]'))) {
-//     return clean;
-//   }
-
-//   return clean;
-// }
+  
 String _markirovka(String rawMark) {
   if (rawMark.trim().isEmpty) return rawMark;
 
-  // GS1 separatorlarni tozalash (hech narsani kesmaymiz)
   String clean = rawMark
-      .replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '')   // group separatorlarni olib tashlaydi
-      .replaceAll(RegExp(r'\(\d{2}\)'), '');       // qavsli AI ni olib tashlaydi
+      .replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '')
+      .replaceAll(RegExp(r'\(\d{2}\)'), '');     
 
-  return clean;   // toza GS1 kodini qaytaradi (01, 00, 02, 11, 17 va h.k.)
+  return clean; 
 }
 
   bool isLoading = false;
@@ -1769,7 +1735,7 @@ String _markirovka(String rawMark) {
                     return ContainsZeroPriceItemDialog(
                       text: loc.ha.toLowerCase() == 'ha'
                           ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
-                          : 'Этот отмеченный продукт уже был добавlen ранее!',
+                          : 'Этот отмеченный продукт уже был  добавлен ранее!',
                       text2: 'Ok',
                       delete: false,
                       provider: this,
@@ -1793,7 +1759,7 @@ String _markirovka(String rawMark) {
                           "\nSizdan tovarlarni sotish jarayonida raqamli markirovka qoidalariga qat'iy rioya etishingizni so'raymiz."
                           "\nBelgilangan talablarga amal qilmaslik amaldagi normativ-huquqiy hujjatlarga muvofiq javobgarlikka sabab bo'lishi mumkin."
                           "\nSiz internet tarmog'iga ulanmasdan operatsiyani amalga oshirishingizni tasdiqlaysizmi?"
-                      : "Уважаемый предприниматель!\n�'аша касса в настоящее время работает в автономном режиме."
+                      : "Уважаемый предприниматель!\nВаша касса в настоящее время работает в автономном режиме."
                           "\nПросим вас строго соблюдать правила цифровой маркировки при продаже товаров."
                           "\nНесоблюдение указанных требований может повлечь за собой ответственность в соответствии с действующими нормативными правовыми актами."
                           "\nПодтверждаете ли вы, что будете осуществлять операции без подключения к сети Интернет?",
@@ -2717,23 +2683,37 @@ String _markirovka(String rawMark) {
           value: paymentValue,
         );
       }).toList();
+  // static String cleanMarkForFiscal(String rawMark) {
+  //   if (rawMark.trim().isEmpty) return rawMark;
+
+  //   String clean = rawMark
+  //       .replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '')
+  //       .replaceAll(RegExp(r'\(\d{2}\)'), '');
+
+
+  //   final match = RegExp(r'(01\d{14}21[^0-9].*?)(?=\d{2}|$)').firstMatch(clean);
+  //   if (match != null) {
+  //     final result = match.group(1)!;
+  //     return result;
+  //   }
+
+  //   return clean;
+  // }
   static String cleanMarkForFiscal(String rawMark) {
-    if (rawMark.trim().isEmpty) return rawMark;
+  if (rawMark.trim().isEmpty) return rawMark;
 
-    String clean = rawMark
-        .replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '')
-        .replaceAll(RegExp(r'\(\d{2}\)'), '');
+  String clean = rawMark
+      .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '')
+      .replaceAll(RegExp(r'\(\d{2,3}\)'), '');
 
+  // 01+14raqam+21 topamiz, keyin belgilarni 93 kelguncha olamiz
+  final match = RegExp(r'(01\d{14}21.*?)(?=93)').firstMatch(clean);
+  
+  if (match != null) return match.group(1)!;
 
-    final match = RegExp(r'(01\d{14}21[^0-9].*?)(?=\d{2}|$)').firstMatch(clean);
-    if (match != null) {
-      final result = match.group(1)!;
-      return result;
-    }
-
-    return clean;
-  }
-    Future<PaymentResult> pressPaymentButtonOnlyOFD(BuildContext context) async {
+  return clean;
+}
+      Future<PaymentResult> pressPaymentButtonOnlyOFD(BuildContext context) async {
     AppLocalizations loc = AppLocalizations.of(context)!;
 
     if (_isChangeToCashback && _sdachaa > 0) {

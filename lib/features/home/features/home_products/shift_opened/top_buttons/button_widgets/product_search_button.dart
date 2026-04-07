@@ -15,11 +15,11 @@ class ProductSearchButton extends StatelessWidget {
       focusNode: FocusNode(skipTraversal: true),
       style: TextButton.styleFrom(
           padding: const EdgeInsets.all(0.0),
-          minimumSize: Size(SizeConfig.h * 15, SizeConfig.v * 5),
+          minimumSize: Size(SizeConfig.h * 18, SizeConfig.v * 5),
           foregroundColor: Theme.of(context).colorScheme.background.withOpacity(.4)),
       onPressed: onPressed,
       child: Container(
-        width: SizeConfig.h * 18,
+        width: SizeConfig.h * 21,
         height: SizeConfig.v * 4.5,
         padding: EdgeInsets.symmetric(horizontal: SizeConfig.h * 1),
         decoration: BoxDecoration(

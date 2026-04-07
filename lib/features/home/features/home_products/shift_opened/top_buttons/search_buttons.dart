@@ -170,6 +170,8 @@ class SearchButtons extends StatelessWidget {
                 where:
                     "lib/features/home/features/home_products/shift_opened/top_buttons/search_buttons.dart  clientSearch"));
           }),
+          SizedBox(width: SizeConfig.h),
+     
           ProductSearchButton(
             onPressed: () async {
               searchDialogBloc.add(

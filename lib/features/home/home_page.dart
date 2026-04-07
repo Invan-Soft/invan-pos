@@ -161,6 +161,8 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     color: Theme.of(context).canvasColor,
                   ),
                 ),
+                  SizedBox(width: SizeConfig.h),
+           
                 SearchButtons(
                   context,
                   onLockButtonPressed: () {

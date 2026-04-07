@@ -11,7 +11,7 @@ class ClientSearchButton extends StatelessWidget {
       focusNode: FocusNode(skipTraversal: true),
       onPressed: onPressed,
       style: TextButton.styleFrom(
-        fixedSize: Size(SizeConfig.h * 5, SizeConfig.v * 7.37),
+        fixedSize: Size(SizeConfig.h * 3.5, SizeConfig.v * 7.37),
         elevation: 0,
         foregroundColor: Theme.of(context).colorScheme.background,
       ),
