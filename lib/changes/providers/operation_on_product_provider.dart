@@ -259,9 +259,10 @@ class OperationOnProductProvider extends ChangeNotifier {
       target.discount.clear();
       if (_usedDiscountInput) {
         // Discount input used: preserve discountPercent for strikethrough.
-        // Also sync onlyPrice to the actual selling price so the server/adminka
-        // receives the correct discounted price (onlyPrice is what toJson sends).
-        target.onlyPrice = target.price;
+        // Send original price to server + singleDiscount so adminka shows
+        // the discount correctly (toJson sends "price": onlyPrice).
+        target.singleDiscount = (target.realPrice - target.price).clamp(0.0, double.infinity);
+        target.onlyPrice = target.realPrice; // server sees original price
       } else {
         target.discountPercent = 0;
       }

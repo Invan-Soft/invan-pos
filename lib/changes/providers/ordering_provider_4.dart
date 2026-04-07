@@ -4121,7 +4121,6 @@ String _markirovka(String rawMark) {
   bool _isMxikMarking(String mxikStr) =>
       mxikStr.startsWith('02201') ||
       mxikStr.startsWith('02202') ||
-      mxikStr.startsWith('02209') ||
       _isAlcoholMxik(mxikStr);
 
   bool _isAlcoholMxik(String mxikStr) =>
