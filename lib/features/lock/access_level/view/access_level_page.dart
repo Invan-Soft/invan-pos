@@ -160,7 +160,9 @@ class _AccessLevelPageState extends State<AccessLevelPage> {
                                 }
                                 if (state is AccessBlockedState) {
                                   return AccessBlocedWidget(
-                                      state.passwordLenth);
+                                    state.passwordLenth,
+                                    remainingSeconds: state.remainingSeconds,
+                                  );
                                 }
 
                                 if (state is AccessPincodeState) {

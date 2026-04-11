@@ -237,34 +237,7 @@ static Future<void> storeProducts() async {
         .toList();
   }
 
-  // static ItemModel? getProductByBarcode(String barcode) {
-  //   print('barcode boyicha qidirildi');
-  //   if (barcode.isEmpty) return null;
-
-  //   final trimmed = barcode.trim();
-
-  //   if (trimmed.length <= 5) {
-  //     var item = products.firstWhereOrNull((p) => p.sku == trimmed);
-
-  //     if (item == null) {
-  //       final skuInt = int.tryParse(trimmed);
-  //       if (skuInt != null) {
-  //         final skuWithoutLeadingZeros = skuInt.toString();
-  //         item =
-  //             products.firstWhereOrNull((p) => p.sku == skuWithoutLeadingZeros);
-  //       }
-  //     }
-
-  //     return item;
-  //   }
-
-  //   return barcodeProducts.firstWhereOrNull((product) {
-  //     if (product.hasBoxBarcode == true) {
-  //       return product.boxBarcode == trimmed;
-  //     }
-  //     return product.barcode?.any((b) => b == trimmed) ?? false;
-  //   });
-  // }
+  
   static ItemModel? getProductByBarcode(String barcode) {
     if (barcode.isEmpty) return null;
 
@@ -447,15 +420,16 @@ static Future<void> storeProducts() async {
     Box<ItemModel> box = HiveBoxes.getProducts();
     Map<String, ItemModel> map = {};
     for (var item in items) {
+      if (item.id == null) continue;
       if (!(item.isActive ?? false)) {
-        await deleteProduct([item.id ?? '']);
+        await deleteProduct([item.id!]);
       } else {
         // Mavjud productning isMarking qiymatini saqlash
         final existing = box.get(item.id);
         if (existing != null && (existing.isMarking == true)) {
-          item = item.copyWith(isMarking: true); // ← true bo'lsa saqlab qo'y
+          item = item.copyWith(isMarking: true);
         }
-        map[item.key] = item;
+        map[item.id!] = item;
       }
     }
     await box.putAll(map);

@@ -7,11 +7,9 @@ import 'package:invan2/features/hive_repository/hive_boxes.dart';
 class GetCategoriesProvider extends ChangeNotifier {
   bool _isDownloading = false;
 
-  /* //////////////////////// PROVIDER GETTERS //////////////////////// */
 
   bool get getIsDownloading => _isDownloading;
 
-  /* //////////////////////// PROVIDER METHODS //////////////////////// */
 
   Future<void> startFindCategories() async {
     _isDownloading = true;

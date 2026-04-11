@@ -1,21 +1,19 @@
 // ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:invan2/changes/services/get_items_service.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/features/settings/bloc/settings_bloc.dart';
 import 'package:invan2/features/settings/features/child_settings/view/switch_in_report_page.dart';
 import 'package:invan2/features/settings/view/report_setting/qr_code_dialog/qrcode_dialog.dart';
 import 'package:invan2/features/settings/view/report_setting/terminal_id_dialog.dart/terminal_id.dart';
 import 'package:invan2/utils/util_functions.dart';
-
 import 'package:invan2/utils/utils.dart';
 import '../../../../widgets/my_snackbar.dart';
-import '../components/marking_sync_dialog.dart';
 import 'location_dialog/location_dialog.dart';
 import 'rejected_receipts_dialog/rejected_receipts.dart';
+
 
 class SettingsReportPage extends StatefulWidget {
   const SettingsReportPage({super.key});
@@ -45,8 +43,8 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
   late bool ofd;
   late bool validation_onkm;
   late bool sellProductsWithMarking;
-
   late bool switchMarking;
+  late bool checkProductByCashsale;
 
   String casshierId = Pref.getString(PrefKeys.cashierId, "not initialized");
   String casshierName = Pref.getString(PrefKeys.cashierName, "not initialized");
@@ -62,13 +60,14 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
     isRedDeleteActiv = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
     switchClient = Pref.getBool('switchClients', true);
     switchProductName = Pref.getBool('switchProductName', true);
-    validation_onkm = Pref.getBool('validation_onkm', false);
+    validation_onkm = Pref.getBool('validation_onkm', true);
     sellProductsWithMarking = Pref.getBool(PrefKeys.sellProductsWithMarking, true);
     transfer = Pref.getBool(PrefKeys.transfer, false);
     preCheck = Pref.getBool(PrefKeys.preCheck, false);
     ofd = Pref.getBool(PrefKeys.withOFD, false);
 
     switchMarking = Pref.getBool('switchMarking', false);
+    checkProductByCashsale = Pref.getBool('checkProductByCashsale', true);
 
     AppLocalizations loc = AppLocalizations.of(context)!;
     SettingsBloc settingsBloc = BlocProvider.of(context);
@@ -81,9 +80,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
             : null;
     return Stack(children: [
       SingleChildScrollView(
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height * 1.3,
-          child: Column(
+        child: Column(
             children: [
               Container(
                 padding: EdgeInsets.only(left: SizeConfig.h * 2.5),
@@ -113,7 +110,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                   setState(() {});
                 },
                 onTap: () {},
-                title: "Enable OFD",
+                title: loc.ha == 'Ha' ? "OFD modulini yoqish" : "Включить модуль OFD",
                 activ: ofd,
               ),
               Pref.getBool(PrefKeys.withOFD, false)
@@ -123,7 +120,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                         setState(() {});
                       },
                       onTap: () {},
-                      title: "Enable or disable pre-check",
+                      title: loc.ha == 'Ha' ? "Soliqsiz sotish" : "Продажа без налога",
                       activ: preCheck,
                     )
                   : const SizedBox.shrink(),
@@ -133,7 +130,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                   setState(() {});
                 },
                 onTap: () {},
-                title: "Enable or disable transfer order",
+                title: loc.ha == 'Ha' ? "Buyurtmani kassaga o'tkazish" : "Перевод заказа на кассу",
                 activ: transfer,
               ),
               SwitchTileOfReportPage(
@@ -142,7 +139,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                   setState(() {});
                 },
                 onTap: () {},
-                title: "Red delete",
+                title: loc.ha == 'Ha' ? "O'chirishni qizil ko'rsatish" : "Показывать удаление красным",
                 activ: isRedDeleteActiv,
               ),
               SwitchTileOfReportPage(
@@ -151,7 +148,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                   setState(() {});
                 },
                 onTap: () {},
-                title: "Access search by client number",
+                title: loc.ha == 'Ha' ? "Mijozni raqami bo'yicha qidirish" : "Поиск клиента по номеру",
                 activ: switchClient,
               ),
               SwitchTileOfReportPage(
@@ -160,16 +157,18 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                   setState(() {});
                 },
                 onTap: () {},
-                title: "Access search by product name",
+                title: loc.ha == 'Ha' ? "Mahsulotni nomi bo'yicha qidirish" : "Поиск товара по названию",
                 activ: switchProductName,
               ),
               SwitchTileOfReportPage(
                 onChanged: (v) {
                   Pref.setBool(PrefKeys.sellProductsWithMarking, v);
+                  Provider.of<OrderingProvider4>(context, listen: false)
+                      .resetCashRestrictionWarnings();
                   setState(() {});
                 },
                 onTap: () {},
-                title: "Sell Products With marking",
+                title: loc.ha == 'Ha' ? "Avto markirovkani aniqlash" : "Автоматическое определение маркировки",
                 activ: sellProductsWithMarking,
               ),
               // SwitchTileOfReportPage(
@@ -216,12 +215,23 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                   setState(() {});
                 },
                 onTap: () {},
-                title: "Validation Onkm",
+                title: loc.ha == 'Ha' ? "ONKM kodi tekshiruvi" : "Проверка кода ОНКМ",
                 activ: validation_onkm,
+              ),
+              SwitchTileOfReportPage(
+                onChanged: (v) {
+                  Pref.setBool('checkProductByCashsale', v);
+                  Provider.of<OrderingProvider4>(context, listen: false)
+                      .resetCashRestrictionWarnings();
+                  setState(() {});
+                },
+                onTap: () {},
+                title: loc.ha == 'Ha' ? "Mahsulotning naqd to'lov cheklovini tekshirish" : "Проверка ограничения наличной оплаты товара",
+                activ: checkProductByCashsale,
               ),
 
               !Pref.getBool(PrefKeys.withOFD, false)
-                  ? setQrCode("Enter url for qr code", () {
+                  ? setQrCode(loc.ha == 'Ha' ? "QR kod uchun URL manzilini kiriting" : "Введите URL адрес для QR кода", () {
                       showDialog(
                         context: context,
                         barrierDismissible: true,
@@ -238,7 +248,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                     })
                   : const Text(''),
 
-              setQrCode("Enter Terminal ID", () {
+              setQrCode(loc.ha == 'Ha' ? "Terminal ID sini kiriting" : "Введите ID терминала", () {
                 showDialog(
                   context: context,
                   barrierDismissible: true,
@@ -254,7 +264,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                 );
               }),
               setQrCode(
-                "Enter store location",
+                loc.ha == 'Ha' ? "Do'kon joylashuvini kiriting" : "Введите местоположение магазина",
                 () {
                   showDialog(
                     context: context,
@@ -272,7 +282,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                 },
               ),
               setQrCode(
-                "Edit rejected receipts",
+                loc.ha == 'Ha' ? "Rad etilgan cheklarni tahrirlash" : "Редактировать отклонённые чеки",
                 () {
                   showDialog(
                     context: context,
@@ -317,20 +327,17 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                 height: SizeConfig.v * 3,
               ),
 
-              Expanded(
-                child: Align(
-                  alignment: Alignment.center,
-                  child: Text(
-                    response,
-                    textAlign: TextAlign.center,
-                    style: MyThemes.txtStyle(color: Colors.white, fontSize: 3),
-                  ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: SizeConfig.v * 2),
+                child: Text(
+                  response,
+                  textAlign: TextAlign.center,
+                  style: MyThemes.txtStyle(color: Colors.white, fontSize: 3),
                 ),
               ),
             ],
           ),
         ),
-      ),
       isWaiting
           ? Positioned.fill(
               child: Container(

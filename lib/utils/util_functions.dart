@@ -186,49 +186,8 @@ static Future<String?> fullUpdateProduct({bool apd = false}) async {
     try {
       var decodedJson = json.decode(httpResult.result);
 
-      // ==================== BARCODE BO‘YICHA IZLASH (XOM JSON) ====================
-      const String targetBarcode = "4780136570023";
-      bool found = false;
-
-      print("🔍 API dan kelgan xom JSON ichidan qidirilmoqda: $targetBarcode");
-
       if (decodedJson is List) {
-        for (final e in decodedJson) {
-          if (e is Map<String, dynamic>) {
-            final barcodeField = e['barcode'];
 
-            bool hasTargetBarcode = false;
-
-            if (barcodeField is String) {
-              hasTargetBarcode = barcodeField == targetBarcode;
-            } else if (barcodeField is List) {
-              hasTargetBarcode = barcodeField.any((b) => b.toString() == targetBarcode);
-            }
-
-            if (hasTargetBarcode) {
-              found = true;
-              print("✅ MAHSULOT TOPILDI (XOM JSON):");
-              print("   Nomi          : ${e['name'] ?? 'NOMA\'LUM'}");
-              print("   MXIK Code     : ${e['mxikCode'] ?? e['mxik'] ?? e['mxikCode'] ?? 'MXIK yo\'q'}");
-              print("   Barcode       : $targetBarcode");
-              print("   Package Code  : ${e['packageCode'] ?? 'yo\'q'}");
-              print("   O'lchov       : ${e['measurementUnit'] ?? 'yo\'q'}");
-              print("   Narx turi     : ${e['shopPrices'] != null ? 'Bor' : 'Yo\'q'}");
-              print("   --------------------------------------------------");
-            }
-          }
-        }
-
-        if (!found) {
-          print("❌ Bu barcode bilan mahsulot API javobida topilmadi: $targetBarcode");
-        }
-      } else {
-        print("⚠️ decodedJson List emas, balki ${decodedJson.runtimeType} turida keldi");
-      }
-      // =====================================================================
-
-      // Oddiy mahsulotlar ro'yxatini yaratish
-      if (decodedJson is List) {
         final i = <ItemModel>[];
         for (final e in decodedJson) {
           i.add(ItemModel.fromJson(e));
@@ -240,7 +199,7 @@ static Future<String?> fullUpdateProduct({bool apd = false}) async {
           Pref.getString(PrefKeys.packageCode, ''),
         );
 
-        print('📦 Jami mahsulotlar soni: ${allProducts.length}');
+       // print('📦 Jami mahsulotlar soni: ${allProducts.length}');
       } else {
         getError = "Ma'lumotlar formati noto'g'ri.";
       }

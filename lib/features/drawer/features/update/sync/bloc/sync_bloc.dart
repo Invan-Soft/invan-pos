@@ -104,6 +104,7 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
     //   await ItemsSingleton.updateMxiksWithBarcode(res2);
     //   await ItemsSingleton.updateMxiksWithMxik(res1);
     // }
+    
   }
 
   static toHive(List<ItemModel> v) async {

@@ -62,10 +62,7 @@ class ProductsWsService {
 
   static Future<void> getReceivedWS(bool mounted, BuildContext context,
       String startDate, String endDate) async {
-    // print('😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂');
-    // print('🥸  $startDate');
-    // print('😎  $endDate');
-    // print('😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂');
+   
     final token = Pref.getString(PrefKeys.token, 'not initialized');
 
     if (token.isEmpty || token == 'not initialized') {
@@ -108,9 +105,7 @@ class ProductsWsService {
             jsonDecode(utf8.decode(response.bodyBytes))['notifications'];
 
         for (var ws in notification) {
-          // print('❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️');
-          // print(jsonEncode(ws['data']));
-          // print('❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️');
+    
           if (ws['id'] != null) {
             if (ws['type'] == 21) {
               await ItemsSingleton.deleteMxik(ws['data']['mxik_codes']);

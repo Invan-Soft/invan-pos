@@ -50,24 +50,7 @@ class _DrawerTopState extends State<DrawerTop> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          // ElevatedButton(
-          //   onPressed: () async {
-          //     LocalService.sendUpdateItems(
-          //       HiveBoxes.getProducts().values.toList(),
-          //       method: 'updateMxikByMxik',
-          //     );
-          //   },
-          //   child: const Text('MXIK'),
-          // ),
-          // ElevatedButton(
-          //   onPressed: () async {
-          //     LocalService.sendUpdateItems(
-          //       HiveBoxes.getProducts().values.toList(),
-          //       method: 'updateMxikByBarcode',
-          //     );
-          //   },
-          //   child: const Text('Barcode'),
-          // ),
+          
         ],
       ),
     );

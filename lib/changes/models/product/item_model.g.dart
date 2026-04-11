@@ -42,13 +42,14 @@ class ItemModelAdapter extends TypeAdapter<ItemModel> {
       boxBarcode: fields[22] as String?,
       boxBarcodeQuantity: fields[23] as num?,
       hasBoxBarcode: fields[24] as bool?,
+      cashsale: fields[25] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ItemModel obj) {
     writer
-      ..writeByte(25)
+      ..writeByte(26)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -98,7 +99,9 @@ class ItemModelAdapter extends TypeAdapter<ItemModel> {
       ..writeByte(23)
       ..write(obj.boxBarcodeQuantity)
       ..writeByte(24)
-      ..write(obj.hasBoxBarcode);
+      ..write(obj.hasBoxBarcode)
+      ..writeByte(25)
+      ..write(obj.cashsale);
   }
 
   @override

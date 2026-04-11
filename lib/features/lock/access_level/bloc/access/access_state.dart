@@ -12,5 +12,6 @@ class AccessPincodeState extends AccessState {
 
 class AccessBlockedState extends AccessState {
   final int passwordLenth;
-  AccessBlockedState(this.passwordLenth);
+  final int remainingSeconds;
+  AccessBlockedState(this.passwordLenth, {this.remainingSeconds = 30});
 }

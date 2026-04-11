@@ -682,6 +682,36 @@ class SoldApiComponents {
                   ),
                 ],
               ),
+        () {
+          final String cardId = Pref.getString(PrefKeys.cardId, '');
+          final bool hasCardPayment = cardId.isNotEmpty &&
+              receiptModel4.payment.any((e) =>
+                  e.payId.replaceFirst('@', '') == cardId);
+          if (!hasCardPayment) return pw.SizedBox(height: 0, width: 0);
+          String kartaTuri;
+          switch (receiptModel4.cardType) {
+            case 1:
+              kartaTuri = 'Korporativ';
+              break;
+            case 3:
+              kartaTuri = 'Ijtimoiy';
+              break;
+            default:
+              kartaTuri = 'Shaxsiy';
+          }
+          final cardNumber = receiptModel4.cardNumber ?? '';
+          final rrn = receiptModel4.pptId ?? '';
+          return pw.Column(
+            mainAxisSize: pw.MainAxisSize.min,
+            children: [
+              _buildProductInnerItem(myMiniStyle, 'Karta turi', kartaTuri),
+              if (cardNumber.isNotEmpty)
+                _buildProductInnerItem(myMiniStyle, 'Karta raqami', cardNumber),
+              if (rrn.isNotEmpty)
+                _buildProductInnerItem(myMiniStyle, 'RRN', rrn),
+            ],
+          );
+        }(),
         sdacha > 0
             ? _buildProductInnerItem(
                 myMiniStyle,

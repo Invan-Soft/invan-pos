@@ -67,6 +67,9 @@ class ItemModel extends HiveObject {
   @HiveField(24)
   bool? hasBoxBarcode;
 
+  @HiveField(25)
+  int? cashsale;
+
   ItemModel({
     this.id,
     this.sku,
@@ -93,6 +96,7 @@ class ItemModel extends HiveObject {
     this.boxBarcode,
     this.boxBarcodeQuantity,
     this.hasBoxBarcode,
+    this.cashsale,
   });
   ItemModel copyWith({
     String? id,
@@ -120,6 +124,7 @@ class ItemModel extends HiveObject {
     String? boxBarcode,
     num? boxBarcodeQuantity,
     bool? hasBoxBarcode,
+    int? cashsale,
   }) {
     return ItemModel(
       id: id ?? this.id,
@@ -147,6 +152,7 @@ class ItemModel extends HiveObject {
       boxBarcode: boxBarcode ?? this.boxBarcode,
       boxBarcodeQuantity: boxBarcodeQuantity ?? this.boxBarcodeQuantity,
       hasBoxBarcode: hasBoxBarcode ?? this.hasBoxBarcode,
+      cashsale: cashsale ?? this.cashsale,
     );
   }
   ItemModel.fromJson(Map<String, dynamic> json) {
@@ -184,6 +190,7 @@ class ItemModel extends HiveObject {
     boxBarcode = json['box_barcode'];
     boxBarcodeQuantity = json['box_barcode_quantity'];
     hasBoxBarcode = json['has_box_barcode'];
+    cashsale = ((json['cash_sale'] as num?) ?? 1).toInt();
   }
 
   ItemModel.fromWebSocketJson(Map<String, dynamic> json) {
@@ -267,6 +274,7 @@ class ItemModel extends HiveObject {
     boxBarcode = json['box_barcode'];
     boxBarcodeQuantity = json['box_barcode_quantity'];
     hasBoxBarcode = json['has_box_barcode'];
+    cashsale = ((json['cash_sale'] as num?) ?? 1).toInt();
   }
 
   ItemModel.fromWebSocketJsonUpdate(Map<String, dynamic> json) {
@@ -353,6 +361,7 @@ class ItemModel extends HiveObject {
       boxBarcode = json['box_barcode'];
       boxBarcodeQuantity = json['box_barcode_quantity'];
       hasBoxBarcode = json['has_box_barcode'];
+      cashsale = ((json['cash_sale'] as num?) ?? 1).toInt();
     }
   }
 
@@ -391,6 +400,7 @@ class ItemModel extends HiveObject {
     data['box_barcode'] = boxBarcode;
     data['box_barcode_quantity'] = boxBarcodeQuantity;
     data['has_box_barcode'] = hasBoxBarcode;
+    data['cashsale'] = cashsale;
 
     return data;
   }

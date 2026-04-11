@@ -13,7 +13,6 @@ class LocalCategoryProvider extends ChangeNotifier {
   String _mainPathName = '';
   bool _isLocalCategoryEditing = false;
 
-  /* //////////////////////// PROVIDER GETTERS //////////////////////// */
 
   List<LocalCategoryModel> get getLocalCategoryList => _localCategoryList;
 
@@ -23,7 +22,6 @@ class LocalCategoryProvider extends ChangeNotifier {
 
   bool get getIsLocalCategoryEditing => _isLocalCategoryEditing;
 
-  /* //////////////////////// PROVIDER METHODS //////////////////////// */
 
   void pressBarchasiButton({required BuildContext context}) {
     _currentSelectedCategoryButton = -1;

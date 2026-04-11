@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -41,6 +42,34 @@ class PincodeKeyboardWidgetState extends State<PincodeKeyboardWidget>
   final focusNode = FocusNode();
   bool isMagneticStripe = false;
 
+  // --- Xato kiritish bloklash ---
+  bool _isLocked = false;
+  int _remainingSeconds = 60;
+  Timer? _lockTimer;
+
+  void _startLockTimer(AccessBloc accessBloc, {int fromSeconds = 60}) {
+    _isLocked = true;
+    _remainingSeconds = fromSeconds;
+    _lockTimer?.cancel();
+    _lockTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _remainingSeconds--;
+        if (_remainingSeconds <= 0) {
+          _isLocked = false;
+          timer.cancel();
+          accessBloc.resetKeyboardLock();
+        }
+      });
+    });
+  }
+  // --------------------------------
+
+  bool _lockInitialized = false;
+
   @override
   void initState() {
     animeController = AnimationController(
@@ -51,7 +80,22 @@ class PincodeKeyboardWidgetState extends State<PincodeKeyboardWidget>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_lockInitialized) {
+      _lockInitialized = true;
+      final ab = BlocProvider.of<AccessBloc>(context, listen: false);
+      if (ab.isKeyboardLocked) {
+        _isLocked = true;
+        _remainingSeconds = ab.keyboardRemainingSeconds;
+        _startLockTimer(ab, fromSeconds: ab.keyboardRemainingSeconds);
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    _lockTimer?.cancel();
     animeController.dispose();
     focusNode.dispose();
     super.dispose();
@@ -59,12 +103,13 @@ class PincodeKeyboardWidgetState extends State<PincodeKeyboardWidget>
 
   late PinBloc pinBloc;
   late BlBloc blBloc;
+  late AccessBloc accessBloc;
 
   @override
   Widget build(BuildContext context) {
     pinBloc = BlocProvider.of(context, listen: false);
     blBloc = BlocProvider.of(context, listen: false);
-    AccessBloc accessBloc = BlocProvider.of(context);
+    accessBloc = BlocProvider.of(context, listen: false);
 
     blBloc.add(BlStatusChangedEvent(
         status: BLStatus.magneticStripe,
@@ -131,6 +176,13 @@ class PincodeKeyboardWidgetState extends State<PincodeKeyboardWidget>
                           }
                           shake();
                           pinBloc.add(PinCButtonPressedEvent());
+                          accessBloc.keyboardWrongAttempts++;
+                          if (accessBloc.keyboardWrongAttempts >= 3) {
+                            accessBloc.recordKeyboardLock();
+                            setState(() {
+                              _startLockTimer(accessBloc, fromSeconds: 60);
+                            });
+                          }
                         }
                         break;
                       case PinSuccesStatus.initial:
@@ -143,18 +195,48 @@ class PincodeKeyboardWidgetState extends State<PincodeKeyboardWidget>
                 },
                 builder: (context, state) {
                   if (state is PinInitial) {
-                    return PincodeKeyboardWidgetOff(
-                        passwordLenth: pinBloc.passwordLength,
-                        length: state.length,
-                        cardPressedd: () =>
-                            pinBloc.add(PinGetOrganizationEvent()),
-                        pressDeleteButton: () => pinBloc.add(PinDeleteEvent()),
-                        pressNum: (v) {
-                          // if (!kReleaseMode) {
-                          //   pinBloc.add(PinPressNumEvent(v.toString()));
-                          // }
-                          pinBloc.add(PinPressNumEvent(v.toString()));
-                        });
+                    return Stack(
+                      alignment: Alignment.bottomCenter,
+                      children: [
+                        AbsorbPointer(
+                          absorbing: _isLocked,
+                          child: Opacity(
+                            opacity: _isLocked ? 0.4 : 1.0,
+                            child: PincodeKeyboardWidgetOff(
+                              passwordLenth: pinBloc.passwordLength,
+                              length: state.length,
+                              cardPressedd: _isLocked
+                                  ? () {}
+                                  : () => pinBloc.add(PinGetOrganizationEvent()),
+                              pressDeleteButton: _isLocked
+                                  ? () {}
+                                  : () => pinBloc.add(PinDeleteEvent()),
+                              pressNum: _isLocked
+                                  ? (_) {}
+                                  : (v) => pinBloc.add(PinPressNumEvent(v.toString())),
+                            ),
+                          ),
+                        ),
+                        _isLocked
+                            ? Positioned(
+                                bottom: SizeConfig.v * 1.2,
+                                left: SizeConfig.h * 2,
+                                right: SizeConfig.h * 2,
+                                child: Text(
+                                  AppLocalizations.of(context)!.ha == 'Ha'
+                                      ? '3 marta xato! $_remainingSeconds soniyadan so\'ng urinib ko\'ring'
+                                      : '3 попытки неверны! Попробуйте через $_remainingSeconds сек.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.red.shade600,
+                                    fontSize: SizeConfig.v * 1.7,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ],
+                    );
                   }
                   if (state is PinLoadingStatee) {
                     return Center(

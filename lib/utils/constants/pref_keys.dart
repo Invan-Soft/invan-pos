@@ -111,6 +111,8 @@ class PrefKeys {
   static const String giftId = "gift_Id";
   static const String debtId = "debt_Id";
   static const String nfcId = "ntf_Id";
+  static const String creditId = "credit_Id";
+  static const String advanceId = "advance_Id";
 
   ////////// CLICK PASS  //////////////////////////
   static const String serviceId = 'service_id';

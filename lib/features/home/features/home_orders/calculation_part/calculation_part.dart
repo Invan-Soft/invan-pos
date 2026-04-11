@@ -1,9 +1,8 @@
 // ignore_for_file: use_build_context_synchronously, unnecessary_cast
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/changes/dialogs/mxik/mxik_error_message.dart';
-import 'package:invan2/changes/dialogs/printer_not_selected_dialog.dart';
+import 'package:invan2/widgets/my_snackbar.dart';
 import 'package:invan2/changes/models/ofd/incom_response_model.dart';
 import 'package:invan2/changes/services/invoices_service.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
@@ -123,22 +122,21 @@ class _CalculationPartState extends State<CalculationPart> {
                 Object? mxikError;
                 bool printerSelected =
                     HiveBoxes.getPrinters().values.isNotEmpty;
-                bool printerRequired =
-                    Pref.getBool(PrefKeys.printerRequired, false);
                 bool mxikDialogError = false;
                 List<NoMxikItem>? errorMxikList;
+                bool basketEmpty = currentClient.orderedProducts.isEmpty || totalPrice <= 0;
 
-                if (printerRequired && !printerSelected) {
-                  showCupertinoDialog(
-                    barrierDismissible: true,
-                    context: context,
-                    builder: (BuildContext context) {
-                      return const PrinterNotSelectedDialog(
-                        text: 'Принтер не выбран ',
-                      );
-                    },
-                  );
-                } else {
+                // if (!printerSelected && !basketEmpty) {
+                //   ScaffoldMessenger.of(context).showSnackBar(
+                //     mySnackBar(
+                //       context,
+                //       duration: 3000,
+                //       msg: AppLocalizations.of(context)!.ha == 'Ha'
+                //           ? 'Printer tanlanmagan!'
+                //           : 'Принтер не найден!',
+                //     ),
+                //   );
+                // } else {
                   if (mxikDialogError == false) {
                     blBloc.add(BlStatusChangedEvent(
                         status: BLStatus.other,
@@ -185,7 +183,7 @@ class _CalculationPartState extends State<CalculationPart> {
                       },
                     );
                   }
-                }
+             //   }
               },
               child: Text(
                 "${loc.tolov}\n(F5)",

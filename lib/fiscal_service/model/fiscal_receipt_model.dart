@@ -75,7 +75,7 @@ class FiscalReceiptModel {
                         name: e.name,
                         price: e.price?.toInt(),
                         spic: e.classCode,
-                        vat: e.vat?.toInt(),
+                        vat: e.vat != null && e.vat! < 0 ? 0 : e.vat?.toInt(),
                         vatPercent: e.vatPercent!.toInt(),
                         units: 0,
                         commissionInfo: CommissionInfo(
@@ -105,7 +105,7 @@ class FiscalReceiptModel {
                         name: e.name,
                         price: e.price?.toInt(),
                         spic: e.classCode,
-                        vat: e.vat?.toInt(),
+                        vat: e.vat != null && e.vat! < 0 ? 0 : e.vat?.toInt(),
                         vatPercent: e.vatPercent!.toInt(),
                         units: 0,
                         commissionInfo: CommissionInfo(

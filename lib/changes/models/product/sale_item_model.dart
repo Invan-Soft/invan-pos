@@ -107,8 +107,6 @@ class SalingItemModel {
   Map<String, dynamic>? get commissionInfo => _commissionInfo;
   set commissionInfo(Map<String, dynamic>? commissionInfo) => _commissionInfo = commissionInfo;
 
-  // ==================== TO‘G‘RILANGAN toJson ====================
-  // ==================== TO‘G‘RILANGAN toJson ====================
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
 

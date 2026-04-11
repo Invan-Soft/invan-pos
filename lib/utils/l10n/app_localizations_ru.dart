@@ -792,4 +792,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get perecisleniya => 'Перечисления';
+
+  @override
+  String get naqd_tolov_mumkin_emas =>
+      'Оплата данного товара наличными невозможна';
+
+  @override
+  String get naqd_tolov_taqiq => 'Оплата наличными запрещена';
+
+  @override
+  String get narx_limit_oshdi => 'Общая сумма превысила 25 млн';
 }

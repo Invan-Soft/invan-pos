@@ -43,6 +43,8 @@ class OrganizationSingleton {
     String giftId = "";
     String nfcId = "";
     String debtId = "";
+    String creditId = "";
+    String advanceId = "";
 
     List<Payment> otherPayments = [];
     final box = await Hive.openBox<Payment>(_otherPaymentsBox);
@@ -80,6 +82,10 @@ class OrganizationSingleton {
       } else if (v[i].name == 'nfc') {
         nfcId = v[i].id!;
         nfc = v[i].isAdded!;
+      } else if (v[i].name?.toUpperCase() == 'CREDIT') {
+        creditId = v[i].id!;
+      } else if (v[i].name?.toUpperCase() == 'ADVANCE') {
+        advanceId = v[i].id!;
       }
       otherPayments.add(v[i]);
     }
@@ -112,6 +118,8 @@ class OrganizationSingleton {
     await Pref.setString(PrefKeys.giftId, giftId);
     await Pref.setString(PrefKeys.debtId, debtId);
     await Pref.setString(PrefKeys.nfcId, nfcId);
+    await Pref.setString(PrefKeys.creditId, creditId);
+    await Pref.setString(PrefKeys.advanceId, advanceId);
   }
 
   static Future<List<Payment>> getOtherPayments() async {

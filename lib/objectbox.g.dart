@@ -106,7 +106,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
       id: const obx_int.IdUid(3, 3601186149013975851),
       name: 'ReceiptModel4',
-      lastPropertyId: const obx_int.IdUid(43, 1225267735413651745),
+      lastPropertyId: const obx_int.IdUid(46, 5702815142943518960),
       flags: 0,
       properties: <obx_int.ModelProperty>[
         obx_int.ModelProperty(
@@ -313,6 +313,21 @@ final _entities = <obx_int.ModelEntity>[
             id: const obx_int.IdUid(43, 1225267735413651745),
             name: 'supplierId',
             type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(44, 2418026417945809955),
+            name: 'cardNumber',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(45, 7164971471029930497),
+            name: 'pptId',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(46, 5702815142943518960),
+            name: 'cardType',
+            type: 6,
             flags: 0)
       ],
       relations: <obx_int.ModelRelation>[
@@ -446,7 +461,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
       id: const obx_int.IdUid(7, 4121567817909813718),
       name: 'ReceiptModelSoldItem4',
-      lastPropertyId: const obx_int.IdUid(35, 5494909870055592427),
+      lastPropertyId: const obx_int.IdUid(36, 4906907445883140393),
       flags: 0,
       properties: <obx_int.ModelProperty>[
         obx_int.ModelProperty(
@@ -622,6 +637,11 @@ final _entities = <obx_int.ModelEntity>[
         obx_int.ModelProperty(
             id: const obx_int.IdUid(35, 5494909870055592427),
             name: 'isKg',
+            type: 1,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(36, 4906907445883140393),
+            name: 'isFreeGift',
             type: 1,
             flags: 0)
       ],
@@ -954,7 +974,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final urlOffset =
               object.url == null ? null : fbb.writeString(object.url!);
           final supplierIdOffset = fbb.writeString(object.supplierId);
-          fbb.startTable(44);
+          final cardNumberOffset = object.cardNumber == null
+              ? null
+              : fbb.writeString(object.cardNumber!);
+          final pptIdOffset =
+              object.pptId == null ? null : fbb.writeString(object.pptId!);
+          fbb.startTable(47);
           fbb.addInt64(0, object.id);
           fbb.addOffset(1, newidOffset);
           fbb.addOffset(2, cashierIdOffset);
@@ -996,6 +1021,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fbb.addBool(38, object.hasDept);
           fbb.addOffset(41, urlOffset);
           fbb.addOffset(42, supplierIdOffset);
+          fbb.addOffset(43, cardNumberOffset);
+          fbb.addOffset(44, pptIdOffset);
+          fbb.addInt64(45, object.cardType);
           fbb.finish(fbb.endTable());
           return object.id;
         },
@@ -1086,6 +1114,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
               .vTableGetNullable(buffer, rootOffset, 76);
           final isDonateParam =
               const fb.BoolReader().vTableGetNullable(buffer, rootOffset, 74);
+          final cardNumberParam = const fb.StringReader(asciiOptimization: true)
+              .vTableGetNullable(buffer, rootOffset, 90);
+          final cardTypeParam =
+              const fb.Int64Reader().vTableGetNullable(buffer, rootOffset, 94);
+          final pptIdParam = const fb.StringReader(asciiOptimization: true)
+              .vTableGetNullable(buffer, rootOffset, 92);
           final object = ReceiptModel4(
               createdDate: createdDateParam,
               orderId: orderIdParam,
@@ -1125,7 +1159,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
               hasPayme: hasPaymeParam,
               isShow: isShowParam,
               comment: commentParam,
-              isDonate: isDonateParam)
+              isDonate: isDonateParam,
+              cardNumber: cardNumberParam,
+              cardType: cardTypeParam,
+              pptId: pptIdParam)
             ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0)
             ..hasDept =
                 const fb.BoolReader().vTableGet(buffer, rootOffset, 80, false);
@@ -1306,7 +1343,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final markOffset =
               object.mark == null ? null : fbb.writeString(object.mark!);
           final soldByOffset = fbb.writeString(object.soldBy);
-          fbb.startTable(36);
+          fbb.startTable(37);
           fbb.addOffset(0, orderIdOffset);
           fbb.addOffset(1, refundItemIdOffset);
           fbb.addFloat64(2, object.price);
@@ -1342,6 +1379,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fbb.addInt64(32, object.ownerType);
           fbb.addInt64(33, object.id);
           fbb.addBool(34, object.isKg);
+          fbb.addBool(35, object.isFreeGift);
           fbb.finish(fbb.endTable());
           return object.id;
         },
@@ -1419,6 +1457,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final packageNameParam =
               const fb.StringReader(asciiOptimization: true)
                   .vTableGetNullable(buffer, rootOffset, 42);
+          final isFreeGiftParam =
+              const fb.BoolReader().vTableGet(buffer, rootOffset, 74, false);
           final object = ReceiptModelSoldItem4(
               inBox: inBoxParam,
               barcode: barcodeParam,
@@ -1452,7 +1492,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
               isPriceOnlyChanged: isPriceOnlyChangedParam,
               isKg: isKgParam,
               packageCode: packageCodeParam,
-              packageName: packageNameParam)
+              packageName: packageNameParam,
+              isFreeGift: isFreeGiftParam)
             ..orderId = const fb.StringReader(asciiOptimization: true)
                 .vTableGet(buffer, rootOffset, 4, '')
             ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 70, 0);
@@ -1835,6 +1876,18 @@ class ReceiptModel4_ {
   static final supplierId =
       obx.QueryStringProperty<ReceiptModel4>(_entities[2].properties[40]);
 
+  /// see [ReceiptModel4.cardNumber]
+  static final cardNumber =
+      obx.QueryStringProperty<ReceiptModel4>(_entities[2].properties[41]);
+
+  /// see [ReceiptModel4.pptId]
+  static final pptId =
+      obx.QueryStringProperty<ReceiptModel4>(_entities[2].properties[42]);
+
+  /// see [ReceiptModel4.cardType]
+  static final cardType =
+      obx.QueryIntegerProperty<ReceiptModel4>(_entities[2].properties[43]);
+
   /// see [ReceiptModel4.soldItemList]
   static final soldItemList =
       obx.QueryRelationToMany<ReceiptModel4, ReceiptModelSoldItem4>(
@@ -2071,6 +2124,10 @@ class ReceiptModelSoldItem4_ {
   /// see [ReceiptModelSoldItem4.isKg]
   static final isKg = obx.QueryBooleanProperty<ReceiptModelSoldItem4>(
       _entities[6].properties[34]);
+
+  /// see [ReceiptModelSoldItem4.isFreeGift]
+  static final isFreeGift = obx.QueryBooleanProperty<ReceiptModelSoldItem4>(
+      _entities[6].properties[35]);
 
   /// see [ReceiptModelSoldItem4.discount]
   static final discount =

@@ -1615,6 +1615,24 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Перечисления'**
   String get perecisleniya;
+
+  /// No description provided for @naqd_tolov_mumkin_emas.
+  ///
+  /// In ru, this message translates to:
+  /// **'Оплата данного товара наличными невозможна'**
+  String get naqd_tolov_mumkin_emas;
+
+  /// No description provided for @naqd_tolov_taqiq.
+  ///
+  /// In ru, this message translates to:
+  /// **'Оплата наличными запрещена'**
+  String get naqd_tolov_taqiq;
+
+  /// No description provided for @narx_limit_oshdi.
+  ///
+  /// In ru, this message translates to:
+  /// **'Общая сумма превысила 25 млн'**
+  String get narx_limit_oshdi;
 }
 
 class _AppLocalizationsDelegate

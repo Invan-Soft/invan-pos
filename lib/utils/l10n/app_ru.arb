@@ -598,6 +598,9 @@
   "haqiqatan_ham_barcha_jurnallarni_ochirib_tashlamoqchimisiz": "Вы уверены, что хотите удалить все журналы?",
   "hammasini_tozalash": "Очистить все",
   "yuklanmoqda": "Загрузка",
-  "perecisleniya":"Перечисления"
+  "perecisleniya":"Перечисления",
+  "naqd_tolov_mumkin_emas": "Оплата данного товара наличными невозможна",
+  "naqd_tolov_taqiq": "Оплата наличными запрещена",
+  "narx_limit_oshdi": "Общая сумма превысила 25 млн"
 }
     

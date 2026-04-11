@@ -1,5 +1,4 @@
 // ignore_for_file: deprecated_member_use
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -61,8 +60,6 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          // _creditAndAdvanced(context)
-
                           //ALL
                           _buildPayments(context),
                         ],
@@ -207,7 +204,9 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
     final String clickId = Pref.getString(PrefKeys.clickId, "");
     final String uzumId = Pref.getString(PrefKeys.uzumId, "");
     final String cardId = Pref.getString(PrefKeys.cardId, "");
-    final bool isCashHidden = orderingProvider.isCashPaymentHidden;
+    final bool isCashHidden = orderingProvider.isCashPaymentHidden ||
+        orderingProvider.isCashHiddenByCashsale ||
+        orderingProvider.isBigTotalHidden;
 
     final bool isPaymeEnabled = Pref.getBool(PrefKeys.paymeEnable, false);
     final bool isClickEnabled = Pref.getBool(PrefKeys.clickEnable, false);
@@ -287,11 +286,18 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
             });
           });
         }
-        if (id == cashId && (isCashHidden || cardOnly)) {
-          return const SizedBox.shrink();
+        if (id == cashId) {
+          if (isCashHidden || cardOnly) return const SizedBox.shrink();
+          return _functionalButton(
+            loc.ha == 'Ha' ? 'Naqd pul' : 'Наличные',
+            () => orderingProvider.allPaymentType(p),
+          );
         }
         if (id == cardId) {
           return _functionalButton("${loc.plastik} ${loc.karta}", () async {
+            Pref.setBool("credit", false);
+            Pref.setBool("advance", false);
+            setState(() {});
             await typeDialog("Uzcard", "Humo", () async {
               Navigator.pop(context);
               orderingProvider.typeUzcard(context, p);
@@ -310,84 +316,6 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
     );
   }
 
-  /*Row _creditAndAdvanced(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: SizedBox(
-            // width: ((SizeConfig.h * 18.77) / 2) - (SizeConfig.h * .5),
-            width: SizeConfig.h * 18.77,
-            height: SizeConfig.v * 9.68,
-            child: RawMaterialButton(
-                focusNode: FocusNode(skipTraversal: true),
-                // padding: EdgeInsets.symmetric(horizontal: SizeConfig.v),
-                elevation: 0,
-                fillColor: Pref.getBool("credit", false) == true
-                    ? Theme.of(context).primaryColor
-                    : Theme.of(context).dialogBackgroundColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(SizeConfig.v * 1.1),
-                ),
-                child: Text(
-                  "Credit",
-                  style: MyThemes.txtStyle(
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).canvasColor,
-                    fontSize: 3.2,
-                  ),
-                ),
-                onPressed: () {
-                  if (Pref.getBool("advance", false) == false) {
-                    if (Pref.getBool("credit", false) == true) {
-                      Pref.setBool("credit", false);
-                    } else {
-                      Pref.setBool("credit", true);
-                    }
-                    orderingProvider4.typeTerminal(context);
-                    setState(() {});
-                  }
-                }),
-          ),
-        ),
-        SizedBox(width: SizeConfig.h),
-        Expanded(
-          child: SizedBox(
-            width: SizeConfig.h * 18.77,
-            height: SizeConfig.v * 9.68,
-            child: RawMaterialButton(
-                focusNode: FocusNode(skipTraversal: true),
-                // padding: EdgeInsets.symmetric(horizontal: SizeConfig.v),
-                elevation: 0,
-                fillColor: Pref.getBool("advance", false) == true
-                    ? Theme.of(context).primaryColor
-                    : Theme.of(context).dialogBackgroundColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(SizeConfig.v * 1.1),
-                ),
-                child: Text(
-                  "Advance",
-                  style: MyThemes.txtStyle(
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).canvasColor,
-                    fontSize: 3.2,
-                  ),
-                ),
-                onPressed: () {
-                  if (Pref.getBool("credit", false) == false) {
-                    if (Pref.getBool("advance", false) == true) {
-                      Pref.setBool("advance", false);
-                    } else {
-                      Pref.setBool("advance", true);
-                    }
-                    orderingProvider4.typeTerminal(context);
-                    setState(() {});
-                  }
-                }),
-          ),
-        ),
-      ],
-    );
-  }*/
 
   Row _clickAndPayme(BuildContext context, AppLocalizations loc) {
     return Row(
@@ -672,6 +600,57 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
     );
   }
 
+  Widget _cardTypeCheckbox({
+    required BuildContext context,
+    required String label,
+    required double width,
+    required bool checked,
+    required double checkScale,
+    required double gap,
+    required void Function(bool?) onChanged,
+  }) {
+    return SizedBox(
+      width: width,
+      height: SizeConfig.v * 8,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                style: MyThemes.txtStyle(
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).canvasColor,
+                  fontSize: 4,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: gap),
+          Transform.scale(
+            scale: checkScale,
+            child: Checkbox(
+              value: checked,
+              onChanged: onChanged,
+              activeColor: Theme.of(context).primaryColor,
+              checkColor: Colors.white,
+              side: BorderSide(
+                color: Theme.of(context).primaryColor,
+                width: 2,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Padding _functionalButton(String title, VoidCallback callBack,
       {bool enabled = true}) {
     return Padding(
@@ -811,58 +790,48 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       isCard && Pref.getBool(PrefKeys.withOFD, false)
-                          ? Padding(
-                              padding: EdgeInsets.symmetric(
-                                  vertical: SizeConfig.v * 4,
-                                  horizontal: SizeConfig.v * 6),
-                              child: StatefulBuilder(
-                                builder: (BuildContext context,
-                                    StateSetter setState) {
-                                  return Row(
-                                    children: [
-                                      Text(
-                                        loc.ha == 'Ha'
-                                            ? 'Korporativ'
-                                            : 'Корпоративная',
-                                        style: MyThemes.txtStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: Theme.of(context).canvasColor,
-                                          fontSize: 5,
-                                        ),
-                                      ),
-                                      SizedBox(width: SizeConfig.v * 2.5),
-                                      Transform.scale(
-                                        scale: 2.5,
-                                        child: Checkbox(
-                                          value:
-                                              Pref.getInt('card_type', 0) == 1,
-                                          onChanged: (bool? value) async {
-                                            if (value != null) {
-                                              await Pref.setInt(
-                                                  'card_type', value ? 1 : 2);
-                                              setState(() {});
-                                            }
-                                          },
-                                          activeColor:
-                                              Theme.of(context).primaryColor,
-                                          checkColor: Colors.white,
-                                          side: BorderSide(
-                                            color:
-                                                Theme.of(context).primaryColor,
-                                            width: 2,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(4),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
+                          ? StatefulBuilder(
+                              builder: (BuildContext context, StateSetter setState) {
+                                final double btnW = ((SizeConfig.h * 50) / 2) - (SizeConfig.h * .5);
+                                final double gap = SizeConfig.h * 1;
+                                final double checkScale = (SizeConfig.v * 2).clamp(1.2, 2.0);
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _cardTypeCheckbox(
+                                      context: context,
+                                      label: loc.ha == 'Ha' ? 'Korporativ' : 'Корпоративная',
+                                      width: btnW,
+                                      checked: Pref.getInt('card_type', 0) == 1,
+                                      checkScale: checkScale,
+                                      gap: gap,
+                                      onChanged: (v) async {
+                                        if (v != null) {
+                                          await Pref.setInt('card_type', v ? 1 : 2);
+                                          setState(() {});
+                                        }
+                                      },
+                                    ),
+                                    SizedBox(width: SizeConfig.h * 1),
+                                    _cardTypeCheckbox(
+                                      context: context,
+                                      label: loc.ha == 'Ha' ? 'Ijtimoiy Karta' : 'Социальная Карта',
+                                      width: btnW,
+                                      checked: Pref.getInt('card_type', 0) == 3,
+                                      checkScale: checkScale,
+                                      gap: gap,
+                                      onChanged: (v) async {
+                                        if (v != null) {
+                                          await Pref.setInt('card_type', v ? 3 : 2);
+                                          setState(() {});
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                );
+                              },
                             )
-                          : SizedBox.shrink(),
+                          : const SizedBox.shrink(),
                       Row(
                         children: [
                           SizedBox(

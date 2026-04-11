@@ -25,10 +25,11 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
     on<ReturnReturnEvent>(_return);
   }
 
-  _return(ReturnReturnEvent event, Emitter<ReturnState> emit) async {
+   _return(ReturnReturnEvent event, Emitter<ReturnState> emit) async {
     Log.d(event, name: 'return_bloc');
 
     bool ofd = Pref.getBool(PrefKeys.withOFD, false);
+
     final newReceiptModel41 = ReceiptModel4(
       supplierId: event.receiptModel4.supplierId,
       dateTimeOFD: event.receiptModel4.dateTimeOFD,
@@ -64,109 +65,88 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
       shopId: event.receiptModel4.shopId,
       userId: event.receiptModel4.userId,
       url: event.receiptModel4.url,
+      cardType: 2,
+      cardNumber: event.receiptModel4.cardNumber ?? '',
+      pptId: event.receiptModel4.pptId ?? '',
     );
+
     newReceiptModel41.payment.clear();
     newReceiptModel41.soldItemList.clear();
+
+    final double refundTotal = _getRightTotalPrice(event.rightList);
+    final String cashId = Pref.getString(PrefKeys.cashId, '');
+    final String cardId = Pref.getString(PrefKeys.cardId, '');
+
     newReceiptModel41.payment.add(ReceiptModelPaymentType4(
-      name: "cash",
-      value: _getRightTotalPrice(event.rightList),
-      payId: Pref.getString(PrefKeys.cashId, ''),
+      name: "CARD",           // KATTA HARF bilan!
+      value: refundTotal,
+      payId: cardId,
     ));
+
+
     newReceiptModel41.soldItemList.addAll(event.rightList);
 
+    // Qolgan kod o'zgarmadi...
     emit(ReturnLoadingState(message: ReturnMessage.internet));
     bool internet = await InternetConnectionChecker().hasConnection;
     if (event.isRetry) {
       await Future.delayed(const Duration(milliseconds: 500));
     }
+
     if (newReceiptModel41.isRefund == true && internet) {
       emit(ReturnLoadingState(message: ReturnMessage.returnig));
       newReceiptModel41.uploaded = true;
-      await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
-      HttpResult? refundResponse =
-          await ReceiptApi4.receiptCreateGrouppForRefund(newReceiptModel41);
+
+      HttpResult? refundResponse = await ReceiptApi4.receiptCreateGrouppForRefund(newReceiptModel41);
+
       if (refundResponse.statusCode == 200) {
         newReceiptModel41.uploaded = true;
 
         if (ofd) {
-          final urlValue = newReceiptModel41.url;
-          if (urlValue == null || urlValue.isEmpty) {
-            // await ReceiptSingleton4.toOBJECTBOX(
-            //   newReceiptModel41,
-            // );
+           final urlValue = newReceiptModel41.url;
+              if (urlValue == null || urlValue.isEmpty) {
+     
             emit(ReturnSuccedState());
-          } else {
-            await LocalService.sell(
-              loc: event.loc,
-              receiptData: newReceiptModel41,
-            ).then(
-              (CommunicatorRESPONSE response) async {
-                if (!(response.error ?? true) && response.info != null) {
-                  newReceiptModel41.refundInfo =
-                      jsonEncode(response.info?.toJson());
-                  if (newReceiptModel41.refundInfo != null) {
-                    final refundInfoValue = newReceiptModel41.refundInfo;
-                    if (refundInfoValue != null && refundInfoValue.isNotEmpty) {
-                      Info info = Info.fromJson(jsonDecode(refundInfoValue));
-                      newReceiptModel41.terminalId = info.terminalId;
-                      newReceiptModel41.receiptSeq =
-                          int.tryParse(info.receiptSeq ?? "0") ?? 0;
-                      newReceiptModel41.dateTimeOFD = (info.dateTime ?? "0");
-                      newReceiptModel41.fiscalSign = info.fiscalSign;
-                    }
-                  }
-
-                  // HttpResult? refundResponse =
-                  //     await ReceiptApi4.receiptCreateGrouppForRefund(
-                  //         newReceiptModel41);
-                  // if (refundResponse.isSuccess) {
-                  //   newReceiptModel41.uploaded = true;
-                  // await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41,
-                  //     communicatorRECEIPT: response);
-                  emit(ReturnSuccedState());
-                  // } else {
-                  //   emit(ReturnFailedState(
-                  //     error: 'Refund not possible',
-                  //   ));
-                  // }
-                } else {
-                  LogRepository.addLog(
-                    "${response.paycheck ?? "Unknown Error"} / RECEIPT NO: ${newReceiptModel41.externalId}",
-                    file: "ReturnBloc / _return",
-                    method: "OFD SELL",
-                    where: "RETURN BLOC ",
-                  );
-                  emit(ReturnFailedState(error: response.paycheck.toString()));
+          } 
+else{
+          await LocalService.sell(loc: event.loc, receiptData: newReceiptModel41).then(
+            (CommunicatorRESPONSE response) async {
+              if (!(response.error ?? true) && response.info != null) {
+                newReceiptModel41.refundInfo = jsonEncode(response.info?.toJson());
+                newReceiptModel41.url = response.info?.qrCodeUrl ?? '';
+                final refundInfoValue = newReceiptModel41.refundInfo;
+                if (refundInfoValue != null && refundInfoValue.isNotEmpty) {
+                  Info info = Info.fromJson(jsonDecode(refundInfoValue));
+                  newReceiptModel41.terminalId = info.terminalId;
+                  newReceiptModel41.receiptSeq = int.tryParse(info.receiptSeq ?? "0") ?? 0;
+                  newReceiptModel41.dateTimeOFD = info.dateTime ?? "0";
+                  newReceiptModel41.fiscalSign = info.fiscalSign;
                 }
-              },
-            ).catchError((err) {
-              LogRepository.addLog(
-                "$err / RECEIPT NO: ${newReceiptModel41.externalId}",
-                file: "ReturnBloc / _return",
-                where: "RETURN BLOC / CATCHERROR",
-                method: "OFD SELL",
-              );
-              emit(ReturnFailedState(
-                error: err.toString(),
-              ));
-            });
-          }
+                await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41, communicatorRECEIPT: response);
+                emit(ReturnSuccedState());
+              } else {
+                await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
+                emit(ReturnFailedState(error: response.paycheck.toString()));
+              }
+            },
+          ).catchError((err) async {
+            await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
+            emit(ReturnFailedState(error: err.toString()));
+          });
+}
+     
+     //////////ofd
         } else {
-          // await ReceiptSingleton4.toOBJECTBOX(
-          //   newReceiptModel41,
-          // );
+          await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
           emit(ReturnSuccedState());
         }
       } else {
-        emit(ReturnFailedState(
-          error: refundResponse.getError,
-        ));
+        emit(ReturnFailedState(error: refundResponse.getError));
       }
     } else {
       emit(ReturnNoInternetState());
     }
   }
-
   double _getRightTotalPrice(List<ReceiptModelSoldItem4> v) {
     double t = 0;
     for (var element in v) {

@@ -6,7 +6,8 @@ import 'package:invan2/utils/themes.dart';
 
 class AccessBlocedWidget extends StatefulWidget {
   final int passwordLenth;
-  const AccessBlocedWidget(this.passwordLenth, {Key? key}) : super(key: key);
+  final int remainingSeconds;
+  const AccessBlocedWidget(this.passwordLenth, {Key? key, this.remainingSeconds = 30}) : super(key: key);
 
   @override
   State<AccessBlocedWidget> createState() => _AccessBlocedWidgetState();
@@ -14,9 +15,10 @@ class AccessBlocedWidget extends StatefulWidget {
 
 class _AccessBlocedWidgetState extends State<AccessBlocedWidget> {
   bool isActiv = true;
-  int interval = 30;
+  late int interval;
   @override
   void initState() {
+    interval = widget.remainingSeconds;
     Timer.periodic(const Duration(seconds: 1), (Timer t) => _getCount());
     super.initState();
   }

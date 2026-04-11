@@ -125,7 +125,9 @@ class PrintSoldApi {
                 //     : pw.SizedBox(),
                 pw.SizedBox(height: 8.0),
                 incomInfo == null &&
-                        Pref.getBool('enableQrReceipts', false) == true
+                        Pref.getBool('enableQrReceipts', false) == true &&
+                        method != 'Api.SendCreditReceipt' &&
+                        method != 'Api.SendAdvanceReceipt'
                     ? pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.center,
                         children: [
@@ -141,7 +143,10 @@ class PrintSoldApi {
                         ],
                       )
                     : pw.SizedBox(),
-                incomInfo != null && incomInfo.qrCodeUrl != null
+                incomInfo != null &&
+                        incomInfo.qrCodeUrl != null &&
+                        method != 'Api.SendCreditReceipt' &&
+                        method != 'Api.SendAdvanceReceipt'
                     ? pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.center,
                         children: [
@@ -321,7 +326,9 @@ class PrintSoldApi {
 
                         pw.SizedBox(height: 8.0),
                         incomInfo == null &&
-                                Pref.getBool('enableQrReceipts', false) == true
+                                Pref.getBool('enableQrReceipts', false) == true &&
+                                method != 'Api.SendCreditReceipt' &&
+                                method != 'Api.SendAdvanceReceipt'
                             ? pw.Row(
                                 mainAxisAlignment: pw.MainAxisAlignment.center,
                                 children: [
@@ -338,7 +345,10 @@ class PrintSoldApi {
                                 ],
                               )
                             : pw.SizedBox(),
-                        incomInfo != null && incomInfo.qrCodeUrl != null
+                        incomInfo != null &&
+                                incomInfo.qrCodeUrl != null &&
+                                method != 'Api.SendCreditReceipt' &&
+                                method != 'Api.SendAdvanceReceipt'
                             ? pw.Row(
                                 mainAxisAlignment: pw.MainAxisAlignment.center,
                                 children: [

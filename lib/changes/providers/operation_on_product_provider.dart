@@ -26,7 +26,6 @@ class OperationOnProductProvider extends ChangeNotifier {
 
   final Employee? _currentEmployee;
 
-////////////////////////////////////////////////////////////////
   bool _dialogOpened = false;
   bool _ignoreInput = false;
 
@@ -42,7 +41,6 @@ class OperationOnProductProvider extends ChangeNotifier {
   FocusNode focusNode = FocusNode();
   Timer? _debounceTimer;
 
-  /* //////////////////////// PROVIDER GETTERS //////////////////////// */
 
   String get boxValueStr {
     try {
@@ -91,12 +89,7 @@ class OperationOnProductProvider extends ChangeNotifier {
 
   ReceiptModelSoldItem4 get getItem => target;
 
-  ///////////////////////////////////////////////////////////////////////
-  ///                                                           /////////
-  ///                            SETTERS                        /////////
-  ///                                                           /////////
-  ///////////////////////////////////////////////////////////////////////
-  ///////////////////////// PROVIDER METHODS ////////////////////////////
+
 
   Future<void> selectInputWithCheck(int v, BuildContext context) async {
     if (v == 1 && target.value > 0) {
@@ -251,7 +244,7 @@ class OperationOnProductProvider extends ChangeNotifier {
     _commitentt = comitent;
   }
 
-  onSaveButtonPressed(BuildContext context) {
+  Future<void> onSaveButtonPressed(BuildContext context) async {
     final bool priceManuallyEdited =
         onlyPriceIsEdited || target.isPriceOnlyChanged || target.isPriceChanged;
 
@@ -283,17 +276,13 @@ class OperationOnProductProvider extends ChangeNotifier {
       target.isPriceOnlyChanged = true;
     }
 
-    Provider.of<OrderingProvider4>(context, listen: false)
+    await Provider.of<OrderingProvider4>(context, listen: false)
         .pressDialogSaveButton(target);
     AppNavigation.pop();
     Provider.of<OrderingProvider4>(context, listen: false).freeGiftDialog();
   }
 
-  /////////////////////////////////////////////////////////
-  /////                                               /////
-  /////      ON KEYBOARD FUNCTIONS                    /////
-  /////                                               /////
-  /////////////////////////////////////////////////////////
+
   List<bool> isSelectedAlls = List.generate(6, (index) => index == 1);
   int _selectedInput = 1;
 

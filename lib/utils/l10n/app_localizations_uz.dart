@@ -804,4 +804,14 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get perecisleniya => 'Transferlar';
+
+  @override
+  String get naqd_tolov_mumkin_emas =>
+      'Bu mahsulot basketga qo\'shilganiga naqd pul orqali to\'lab bo\'lmaydi';
+
+  @override
+  String get naqd_tolov_taqiq => 'Naqd to\'lov mumkin emas';
+
+  @override
+  String get narx_limit_oshdi => 'Umumiy narx 25 mln dan oshdi';
 }

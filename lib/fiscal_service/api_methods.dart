@@ -22,7 +22,7 @@ class ApiMethods {
   static const String getLastReceipt =
       'Api.GetLastRegisteredReceipt'; // ReceiptService
 
-  static const String sendReceipt = 'Api.SendReceipt'; // ReceiptService
+  static const String sendReceipt = 'Api.SendReceipt';
   static const String reScanReceipts = 'Api.RescanReceipts';
   static const String getReceiptCount = 'Api.GetReceiptCount';
   static const String getUnsentCount = 'Api.GetUnsentCount';

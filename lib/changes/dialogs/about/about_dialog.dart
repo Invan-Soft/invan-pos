@@ -67,14 +67,7 @@ class AboutAppDialog extends StatelessWidget {
                       color: Theme.of(context).canvasColor,
                     ),
                   ),
-                  // Text(
-                  //  "1.0.0.22",
-                  //   textAlign: TextAlign.center,
-                  //   style: MyThemes.txtStyle(
-                  //     fontWeight: FontWeight.bold,
-                  //     color: Theme.of(context).canvasColor,
-                  //   ),
-                  // ),
+                
                 ],
               ),
               SizedBox(height: SizeConfig.v * 5),

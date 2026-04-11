@@ -75,7 +75,6 @@ Future<void> main() async {
   // Printer required
   // await Pref.setBool(PrefKeys.printerRequired, true);
 
-  ///////////////////  Aliceni o'chirish /////////////////////
   if (kReleaseMode) {
     await Pref.setBool(PrefKeys.isDevAlice, true);
   } else {

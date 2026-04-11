@@ -14,16 +14,6 @@ class InvoiceBloc extends Bloc<InvoiceEvent, InvoiceState> {
     on<GetInvoiceProductsEvent>(getInvoiceProducts);
   }
 
-  // Future<void> getInvoiceById(
-  //     GetInvoiceByIdEvent event, Emitter<InvoiceState> emit) async {
-  //   emit(GetInvoiceLoading());
-  //   HttpResult result = await InvoicesService.getInvoiceById(event.invoiceId);
-  //   if (result.isSuccess) {
-  //     print(result.result);
-  //     InvoicesService.getInvoiceProducts("100103");
-  //     emit(GetInvoiceLoaded(invoice: InvoiceModel.fromJson(result.result)));
-  //   }
-  // }
   Future<void> getInvoiceProducts(
       GetInvoiceProductsEvent event, Emitter<InvoiceState> emit) async {
     emit(GetInvoiceProductsLoading());
@@ -33,7 +23,6 @@ class InvoiceBloc extends Bloc<InvoiceEvent, InvoiceState> {
           await InvoicesService.getInvoiceProducts(event.invoiceId);
 
       if (result.isSuccess) {
-        print(result.result);
         final invoice = InvoiceModel.fromJson(result.result);
         emit(GetInvoiceProductsLoaded(invoice: invoice));
       } else {

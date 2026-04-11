@@ -254,5 +254,8 @@
   "haqiqatan_ham_barcha_jurnallarni_ochirib_tashlamoqchimisiz": "Haqiqatan ham barcha jurnallarni oʻchirib tashlamoqchimisiz?",
   "hammasini_tozalash": "Hammasini tozalash",
   "yuklanmoqda": "Yuklanmoqda",
-  "perecisleniya": "Transferlar"
+  "perecisleniya": "Transferlar",
+  "naqd_tolov_mumkin_emas": "Bu mahsulot basketga qo'shilganiga naqd pul orqali to'lab bo'lmaydi",
+  "naqd_tolov_taqiq": "Naqd to'lov mumkin emas",
+  "narx_limit_oshdi": "Umumiy narx 25 mln dan oshdi"
 }

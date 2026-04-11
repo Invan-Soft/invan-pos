@@ -7,7 +7,14 @@
       "Bash(py -3 -c \"print\\('test'\\)\")",
       "Bash(powershell -Command \"\\(Get-Content 'd:/flutter_projects/pos-invan-2-ayyubxon/lib/changes/providers/ordering_provider_4.dart' -Raw\\) -replace [char]0x2018, [char]39 -replace [char]0x2019, [char]39 | Set-Content 'd:/flutter_projects/pos-invan-2-ayyubxon/lib/changes/providers/ordering_provider_4.dart' -NoNewline\")",
       "Bash(python -c ':*)",
-      "Bash(del \"d:\\\\flutter_projects\\\\pos-invan-2-ayyubxon\\\\fix_quotes.ps1\")"
+      "Bash(del \"d:\\\\flutter_projects\\\\pos-invan-2-ayyubxon\\\\fix_quotes.ps1\")",
+      "Bash(flutter pub:*)",
+      "Bash(dart analyze:*)",
+      "Bash(where python:*)",
+      "Bash(where python3:*)",
+      "Bash('C:/Users/Lenovo PC/AppData/Local/Microsoft/WindowsApps/python.exe' -c ':*)",
+      "Bash(cmd /c \"cd /d d:\\\\flutter_projects\\\\pos-invan-2-ayyubxon && python -c \\\\\"lines=open\\('lib/changes/providers/ordering_provider_4.dart',encoding='utf-8'\\).readlines\\(\\); print\\(repr\\(lines[3534]\\)\\); print\\(repr\\(lines[3635]\\)\\)\\\\\"\")",
+      "Bash(flutter gen-l10n:*)"
     ]
   }
 }

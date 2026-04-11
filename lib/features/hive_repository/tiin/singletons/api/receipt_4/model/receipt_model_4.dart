@@ -103,7 +103,6 @@ class ReceiptModel4 {
   thePayment() => payment;
 
   factory ReceiptModel4.fromJson(Map<String, dynamic> json) {
-
     final orderJson =
         json['order'] is List<dynamic>
             ? (json['order'] as List<dynamic>).isNotEmpty
@@ -142,64 +141,70 @@ class ReceiptModel4 {
           );
         }).toList() ??
         [];
+
+    // ==================== TO'G'RILANGAN PAYMENT PARSE ====================
     final paysJson = orderJson['pays'] as Map<String, dynamic>?;
     final pays =
         (paysJson?['pays'] as List<dynamic>?)?.map((pay) {
           final payJson = pay as Map<String, dynamic>;
+          final paymentType = payJson['payment_type'] as Map<String, dynamic>?;
+
           return ReceiptModelPaymentType4(
-            name: payJson['name'] ?? "",
-            payId: payJson['payment_type_id'] ?? "",
+            name: (paymentType?['name'] ?? '').toString(),           // <--- MUHIM O'ZGARISH
+            payId: (paymentType?['id'] ?? payJson['id'] ?? '').toString(),
             value: (payJson['value'] as num?)?.toDouble() ?? 0.0,
           );
         }).toList() ??
         [];
 
     return ReceiptModel4(
-        createdDate: orderJson['created_date'] ?? "",
-        orderId: orderJson['id'] ?? "",
-        cashboxId: orderJson['cashbox_id'] ?? "",
-        externalId: orderJson['external_id'] ?? "",
-        orderType: orderJson['order_type'] ?? "sale",
-        shopId: orderJson['shop_id'] ?? "",
-        userId: orderJson['user_id'] ?? "",
-        discountVat:
-            (orderJson['order_discount']?['value'] as num?)?.toDouble() ?? 0.0,
-        discountID: orderJson['order_discount']?['type'] ?? "",
-        url: orderJson['url'],
-        terminalId: orderJson['terminal_id'],
-        receiptSeq: orderJson['receipt_seq'],
-        dateTimeOFD: orderJson['date_time'],
-        fiscalSign: orderJson['fiscal_sign'],
-        zdachiToCashback: (orderJson['zdachi_to_cashback'] as num?)?.toDouble(),
-        newid: orderJson['client_id'] ?? "",
+      createdDate: orderJson['created_date'] ?? "",
+      orderId: orderJson['id'] ?? "",
+      cashboxId: orderJson['cashbox_id'] ?? "",
+      externalId: orderJson['external_id'] ?? "",
+      orderType: orderJson['order_type'] ?? "sale",
+      shopId: orderJson['shop_id'] ?? "",
+      userId: orderJson['user_id'] ?? "",
+      discountVat:
+          (orderJson['order_discount']?['value'] as num?)?.toDouble() ?? 0.0,
+      discountID: orderJson['order_discount']?['type'] ?? "",
+      url: orderJson['url'],
+      terminalId: orderJson['terminal_id'],
+      receiptSeq: orderJson['receipt_seq'],
+      dateTimeOFD: orderJson['date_time'],
+      fiscalSign: orderJson['fiscal_sign'],
+      zdachiToCashback: (orderJson['zdachi_to_cashback'] as num?)?.toDouble(),
+      newid: orderJson['client_id'] ?? "",
       supplierId: orderJson['supplier_id'] ?? "",
-        cashierId: orderJson['cashier_id'] ?? "",
-        cashierName: orderJson['cashier_name'] ?? "",
-        date: orderJson['date'] ?? 0,
-        isRefund: orderJson['is_refund'] ?? false,
-        totalPrice: (orderJson['total_price'] as num?)?.toDouble() ?? 0.0,
-        uploaded: orderJson['uploaded'] ?? false,
-        rejected: orderJson['rejected'] ?? false,
-        clientName: orderJson['client_name'] ?? "",
-        clientPhone: orderJson['phone_number'] ?? "",
-        clientId: orderJson['client_id'] ?? "",
-        cashback: orderJson['cashback'] ?? 0,
-        sdacha: (orderJson['sdacha'] as num?)?.toDouble() ?? 0.0,
-        returnForCheck: orderJson['return_for_check'] ?? "",
-        posName: orderJson['pos_name'] ?? "",
-        refundInfo: orderJson['refund_info'],
-        commissionTIN: orderJson['commissionTIN'],
-        hasClick: orderJson['has_click'] ?? false,
-        hasUzum: orderJson['has_uzum'] ?? false,
-        hasPayme: orderJson['has_payme'] ?? false,
-        isShow: orderJson['is_show'],
-        comment: orderJson['comment'],
-        isDonate: orderJson['is_donate'] ?? false,
-      )
+      cashierId: orderJson['cashier_id'] ?? "",
+      cashierName: orderJson['cashier_name'] ?? "",
+      date: orderJson['date'] ?? 0,
+      isRefund: orderJson['is_refund'] ?? false,
+      totalPrice: (orderJson['total_price'] as num?)?.toDouble() ?? 0.0,
+      uploaded: orderJson['uploaded'] ?? false,
+      rejected: orderJson['rejected'] ?? false,
+      clientName: orderJson['client_name'] ?? "",
+      clientPhone: orderJson['phone_number'] ?? "",
+      clientId: orderJson['client_id'] ?? "",
+      cashback: orderJson['cashback'] ?? 0,
+      sdacha: (orderJson['sdacha'] as num?)?.toDouble() ?? 0.0,
+      returnForCheck: orderJson['return_for_check'] ?? "",
+      posName: orderJson['pos_name'] ?? "",
+      refundInfo: orderJson['refund_info'],
+      commissionTIN: orderJson['commissionTIN'],
+      hasClick: orderJson['has_click'] ?? false,
+      hasUzum: orderJson['has_uzum'] ?? false,
+      hasPayme: orderJson['has_payme'] ?? false,
+      isShow: orderJson['is_show'],
+      comment: orderJson['comment'],
+      isDonate: orderJson['is_donate'] ?? false,
+      cardNumber: orderJson['card_number'],
+      cardType: orderJson['card_type'],
+      pptId: orderJson['ppt_id'],
+    )
       ..soldItemList.addAll(items)
       ..payment.addAll(pays);
   }
-
   Map<String, dynamic> toJson() {
     List<Map<String, dynamic>> paymentJsonList = [];
     List<Map<String, dynamic>> soldItemJsonList = [];

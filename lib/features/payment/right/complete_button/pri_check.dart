@@ -62,8 +62,6 @@ class SimpleCheck extends StatelessWidget {
               );
             }
             await Pref.setBool('isPaper', false);
-            await Pref.setBool("advance", false);
-            await Pref.setBool("credit", false);
             AppNavigation.pop();
           }
           if (state is PreCtErrorState) {

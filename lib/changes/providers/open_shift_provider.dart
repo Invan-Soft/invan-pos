@@ -35,11 +35,7 @@ class OpenShiftProvider extends ChangeNotifier {
 
   bool get getIsWaiting => _isWaiting;
 
-  ////////////////////////////////////////////////////////////////////////
-  ///                                                                 ////
-  ///              ON CLOSE  SHIFT BUTTON PRESSED                     ////
-  ///                                                                 ////
-  ////////////////////////////////////////////////////////////////////////
+
 
   onShiftCloseButtonPressed(BuildContext context) async {
     _isWaiting = true;

@@ -83,7 +83,7 @@
     },
     {
       "id": "3:3601186149013975851",
-      "lastPropertyId": "43:1225267735413651745",
+      "lastPropertyId": "46:5702815142943518960",
       "name": "ReceiptModel4",
       "properties": [
         {
@@ -291,6 +291,21 @@
           "id": "43:1225267735413651745",
           "name": "supplierId",
           "type": 9
+        },
+        {
+          "id": "44:2418026417945809955",
+          "name": "cardNumber",
+          "type": 9
+        },
+        {
+          "id": "45:7164971471029930497",
+          "name": "pptId",
+          "type": 9
+        },
+        {
+          "id": "46:5702815142943518960",
+          "name": "cardType",
+          "type": 6
         }
       ],
       "relations": [
@@ -426,7 +441,7 @@
     },
     {
       "id": "7:4121567817909813718",
-      "lastPropertyId": "35:5494909870055592427",
+      "lastPropertyId": "36:4906907445883140393",
       "name": "ReceiptModelSoldItem4",
       "properties": [
         {
@@ -603,6 +618,11 @@
         {
           "id": "35:5494909870055592427",
           "name": "isKg",
+          "type": 1
+        },
+        {
+          "id": "36:4906907445883140393",
+          "name": "isFreeGift",
           "type": 1
         }
       ],

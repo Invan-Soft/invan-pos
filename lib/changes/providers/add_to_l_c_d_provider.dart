@@ -15,14 +15,12 @@ class AddItemToLocalCategoryDialogProvider extends ChangeNotifier {
 
   List<ItemModel> _productsForSearch;
 
-  /* //////////////////////// PROVIDER GETTERS //////////////////////// */
 
   bool get getSearchState => _searchState;
 
   bool get getThereProducts => _thereProducts;
 
   List<ItemModel> get getProductsForSearch => _productsForSearch;
-  /* //////////////////////// PROVIDER METHODS //////////////////////// */
 
   void setThereProducts(bool thereProducts) {
     if (_thereProducts != thereProducts) {
