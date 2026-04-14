@@ -68,6 +68,9 @@ class APDblocc extends Bloc<APDevent, APDstate> {
       bool autoGenerate = organizationModel.autoGenerate ?? false;
       bool soliqValidation = organizationModel.soliqValidation ?? false;
 
+      print('[APD] API raw result apps_soliq_validation: ${httpResult.result['apps_soliq_validation']}');
+      print('[APD] soliqValidation (parsed): $soliqValidation');
+
       await Pref.setString(PrefKeys.greeting, greeting);
       await Pref.setString(PrefKeys.orgID, orgId);
       await Pref.setString(PrefKeys.serviceAddress, address);
@@ -93,6 +96,7 @@ class APDblocc extends Bloc<APDevent, APDstate> {
           paymentRes.result['payment_types'].map(
             (e) => Payment.fromJson(e),
           ),
+          
         );
         Pref.setString(PrefKeys.chequeId, paymentRes.result["cheque_id"]);
         await OrganizationSingleton.setOrgPrefs(organizationModel, pList);

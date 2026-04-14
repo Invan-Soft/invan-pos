@@ -106,7 +106,7 @@ class OperationOnProductProvider extends ChangeNotifier {
 
   void increaseQuantity(int n) {
     _cancelSelectedAll();
-    if (target.marking) return;
+    if (target.marking && Pref.getBool(PrefKeys.markCheckWithOfd, false)) return;
 
     target.value = n + target.value;
 
@@ -426,7 +426,7 @@ class OperationOnProductProvider extends ChangeNotifier {
       return;
     }
 
-    if (target.marking) {
+    if (target.marking && Pref.getBool(PrefKeys.markCheckWithOfd, false)) {
       return;
     }
     if (_dialogOpened) {

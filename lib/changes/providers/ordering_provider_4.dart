@@ -309,9 +309,11 @@ class OrderingProvider4 extends ChangeNotifier {
               .toDouble();
 
       final mxikStr = (product.mxikCode ?? product.mxikCode ?? '').trim();
+      final bool markCheckEnabled =
+          Pref.getBool(PrefKeys.markCheckWithOfd, false);
       final bool sellWithMarkingEnabled =
           Pref.getBool(PrefKeys.sellProductsWithMarking, true);
-      final bool isMarkingByMxik = sellWithMarkingEnabled &&
+      final bool isMarkingByMxik = markCheckEnabled && sellWithMarkingEnabled &&
           (mxikStr.startsWith('02201') ||
               mxikStr.startsWith('02202') ||
               mxikStr.startsWith('02203') ||
@@ -321,7 +323,8 @@ class OrderingProvider4 extends ChangeNotifier {
               mxikStr.startsWith('02207') ||
               mxikStr.startsWith('024'));
 
-      final isMarking = product.isMarking == true || isMarkingByMxik;
+      final isMarking =
+          markCheckEnabled && (product.isMarking == true || isMarkingByMxik);
 
       // Narxi 0 bo'lsa marking tekshiruvini o'tkazib, regular sifatida qo'shamiz
       if (isMarking && price > 0) {
@@ -474,6 +477,7 @@ class OrderingProvider4 extends ChangeNotifier {
   }
 
   bool get isCashPaymentHidden {
+    if (!Pref.getBool(PrefKeys.markCheckWithOfd, false)) return false;
     if (!Pref.getBool(PrefKeys.sellProductsWithMarking, true)) return false;
     if (_currentClient.orderedProducts.isEmpty) return false;
 
@@ -766,8 +770,18 @@ class OrderingProvider4 extends ChangeNotifier {
   Future<bool> _checkAndShowDialogsIfNeeded(
       BuildContext context, ReceiptModelSoldItem4 soldItem) async {
     final isPriceZero = soldItem.price <= 0;
-    final isMxikOrPackageInvalid =
-        soldItem.mxik.isEmpty || soldItem.packageCode?.isEmpty != false;
+    final bool markCheckEnabled =
+        Pref.getBool(PrefKeys.markCheckWithOfd, false);
+    final isMxikOrPackageInvalid = markCheckEnabled &&
+        (soldItem.mxik.isEmpty || soldItem.packageCode?.isEmpty != false);
+
+    print('[_checkAndShowDialogsIfNeeded] product: ${soldItem.productName}'
+        ' | mxik: ${soldItem.mxik}'
+        ' | packageCode: ${soldItem.packageCode}'
+        ' | marking: ${soldItem.marking}'
+        ' | markCheckEnabled: $markCheckEnabled'
+        ' | isMxikOrPackageInvalid: $isMxikOrPackageInvalid'
+        ' | isPriceZero: $isPriceZero');
 
     if (soldItem.value <= 0) {
       final loc = AppLocalizations.of(context)!;
@@ -3933,11 +3947,19 @@ String _markirovka(String rawMark) {
 
     if (item != null) {
       final mxikStr = (item.mxikCode ?? '').trim();
+      final bool markCheckEnabled =
+          Pref.getBool(PrefKeys.markCheckWithOfd, false);
       final bool sellWithMarkingEnabled =
           Pref.getBool(PrefKeys.sellProductsWithMarking, true);
-      final bool isMarkingByMxik =
+      final bool isMarkingByMxik = markCheckEnabled &&
           sellWithMarkingEnabled && _isMxikMarking(mxikStr);
-      if (_isAlcoholMxik(mxikStr)) {
+      print('[onBarcodeScanned] product: ${item.name}'
+          ' | mxik: $mxikStr'
+          ' | isMarking(model): ${item.isMarking}'
+          ' | markCheckWithOfd(pref): $markCheckEnabled'
+          ' | sellWithMarking(pref): $sellWithMarkingEnabled'
+          ' | isMarkingByMxik: $isMarkingByMxik');
+      if (markCheckEnabled && _isAlcoholMxik(mxikStr)) {
         Pref.setBool(PrefKeys.isCashDisableForAlcohol, true);
       }
       if (isMarkingByMxik) {

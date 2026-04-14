@@ -84,21 +84,35 @@ supplierId: "",
     List<ItemsGTR> v,
   ) {
     return List.generate(v.length, (i) {
-      // DateTime parseDate =
-      //      DateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").parse(v[i].create_time);
-      double vat = (v[i].newPrice ?? 0) * (v[i].vatPercentage?.toDouble() ?? 0);
+      final double originalPrice = v[i].price?.toDouble() ?? 0;
+      final double qty = (v[i].value?.toDouble() ?? 0) > 0 ? v[i].value!.toDouble() : 1;
+      final double totalPaid = v[i].totalPrice?.toDouble() ?? 0;
+      final double singleDisc = v[i].singleDiscount?.toDouble() ?? 0;
+
+
+      double effectiveUnitPrice;
+      if (totalPaid > 0) {
+        effectiveUnitPrice = totalPaid / qty;
+      } else if ((v[i].newPrice?.toDouble() ?? 0) > 0) {
+        effectiveUnitPrice = v[i].newPrice!.toDouble();
+      } else {
+        effectiveUnitPrice = (originalPrice - singleDisc).clamp(0, double.infinity);
+      }
+      print('  effectiveUnitPrice: $effectiveUnitPrice');
+
+      double vat = effectiveUnitPrice * (v[i].vatPercentage?.toDouble() ?? 0) / (100 + (v[i].vatPercentage?.toDouble() ?? 0));
 
       final receipt = ReceiptModelSoldItem4(
         inBox: 0,
-        singleDiscount: v[i].singleDiscount?.toDouble() ?? 0,
-        realPrice: v[i].price?.toDouble() ?? 0,
-        onlyPrice: v[i].newPrice?.toDouble() ?? 0,
+        singleDiscount: singleDisc,
+        realPrice: originalPrice,
+        onlyPrice: effectiveUnitPrice,
         refundItemId: v[i].id ?? "",
         barcode: v[i].barcode ?? "",
         cost: 0,
         createdTime: 0,
         mxik: v[i].mxikCode ?? "",
-        price: v[i].newPrice?.toDouble() ?? 0,
+        price: effectiveUnitPrice,
         ownerType: 0,
         productId: v[i].productId ?? "",
         productName: v[i].productName ?? '',

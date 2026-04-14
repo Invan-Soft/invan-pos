@@ -25,7 +25,7 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
     on<ReturnReturnEvent>(_return);
   }
 
-   _return(ReturnReturnEvent event, Emitter<ReturnState> emit) async {
+  _return(ReturnReturnEvent event, Emitter<ReturnState> emit) async {
     Log.d(event, name: 'return_bloc');
 
     bool ofd = Pref.getBool(PrefKeys.withOFD, false);
@@ -74,21 +74,20 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
     newReceiptModel41.soldItemList.clear();
 
     final double refundTotal = _getRightTotalPrice(event.rightList);
-    final String cashId  = Pref.getString(PrefKeys.cashId, '');
-    final String cardId  = Pref.getString(PrefKeys.cardId, '');
+    final String cashId = Pref.getString(PrefKeys.cashId, '');
+    final String cardId = Pref.getString(PrefKeys.cardId, '');
     final String clickId = Pref.getString(PrefKeys.clickId, '');
-    final String uzumId  = Pref.getString(PrefKeys.uzumId, '');
+    final String uzumId = Pref.getString(PrefKeys.uzumId, '');
     final String paymeId = Pref.getString(PrefKeys.paymeId, '');
 
-
     // Asl to'lovlardan CASH va CARD(+boshqa) miqdorlarini ajratamiz
-    double origCash  = 0;
+    double origCash = 0;
     double origOther = 0; // CARD, UZCARD, HUMO, click, uzum, payme ...
     String cashPayId = cashId;
     String cardPayId = cardId;
 
     for (final pay in event.receiptModel4.payment) {
-      final n  = pay.name.toUpperCase().trim();
+      final n = pay.name.toUpperCase().trim();
       final id = pay.payId.trim();
       // CASH klasifikatsiyasi: ism CASH yoki preference cashId ga mos
       if (n == 'CASH' || (id.isNotEmpty && id == cashId)) {
@@ -96,8 +95,7 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
         if (id.isNotEmpty) cashPayId = id; // APIga to'g'ri UUID jo'natish uchun
       } else {
         origOther += pay.value;
-        if (id.isNotEmpty &&
-            id != clickId && id != uzumId && id != paymeId) {
+        if (id.isNotEmpty && id != clickId && id != uzumId && id != paymeId) {
           cardPayId = id;
         }
       }
@@ -120,21 +118,20 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
         remaining -= cashRefund;
         if (cashRefund > 0) {
           newReceiptModel41.payment.add(ReceiptModelPaymentType4(
-            name: "CASH",      // saleOnOFD uchun
+            name: "CASH", // saleOnOFD uchun
             value: cashRefund,
-            payId: cashPayId,  // API uchun
+            payId: cashPayId, // API uchun
           ));
         }
       }
       if (remaining > 0) {
         newReceiptModel41.payment.add(ReceiptModelPaymentType4(
-          name: "CARD",       // saleOnOFD uchun
+          name: "CARD", // saleOnOFD uchun
           value: remaining,
-          payId: cardPayId,   // API uchun
+          payId: cardPayId, // API uchun
         ));
       }
     }
-
 
     newReceiptModel41.soldItemList.addAll(event.rightList);
 
@@ -149,45 +146,65 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
       emit(ReturnLoadingState(message: ReturnMessage.returnig));
       newReceiptModel41.uploaded = true;
 
-      HttpResult? refundResponse = await ReceiptApi4.receiptCreateGrouppForRefund(newReceiptModel41);
+      HttpResult? refundResponse =
+          await ReceiptApi4.receiptCreateGrouppForRefund(newReceiptModel41);
 
       if (refundResponse.statusCode == 200) {
         newReceiptModel41.uploaded = true;
 
-        if(ofd) {
-           final urlValue = newReceiptModel41.url;
-              if (urlValue == null || urlValue.isEmpty) {
-     
+        if (ofd) {
+          // Sotuv OFDga ro'yxatdan o'tganligini tekshiramiz:
+          // 1) URL bo'lishi kerak
+          // 2) Fiskal ma'lumotlar (terminalId, fiscalSign, dateTimeOFD) bo'lishi kerak
+          final urlValue = newReceiptModel41.url;
+          final terminalId = newReceiptModel41.terminalId;
+          final fiscalSign = newReceiptModel41.fiscalSign;
+          final dateTimeOFD = newReceiptModel41.dateTimeOFD;
+
+          final bool wasRegisteredOnOfd =
+              (urlValue != null && urlValue.isNotEmpty) &&
+              (terminalId != null && terminalId.isNotEmpty) &&
+              (fiscalSign != null && fiscalSign.isNotEmpty) &&
+              (dateTimeOFD != null &&
+                  dateTimeOFD.isNotEmpty &&
+                  dateTimeOFD != "0");
+
+          if (!wasRegisteredOnOfd) {
+            // OFDda sotuv yo'q — fiskal refund shart emas
             emit(ReturnSuccedState());
-          } 
-else{
-          await LocalService.sell(loc: event.loc, receiptData: newReceiptModel41).then(
-            (CommunicatorRESPONSE response) async {
-              if (!(response.error ?? true) && response.info != null) {
-                newReceiptModel41.refundInfo = jsonEncode(response.info?.toJson());
-                newReceiptModel41.url = response.info?.qrCodeUrl ?? '';
-                final refundInfoValue = newReceiptModel41.refundInfo;
-                if (refundInfoValue != null && refundInfoValue.isNotEmpty) {
-                  Info info = Info.fromJson(jsonDecode(refundInfoValue));
-                  newReceiptModel41.terminalId = info.terminalId;
-                  newReceiptModel41.receiptSeq = int.tryParse(info.receiptSeq ?? "0") ?? 0;
-                  newReceiptModel41.dateTimeOFD = info.dateTime ?? "0";
-                  newReceiptModel41.fiscalSign = info.fiscalSign;
+          } else {
+            await LocalService.sell(
+                    loc: event.loc, receiptData: newReceiptModel41)
+                .then(
+              (CommunicatorRESPONSE response) async {
+                if (!(response.error ?? true) && response.info != null) {
+                  newReceiptModel41.refundInfo =
+                      jsonEncode(response.info?.toJson());
+                  newReceiptModel41.url = response.info?.qrCodeUrl ?? '';
+                  final refundInfoValue = newReceiptModel41.refundInfo;
+                  if (refundInfoValue != null && refundInfoValue.isNotEmpty) {
+                    Info info = Info.fromJson(jsonDecode(refundInfoValue));
+                    newReceiptModel41.terminalId = info.terminalId;
+                    newReceiptModel41.receiptSeq =
+                        int.tryParse(info.receiptSeq ?? "0") ?? 0;
+                    newReceiptModel41.dateTimeOFD = info.dateTime ?? "0";
+                    newReceiptModel41.fiscalSign = info.fiscalSign;
+                  }
+                  await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41,
+                      communicatorRECEIPT: response);
+                  emit(ReturnSuccedState());
+                } else {
+                  await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
+                  emit(ReturnFailedState(error: response.paycheck.toString()));
                 }
-                await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41, communicatorRECEIPT: response);
-                emit(ReturnSuccedState());
-              } else {
-                await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
-                emit(ReturnFailedState(error: response.paycheck.toString()));
-              }
-            },
-          ).catchError((err) async {
-            await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
-            emit(ReturnFailedState(error: err.toString()));
-          });
-}
-     
-     //////////ofd
+              },
+            ).catchError((err) async {
+              await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
+              emit(ReturnFailedState(error: err.toString()));
+            });
+          }
+
+          //////////ofd
         } else {
           await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
           emit(ReturnSuccedState());
@@ -199,6 +216,7 @@ else{
       emit(ReturnNoInternetState());
     }
   }
+
   double _getRightTotalPrice(List<ReceiptModelSoldItem4> v) {
     double t = 0;
     for (var element in v) {
