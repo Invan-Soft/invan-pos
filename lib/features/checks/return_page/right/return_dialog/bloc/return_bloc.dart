@@ -74,14 +74,66 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
     newReceiptModel41.soldItemList.clear();
 
     final double refundTotal = _getRightTotalPrice(event.rightList);
-    final String cashId = Pref.getString(PrefKeys.cashId, '');
-    final String cardId = Pref.getString(PrefKeys.cardId, '');
+    final String cashId  = Pref.getString(PrefKeys.cashId, '');
+    final String cardId  = Pref.getString(PrefKeys.cardId, '');
+    final String clickId = Pref.getString(PrefKeys.clickId, '');
+    final String uzumId  = Pref.getString(PrefKeys.uzumId, '');
+    final String paymeId = Pref.getString(PrefKeys.paymeId, '');
 
-    newReceiptModel41.payment.add(ReceiptModelPaymentType4(
-      name: "CARD",           // KATTA HARF bilan!
-      value: refundTotal,
-      payId: cardId,
-    ));
+
+    // Asl to'lovlardan CASH va CARD(+boshqa) miqdorlarini ajratamiz
+    double origCash  = 0;
+    double origOther = 0; // CARD, UZCARD, HUMO, click, uzum, payme ...
+    String cashPayId = cashId;
+    String cardPayId = cardId;
+
+    for (final pay in event.receiptModel4.payment) {
+      final n  = pay.name.toUpperCase().trim();
+      final id = pay.payId.trim();
+      // CASH klasifikatsiyasi: ism CASH yoki preference cashId ga mos
+      if (n == 'CASH' || (id.isNotEmpty && id == cashId)) {
+        origCash += pay.value;
+        if (id.isNotEmpty) cashPayId = id; // APIga to'g'ri UUID jo'natish uchun
+      } else {
+        origOther += pay.value;
+        if (id.isNotEmpty &&
+            id != clickId && id != uzumId && id != paymeId) {
+          cardPayId = id;
+        }
+      }
+    }
+
+    final double srcTotal = origCash + origOther;
+
+    if (srcTotal <= 0) {
+      // Asl to'lov ma'lumoti yo'q → CARD ga fallback
+      newReceiptModel41.payment.add(ReceiptModelPaymentType4(
+        name: "CARD",
+        value: refundTotal,
+        payId: cardPayId,
+      ));
+    } else {
+      double remaining = refundTotal;
+      if (origCash > 0) {
+        final double cashRefund =
+            ((origCash / srcTotal) * refundTotal).roundToDouble();
+        remaining -= cashRefund;
+        if (cashRefund > 0) {
+          newReceiptModel41.payment.add(ReceiptModelPaymentType4(
+            name: "CASH",      // saleOnOFD uchun
+            value: cashRefund,
+            payId: cashPayId,  // API uchun
+          ));
+        }
+      }
+      if (remaining > 0) {
+        newReceiptModel41.payment.add(ReceiptModelPaymentType4(
+          name: "CARD",       // saleOnOFD uchun
+          value: remaining,
+          payId: cardPayId,   // API uchun
+        ));
+      }
+    }
 
 
     newReceiptModel41.soldItemList.addAll(event.rightList);
@@ -102,7 +154,7 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
       if (refundResponse.statusCode == 200) {
         newReceiptModel41.uploaded = true;
 
-        if (ofd) {
+        if(ofd) {
            final urlValue = newReceiptModel41.url;
               if (urlValue == null || urlValue.isEmpty) {
      

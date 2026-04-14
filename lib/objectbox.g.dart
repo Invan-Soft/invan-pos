@@ -461,7 +461,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
       id: const obx_int.IdUid(7, 4121567817909813718),
       name: 'ReceiptModelSoldItem4',
-      lastPropertyId: const obx_int.IdUid(36, 4906907445883140393),
+      lastPropertyId: const obx_int.IdUid(38, 1742047357587076320),
       flags: 0,
       properties: <obx_int.ModelProperty>[
         obx_int.ModelProperty(
@@ -643,6 +643,16 @@ final _entities = <obx_int.ModelEntity>[
             id: const obx_int.IdUid(36, 4906907445883140393),
             name: 'isFreeGift',
             type: 1,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(37, 5698506285208245560),
+            name: 'productType',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(38, 1742047357587076320),
+            name: 'productPackage',
+            type: 9,
             flags: 0)
       ],
       relations: <obx_int.ModelRelation>[
@@ -1343,7 +1353,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final markOffset =
               object.mark == null ? null : fbb.writeString(object.mark!);
           final soldByOffset = fbb.writeString(object.soldBy);
-          fbb.startTable(37);
+          final productTypeOffset = fbb.writeString(object.productType);
+          final productPackageOffset = fbb.writeString(object.productPackage);
+          fbb.startTable(39);
           fbb.addOffset(0, orderIdOffset);
           fbb.addOffset(1, refundItemIdOffset);
           fbb.addFloat64(2, object.price);
@@ -1380,6 +1392,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fbb.addInt64(33, object.id);
           fbb.addBool(34, object.isKg);
           fbb.addBool(35, object.isFreeGift);
+          fbb.addOffset(36, productTypeOffset);
+          fbb.addOffset(37, productPackageOffset);
           fbb.finish(fbb.endTable());
           return object.id;
         },
@@ -1459,6 +1473,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
                   .vTableGetNullable(buffer, rootOffset, 42);
           final isFreeGiftParam =
               const fb.BoolReader().vTableGet(buffer, rootOffset, 74, false);
+          final productTypeParam =
+              const fb.StringReader(asciiOptimization: true)
+                  .vTableGet(buffer, rootOffset, 76, '');
+          final productPackageParam =
+              const fb.StringReader(asciiOptimization: true)
+                  .vTableGet(buffer, rootOffset, 78, '');
           final object = ReceiptModelSoldItem4(
               inBox: inBoxParam,
               barcode: barcodeParam,
@@ -1493,7 +1513,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
               isKg: isKgParam,
               packageCode: packageCodeParam,
               packageName: packageNameParam,
-              isFreeGift: isFreeGiftParam)
+              isFreeGift: isFreeGiftParam,
+              productType: productTypeParam,
+              productPackage: productPackageParam)
             ..orderId = const fb.StringReader(asciiOptimization: true)
                 .vTableGet(buffer, rootOffset, 4, '')
             ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 70, 0);
@@ -2128,6 +2150,14 @@ class ReceiptModelSoldItem4_ {
   /// see [ReceiptModelSoldItem4.isFreeGift]
   static final isFreeGift = obx.QueryBooleanProperty<ReceiptModelSoldItem4>(
       _entities[6].properties[35]);
+
+  /// see [ReceiptModelSoldItem4.productType]
+  static final productType = obx.QueryStringProperty<ReceiptModelSoldItem4>(
+      _entities[6].properties[36]);
+
+  /// see [ReceiptModelSoldItem4.productPackage]
+  static final productPackage = obx.QueryStringProperty<ReceiptModelSoldItem4>(
+      _entities[6].properties[37]);
 
   /// see [ReceiptModelSoldItem4.discount]
   static final discount =

@@ -156,11 +156,20 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
   newReceiptModel4.soldItemList.clear();
   newReceiptModel4.payment.clear();
   newReceiptModel4.soldItemList.addAll(list);
-  newReceiptModel4.payment.add(ReceiptModelPaymentType4(
-    name: "cash",
-    value: receipt.totalPrice,
-    payId: "",
-  ));
+  for (final p in receipt.payment) {
+    newReceiptModel4.payment.add(ReceiptModelPaymentType4(
+      name: p.name,
+      value: p.value,
+      payId: p.payId,
+    ));
+  }
+  if (newReceiptModel4.payment.isEmpty) {
+    newReceiptModel4.payment.add(ReceiptModelPaymentType4(
+      name: "CASH",
+      value: receipt.totalPrice,
+      payId: Pref.getString(PrefKeys.cashId, ''),
+    ));
+  }
 
   return newReceiptModel4;
 }

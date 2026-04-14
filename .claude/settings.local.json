@@ -14,7 +14,8 @@
       "Bash(where python3:*)",
       "Bash('C:/Users/Lenovo PC/AppData/Local/Microsoft/WindowsApps/python.exe' -c ':*)",
       "Bash(cmd /c \"cd /d d:\\\\flutter_projects\\\\pos-invan-2-ayyubxon && python -c \\\\\"lines=open\\('lib/changes/providers/ordering_provider_4.dart',encoding='utf-8'\\).readlines\\(\\); print\\(repr\\(lines[3534]\\)\\); print\\(repr\\(lines[3635]\\)\\)\\\\\"\")",
-      "Bash(flutter gen-l10n:*)"
+      "Bash(flutter gen-l10n:*)",
+      "Bash(python3)"
     ]
   }
 }

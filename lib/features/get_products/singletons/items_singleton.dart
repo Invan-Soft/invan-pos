@@ -305,21 +305,32 @@ static Future<void> storeProducts() async {
   }
 
   static List<ItemModel> searchProductsByBarcode(String pattern) {
-    List<ItemModel> list = [];
-    if (pattern != '') {
-      for (ItemModel product in products) {
-        if (product.barcode != null) {
-          if (product.barcode!.isNotEmpty) {
-            for (int i = 0; i < product.barcode!.length; i++) {
-              if (product.barcode![i].contains(pattern)) {
-                list.add(product);
-              }
-            }
-          }
+    final trimmed = pattern.trim();
+    if (trimmed.isEmpty) return [];
+    final List<ItemModel> exactList = [];
+    final List<ItemModel> containsList = [];
+    for (final product in products) {
+      if (product.barcode == null || product.barcode!.isEmpty) continue;
+      bool exactMatch = false;
+      bool containsMatch = false;
+      for (final b in product.barcode!) {
+        final bc = b.trim();
+        if (bc == trimmed) {
+          exactMatch = true;
+          break;
+        }
+        if (bc.contains(trimmed)) {
+          containsMatch = true;
         }
       }
+      if (exactMatch) {
+        exactList.add(product);
+      } else if (containsMatch) {
+        containsList.add(product);
+      }
     }
-    return list;
+    // Exact match bo'lsa faqat ularni qaytaramiz, aks holda partial matchlarni
+    return exactList.isNotEmpty ? exactList : containsList;
   }
 
   static Translit translit = Translit();

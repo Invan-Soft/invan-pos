@@ -157,6 +157,7 @@ import 'package:invan2/features/features.dart';
 import 'package:invan2/features/payment/right/complete_button/components/button_widget.dart';
 import 'package:invan2/utils/constants/constants.dart';
 import 'package:invan2/utils/helpers/helpers.dart';
+import 'package:invan2/widgets/my_snackbar.dart';
 import 'package:provider/provider.dart';
 import '../../../../changes/models/ofd/payment_result_model.dart';
 import 'complete_bloc/comlete_bloc.dart';
@@ -208,7 +209,7 @@ class CompleteButtonOfPaymentPageOnBloc extends StatelessWidget {
               } else {
                 ctBloc.add(
                   CtErrorEvent(
-                      error: loc.tolov_amalga_oshmadi,
+                      error: result.errorMessage ?? loc.tolov_amalga_oshmadi,
                       subError: result.mxikError ?? "none"),
                 );
               }
@@ -239,7 +240,12 @@ class CompleteButtonOfPaymentPageOnBloc extends StatelessWidget {
           }
           if (state is CtErrorState) {
             if (state.subError is! MxikError) {
-              await Future.delayed(const Duration(seconds: 3));
+              // ignore: use_build_context_synchronously
+              final messenger = ScaffoldMessenger.of(context);
+              // ignore: use_build_context_synchronously
+              final snack = mySnackBar(context, msg: state.error, duration: 4000);
+              messenger.showSnackBar(snack);
+              await Future.delayed(const Duration(seconds: 4));
             }
 
             AppNavigation.pop(v: state.subError);
@@ -268,7 +274,7 @@ class CompleteButtonOfPaymentPageOnBloc extends StatelessWidget {
           }
           if (state is CtErrorState) {
             return ButtonWidget(
-              title: state.error.toString(),
+              title: loc.tolov_amalga_oshmadi,
               onPredssed: () {},
             );
           }

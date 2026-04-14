@@ -93,6 +93,8 @@ class ReceiptSingleton4 {
     Map<String, ReceiptModelSoldItem4> uniqueItems = {};
     Map<String, double> totalSingleDiscount = {};
     Map<String, double> totalPrice = {};
+    // Har bir productId uchun barcha marklarni yig'amiz
+    Map<String, List<String>> allMarks = {};
 
     for (ReceiptModelSoldItem4 r in receiptModel4.soldItemList) {
       if (uniqueItems.containsKey(r.productId)) {
@@ -105,10 +107,14 @@ class ReceiptSingleton4 {
         uniqueItems[r.productId] = r;
         totalSingleDiscount[r.productId] = r.singleDiscount;
         totalPrice[r.productId] = r.price * r.value;
+        allMarks[r.productId] = [];
+      }
+      // Markni ro'yxatga qo'shamiz (bo'sh bo'lmasa)
+      if (r.mark != null && r.mark!.isNotEmpty) {
+        allMarks[r.productId]!.add(r.mark!);
       }
     }
 
-    // Markirovkali mahsulotlar uchun birlik uchun o'rtacha chegirma va narxni hisoblash
     for (final productId in uniqueItems.keys) {
       final item = uniqueItems[productId]!;
       final totalDiscount = totalSingleDiscount[productId] ?? 0;
@@ -117,6 +123,9 @@ class ReceiptSingleton4 {
         item.singleDiscount = totalDiscount / item.value;
         item.price = priceTotal / item.value;
       }
+      // Barcha marklarni '\n' bilan birlashtirib mark ga saqlaymiz
+      final marks = allMarks[productId] ?? [];
+      item.mark = marks.join('\n');
     }
 
     receiptModel4.soldItemList.clear();
@@ -250,16 +259,12 @@ class ReceiptSingleton4 {
       },
     };
 
-    print('📤 saleOnOFD | cardType: ${receipt.cardType} | receivedCash: $receivedCashValue | receivedCard: $receivedCardValue');
+    // print('📤 saleOnOFD | cardType: ${receipt.cardType} | receivedCash: $receivedCashValue | receivedCard: $receivedCardValue');
 
     return receiptMap;
   }
   static num _countPrice(ReceiptModelSoldItem4 e) {
-    if ((e.discountPercent ?? 0) > 0) {
-      // Use realPrice (original price) as the fiscal "Price" field.
-      // _countDiscountOFD also uses realPrice, so:
-      //   Price - Discount = realPrice*value*100 - (realPrice-price)*value*100
-      //        = price * value * 100 = actual selling amount ✓
+    if (e.realPrice > e.price) {
       return UtilFunctions.roundToNearest(e.value * e.realPrice) * 100;
     }
     return UtilFunctions.roundToNearest(e.value * e.price) * 100;

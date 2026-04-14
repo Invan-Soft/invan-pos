@@ -441,7 +441,7 @@
     },
     {
       "id": "7:4121567817909813718",
-      "lastPropertyId": "36:4906907445883140393",
+      "lastPropertyId": "38:1742047357587076320",
       "name": "ReceiptModelSoldItem4",
       "properties": [
         {
@@ -624,6 +624,16 @@
           "id": "36:4906907445883140393",
           "name": "isFreeGift",
           "type": 1
+        },
+        {
+          "id": "37:5698506285208245560",
+          "name": "productType",
+          "type": 9
+        },
+        {
+          "id": "38:1742047357587076320",
+          "name": "productPackage",
+          "type": 9
         }
       ],
       "relations": [

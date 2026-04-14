@@ -364,6 +364,8 @@ class ReceiptModelSoldItem4 {
   String? packageCode;
   String? packageName;
   String? commissionTIN;
+  String productType;
+  String productPackage;
   bool isPriceChanged = false;
   bool isPriceOnlyChanged = false;
   bool isKg = false;
@@ -417,6 +419,8 @@ class ReceiptModelSoldItem4 {
     this.packageCode,
     this.packageName,
     this.isFreeGift = false,
+    this.productType = "",
+    this.productPackage = "",
   });
 
   Map<String, dynamic> toJson() {
@@ -440,7 +444,11 @@ class ReceiptModelSoldItem4 {
       "vat_percentage": vatPercent,
       'single_item_discount': singleDiscount,
       'discounts': discounts,
-      'marking_name': mark ??""
+      'marking_name': (mark != null && mark!.isNotEmpty)
+          ? mark!.split('\n').where((m) => m.isNotEmpty).toList()
+          : [],
+      'product_type': productType,
+      'product_package': productPackage,
     };
     return json;
   }

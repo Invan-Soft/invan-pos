@@ -323,7 +323,8 @@ class OrderingProvider4 extends ChangeNotifier {
 
       final isMarking = product.isMarking == true || isMarkingByMxik;
 
-      if (isMarking) {
+      // Narxi 0 bo'lsa marking tekshiruvini o'tkazib, regular sifatida qo'shamiz
+      if (isMarking && price > 0) {
         await _handleMarkingProduct(context, product, price);
         return;
       } else {
@@ -785,6 +786,7 @@ class OrderingProvider4 extends ChangeNotifier {
 
     if (isPriceZero) {
       await _showZeroPriceDialog(context);
+      return false; // narxi 0 bo'lsa dialog ko'rsatib basketga qo'shamiz
     }
 
     if (isMxikOrPackageInvalid) {
@@ -851,6 +853,8 @@ class OrderingProvider4 extends ChangeNotifier {
       discountPercent: 0,
       vatPercent: (product.vat?.percentage ?? 12).toDouble(),
       isKg: isKg,
+      productType: _getProductType(product.mxikCode?.trim() ?? ''),
+      productPackage: _getProductType(product.mxikCode?.trim() ?? '').isNotEmpty ? 'KIZ' : '',
     );
   }
 
@@ -1837,6 +1841,8 @@ String _markirovka(String rawMark) {
       sellerId: Pref.getString(PrefKeys.cashierId, ""),
       vatName: freshProduct.vat?.name ?? "",
       discountPercent: 0,
+      productType: _getProductType(freshProduct.mxikCode?.trim() ?? ''),
+      productPackage: _getProductType(freshProduct.mxikCode?.trim() ?? '').isNotEmpty ? 'KIZ' : '',
     );
 
     _currentClient.orderedProducts.insert(0, soldItem);
@@ -2428,6 +2434,12 @@ String _markirovka(String rawMark) {
     );
     receiptModel4.payment.addAll(paymentsMapAsList);
     receiptModel4.soldItemList.addAll(_sixClientModel4.orderedProducts);
+
+    for (var item in receiptModel4.soldItemList) {
+      if (item.mark != null && item.mark!.isNotEmpty) {
+        item.mark = cleanMarkForFiscal(item.mark!);
+      }
+    }
     //-------------------------------------------------------------------------
     bool isChanged = false;
     if (!isTpEdited) {
@@ -3875,11 +3887,15 @@ String _markirovka(String rawMark) {
       }
     }
     // ─────────────────────────────────────────────────────────
+    // Narxi=0 tekshiruvi uchun sinab ko'rilgan barcode variantlarini yig'amiz
+    final List<String> triedPatterns = [barcode];
+
     if (barcode.contains('(01)')) {
       final gtinMatch = RegExp(r'\(01\)(\d{13,14})').firstMatch(barcode);
       if (gtinMatch != null) {
         String gtin = gtinMatch.group(1)!;
         gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
+        triedPatterns.add(gtin);
         item = ItemsSingleton.getProductByBarcode(gtin);
         if (item != null) {
           item.mark = _markirovka(barcode);
@@ -3892,6 +3908,7 @@ String _markirovka(String rawMark) {
       if (gtinMatch != null) {
         String gtin = gtinMatch.group(1)!;
         gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
+        triedPatterns.add(gtin);
         item = ItemsSingleton.getProductByBarcode(gtin);
         if (item != null) {
           item.mark = _markirovka(barcode);
@@ -3906,6 +3923,7 @@ String _markirovka(String rawMark) {
         pattern = pattern.endsWith('21')
             ? pattern.substring(0, pattern.length - 2)
             : pattern;
+        triedPatterns.add(pattern);
       }
       item = ItemsSingleton.getProductByBarcode(pattern);
       if (item != null) {
@@ -3937,6 +3955,28 @@ String _markirovka(String rawMark) {
       );
       return;
     }
+    // ─── Narxi 0 bo'lgan mahsulotni tekshirish ───────────────
+    {
+      ItemModel? zeroPriceItem;
+      for (final tried in triedPatterns) {
+        zeroPriceItem = ItemsSingleton.products.firstWhereOrNull(
+          (p) => p.barcode?.any((b) => b.trim() == tried.trim()) ?? false,
+        );
+        if (zeroPriceItem != null) break;
+      }
+      if (zeroPriceItem != null) {
+        // Dialog addProduct ichida _checkAndShowDialogsIfNeeded orqali 1 marta ko'rsatiladi
+        // ignore: use_build_context_synchronously
+        addProduct(
+          context: scaffoldKey.currentState!.context,
+          value: 1,
+          product: zeroPriceItem,
+          where: "PRODUCTS GRID VIEW / scanBarcode zeroPriceItem",
+        );
+        return;
+      }
+    }
+
     // ─── Box barcode ─────────────────────────────────────────
     ItemModel? boxItem = ItemsSingleton.getProductByBoxBarcode(barcode);
     if (boxItem != null) {
@@ -3987,6 +4027,23 @@ String _markirovka(String rawMark) {
       mxikStr.startsWith('02207') ||
       mxikStr.startsWith('02208') ||
       mxikStr.startsWith('024');
+
+  /// MXIK kodiga qarab product_type qaytaradi.
+  /// Bo'sh string = bu mahsulot uchun type yo'q.
+  String _getProductType(String mxik) {
+    if (mxik.startsWith('024')) return '1';           // Sigareta
+    if (mxik.startsWith('02203')) return '3';         // Pivo
+    if (mxik.startsWith('02204') ||
+        mxik.startsWith('02205') ||
+        mxik.startsWith('02206') ||
+        mxik.startsWith('02207') ||
+        mxik.startsWith('02208')) return '2';          // Alkogol (pivo emas)
+    if (mxik.startsWith('02201') ||
+        mxik.startsWith('02202')) return '5';          // Suv va sovutuvchi ichimliklar
+    if (mxik.startsWith('030')) return '4';           // MXIK 030 → type 4, package KIZ
+    if (mxik.startsWith('085')) return '6';           // MXIK 085 → type 6, package KIZ
+    return '';
+  }
 
   // ─── GS1 sana formati: YYMMDD → DateTime ─────────────────
   DateTime? _parseGS1Date(String yymmdd) {
