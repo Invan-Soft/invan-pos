@@ -326,7 +326,6 @@ class OrderingProvider4 extends ChangeNotifier {
       final isMarking =
           markCheckEnabled && (product.isMarking == true || isMarkingByMxik);
 
-      // Narxi 0 bo'lsa marking tekshiruvini o'tkazib, regular sifatida qo'shamiz
       if (isMarking && price > 0) {
         await _handleMarkingProduct(context, product, price);
         return;

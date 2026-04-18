@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:invan2/changes/services/api.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 import 'package:provider/provider.dart';
 import '../../../app_navigation.dart';
 import '../../../widgets/alice_pincode.dart';
@@ -80,9 +82,68 @@ class ReturnPage extends StatelessWidget {
   }
 }
 
+/// Local DB dan original sotuv receiptini olib, har bir productning boshlang'ich qty sini qaytaradi
+Map<String, double> _getOriginalQtyFromLocalDB(String externalId) {
+  final result = <String, double>{};
+  try {
+    final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+    final all = box.getAll();
+    final originals = all.where((r) => !r.isRefund && r.externalId == externalId).toList();
+    if (originals.isNotEmpty) {
+      for (final item in originals.first.soldItemList) {
+        result[item.productId] = item.value;
+      }
+    }
+    print('[_getOriginalQtyFromLocalDB] externalId: $externalId | found: ${originals.isNotEmpty} | result: $result');
+  } catch (e) {
+    print('[_getOriginalQtyFromLocalDB] ERROR: $e');
+  }
+  return result;
+}
+
+/// Shu checkga tegishli oldingi refundlarda qaytarilgan miqdorlarni hisoblaymiz
+/// productId → qaytarilgan jami qty
+Map<String, double> _getAlreadyRefundedQty(String originalExternalId) {
+  final Map<String, double> refundedQty = {};
+  try {
+    final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+    final allRefunds = box.getAll().where((r) =>
+        r.isRefund && r.returnForCheck == originalExternalId).toList();
+    print('[_getAlreadyRefundedQty] originalExternalId: $originalExternalId | found ${allRefunds.length} refunds');
+    for (final refund in allRefunds) {
+      print('  refund externalId: ${refund.externalId} | items: ${refund.soldItemList.map((i) => "${i.productName} x${i.value}").toList()}');
+      for (final item in refund.soldItemList) {
+        refundedQty[item.productId] =
+            (refundedQty[item.productId] ?? 0) + item.value;
+      }
+    }
+    print('[_getAlreadyRefundedQty] result: $refundedQty');
+  } catch (e) {
+    print('[_getAlreadyRefundedQty] ERROR: $e');
+  }
+  return refundedQty;
+}
+
 ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
+  // Local DB dan boshlang'ich qty ni olamiz (API value ni kamaytirgan bo'lishi mumkin)
+  final Map<String, double> originalQtyMap =
+      _getOriginalQtyFromLocalDB(receipt.externalId);
+  // Allaqachon qaytarilgan miqdorlarni olamiz
+  final Map<String, double> alreadyRefunded =
+      _getAlreadyRefundedQty(receipt.externalId);
+
   final List<ReceiptModelSoldItem4> list = [];
   for (var e in receipt.soldItemList) {
+    // Agar local DB da original topilsa — undan foydalanamiz (API reduced bo'lmasin).
+    // Topilmasa — e.value dan foydalanamiz (refund bo'lmagan holat).
+    final double baseQty = originalQtyMap.containsKey(e.productId)
+        ? originalQtyMap[e.productId]!
+        : e.value;
+    final double refundedSoFar = alreadyRefunded[e.productId] ?? 0;
+    final double remainingQty = baseQty - refundedSoFar;
+    print('[_copyWith] ${e.productName} | baseQty: $baseQty | apiQty: ${e.value} | price: ${e.price} | refundedSoFar: $refundedSoFar | remainingQty: $remainingQty');
+    if (remainingQty <= 0) continue; // Hammasi qaytarilgan — ro'yxatga qo'shmaymiz
+
     final soldItem = ReceiptModelSoldItem4(
       inBox: e.inBox,
       // unnecessary
@@ -96,7 +157,7 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
       cost: e.cost,
       createdTime: e.createdTime,
       price: e.price,
-      value: e.value,
+      value: remainingQty,
       productId: e.productId,
       productName: e.productName,
       // pricePosition: e.pricePosition,
@@ -135,7 +196,7 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
     date: receipt.date,
     isRefund: true,
     externalId: receipt.externalId,
-    totalPrice: receipt.totalPrice,
+    totalPrice: list.fold(0.0, (sum, e) => sum + e.price * e.value),
     uploaded: false,
     clientName: receipt.clientName,
     clientId: receipt.clientId,

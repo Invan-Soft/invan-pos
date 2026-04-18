@@ -91,12 +91,17 @@ supplierId: "",
 
 
       double effectiveUnitPrice;
-      if (totalPaid > 0) {
-        effectiveUnitPrice = totalPaid / qty;
+      if (originalPrice > 0) {
+        // Unit narxini har doim originalPrice - singleDisc dan olamiz.
+        // totalPaid/qty partial refund bo'lganda noto'g'ri natija beradi
+        // (API qty kamaytiradi lekin totalPrice eski qoladi).
+        effectiveUnitPrice = (originalPrice - singleDisc).clamp(0, double.infinity);
       } else if ((v[i].newPrice?.toDouble() ?? 0) > 0) {
         effectiveUnitPrice = v[i].newPrice!.toDouble();
+      } else if (totalPaid > 0) {
+        effectiveUnitPrice = totalPaid / qty;
       } else {
-        effectiveUnitPrice = (originalPrice - singleDisc).clamp(0, double.infinity);
+        effectiveUnitPrice = 0;
       }
       print('  effectiveUnitPrice: $effectiveUnitPrice');
 

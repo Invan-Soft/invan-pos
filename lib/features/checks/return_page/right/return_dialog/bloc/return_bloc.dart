@@ -75,63 +75,48 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
 
     final double refundTotal = _getRightTotalPrice(event.rightList);
     final String cashId = Pref.getString(PrefKeys.cashId, '');
-    final String cardId = Pref.getString(PrefKeys.cardId, '');
-    final String clickId = Pref.getString(PrefKeys.clickId, '');
-    final String uzumId = Pref.getString(PrefKeys.uzumId, '');
-    final String paymeId = Pref.getString(PrefKeys.paymeId, '');
 
-    // Asl to'lovlardan CASH va CARD(+boshqa) miqdorlarini ajratamiz
-    double origCash = 0;
-    double origOther = 0; // CARD, UZCARD, HUMO, click, uzum, payme ...
-    String cashPayId = cashId;
-    String cardPayId = cardId;
+    // Vozvrat: to'lov turidan qat'iy nazar hammasi CASH orqali qaytariladi
+    newReceiptModel41.payment.add(ReceiptModelPaymentType4(
+      name: "CASH",
+      value: refundTotal,
+      payId: cashId,
+    ));
 
-    for (final pay in event.receiptModel4.payment) {
-      final n = pay.name.toUpperCase().trim();
-      final id = pay.payId.trim();
-      // CASH klasifikatsiyasi: ism CASH yoki preference cashId ga mos
-      if (n == 'CASH' || (id.isNotEmpty && id == cashId)) {
-        origCash += pay.value;
-        if (id.isNotEmpty) cashPayId = id; // APIga to'g'ri UUID jo'natish uchun
-      } else {
-        origOther += pay.value;
-        if (id.isNotEmpty && id != clickId && id != uzumId && id != paymeId) {
-          cardPayId = id;
-        }
-      }
-    }
-
-    final double srcTotal = origCash + origOther;
-
-    if (srcTotal <= 0) {
-      // Asl to'lov ma'lumoti yo'q → CARD ga fallback
-      newReceiptModel41.payment.add(ReceiptModelPaymentType4(
-        name: "CARD",
-        value: refundTotal,
-        payId: cardPayId,
-      ));
-    } else {
-      double remaining = refundTotal;
-      if (origCash > 0) {
-        final double cashRefund =
-            ((origCash / srcTotal) * refundTotal).roundToDouble();
-        remaining -= cashRefund;
-        if (cashRefund > 0) {
-          newReceiptModel41.payment.add(ReceiptModelPaymentType4(
-            name: "CASH", // saleOnOFD uchun
-            value: cashRefund,
-            payId: cashPayId, // API uchun
-          ));
-        }
-      }
-      if (remaining > 0) {
-        newReceiptModel41.payment.add(ReceiptModelPaymentType4(
-          name: "CARD", // saleOnOFD uchun
-          value: remaining,
-          payId: cardPayId, // API uchun
-        ));
-      }
-    }
+    // Eski CASH/CARD ajratish logikasi (qachondir kerak bo'lsa):
+    // final String cardId = Pref.getString(PrefKeys.cardId, '');
+    // final String clickId = Pref.getString(PrefKeys.clickId, '');
+    // final String uzumId = Pref.getString(PrefKeys.uzumId, '');
+    // final String paymeId = Pref.getString(PrefKeys.paymeId, '');
+    // double origCash = 0;
+    // double origOther = 0;
+    // String cashPayId = cashId;
+    // String cardPayId = cardId;
+    // for (final pay in event.receiptModel4.payment) {
+    //   final n = pay.name.toUpperCase().trim();
+    //   final id = pay.payId.trim();
+    //   if (n == 'CASH' || (id.isNotEmpty && id == cashId)) {
+    //     origCash += pay.value;
+    //     if (id.isNotEmpty) cashPayId = id;
+    //   } else {
+    //     origOther += pay.value;
+    //     if (id.isNotEmpty && id != clickId && id != uzumId && id != paymeId) {
+    //       cardPayId = id;
+    //     }
+    //   }
+    // }
+    // final double srcTotal = origCash + origOther;
+    // if (srcTotal <= 0) {
+    //   newReceiptModel41.payment.add(ReceiptModelPaymentType4(name: "CARD", value: refundTotal, payId: cardPayId));
+    // } else {
+    //   double remaining = refundTotal;
+    //   if (origCash > 0) {
+    //     final double cashRefund = ((origCash / srcTotal) * refundTotal).roundToDouble();
+    //     remaining -= cashRefund;
+    //     if (cashRefund > 0) newReceiptModel41.payment.add(ReceiptModelPaymentType4(name: "CASH", value: cashRefund, payId: cashPayId));
+    //   }
+    //   if (remaining > 0) newReceiptModel41.payment.add(ReceiptModelPaymentType4(name: "CARD", value: remaining, payId: cardPayId));
+    // }
 
     newReceiptModel41.soldItemList.addAll(event.rightList);
 
@@ -145,6 +130,9 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
     if (newReceiptModel41.isRefund == true && internet) {
       emit(ReturnLoadingState(message: ReturnMessage.returnig));
       newReceiptModel41.uploaded = true;
+
+      // Yangi check raqami generate qilib APIga ham, local DBga ham bir xil yuboramiz
+      newReceiptModel41.externalId = await ReceiptSingleton4.getCheckNo();
 
       HttpResult? refundResponse =
           await ReceiptApi4.receiptCreateGrouppForRefund(newReceiptModel41);

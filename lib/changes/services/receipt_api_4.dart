@@ -131,6 +131,7 @@ class ReceiptApi4 {
       headers: headersForRefund,
     );
     if (creatRefundCheck.statusCode == 201) {
+      print('[receiptCreateGrouppForRefund] refund_for_pos_new 201 response: ${creatRefundCheck.result}');
       var uri =
           "api/v1/refund_order_items/${refundedRec.orderId}?cashbox_id=${Pref.getString(PrefKeys.activatedPosId, '')}&cashier_id=${refundedRec.cashierId}";
       var body = funcToRefund(refundedRec);
@@ -139,6 +140,7 @@ class ReceiptApi4 {
         body: jsonEncode(body),
         headers: headers,
       );
+      print('[receiptCreateGrouppForRefund] refund_order_items response: ${res.result}');
       return res;
     } else {
       return creatRefundCheck;

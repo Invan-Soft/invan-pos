@@ -27,7 +27,11 @@ class ReceiptSingleton4 {
 
     final box = MyObjectbox.saleStore.box<ReceiptModel4>();
     int i = box.put(receiptModel4);
-    receiptModel4.externalId = await getCheckNo();
+    // Refund uchun externalId return_bloc da oldindan set qilingan (API bilan bir xil bo'lsin)
+    // Sotuv uchun yangi raqam generate qilamiz
+    if (!receiptModel4.isRefund) {
+      receiptModel4.externalId = await getCheckNo();
+    }
     receiptModel4.id = i;
 
     if (!receiptModel4.isRefund) {
@@ -155,31 +159,38 @@ class ReceiptSingleton4 {
     double otherValue = 0;
     double cashbackValue = 0;
 
-    // ==================== YANGI KUCHLI TEKSHIRUV ====================
-    for (var p in receipt.payment) {
-      final nameUpper = (p.name ?? '').toUpperCase().trim();
-      final id = p.payId.replaceFirst('@', '').trim();
-
-      if (nameUpper == 'CASH' || id == cashId) {
+    if (receipt.isRefund) {
+      // Vozvrat: to'lov turidan qat'iy nazar hammasi CASH orqali qaytariladi
+      for (var p in receipt.payment) {
         receivedCashValue += p.value * 100;
-      } 
-      else if (nameUpper == 'CARD' || 
-               nameUpper == 'UZCARD' || 
-               nameUpper == 'HUMO' ||
-               id == Pref.getString(PrefKeys.cardId, '')) {
-        receivedCardValue += p.value * 100;
-      } 
-      else if (id == cashbackId) {
-        cashbackValue += p.value;
-      } 
-      else if ((id == clickId && nameUpper.contains('CLICK')) ||
-               (id == paymeId && nameUpper.contains('PAYME')) ||
-               (id == uzumId && nameUpper.contains('UZUM'))) {
-        otherValue += p.value;
-      } 
-      else {
-        // Boshqa barcha holatlar (xavfsizlik uchun) → CARD
-        receivedCardValue += p.value * 100;
+      }
+    } else {
+      // ==================== SOTUV: YANGI KUCHLI TEKSHIRUV ====================
+      for (var p in receipt.payment) {
+        final nameUpper = (p.name ?? '').toUpperCase().trim();
+        final id = p.payId.replaceFirst('@', '').trim();
+
+        if (nameUpper == 'CASH' || id == cashId) {
+          receivedCashValue += p.value * 100;
+        }
+        else if (nameUpper == 'CARD' ||
+                 nameUpper == 'UZCARD' ||
+                 nameUpper == 'HUMO' ||
+                 id == Pref.getString(PrefKeys.cardId, '')) {
+          receivedCardValue += p.value * 100;
+        }
+        else if (id == cashbackId) {
+          cashbackValue += p.value;
+        }
+        else if ((id == clickId && nameUpper.contains('CLICK')) ||
+                 (id == paymeId && nameUpper.contains('PAYME')) ||
+                 (id == uzumId && nameUpper.contains('UZUM'))) {
+          otherValue += p.value;
+        }
+        else {
+          // Boshqa barcha holatlar (xavfsizlik uchun) → CARD
+          receivedCardValue += p.value * 100;
+        }
       }
     }
 
