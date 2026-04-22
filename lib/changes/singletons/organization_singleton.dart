@@ -50,8 +50,13 @@ class OrganizationSingleton {
     final box = await Hive.openBox<Payment>(_otherPaymentsBox);
     await box.clear();
 
+    print('========== PAYMENT TYPES FROM API ==========');
     for (int i = 0; i < v.length; i++) {
+      print('[$i] name: ${v[i].name} | id: ${v[i].id} | isAdded: ${v[i].isAdded} | serviceId: ${v[i].serviceId} | merchantId: ${v[i].merchantId} | merchantUserId: ${v[i].merchantUserId} | secretKey: ${v[i].secretKey}');
+    }
+    print('=============================================');
 
+    for (int i = 0; i < v.length; i++) {
       if (v[i].name == 'CASH') {
         cash = v[i].isAdded!;
         cashId = v[i].id!;
@@ -67,6 +72,8 @@ class OrganizationSingleton {
         uzum = v[i].isAdded!;
         _onSubmittedUzum(v[i]);
         uzumId = v[i].id!;
+      } else if (v[i].name == 'PAYNET') {
+        await _onSubmittedPaynet(v[i]);
       } else if (v[i].name == 'CARD') {
         card = v[i].isAdded!;
         cardId = v[i].id!;
@@ -153,6 +160,19 @@ class OrganizationSingleton {
       await Pref.setBool(
           PrefKeys.isClickPassActivated, payment.isAdded ?? false);
     }
+  }
+
+  static Future<void> _onSubmittedPaynet(Payment payment) async {
+    EPayModel ePay = EPayModel(
+      type: EPayEnum.paynet,
+      serviceId: payment.serviceId.toString(),
+      merchantUserId: payment.merchantUserId,
+      secretKey: payment.secretKey,
+      merchantId: payment.merchantId.toString(),
+    );
+    await _ePayHelper.setPayment(ePay);
+    await Pref.setString(PrefKeys.paynetId, payment.id ?? '');
+    print('PAYNET saved → serviceId: ${payment.serviceId} | merchantUserId: ${payment.merchantUserId} | secretKey: ${payment.secretKey} | id: ${payment.id}');
   }
 
   static void _onSubmittedUzum(Payment payment) async {

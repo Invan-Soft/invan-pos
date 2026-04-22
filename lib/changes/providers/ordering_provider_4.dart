@@ -36,6 +36,8 @@ import 'package:invan2/features/home/features/home_orders/calculation_part/total
 import 'package:invan2/features/home/features/home_orders/calculation_part/total_price_dialog/operation_on_total_price_dialog.dart';
 import 'package:invan2/features/payment/right/complete_button/uzum_pay_bloc/uzum_pay_bloc.dart';
 import 'package:invan2/features/payment/right/dilogs/click/bloc/click_bloc.dart';
+import 'package:invan2/features/payment/right/dilogs/paynet/bloc/paynet_bloc.dart';
+import 'package:invan2/features/payment/right/dilogs/paynet/paynet_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/click/clic_pass_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/uzum/uzum_dialog.dart';
 import 'package:invan2/utils/constants/mxik_constants.dart';
@@ -345,7 +347,9 @@ class OrderingProvider4 extends ChangeNotifier {
 
 // ------------------- Cash payment warning dialogs -------------------
       final addedMxik = (product.mxikCode ?? '').trim();
-      if (_isAlcoholMxik(addedMxik) && !_alcoholWarningShown) {
+      if (Pref.getBool(PrefKeys.markCheckWithOfd, true) &&
+          _isAlcoholMxik(addedMxik) &&
+          !_alcoholWarningShown) {
         _alcoholWarningShown = true;
         await showDialog(
           context: context,
@@ -505,6 +509,7 @@ class OrderingProvider4 extends ChangeNotifier {
 
   // cashsale==0 bo'lgan productlar uchun (qat'iy taqiq)
   bool get isCashHiddenByCashsale {
+    if (!Pref.getBool(PrefKeys.markCheckWithOfd, true)) return false;
     if (!Pref.getBool('checkProductByCashsale', true)) return false;
     if (_currentClient.orderedProducts.isEmpty) return false;
 
@@ -519,6 +524,7 @@ class OrderingProvider4 extends ChangeNotifier {
 
   // cashsale==1 bo'lgan productlar narxi 25mln oshganda
   bool get isBigTotalHidden {
+    if (!Pref.getBool(PrefKeys.markCheckWithOfd, true)) return false;
     if (!Pref.getBool('checkProductByCashsale', true)) return false;
     if (_currentClient.orderedProducts.isEmpty) return false;
 
@@ -3650,6 +3656,7 @@ String _markirovka(String rawMark) {
   }
 
   bool _clickPayIsWorking = false;
+  bool _paynetPayIsWorking = false;
 
   Future<void> typeClick(BuildContext context, Payment payment) async {
     _selectedPaymentType =
@@ -3756,6 +3763,64 @@ String _markirovka(String rawMark) {
         mySnackBar(context, msg: loc.qiymat_kiriting),
       );
     }
+    notifyListeners();
+    controller.text = '0';
+    notifyListeners();
+  }
+
+  Future<void> typePaynet(BuildContext context, Payment payment) async {
+    _selectedPaymentType =
+        payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
+
+    PaynetBloc paynetBloc = BlocProvider.of(context);
+    final int number = MyObjectbox.saleStore
+        .box<ReceiptModel4>()
+        .query()
+        .build()
+        .find()
+        .length;
+
+    final String receiptNumber =
+        "${Pref.getString(PrefKeys.checkId, "0")}$number";
+    AppLocalizations loc = AppLocalizations.of(context)!;
+
+    double available = getAvailableSumma();
+    double parsed =
+        double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
+    double summa =
+        parsed > 0 ? (available >= parsed ? parsed : available) : available;
+
+    Log.d('typePaynet() — summa: $summa, receipt: $receiptNumber', name: 'OrderingProvider4');
+
+    if (summa > 0 && !_paynetPayIsWorking) {
+      _paynetPayIsWorking = true;
+      notifyListeners();
+      paynetBloc.add(PaynetCallInitialEvent());
+      await showGeneralDialog(
+        context: context,
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return PaynetDialog(
+            summa: summa,
+            receiptNumber: receiptNumber,
+            pay: () {
+              allPaymentType(payment);
+              Log.d('typePaynet() — to\'lov qabul qilindi', name: 'OrderingProvider4');
+            },
+          );
+        },
+        barrierDismissible: false,
+        barrierLabel:
+            MaterialLocalizations.of(context).modalBarrierDismissLabel,
+        barrierColor: Colors.transparent,
+        transitionDuration: const Duration(milliseconds: 100),
+      );
+      _paynetPayIsWorking = false;
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        mySnackBar(context, msg: loc.qiymat_kiriting),
+      );
+    }
+    _paynetPayIsWorking = false;
     notifyListeners();
     controller.text = '0';
     notifyListeners();

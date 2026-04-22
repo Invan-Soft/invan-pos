@@ -25,6 +25,9 @@ class OrganizationModel {
   @HiveField(9)
   bool? companyActive;
 
+  // Not stored in Hive — parsed fresh from API response each login/sync
+  bool? appsApp;
+
   OrganizationModel({
     this.ibt,
     this.id,
@@ -36,6 +39,7 @@ class OrganizationModel {
     this.autoGenerate,
     this.soliqValidation,
     this.companyActive,
+    this.appsApp,
   });
 
   OrganizationModel.fromJson(Map<String, dynamic> json) {
@@ -49,6 +53,7 @@ class OrganizationModel {
     autoGenerate = json['auto_generate'];
     soliqValidation = json['apps_soliq_validation'];
     companyActive = json['is_company_active'];
+    appsApp = json['apps_soliq_app'];
   }
 
   Map<String, dynamic> toJson() {

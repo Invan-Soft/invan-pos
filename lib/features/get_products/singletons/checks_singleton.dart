@@ -92,9 +92,6 @@ supplierId: "",
 
       double effectiveUnitPrice;
       if (originalPrice > 0) {
-        // Unit narxini har doim originalPrice - singleDisc dan olamiz.
-        // totalPaid/qty partial refund bo'lganda noto'g'ri natija beradi
-        // (API qty kamaytiradi lekin totalPrice eski qoladi).
         effectiveUnitPrice = (originalPrice - singleDisc).clamp(0, double.infinity);
       } else if ((v[i].newPrice?.toDouble() ?? 0) > 0) {
         effectiveUnitPrice = v[i].newPrice!.toDouble();
@@ -103,7 +100,7 @@ supplierId: "",
       } else {
         effectiveUnitPrice = 0;
       }
-      print('  effectiveUnitPrice: $effectiveUnitPrice');
+
 
       double vat = effectiveUnitPrice * (v[i].vatPercentage?.toDouble() ?? 0) / (100 + (v[i].vatPercentage?.toDouble() ?? 0));
 

@@ -67,9 +67,10 @@ class APDblocc extends Bloc<APDevent, APDstate> {
       bool companyActive = organizationModel.companyActive ?? false;
       bool autoGenerate = organizationModel.autoGenerate ?? false;
       bool soliqValidation = organizationModel.soliqValidation ?? false;
+      bool appsApp = organizationModel.appsApp ?? false;
 
-      print('[APD] API raw result apps_soliq_validation: ${httpResult.result['apps_soliq_validation']}');
-      print('[APD] soliqValidation (parsed): $soliqValidation');
+      print('[APD] RAW → apps_soliq_validation: ${httpResult.result['apps_soliq_validation']} | apps_soliq_app: ${httpResult.result['apps_soliq_app']}');
+      print('[APD] PARSED → apps_soliq_validation: $soliqValidation | apps_soliq_app: $appsApp | markCheckWithOfd will be: $appsApp');
 
       await Pref.setString(PrefKeys.greeting, greeting);
       await Pref.setString(PrefKeys.orgID, orgId);
@@ -87,7 +88,7 @@ class APDblocc extends Bloc<APDevent, APDstate> {
           PrefKeys.flatRate, "bee6b08e-46be-43e8-a5e7-4e36dfc29205");
       await Pref.setBool(PrefKeys.companyActive, companyActive);
       await Pref.setBool(PrefKeys.autoGenerate, autoGenerate);
-      await Pref.setBool(PrefKeys.markCheckWithOfd, soliqValidation);
+      await Pref.setBool(PrefKeys.markCheckWithOfd, appsApp);
 
       HttpResult paymentRes =
           await OrganizationService.getPayments(event.posId);

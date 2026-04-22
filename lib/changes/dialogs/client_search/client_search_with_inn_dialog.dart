@@ -172,6 +172,7 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                       ),
                     ],
                   ),
+                  
                   const SizedBox(
                     height: 15.0,
                   ),

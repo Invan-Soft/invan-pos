@@ -445,8 +445,8 @@ class ReceiptModelSoldItem4 {
       'single_item_discount': singleDiscount,
       'discounts': discounts,
       'marking_name': (mark != null && mark!.isNotEmpty)
-          ? mark!.split('\n').where((m) => m.isNotEmpty).toList()
-          : [],
+          ? mark!.split('\n').where((m) => m.isNotEmpty).join(',')
+          : '',
       'product_type': productType,
       'product_package': productPackage,
     };

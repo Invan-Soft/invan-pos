@@ -48,6 +48,7 @@ import '../features/payment/right/complete_button/complete_bloc/comlete_bloc.dar
 import '../features/payment/right/complete_button/pre_complete_bloc/per_comlete_bloc.dart';
 import '../features/payment/right/dilogs/add_client/group_type_bloc/group_type_bloc.dart';
 import '../features/payment/right/dilogs/click/bloc/click_bloc.dart';
+import '../features/payment/right/dilogs/paynet/bloc/paynet_bloc.dart';
 import '../features/payment/right/dilogs/transfer/set_driver/set_driver_bloc.dart';
 import '../idle_service.dart';
 import '../objectbox.g.dart';
@@ -158,6 +159,7 @@ class AppState extends State<App> {
               BlocProvider(create: (_) => PreCmtBBloc()),
               BlocProvider(create: (_) => ReUpdateBloc()),
               BlocProvider(create: (_) => ClickBloc()),
+              BlocProvider(create: (_) => PaynetBloc()),
               BlocProvider(create: (_) => ReturnBloc()),
               BlocProvider(create: (_) => CheckFBloc(checksList: checksList)),
               BlocProvider(create: (_) => UsrBloc()),

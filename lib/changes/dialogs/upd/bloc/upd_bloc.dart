@@ -222,6 +222,10 @@ class UpdBloc extends Bloc<UpdEvent, UpdState> {
       String orgId = "";
       orgId = organizationModel.id ?? "";
       bool soliqValidation = organizationModel.soliqValidation ?? false;
+      bool appsApp = organizationModel.appsApp ?? false;
+
+      print('[UPD] RAW → apps_soliq_validation: ${httpResult.result['apps_soliq_validation']} | apps_soliq_app: ${httpResult.result['apps_soliq_app']}');
+      print('[UPD] PARSED → apps_soliq_validation: $soliqValidation | apps_soliq_app: $appsApp | markCheckWithOfd will be: $appsApp');
 
       await Pref.setString(PrefKeys.greeting, greeting);
       await Pref.setString(PrefKeys.orgID, orgId);
@@ -239,7 +243,7 @@ class UpdBloc extends Bloc<UpdEvent, UpdState> {
           PrefKeys.flatRate, "bee6b08e-46be-43e8-a5e7-4e36dfc29205");
       await Pref.setBool(PrefKeys.companyActive, companyActive);
       await Pref.setBool(PrefKeys.autoGenerate, autoGenerate);
-      await Pref.setBool(PrefKeys.markCheckWithOfd, soliqValidation);
+      await Pref.setBool(PrefKeys.markCheckWithOfd, appsApp);
 
       HttpResult paymentRes = await OrganizationService.getPayments(
           Pref.getString(PrefKeys.activatedPosId, ""));

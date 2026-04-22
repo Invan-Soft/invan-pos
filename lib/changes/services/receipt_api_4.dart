@@ -93,6 +93,19 @@ class ReceiptApi4 {
     /////////////////////////////////////////////////////////////
     final body = jsonEncode({"order": jsonList});
     Pref.setString("bodyForDiscountError", body);
+
+    final baseUrl = ApiProvider.baseUrlINVAN2;
+    Log.d(
+      '\n\ncurl -X POST \'${baseUrl}$uri\' \\\n'
+      '  -H \'Content-Type: application/json\' \\\n'
+      '  -H \'Accept: application/json\' \\\n'
+      '  -H \'Authorization: Bearer ${headers["Authorization"]}\' \\\n'
+      '  -H \'timezone: -300\' \\\n'
+      '  -H \'Accept-User: employee\' \\\n'
+      '  -d \'$body\'\n',
+      name: 'ReceiptApi4 | order_pos CURL',
+    );
+
     HttpResult res = await ApiProvider.postResponse(
       path: uri,
       body: body,
@@ -131,7 +144,7 @@ class ReceiptApi4 {
       headers: headersForRefund,
     );
     if (creatRefundCheck.statusCode == 201) {
-      print('[receiptCreateGrouppForRefund] refund_for_pos_new 201 response: ${creatRefundCheck.result}');
+
       var uri =
           "api/v1/refund_order_items/${refundedRec.orderId}?cashbox_id=${Pref.getString(PrefKeys.activatedPosId, '')}&cashier_id=${refundedRec.cashierId}";
       var body = funcToRefund(refundedRec);
@@ -140,7 +153,7 @@ class ReceiptApi4 {
         body: jsonEncode(body),
         headers: headers,
       );
-      print('[receiptCreateGrouppForRefund] refund_order_items response: ${res.result}');
+
       return res;
     } else {
       return creatRefundCheck;

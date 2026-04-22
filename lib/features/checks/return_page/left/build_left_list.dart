@@ -30,10 +30,11 @@ class BuildLeftListState extends State<BuildLeftList> {
             onTap: () async {
               returnPageProvider.pressLeftIndex(index);
               if (item.value != 1) {
-                double returnedValue = await showDialog(
+                double? returnedValue = await showDialog(
                   context: context,
                   builder: (_) => ReturnPageDialogg(value: item.value),
                 );
+                if (returnedValue == null) return;
                 returnPageProvider.pressLeftProductDialog2(returnedValue);
               } else {
                 returnPageProvider.pressLeftProduct();

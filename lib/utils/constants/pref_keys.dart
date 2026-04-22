@@ -93,6 +93,7 @@ class PrefKeys {
   static const String clickEnable = "clickEnable";
   static const String uzumEnable = "uzumEnable";
   static const String paymeEnable = "paymeEnable";
+  static const String paynetEnable = "paynetEnable";
 
   static const String cashEnabled = "cash_enabled";
   static const String giftEnabled = "gift_enabled";
@@ -107,6 +108,7 @@ class PrefKeys {
   static const String clickId = "clickId";
   static const String uzumId = "uzumId";
   static const String paymeId = "paymeId";
+  static const String paynetId = "paynetId";
 
   static const String giftId = "gift_Id";
   static const String debtId = "debt_Id";

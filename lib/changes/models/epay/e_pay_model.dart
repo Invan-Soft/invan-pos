@@ -132,7 +132,10 @@ enum EPayEnum {
   uzum('uzum'),
 
   @HiveField(3)
-  humo('humo');
+  humo('humo'),
+
+  @HiveField(4)
+  paynet('paynet');
 
   final String value;
   const EPayEnum(this.value);

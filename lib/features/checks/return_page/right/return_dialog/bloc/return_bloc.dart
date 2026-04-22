@@ -159,7 +159,9 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
 
           if (!wasRegisteredOnOfd) {
             // OFDda sotuv yo'q — fiskal refund shart emas
-            emit(ReturnSuccedState());
+            await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
+
+        emit(ReturnSuccedState());
           } else {
             await LocalService.sell(
                     loc: event.loc, receiptData: newReceiptModel41)

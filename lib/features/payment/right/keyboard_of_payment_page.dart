@@ -203,6 +203,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
     final String paymeId = Pref.getString(PrefKeys.paymeId, "");
     final String clickId = Pref.getString(PrefKeys.clickId, "");
     final String uzumId = Pref.getString(PrefKeys.uzumId, "");
+    final String paynetId = Pref.getString(PrefKeys.paynetId, "");
     final String cardId = Pref.getString(PrefKeys.cardId, "");
     final bool isCashHidden = orderingProvider.isCashPaymentHidden ||
         orderingProvider.isCashHiddenByCashsale ||
@@ -286,6 +287,22 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
             });
           });
         }
+
+        if ((paynetId.isNotEmpty && id == paynetId) ||
+            (p.name?.toUpperCase().contains('PAYNET') == true)) {
+          if (cardOnly) return const SizedBox.shrink();
+          return _functionalButton("Paynet", () async {
+            await typeDialog("Paynet Pass", "Paynet QR", () async {
+              Navigator.pop(context);
+              await orderingProvider.typePaynet(context, p);
+            }, () {
+              Navigator.pop(context);
+              p.type = 1;
+              orderingProvider.allPaymentType(p);
+            });
+          });
+        }
+
         if (id == cashId) {
           if (isCashHidden || cardOnly) return const SizedBox.shrink();
           return _functionalButton(

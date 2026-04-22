@@ -73,6 +73,8 @@ class EPayEnumAdapter extends TypeAdapter<EPayEnum> {
         return EPayEnum.uzum;
       case 3:
         return EPayEnum.humo;
+      case 4:
+        return EPayEnum.paynet;
       default:
         return EPayEnum.click;
     }
@@ -92,6 +94,9 @@ class EPayEnumAdapter extends TypeAdapter<EPayEnum> {
         break;
       case EPayEnum.humo:
         writer.writeByte(3);
+        break;
+      case EPayEnum.paynet:
+        writer.writeByte(4);
         break;
     }
   }

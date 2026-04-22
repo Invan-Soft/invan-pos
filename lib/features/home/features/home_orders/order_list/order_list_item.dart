@@ -31,6 +31,7 @@ class OrderListItem extends StatelessWidget {
 
   // Qat'iy taqiq: alkogol mxik yoki cashsale==0
   bool _isHardRestricted() {
+    if (!Pref.getBool(PrefKeys.markCheckWithOfd, true)) return false;
     if (Pref.getBool(PrefKeys.sellProductsWithMarking, true) &&
         _isAlcoholMxik(orderedProduct.mxik.trim())) {
       return true;
@@ -42,6 +43,7 @@ class OrderListItem extends StatelessWidget {
 
   // Shartli taqiq: cashsale==1 va umumiy narx 25mln dan oshgan
   bool _isBigTotalRestricted() {
+    if (!Pref.getBool(PrefKeys.markCheckWithOfd, true)) return false;
     if (!Pref.getBool('checkProductByCashsale', true)) return false;
     final product = ItemsSingleton.getProductById(orderedProduct.productId);
     if (product == null) return false;

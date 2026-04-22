@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:invan2/changes/services/api.dart';
@@ -94,9 +95,8 @@ Map<String, double> _getOriginalQtyFromLocalDB(String externalId) {
         result[item.productId] = item.value;
       }
     }
-    print('[_getOriginalQtyFromLocalDB] externalId: $externalId | found: ${originals.isNotEmpty} | result: $result');
   } catch (e) {
-    print('[_getOriginalQtyFromLocalDB] ERROR: $e');
+    // ignore
   }
   return result;
 }
@@ -109,17 +109,14 @@ Map<String, double> _getAlreadyRefundedQty(String originalExternalId) {
     final box = MyObjectbox.saleStore.box<ReceiptModel4>();
     final allRefunds = box.getAll().where((r) =>
         r.isRefund && r.returnForCheck == originalExternalId).toList();
-    print('[_getAlreadyRefundedQty] originalExternalId: $originalExternalId | found ${allRefunds.length} refunds');
     for (final refund in allRefunds) {
-      print('  refund externalId: ${refund.externalId} | items: ${refund.soldItemList.map((i) => "${i.productName} x${i.value}").toList()}');
       for (final item in refund.soldItemList) {
         refundedQty[item.productId] =
             (refundedQty[item.productId] ?? 0) + item.value;
       }
     }
-    print('[_getAlreadyRefundedQty] result: $refundedQty');
   } catch (e) {
-    print('[_getAlreadyRefundedQty] ERROR: $e');
+    // ignore
   }
   return refundedQty;
 }
@@ -140,8 +137,10 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
         ? originalQtyMap[e.productId]!
         : e.value;
     final double refundedSoFar = alreadyRefunded[e.productId] ?? 0;
-    final double remainingQty = baseQty - refundedSoFar;
-    print('[_copyWith] ${e.productName} | baseQty: $baseQty | apiQty: ${e.value} | price: ${e.price} | refundedSoFar: $refundedSoFar | remainingQty: $remainingQty');
+    // min() — admin paneldan qilingan refundlarni ham hisobga olamiz:
+    // e.value = API dan kelgan qoldiq (refundAmount ni chegirilgan),
+    // baseQty - refundedSoFar = local DB dan hisoblab topilgan qoldiq.
+    final double remainingQty = min(baseQty - refundedSoFar, e.value);
     if (remainingQty <= 0) continue; // Hammasi qaytarilgan — ro'yxatga qo'shmaymiz
 
     final soldItem = ReceiptModelSoldItem4(
