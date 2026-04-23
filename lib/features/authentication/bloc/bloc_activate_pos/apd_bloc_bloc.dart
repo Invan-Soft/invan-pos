@@ -5,6 +5,7 @@ import 'package:invan2/changes/models/organization_model.dart';
 import 'package:invan2/changes/services/api.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/services/discount_service.dart';
+import 'package:invan2/changes/services/company_app_service.dart';
 import 'package:invan2/changes/services/organization_service.dart';
 import 'package:invan2/changes/singletons/organization_singleton.dart';
 import 'package:invan2/features/authentication/model/get_available_pos_response.dart';
@@ -67,10 +68,18 @@ class APDblocc extends Bloc<APDevent, APDstate> {
       bool companyActive = organizationModel.companyActive ?? false;
       bool autoGenerate = organizationModel.autoGenerate ?? false;
       bool soliqValidation = organizationModel.soliqValidation ?? false;
-      bool appsApp = organizationModel.appsApp ?? false;
 
-      print('[APD] RAW → apps_soliq_validation: ${httpResult.result['apps_soliq_validation']} | apps_soliq_app: ${httpResult.result['apps_soliq_app']}');
-      print('[APD] PARSED → apps_soliq_validation: $soliqValidation | apps_soliq_app: $appsApp | markCheckWithOfd will be: $appsApp');
+      // apps_soliq_app ni company_apps endpointidan olamiz
+      bool markCheck = soliqValidation;
+      final String token = Pref.getString(PrefKeys.token, '');
+      HttpResult companyAppsResult = await CompanyAppsService.getCompanyApps(token);
+      if (companyAppsResult.statusCode == 200 && companyAppsResult.result != null) {
+        final appsData = companyAppsResult.result;
+        if (appsData['apps_soliq_app'] != null) {
+          markCheck = appsData['apps_soliq_app'] == true;
+        }
+      }
+
 
       await Pref.setString(PrefKeys.greeting, greeting);
       await Pref.setString(PrefKeys.orgID, orgId);
@@ -88,7 +97,8 @@ class APDblocc extends Bloc<APDevent, APDstate> {
           PrefKeys.flatRate, "bee6b08e-46be-43e8-a5e7-4e36dfc29205");
       await Pref.setBool(PrefKeys.companyActive, companyActive);
       await Pref.setBool(PrefKeys.autoGenerate, autoGenerate);
-      await Pref.setBool(PrefKeys.markCheckWithOfd, appsApp);
+      await Pref.setBool(PrefKeys.markCheckWithOfd, markCheck);
+      await Pref.setBool(PrefKeys.withOFD, markCheck);
 
       HttpResult paymentRes =
           await OrganizationService.getPayments(event.posId);

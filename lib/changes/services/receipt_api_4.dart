@@ -52,6 +52,7 @@ class ReceiptApi4 {
         );
       }
     }
+    
     ///////////////////////////////  cashbackOrders  ///////////////////////////////////
     for (var cashback in cashbackOrders) {
       num payValue = 0;

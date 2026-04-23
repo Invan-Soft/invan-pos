@@ -231,6 +231,7 @@ class ReceiptModel4 {
       "id": orderId,
       "order_type": "sale",
       "shop_id": shopId,
+      "cashbox_version": Pref.getString(PrefKeys.version, ''),
       "items": soldItemJsonList,
       "created_date": createdDate,
       "order_discount": {
@@ -445,8 +446,8 @@ class ReceiptModelSoldItem4 {
       'single_item_discount': singleDiscount,
       'discounts': discounts,
       'marking_name': (mark != null && mark!.isNotEmpty)
-          ? mark!.split('\n').where((m) => m.isNotEmpty).join(',')
-          : '',
+          ? mark!.split('\n').where((m) => m.isNotEmpty).toList()
+          : [],
       'product_type': productType,
       'product_package': productPackage,
     };

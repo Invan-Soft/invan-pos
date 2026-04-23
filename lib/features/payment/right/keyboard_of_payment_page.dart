@@ -212,6 +212,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
     final bool isPaymeEnabled = Pref.getBool(PrefKeys.paymeEnable, false);
     final bool isClickEnabled = Pref.getBool(PrefKeys.clickEnable, false);
     final bool isUzumEnabled = Pref.getBool(PrefKeys.uzumEnable, false);
+    final bool isPaynetEnabled = Pref.getBool(PrefKeys.paynetEnable, false);
 
     return Column(
       children: otherPaymentsGlobal.map((p) {
@@ -290,7 +291,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
 
         if ((paynetId.isNotEmpty && id == paynetId) ||
             (p.name?.toUpperCase().contains('PAYNET') == true)) {
-          if (cardOnly) return const SizedBox.shrink();
+          if (!isPaynetEnabled || cardOnly) return const SizedBox.shrink();
           return _functionalButton("Paynet", () async {
             await typeDialog("Paynet Pass", "Paynet QR", () async {
               Navigator.pop(context);
