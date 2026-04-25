@@ -7,7 +7,7 @@ import 'package:convert/convert.dart' as convert;
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:invan2/alice_service.dart';
-import 'package:invan2/changes/models/click_response_model.dart';
+import 'package:invan2/changes/models/paynet_response_model.dart';
 import 'package:invan2/changes/models/epay/e_pay_model.dart';
 import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/utils/helpers/e_pay_helper.dart';
@@ -20,12 +20,14 @@ class PaynetService {
 
   static int? paymentId;
 
+  // Hujjatdagi asosiy URL: https://api.paynet.uz/v2/merchant/
   static const String _baseUrlTest = 'https://pass-test.paynet.uz/v2/merchant';
   static const String _baseUrlProd = 'https://api.paynet.uz/v2/merchant';
   static const String _baseUrl = _baseUrlTest; // TODO: prod ga o'tkazish
 
   // 1. To'lovni yaratish (Paynet QR)
-  static Future<ClickResponseModel> payment({
+  // POST /v2/merchant/paynet-pass/payment
+  static Future<PaynetResponseModel> payment({
     required String otpData,
     required num amount,
     required String receiptNumber,
@@ -44,14 +46,13 @@ class PaynetService {
 
     Log.j(body, name: 'PaynetService | payment body');
 
-    ClickResponseModel result = await _post(
+    PaynetResponseModel result = await _post(
       path: '/paynet-pass/payment',
       body: body,
     );
 
     if (result.errorCode == 0) {
-      final pid = result.paymentId;
-      paymentId = pid != null ? int.tryParse(pid) : null;
+      paymentId = result.paymentId;
       Log.d('payment() muvaffaqiyatli — payment_id: $paymentId', name: 'PaynetService');
     } else {
       Log.e('payment() xato — error_code: ${result.errorCode}, note: ${result.errorNote}', name: 'PaynetService');
@@ -61,7 +62,8 @@ class PaynetService {
   }
 
   // 2. To'lov statusini tekshirish (payment_id bo'yicha)
-  static Future<ClickResponseModel> checkPaymentStatus(int pid) async {
+  // GET /v2/merchant/payment/status/by-payment-id/{service_id}/{payment_id}
+  static Future<PaynetResponseModel> checkPaymentStatus(int pid) async {
     Log.d('checkPaymentStatus() — payment_id: $pid', name: 'PaynetService');
 
     EPayModel? ePayModel = EPayHelper.instance.box.get(EPayEnum.paynet.value);
@@ -85,15 +87,16 @@ class PaynetService {
 
       Log.d('checkPaymentStatus() response: ${response.body}', name: 'PaynetService');
 
-      return decodeClickResponseModel(response.body);
+      return decodePaynetResponseModel(response.body);
     } catch (err) {
       Log.e(err, name: 'PaynetService | checkPaymentStatus');
-      return ClickResponseModel(errorCode: -1, errorNote: err.toString());
+      return PaynetResponseModel(errorCode: -1, errorNote: err.toString());
     }
   }
 
   // 3. To'lovni bekor qilish (reversal)
-  static Future<ClickResponseModel> reversalPayment(int pid) async {
+  // DELETE /v2/merchant/paynet-pass/payment/reversal/{service_id}/{payment_id}
+  static Future<PaynetResponseModel> reversalPayment(int pid) async {
     Log.d('reversalPayment() — payment_id: $pid', name: 'PaynetService');
 
     EPayModel? ePayModel = EPayHelper.instance.box.get(EPayEnum.paynet.value);
@@ -117,49 +120,32 @@ class PaynetService {
 
       Log.d('reversalPayment() response: ${response.body}', name: 'PaynetService');
 
-      return decodeClickResponseModel(response.body);
+      return decodePaynetResponseModel(response.body);
     } catch (err) {
       Log.e(err, name: 'PaynetService | reversalPayment');
-      return ClickResponseModel(errorCode: -1, errorNote: err.toString());
+      return PaynetResponseModel(errorCode: -1, errorNote: err.toString());
     }
   }
 
   // 4. To'lovni tasdiqlash (confirm mode)
-  static Future<ClickResponseModel> confirm(int pid) async {
+  // POST /v2/merchant/paynet-pass/payment/confirm
+  static Future<PaynetResponseModel> confirm(int pid) async {
     Log.d('confirm() — payment_id: $pid', name: 'PaynetService');
 
     EPayModel? ePayModel = EPayHelper.instance.box.get(EPayEnum.paynet.value);
     final serviceId = int.tryParse(ePayModel?.serviceId ?? '') ?? 0;
 
-    final url = '$_baseUrl/paynet-pass/payment/confirm';
-    final uri = Uri.parse(url);
     final body = {"service_id": serviceId, "payment_id": pid};
 
-    try {
-      http.Response response = await http
-          .post(uri, headers: _headers, body: jsonEncode(body))
-          .timeout(const Duration(seconds: 30));
-
-      await LogHelper.logRequest(
-        method: "POST",
-        path: url,
-        statusCode: response.statusCode,
-        body: body,
-        response: response.body,
-      );
-      alice.onHttpResponse(response);
-
-      Log.d('confirm() response: ${response.body}', name: 'PaynetService');
-
-      return decodeClickResponseModel(response.body);
-    } catch (err) {
-      Log.e(err, name: 'PaynetService | confirm');
-      return ClickResponseModel(errorCode: -1, errorNote: err.toString());
-    }
+    return _post(
+      path: '/paynet-pass/payment/confirm',
+      body: body,
+    );
   }
 
   // 5. Fiskal chekni yuborish (OFD)
-  static Future<ClickResponseModel> sendFiscalReceipt({
+  // POST /v2/merchant/paynet-pass/ofd-data/submit-qrcode
+  static Future<PaynetResponseModel> sendFiscalReceipt({
     required int pid,
     required String qrcode,
     required String salePointAddress,
@@ -196,12 +182,12 @@ class PaynetService {
 
   // ==================== ICHKI YORDAMCHI METODLAR ====================
 
-  static Future<ClickResponseModel> _post({
+  static Future<PaynetResponseModel> _post({
     required String path,
     required Map<String, dynamic> body,
   }) async {
     Log.j(body, name: 'PaynetService | POST $path');
-    ClickResponseModel result;
+    PaynetResponseModel result;
 
     try {
       final uri = Uri.parse('$_baseUrl$path');
@@ -242,11 +228,11 @@ class PaynetService {
       alice.onHttpResponse(response);
 
       if (response.statusCode == 200) {
-        result = decodeClickResponseModel(response.body);
+        result = decodePaynetResponseModel(response.body);
         return result;
       }
 
-      result = ClickResponseModel(
+      result = PaynetResponseModel(
         errorCode: response.statusCode,
         errorNote: response.body,
       );
@@ -263,11 +249,9 @@ class PaynetService {
       } else {
         message = err.toString();
       }
-      result = ClickResponseModel(errorCode: -1, errorNote: message);
-      JsonEncoder encoder = const JsonEncoder.withIndent(' ');
-      String prettyJson = encoder.convert(result.toJson());
+      result = PaynetResponseModel(errorCode: -1, errorNote: message);
       LogRepository.addLog(
-        prettyJson,
+        '{"error_code": -1, "error_note": "$message"}',
         where: 'lib/changes/services/payment/paynet_service.dart',
         file: 'paynet_service.dart',
         url: _baseUrl,
@@ -279,6 +263,7 @@ class PaynetService {
     }
   }
 
+  // Auth sarlavhasi: merchant_user_id:sha1(timestamp+secret_key):timestamp
   static Map<String, String> get _headers {
     EPayModel? ePayModel = EPayHelper.instance.box.get(EPayEnum.paynet.value);
 

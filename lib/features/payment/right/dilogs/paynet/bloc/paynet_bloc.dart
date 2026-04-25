@@ -1,5 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:invan2/changes/models/click_response_model.dart';
+import 'package:invan2/changes/models/paynet_response_model.dart';
 import 'package:invan2/changes/services/payment/paynet_service.dart';
 import 'package:invan2/utils/utils.dart';
 
@@ -36,7 +36,7 @@ class PaynetBloc extends Bloc<PaynetEvent, PaynetState> {
     emit(PaynetLoadingState(PaynetLoadingStatus.paying));
 
     // Paynet amount = tiyin (x100)
-    ClickResponseModel result = await PaynetService.payment(
+    PaynetResponseModel result = await PaynetService.payment(
       otpData: event.otp,
       amount: (event.summa * 100).toInt(),
       receiptNumber: event.receiptNumber,
@@ -57,7 +57,7 @@ class PaynetBloc extends Bloc<PaynetEvent, PaynetState> {
     // payment_status == 2 → muvaffaqiyatli
     if (result.paymentStatus == 2) {
       // confirm_mode == 1 bo'lsa tasdiqlash kerak
-      if (result.confirmMode == true) {
+      if (result.isConfirmMode) {
         Log.d('_pay() confirm_mode=1, tasdiqlash so\'rovi yuborilmoqda', name: 'PaynetBloc');
         final pid = PaynetService.paymentId;
         if (pid != null) {

@@ -18,6 +18,7 @@ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/mo
 import '../../objectbox.g.dart';
 import 'package:invan2/features/lock/access_level/view/access_level_page.dart';
 import 'package:invan2/utils/constants/constants.dart';
+import 'package:invan2/utils/helpers/auth_backup.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 import 'package:invan2/utils/helpers/size_config.dart';
 import 'package:invan2/utils/themes.dart';
@@ -69,8 +70,16 @@ class _WrapperState extends State<Wrapper> {
     });
     Timer(const Duration(milliseconds: 1000), () async {
       try {
+        String token = Pref.getString(PrefKeys.token, '');
+        if (token.isEmpty) {
+          token = await AuthBackup.read();
+          if (token.isNotEmpty) {
+            await Pref.setString(PrefKeys.token, token);
+            await Pref.setBool(PrefKeys.authenticationBool, true);
+          }
+        }
         if (!Pref.getBool(PrefKeys.authenticationBool, false) &&
-            Pref.getString(PrefKeys.token, '').isEmpty) {
+            token.isEmpty) {
           IdleService().disable(); // auth sahifalarida idle redirect ishlamasin
           AppNavigation.pushAndRemoveUntil(const PhoneNumberPage());
         } else {

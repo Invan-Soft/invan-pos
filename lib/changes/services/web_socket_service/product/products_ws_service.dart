@@ -96,6 +96,7 @@ class ProductsWsService {
     if (kDebugMode) {
       print(
           '☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️ - Product  Get - ☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️');
+          print(response.body);
     }
     if (response.statusCode == 200) {
       if (jsonDecode(utf8.decode(response.bodyBytes))['notifications'] !=
@@ -219,6 +220,8 @@ class ProductsWsService {
     await TasnifService.setPackageCode();
 
     HttpResult httpResult = await OrdersService.getItems();
+
+
 
     if (httpResult.isSuccess) {
       try {

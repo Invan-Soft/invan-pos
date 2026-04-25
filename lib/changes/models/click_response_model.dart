@@ -71,12 +71,9 @@ class ClickResponseModel {
   ClickResponseModel.fromJson(Map<String, dynamic> json) {
     _errorCode = json['error_code'];
     _errorNote = json['error_note'];
-    // payment_id may come as int (Paynet) or string (Click) — normalize to String
-    _paymentId = json['payment_id']?.toString();
+    _paymentId = json['payment_id'];
     _paymentStatus = json['payment_status'];
-    // confirm_mode may come as int 0/1 (Paynet) or bool (Click)
-    final cm = json['confirm_mode'];
-    _confirmMode = (cm == 1 || cm == true);
+    _confirmMode = json['confirm_mode'];
     _cardType = json['card_type'];
     _cardNumber = json['card_number'];
     _phoneNumber = json['phone_number'];

@@ -18,6 +18,7 @@ import '../../../../changes/dialogs/creat_product/model/mes_vat_unit_model/mes_u
 import '../../../../changes/services/measurement_unit.dart';
 import '../../../../changes/services/var_unit.dart';
 import '../../../../changes/singletons/service_singleton.dart';
+import '../../../../utils/helpers/auth_backup.dart';
 import '../../../../utils/util_functions.dart';
 import '../../../features.dart';
 import '../../../get_categories/service/category_service.dart';
@@ -235,6 +236,7 @@ class APDblocc extends Bloc<APDevent, APDstate> {
     );
     await Pref.setString(PrefKeys.acceptService, event.selectedStore.id);
     await Pref.setString(PrefKeys.token, event.token);
+    await AuthBackup.save(event.token);
     await Pref.setString(PrefKeys.macAddress, event.macAddress);
     await Pref.setString(PrefKeys.activatedPosId, event.selectedPos!.sId!);
     await Pref.setString(PrefKeys.storeName, event.selectedStore.name);
