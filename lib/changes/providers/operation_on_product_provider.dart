@@ -248,17 +248,19 @@ class OperationOnProductProvider extends ChangeNotifier {
     final bool priceManuallyEdited =
         onlyPriceIsEdited || target.isPriceOnlyChanged || target.isPriceChanged;
 
+    final bool editedInThisSession = _usedDiscountInput || onlyPriceIsEdited;
+
     if (priceManuallyEdited) {
-      target.discount.clear();
+      if (editedInThisSession) {
+        target.discount.clear();
+      }
       if (_usedDiscountInput) {
-        // Discount input used: preserve discountPercent for strikethrough.
-        // Send original price to server + singleDiscount so adminka shows
-        // the discount correctly (toJson sends "price": onlyPrice).
         target.singleDiscount = (target.realPrice - target.price).clamp(0.0, double.infinity);
-        target.onlyPrice = target.realPrice; // server sees original price
-      } else {
+        target.onlyPrice = target.realPrice;
+      } else if (onlyPriceIsEdited) {
         target.discountPercent = 0;
       }
+      // else: user only changed qty on already-discounted product — preserve discountPercent/singleDiscount
       target.isPriceOnlyChanged = true;
       target.isPriceChanged = true;
     } else {

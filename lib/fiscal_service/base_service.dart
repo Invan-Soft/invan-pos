@@ -33,14 +33,18 @@ class BaseService {
         return Success(200, response.body);
       }
       Failure failure = Failure(200, response.body);
-      dynamic errorBody =
-          Pref.getString("bodyForDiscountError", "body not found");
+      final bool isSaleMethod = method.contains('Sale') || method.contains('Receipt');
+      final String orderBody = isSaleMethod ? Pref.getString("bodyForDiscountError", "") : "";
+      final String logBody = orderBody.isNotEmpty
+          ? "Order Body == $orderBody\n\nBaseService Body== $body"
+          : "BaseService Body== $body";
+      if (orderBody.isNotEmpty) Pref.removeWithKey("bodyForDiscountError");
       LogRepository.requestSend(failure.errorMessage(),
       file: 'baseservice.dart 39 line',
       method: 'Post Method',
       path: '41 line in baseservice.dart',
           where: "",
-          body: "BaseService Body== $body,\n\n Order Body == $errorBody");
+          body: logBody);
       _requestSend(
         path: '42 line in baseservice',
         failure.errorMessage(),

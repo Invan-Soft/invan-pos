@@ -96,7 +96,6 @@ class ProductsWsService {
     if (kDebugMode) {
       print(
           '☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️ - Product  Get - ☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️');
-          print(response.body);
     }
     if (response.statusCode == 200) {
       if (jsonDecode(utf8.decode(response.bodyBytes))['notifications'] !=

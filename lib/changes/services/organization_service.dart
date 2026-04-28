@@ -13,7 +13,6 @@ class OrganizationService {
     HttpResult httpResult = await ApiProvider.getResponse(
         path: "api/v1/current_company", headers: headers);
 
-    print('[OrganizationService] current_company response: ${httpResult.result}');
 
     return httpResult;
   }

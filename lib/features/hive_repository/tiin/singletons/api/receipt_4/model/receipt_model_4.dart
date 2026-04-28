@@ -445,7 +445,11 @@ class ReceiptModelSoldItem4 {
       "vat_percentage": vatPercent,
       'single_item_discount': singleDiscount,
       'discounts': discounts,
-      'marking_name': (mark != null && mark!.isNotEmpty)
+      // 'marking_name': (mark != null && mark!.isNotEmpty)
+      //     ? mark!.split('\n').where((m) => m.isNotEmpty).toList()
+      //     : [],
+      'marking_name': "",
+      'marking_names': (mark != null && mark!.isNotEmpty)
           ? mark!.split('\n').where((m) => m.isNotEmpty).toList()
           : [],
       'product_type': productType,

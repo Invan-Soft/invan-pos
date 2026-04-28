@@ -212,7 +212,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
     final bool isPaymeEnabled = Pref.getBool(PrefKeys.paymeEnable, false);
     final bool isClickEnabled = Pref.getBool(PrefKeys.clickEnable, false);
     final bool isUzumEnabled = Pref.getBool(PrefKeys.uzumEnable, false);
-    final bool isPaynetEnabled = Pref.getBool(PrefKeys.paynetEnable, false);
+
 
     return Column(
       children: otherPaymentsGlobal.map((p) {
@@ -291,17 +291,38 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
 
         if ((paynetId.isNotEmpty && id == paynetId) ||
             (p.name?.toUpperCase().contains('PAYNET') == true)) {
-          if (!isPaynetEnabled || cardOnly) return const SizedBox.shrink();
-          return _functionalButton("Paynet", () async {
-            await typeDialog("Paynet Pass", "Paynet QR", () async {
-              Navigator.pop(context);
-              await orderingProvider.typePaynet(context, p);
-            }, () {
-              Navigator.pop(context);
-              p.type = 1;
-              orderingProvider.allPaymentType(p);
-            });
-          });
+          if (cardOnly) return const SizedBox.shrink();
+          return Padding(
+            padding: EdgeInsets.only(bottom: SizeConfig.v * 1.78),
+            child: SizedBox(
+              width: SizeConfig.h * 18.77,
+              height: SizeConfig.v * 9.68,
+              child: RawMaterialButton(
+                focusNode: FocusNode(skipTraversal: true),
+                elevation: 0,
+                fillColor: Theme.of(context).dialogBackgroundColor,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(SizeConfig.v * 1.1)),
+                onPressed: () async {
+                  await typeDialog("Paynet Pass", "Paynet QR", () async {
+                    Navigator.pop(context);
+                    await orderingProvider.typePaynet(context, p);
+                  }, () {
+                    Navigator.pop(context);
+                    p.type = 1;
+                    orderingProvider.allPaymentType(p);
+                  });
+                },
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: SizeConfig.v * 7),
+                  child: Image.asset(
+                    "assets/images/paynet-logo.png",
+                    scale: 3,
+                  ),
+                ),
+              ),
+            ),
+          );
         }
 
         if (id == cashId) {

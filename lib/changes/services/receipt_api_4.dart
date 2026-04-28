@@ -4,11 +4,8 @@ import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/changes/services/api.dart';
 import 'package:invan2/changes/services/api/api_provider.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
-import 'package:invan2/fiscal_service/model/last_receipt_model.dart/last_receipt_model.dart';
 import 'package:invan2/utils/utils.dart';
 import '../../features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_refund_model.dart';
-import '../models/organization_model.dart';
-import '../singletons/organization_singleton.dart';
 
 class ReceiptApi4 {
   static Future<HttpResult> receiptCreateGroup(

@@ -104,12 +104,12 @@ class ReceiptSingleton4 {
       if (uniqueItems.containsKey(r.productId)) {
         uniqueItems[r.productId]!.value += r.value;
         totalSingleDiscount[r.productId] =
-            (totalSingleDiscount[r.productId] ?? 0) + r.singleDiscount;
+            (totalSingleDiscount[r.productId] ?? 0) + r.singleDiscount * r.value;
         totalPrice[r.productId] =
             (totalPrice[r.productId] ?? 0) + r.price * r.value;
       } else {
         uniqueItems[r.productId] = r;
-        totalSingleDiscount[r.productId] = r.singleDiscount;
+        totalSingleDiscount[r.productId] = r.singleDiscount * r.value;
         totalPrice[r.productId] = r.price * r.value;
         allMarks[r.productId] = [];
       }
@@ -153,6 +153,7 @@ class ReceiptSingleton4 {
     final paymeId = Pref.getString(PrefKeys.paymeId, "");
     final cashId = Pref.getString(PrefKeys.cashId, "cash");
     final cashbackId = Pref.getString(PrefKeys.cashbackId, "cash");
+    final paynetId = Pref.getString(PrefKeys.paynetId, "");
 
     double receivedCashValue = 0;
     double receivedCardValue = 0;
@@ -196,6 +197,13 @@ class ReceiptSingleton4 {
 
     receipt.cashback = cashbackValue.round();
 
+    final bool receivedPaynet = paynetId.isNotEmpty &&
+        receipt.payment.any(
+          (p) => p.payId.replaceFirst('@', '').trim() == paynetId,
+        );
+
+    print('======= saleOnOFD | receivedPaynet: $receivedPaynet | paynetId: "$paynetId" =======');
+
     String token = "DXJFX32CN1296678504F2";
     String staff = Pref.getString(PrefKeys.cashierName, "not initialized");
     String? compname = Pref.getString(PrefKeys.organizationName, "not initialized");
@@ -230,6 +238,7 @@ class ReceiptSingleton4 {
         "receivedClick": receipt.hasClick,
         "receivedUzum": receipt.hasUzum,
         "receivedPayme": receipt.hasPayme,
+        "receivedPaynet": receivedPaynet,
         "receivedDept": receipt.hasDept,
         "externalInfo": {
           "qrPaymentProvider": Pref.getInt('epayPay_Id', 0).toString(),

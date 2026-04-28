@@ -103,17 +103,7 @@ class AppState extends State<App> {
 
   @override
   Widget build(BuildContext context) {
-    // Box<ShiftModelHive> box = HiveBoxes.getShifts();
-    // box.clear();
-    // print(startTime);
-    // print(endTime);
-    // print('ggggggggggggggggggggggggggggggggggg');
-    // print(DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()));
-    // print(Pref.getString(PrefKeys.token, "not initialized"));
-    // print(Pref.getString(PrefKeys.storeId, "not initialized"));
-    // print(Pref.getString(PrefKeys.activatedPosId, "not initialized"));
-    // print(Pref.getString(PrefKeys.acceptService, "not initialized"));
-    // print(Pref.getString(PrefKeys.userId, "not initialized"));
+
     List<ReceiptModel4> checksList =
         MyObjectbox.saleStore.box<ReceiptModel4>().getAll().reversed.toList();
     return MultiProvider(

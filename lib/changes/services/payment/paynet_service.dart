@@ -23,7 +23,7 @@ class PaynetService {
   // Hujjatdagi asosiy URL: https://api.paynet.uz/v2/merchant/
   static const String _baseUrlTest = 'https://pass-test.paynet.uz/v2/merchant';
   static const String _baseUrlProd = 'https://api.paynet.uz/v2/merchant';
-  static const String _baseUrl = _baseUrlTest; // TODO: prod ga o'tkazish
+  static const String _baseUrl = _baseUrlTest; 
 
   // 1. To'lovni yaratish (Paynet QR)
   // POST /v2/merchant/paynet-pass/payment

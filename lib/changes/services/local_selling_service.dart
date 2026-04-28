@@ -14,6 +14,7 @@ import 'package:invan2/changes/services/app_constants.dart';
 import 'package:invan2/changes/services/log_helper.dart';
 import 'package:invan2/changes/services/payment/click_service.dart';
 import 'package:invan2/changes/services/payment/payme_service.dart';
+import 'package:invan2/changes/services/payment/paynet_service.dart';
 import 'package:invan2/changes/services/payment/uzum_service.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/utils/utils.dart';
@@ -136,6 +137,20 @@ if (receiptData is ReceiptModel4) {
             'payment_id': UzumService.paymentId.toString(),
             'fiscal_url': res.info?.qrCodeUrl,
           });
+        }
+
+        // Agar to'lovda Paynet (Pass yoki QR) dan foydalanilsa, fiskal chekni Paynетга jo'natish kerak
+        if (body['params']['receivedPaynet'] == true) {
+          final pid = PaynetService.paymentId ?? 0;
+          final qrcode = res.info?.qrCodeUrl ?? '';
+          final address = Pref.getString(PrefKeys.serviceAddress, "");
+          print('======= Paynet sendFiscalReceipt | pid: $pid | qrcode: $qrcode | address: $address =======');
+          PaynetService.sendFiscalReceipt(
+            pid: pid,
+            qrcode: qrcode,
+            salePointAddress: address,
+          );
+          PaynetService.paymentId = null;
         }
 
         // Agar to'lovda Payme Godan foydalanilsa, Receiptni Paymega ka jo'natish kerak
@@ -271,6 +286,7 @@ if (receiptData is ReceiptModel4) {
       dateTime,
       extraInfo,
     );
+    Pref.setString("bodyForDiscountError", jsonEncode(body));
     ApiState state = await BaseService.post(receiptModel.toJson());
 
     if (state is Success) {
