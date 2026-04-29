@@ -7,6 +7,7 @@ import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 import 'package:invan2/objectbox.g.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../../changes/services/api.dart';
 import '../../../../../utils/utils.dart';
@@ -52,19 +53,30 @@ class UsrBloc extends Bloc<UsrEvent, UsrState> {
       if (internet) {
         emit(UsrInSendingState());
 
-        List<ReceiptModel4> receiptList = _find10().where((r) {
-          bool valid = r.externalId.isNotEmpty &&
-              (r.isRefund || r.orderId.isNotEmpty);
-          if (!valid) {
+        final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+        List<ReceiptModel4> receiptList = _find10().map((r) {
+          final needsRepair = r.externalId.isEmpty ||
+              (!r.isRefund && r.orderId.isEmpty);
+          if (needsRepair) {
             LogRepository.addLog(
-              "Invalid receipt before upload: ext=${r.externalId}, order=${r.orderId}",
+              "Repairing receipt before upload: ext=${r.externalId}, order=${r.orderId}",
               where: "UsrBloc._send",
               statusCode: 0,
               success: false,
+              file: 'usr_bloc.dart',
+              checkNo: r.externalId,
+              createdDate: r.createdDate,
             );
+            if (r.externalId.isEmpty) {
+              r.externalId = "REP-${r.id}";
+            }
+            if (!r.isRefund && r.orderId.isEmpty) {
+              r.orderId = const Uuid().v7();
+            }
+            box.put(r, mode: PutMode.update);
           }
-          return valid;
-        }).toList();
+          return r;
+        }).where((r) => r.soldItemList.isNotEmpty).toList();
 
         if (receiptList.isNotEmpty) {
           for (; receiptList.isNotEmpty && _responseSuccess;) {

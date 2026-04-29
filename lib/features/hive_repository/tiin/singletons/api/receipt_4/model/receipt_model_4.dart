@@ -383,7 +383,9 @@ class ReceiptModelSoldItem4 {
   int? ownerType;
   int id = 0;
   bool isFreeGift;
-
+int saleType;
+int boxValue;
+int boxQuantity;
 
   ReceiptModelSoldItem4({
     required this.inBox,
@@ -422,6 +424,9 @@ class ReceiptModelSoldItem4 {
     this.isFreeGift = false,
     this.productType = "",
     this.productPackage = "",
+    this.saleType = 1,
+    this.boxValue = 0,
+    this.boxQuantity = 0,
   });
 
   Map<String, dynamic> toJson() {
@@ -454,6 +459,9 @@ class ReceiptModelSoldItem4 {
           : [],
       'product_type': productType,
       'product_package': productPackage,
+      'sale_type': saleType,
+      'box_value': boxValue,
+      'box_quantity': boxQuantity,
     };
     return json;
   }

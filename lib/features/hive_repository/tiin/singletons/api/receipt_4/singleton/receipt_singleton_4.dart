@@ -25,18 +25,16 @@ class ReceiptSingleton4 {
   }) async {
     receiptModel4 = consolidateSoldItems(receiptModel4);
 
-    final box = MyObjectbox.saleStore.box<ReceiptModel4>();
-    int i = box.put(receiptModel4);
     // Refund uchun externalId return_bloc da oldindan set qilingan (API bilan bir xil bo'lsin)
-    // Sotuv uchun yangi raqam generate qilamiz
+    // Sotuv uchun: ID larni box.put DAN OLDIN beramiz — crash bo'lsa to'liq saqlanadi yoki umuman saqlanmaydi
     if (!receiptModel4.isRefund) {
       receiptModel4.externalId = await getCheckNo();
-    }
-    receiptModel4.id = i;
-
-    if (!receiptModel4.isRefund) {
       receiptModel4.orderId = const Uuid().v7();
     }
+
+    final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+    int i = box.put(receiptModel4);
+    receiptModel4.id = i;
 
     final refundInfo = receiptModel4.refundInfo;
     if (refundInfo != null && refundInfo.isNotEmpty) {
@@ -97,38 +95,43 @@ class ReceiptSingleton4 {
     Map<String, ReceiptModelSoldItem4> uniqueItems = {};
     Map<String, double> totalSingleDiscount = {};
     Map<String, double> totalPrice = {};
-    // Har bir productId uchun barcha marklarni yig'amiz
+    Map<String, double> totalOnlyPrice = {};
     Map<String, List<String>> allMarks = {};
 
     for (ReceiptModelSoldItem4 r in receiptModel4.soldItemList) {
-      if (uniqueItems.containsKey(r.productId)) {
-        uniqueItems[r.productId]!.value += r.value;
-        totalSingleDiscount[r.productId] =
-            (totalSingleDiscount[r.productId] ?? 0) + r.singleDiscount * r.value;
-        totalPrice[r.productId] =
-            (totalPrice[r.productId] ?? 0) + r.price * r.value;
+      // Box, utsenka va oddiy itemlarni ajratamiz
+      final key = '${r.productId}_${r.saleType}_${r.isPriceOnlyChanged}';
+      if (uniqueItems.containsKey(key)) {
+        uniqueItems[key]!.value += r.value;
+        totalSingleDiscount[key] =
+            (totalSingleDiscount[key] ?? 0) + r.singleDiscount * r.value;
+        totalPrice[key] =
+            (totalPrice[key] ?? 0) + r.price * r.value;
+        totalOnlyPrice[key] =
+            (totalOnlyPrice[key] ?? 0) + r.onlyPrice * r.value;
       } else {
-        uniqueItems[r.productId] = r;
-        totalSingleDiscount[r.productId] = r.singleDiscount * r.value;
-        totalPrice[r.productId] = r.price * r.value;
-        allMarks[r.productId] = [];
+        uniqueItems[key] = r;
+        totalSingleDiscount[key] = r.singleDiscount * r.value;
+        totalPrice[key] = r.price * r.value;
+        totalOnlyPrice[key] = r.onlyPrice * r.value;
+        allMarks[key] = [];
       }
-      // Markni ro'yxatga qo'shamiz (bo'sh bo'lmasa)
       if (r.mark != null && r.mark!.isNotEmpty) {
-        allMarks[r.productId]!.add(r.mark!);
+        allMarks[key]!.add(r.mark!);
       }
     }
 
-    for (final productId in uniqueItems.keys) {
-      final item = uniqueItems[productId]!;
-      final totalDiscount = totalSingleDiscount[productId] ?? 0;
-      final priceTotal = totalPrice[productId] ?? 0;
+    for (final key in uniqueItems.keys) {
+      final item = uniqueItems[key]!;
+      final totalDiscount = totalSingleDiscount[key] ?? 0;
+      final priceTotal = totalPrice[key] ?? 0;
+      final onlyPriceTotal = totalOnlyPrice[key] ?? 0;
       if (item.value > 0) {
         item.singleDiscount = totalDiscount / item.value;
         item.price = priceTotal / item.value;
+        item.onlyPrice = onlyPriceTotal / item.value;
       }
-      // Barcha marklarni '\n' bilan birlashtirib mark ga saqlaymiz
-      final marks = allMarks[productId] ?? [];
+      final marks = allMarks[key] ?? [];
       item.mark = marks.join('\n');
     }
 

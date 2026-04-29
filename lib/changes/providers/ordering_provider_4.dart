@@ -36,6 +36,7 @@ import 'package:invan2/features/home/features/home_orders/calculation_part/total
 import 'package:invan2/features/home/features/home_orders/calculation_part/total_price_dialog/operation_on_total_price_dialog.dart';
 import 'package:invan2/features/payment/right/complete_button/uzum_pay_bloc/uzum_pay_bloc.dart';
 import 'package:invan2/features/payment/right/dilogs/click/bloc/click_bloc.dart';
+import 'package:invan2/changes/services/payment/paynet_service.dart';
 import 'package:invan2/features/payment/right/dilogs/paynet/bloc/paynet_bloc.dart';
 import 'package:invan2/features/payment/right/dilogs/paynet/paynet_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/click/clic_pass_dialog.dart';
@@ -688,10 +689,45 @@ class OrderingProvider4 extends ChangeNotifier {
     await marking(context, product);
   }
 
+  ReceiptModelSoldItem4? _parseUtsenkaQr(String barcode) {
+    try {
+      final decoded = jsonDecode(barcode);
+      if (decoded is! Map) return null;
+      final skuRaw = decoded['sku'];
+      final priceRaw = decoded['price'];
+      if (skuRaw == null || priceRaw == null) return null;
+
+      final skuInt = int.tryParse(skuRaw.toString());
+      if (skuInt == null) return null;
+      final utsenkaPrice = (priceRaw as num).toDouble();
+      if (utsenkaPrice <= 0) return null;
+
+      final product = ItemsSingleton.getProductBySku(skuInt);
+      if (product == null) return null;
+
+      final originalPrice =
+          ItemsSingleton.finalPrice(product, 1, false).toDouble();
+      final discount =
+          (originalPrice - utsenkaPrice).clamp(0.0, double.infinity);
+      final percent = originalPrice > 0 ? (discount / originalPrice) * 100 : 0.0;
+
+      final item = _createSoldItem(product, utsenkaPrice, 1, false);
+      item.realPrice = originalPrice;
+      item.onlyPrice = originalPrice;
+      item.singleDiscount = discount;
+      item.discountPercent = percent.toDouble();
+      item.isPriceChanged = true;
+      item.isPriceOnlyChanged = true;
+      return item;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _handleRegularProduct(BuildContext context, ItemModel product,
       double value, double price, bool isKg) async {
     final existingIndex = _currentClient.orderedProducts
-        .indexWhere((e) => e.productId == product.id);
+        .indexWhere((e) => e.productId == product.id && !e.isPriceOnlyChanged);
 
     if (existingIndex != -1) {
       await _updateExistingProduct(context, product, value, existingIndex);
@@ -780,13 +816,6 @@ class OrderingProvider4 extends ChangeNotifier {
     final isMxikOrPackageInvalid = markCheckEnabled &&
         (soldItem.mxik.isEmpty || soldItem.packageCode?.isEmpty != false);
 
-    print('[_checkAndShowDialogsIfNeeded] product: ${soldItem.productName}'
-        ' | mxik: ${soldItem.mxik}'
-        ' | packageCode: ${soldItem.packageCode}'
-        ' | marking: ${soldItem.marking}'
-        ' | markCheckEnabled: $markCheckEnabled'
-        ' | isMxikOrPackageInvalid: $isMxikOrPackageInvalid'
-        ' | isPriceZero: $isPriceZero');
 
     if (soldItem.value <= 0) {
       final loc = AppLocalizations.of(context)!;
@@ -1020,7 +1049,7 @@ void useFreeProducts() {
       item
         ..price = item.realPrice * ratio
         ..discountPercent = 100 - (ratio * 100)
-        ..singleDiscount = item.realPrice * effectiveFree;
+        ..singleDiscount = (item.realPrice * effectiveFree) / itemQty;
 
       item.discount.clear();
 
@@ -1093,7 +1122,7 @@ void useFreeProducts() {
           item
             ..price = item.realPrice * ratio
             ..discountPercent = 100 - (ratio * 100)
-            ..singleDiscount = item.realPrice * effectiveFree;
+            ..singleDiscount = (item.realPrice * effectiveFree) / itemQty;
 
           item.discount.clear();
           DiscountSingleton.addDiscountForProduct(item);
@@ -1171,11 +1200,11 @@ void useBuyXGetXProducts() {
         final ratio = paidQty / totalQty;
         item.price = item.realPrice * ratio;
         item.discountPercent = 100 - (ratio * 100);
-        item.singleDiscount = item.realPrice * freeQty;
+        item.singleDiscount = (item.realPrice * freeQty) / totalQty;
       } else {
         item.price = 0;
         item.discountPercent = 100;
-        item.singleDiscount = item.realPrice * totalQty;
+        item.singleDiscount = item.realPrice;
       }
 
       // Discount model
@@ -1207,7 +1236,7 @@ void useBuyXGetXProducts() {
           // Butun qator tekin
           item.price = 0;
           item.discountPercent = 100;
-          item.singleDiscount = item.realPrice * itemQty;
+          item.singleDiscount = item.realPrice;
           freeQtyLeft -= itemQty;
         } else {
           // Qisman tekin (lekin markirovka uchun odatda kerak emas)
@@ -1217,7 +1246,7 @@ void useBuyXGetXProducts() {
 
           item.price = item.realPrice * ratio;
           item.discountPercent = 100 - (ratio * 100);
-          item.singleDiscount = item.realPrice * freeInThis;
+          item.singleDiscount = (item.realPrice * freeInThis) / itemQty;
           freeQtyLeft = 0;
         }
 
@@ -1810,8 +1839,12 @@ String _markirovka(String rawMark) {
     }
 
     // Basketdagi shu productlar soni + 1 (yangi qo'shilayotgan)
+    // Box itemlar (saleType==2) narx hisobiga kirmaydi — ular alohida logikada
     final existingCount = _currentClient.orderedProducts
-        .where((e) => e.productId == freshProduct.id && !(e.isDeleted ?? false))
+        .where((e) =>
+            e.productId == freshProduct.id &&
+            !(e.isDeleted ?? false) &&
+            e.saleType != 2)
         .length;
     final totalCount = existingCount + 1;
 
@@ -1866,9 +1899,11 @@ String _markirovka(String rawMark) {
 
     _currentClient.orderedProducts.insert(0, soldItem);
 
-    // Avvalgi barcha bir xil productlarning narxini ham yangilaymiz
+    // Avvalgi dona itemlarning narxini yangilaymiz (box itemlar o'zgarmaydi)
     for (final item in _currentClient.orderedProducts) {
-      if (item.productId == freshProduct.id && !(item.isDeleted ?? false)) {
+      if (item.productId == freshProduct.id &&
+          !(item.isDeleted ?? false) &&
+          item.saleType != 2) {
         item.price = price;
         item.realPrice = price;
         item.onlyPrice = price;
@@ -1879,6 +1914,7 @@ String _markirovka(String rawMark) {
     for (final item in _currentClient.orderedProducts) {
       if (item.productId == freshProduct.id &&
           !(item.isDeleted ?? false) &&
+          item.saleType != 2 &&
           !item.isPriceOnlyChanged) {
         item.singleDiscount = 0;
         _applyDiscounts(freshProduct, item);
@@ -1985,6 +2021,114 @@ String _markirovka(String rawMark) {
         item.singleDiscount = 0;
       }
     }
+  }
+
+  Future<void> _addBoxProduct(ItemModel product, String rawMark) async {
+    final freshProduct =
+        ItemsSingleton.getProductById(product.id ?? '') ?? product;
+
+    // Duplicate check: xuddi shu box marking kodi allaqachon qo'shilganmi
+    final alreadyAdded = _currentClient.orderedProducts.any(
+      (e) => !(e.isDeleted ?? false) && e.saleType == 2 && e.mark == rawMark,
+    );
+    if (alreadyAdded) {
+      if (!dialogForMark) {
+        dialogForMark = true;
+        final loc =
+            AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
+        await showGeneralDialog(
+          barrierDismissible: false,
+          context: AppNavigation.navigatorKey.currentContext!,
+          pageBuilder: (f, d, ctx) => ContainsZeroPriceItemDialog(
+            text: loc.ha.toLowerCase() == 'ha'
+                ? 'Bu box allaqachon qo\'shilgan!'
+                : 'Этот бокс уже добавлен!',
+            text2: 'Ok',
+            delete: false,
+            isFirst: true,
+            provider: this,
+          ),
+        ).then((_) {});
+        dialogForMark = false;
+      }
+      return;
+    }
+
+    final isKg = _isKg(freshProduct);
+    print('Box Product ${freshProduct.name} ${freshProduct.boxBarcodeQuantity}${freshProduct.hasBoxBarcode}');
+ final rawBoxValue = freshProduct.boxBarcodeQuantity;
+final boxValue = (rawBoxValue == null || rawBoxValue == 0)
+    ? 1
+    : rawBoxValue.toInt();
+    print('boxBarcodeQuantity (raw) = ${freshProduct.boxBarcodeQuantity}');
+print('boxValue (fixed) = $boxValue');
+    final unitPrice =
+        ItemsSingleton.finalPrice(freshProduct, 1, isKg).toDouble();
+    final boxPrice = unitPrice * boxValue;
+
+    final existingBoxCount = _currentClient.orderedProducts
+        .where((e) =>
+            e.productId == (freshProduct.id ?? '') &&
+            !(e.isDeleted ?? false) &&
+            e.saleType == 2)
+        .length;
+    final newBoxQuantity = existingBoxCount + 1;
+
+    final soldItem = ReceiptModelSoldItem4(
+      inBox: 0,
+      tin: freshProduct.commissionTin ?? '',
+      isDeleted: false,
+      marking: false,
+      mark: rawMark,
+      soldBy: freshProduct.categories?.isNotEmpty == true
+          ? freshProduct.categories!.first.id ?? ''
+          : '',
+      cost: freshProduct.shopPrices?.shID?.supplyPrice?.toDouble() ?? 0,
+      createdTime: DateTime.now().millisecondsSinceEpoch,
+      price: boxPrice,
+      realPrice: boxPrice,
+      onlyPrice: boxPrice,
+      singleDiscount: 0,
+      value: 1,
+      productId: freshProduct.id ?? '',
+      productName: '${freshProduct.name ?? ''} //blok',
+      ownerType: int.tryParse(freshProduct.ownerType ?? '1') ?? 1,
+      packageCode: freshProduct.packageCode,
+      packageName: freshProduct.packageName,
+      barcode: freshProduct.barcode?.isNotEmpty == true
+          ? freshProduct.barcode!.first
+          : '',
+      sku: int.tryParse(freshProduct.sku ?? '0') ?? 0,
+      vat: boxPrice == 0
+          ? 0
+          : (boxPrice * (freshProduct.vat?.percentage ?? 12)) /
+              (100 + (freshProduct.vat?.percentage ?? 12)),
+      mxik: freshProduct.mxikCode ?? '',
+      sellerId: Pref.getString(PrefKeys.cashierId, ''),
+      vatName: freshProduct.vat?.name ?? '',
+      vatPercent: (freshProduct.vat?.percentage ?? 12).toDouble(),
+      discountPercent: 0,
+      productType: _getProductType(freshProduct.mxikCode?.trim() ?? ''),
+      productPackage: 'NomUpak',
+      saleType: 2,
+      boxValue: boxValue,
+      boxQuantity: newBoxQuantity,
+    );
+
+    _currentClient.orderedProducts.insert(0, soldItem);
+
+    // Shu productning barcha box itemlarida boxQuantity ni yangilaymiz
+    for (final item in _currentClient.orderedProducts) {
+      if (item.productId == (freshProduct.id ?? '') &&
+          !(item.isDeleted ?? false) &&
+          item.saleType == 2) {
+        item.boxQuantity = newBoxQuantity;
+      }
+    }
+
+    _currentClient.lastAddedIndex = 0;
+    isTpEdited = false;
+    notifyListeners();
   }
 
   /// /// /// /// /// /// /// /// /// /// /// /// ///
@@ -2836,6 +2980,7 @@ String _markirovka(String rawMark) {
     _isOfdWithOfd = false;
     _clickPassPaid = false;
     _paymePaid = false;
+    PaynetService.paymentId = null;
     ////////////////////////////////////////
     _cardEnabled = Pref.getBool(PrefKeys.cardEnabled, false);
     _cashEnabled = Pref.getBool(PrefKeys.cashEnabled, false);
@@ -3910,6 +4055,15 @@ String _markirovka(String rawMark) {
     if (barcode.isEmpty || barcode.startsWith('http')) return;
     if (isMarkingDialogDisplaying) return;
 
+    if (barcode.trimLeft().startsWith('{')) {
+      final utsenkaItem = _parseUtsenkaQr(barcode);
+      if (utsenkaItem != null) {
+        _currentClient.orderedProducts.insert(0, utsenkaItem);
+        notifyListeners();
+        return;
+      }
+    }
+
     int taroziPrefix = Pref.getInt(PrefKeys.taroziPrefix, 28);
     if (barcode.startsWith('$taroziPrefix') && barcode.length == 13) {
       scanWeightItem(barcode, scaffoldKey);
@@ -3962,6 +4116,36 @@ String _markirovka(String rawMark) {
           dialogForMark = false;
         }
         return; // ← bu dialogForMark dan TASHQARIDA bo'lishi kerak
+      }
+    }
+    // ─── Box barcode (GS1 marking kodi box productlar uchun) ──────
+    // GS1 standart: AI '01' + har doim aniq 14 ta raqam (GTIN-14)
+    // GTIN-14 = packaging_indicator(1 ta) + EAN-13(13 ta) = 14 ta
+    // Masalan: '0114780101733771...' → gtin14='14780101733771' → ean13='4780101733771'
+    if (barcode.startsWith('01') && barcode.length > 16) {
+      final boxGtinMatch = RegExp(r'^01(\d{14})').firstMatch(barcode);
+      if (boxGtinMatch != null) {
+        final gtin14 = boxGtinMatch.group(1)!;
+        // Packaging indicator (birinchi raqam) ni olib tashlab EAN-13 olamiz
+        final ean13 = gtin14.substring(1);
+        // Ba'zi DBlar 14 raqamli saqlaydi, ba'zilari 13 — ikkalasini ham tekshiramiz
+        final gtin14NoLeadZero = gtin14.replaceFirst(RegExp(r'^0+'), '');
+
+        debugPrint('[BOX] barcode: $barcode');
+        debugPrint('[BOX] gtin14: $gtin14  |  ean13: $ean13  |  trimmed: $gtin14NoLeadZero');
+
+        final boxProduct =
+            ItemsSingleton.getProductByBoxBarcodeOnly(ean13) ??
+            ItemsSingleton.getProductByBoxBarcodeOnly(gtin14NoLeadZero) ??
+            ItemsSingleton.getProductByBoxBarcodeOnly(gtin14);
+
+        debugPrint('[BOX] product found: ${boxProduct?.name ?? "NOT FOUND"}');
+
+        if (boxProduct != null) {
+          await _addBoxProduct(boxProduct, barcode);
+          debugPrint('[BOX] added: ${_currentClient.orderedProducts.first.toJson()}');
+          return;
+        }
       }
     }
     // ─────────────────────────────────────────────────────────
@@ -4017,12 +4201,7 @@ String _markirovka(String rawMark) {
           Pref.getBool(PrefKeys.sellProductsWithMarking, true);
       final bool isMarkingByMxik = markCheckEnabled &&
           sellWithMarkingEnabled && _isMxikMarking(mxikStr);
-      print('[onBarcodeScanned] product: ${item.name}'
-          ' | mxik: $mxikStr'
-          ' | isMarking(model): ${item.isMarking}'
-          ' | markCheckWithOfd(pref): $markCheckEnabled'
-          ' | sellWithMarking(pref): $sellWithMarkingEnabled'
-          ' | isMarkingByMxik: $isMarkingByMxik');
+    
       if (markCheckEnabled && _isAlcoholMxik(mxikStr)) {
         Pref.setBool(PrefKeys.isCashDisableForAlcohol, true);
       }
@@ -4033,7 +4212,9 @@ String _markirovka(String rawMark) {
 
       addProduct(
         context: scaffoldKey.currentState!.context,
-        value: item.hasBoxBarcode == true
+        value: item.hasBoxBarcode == true &&
+                item.boxBarcode != null &&
+                item.boxBarcode == barcode.trim()
             ? (item.boxBarcodeQuantity ?? 0).toDouble()
             : 1,
         product: item,
@@ -4063,17 +4244,17 @@ String _markirovka(String rawMark) {
       }
     }
 
-    // ─── Box barcode ─────────────────────────────────────────
-    ItemModel? boxItem = ItemsSingleton.getProductByBoxBarcode(barcode);
-    if (boxItem != null) {
-      addProduct(
-        context: scaffoldKey.currentState!.context,
-        value: 0,
-        product: boxItem,
-        where: "PRODUCTS GRID VIEW / scanBarcode box item",
-      );
-      return;
-    }
+    // // ─── Box barcode ─────────────────────────────────────────
+    // ItemModel? boxItem = ItemsSingleton.getProductByBoxBarcode(barcode);
+    // if (boxItem != null) {
+    //   addProduct(
+    //     context: scaffoldKey.currentState!.context,
+    //     value: 0,
+    //     product: boxItem,
+    //     where: "PRODUCTS GRID VIEW / scanBarcode box item",
+    //   );
+    //   return;
+    // }
 
     // ─── Topilmadi ───────────────────────────────────────────
     if (!displayingNotFoundDialog) {

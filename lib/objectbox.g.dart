@@ -461,7 +461,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
       id: const obx_int.IdUid(7, 4121567817909813718),
       name: 'ReceiptModelSoldItem4',
-      lastPropertyId: const obx_int.IdUid(38, 1742047357587076320),
+      lastPropertyId: const obx_int.IdUid(41, 7753485730070532226),
       flags: 0,
       properties: <obx_int.ModelProperty>[
         obx_int.ModelProperty(
@@ -653,6 +653,21 @@ final _entities = <obx_int.ModelEntity>[
             id: const obx_int.IdUid(38, 1742047357587076320),
             name: 'productPackage',
             type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(39, 7034426403519152331),
+            name: 'saleType',
+            type: 6,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(40, 1877520802038796105),
+            name: 'boxValue',
+            type: 6,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(41, 7753485730070532226),
+            name: 'boxQuantity',
+            type: 6,
             flags: 0)
       ],
       relations: <obx_int.ModelRelation>[
@@ -1355,7 +1370,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final soldByOffset = fbb.writeString(object.soldBy);
           final productTypeOffset = fbb.writeString(object.productType);
           final productPackageOffset = fbb.writeString(object.productPackage);
-          fbb.startTable(39);
+          fbb.startTable(42);
           fbb.addOffset(0, orderIdOffset);
           fbb.addOffset(1, refundItemIdOffset);
           fbb.addFloat64(2, object.price);
@@ -1394,6 +1409,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fbb.addBool(35, object.isFreeGift);
           fbb.addOffset(36, productTypeOffset);
           fbb.addOffset(37, productPackageOffset);
+          fbb.addInt64(38, object.saleType);
+          fbb.addInt64(39, object.boxValue);
+          fbb.addInt64(40, object.boxQuantity);
           fbb.finish(fbb.endTable());
           return object.id;
         },
@@ -1479,6 +1497,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final productPackageParam =
               const fb.StringReader(asciiOptimization: true)
                   .vTableGet(buffer, rootOffset, 78, '');
+          final saleTypeParam =
+              const fb.Int64Reader().vTableGet(buffer, rootOffset, 80, 0);
+          final boxValueParam =
+              const fb.Int64Reader().vTableGet(buffer, rootOffset, 82, 0);
+          final boxQuantityParam =
+              const fb.Int64Reader().vTableGet(buffer, rootOffset, 84, 0);
           final object = ReceiptModelSoldItem4(
               inBox: inBoxParam,
               barcode: barcodeParam,
@@ -1515,7 +1539,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
               packageName: packageNameParam,
               isFreeGift: isFreeGiftParam,
               productType: productTypeParam,
-              productPackage: productPackageParam)
+              productPackage: productPackageParam,
+              saleType: saleTypeParam,
+              boxValue: boxValueParam,
+              boxQuantity: boxQuantityParam)
             ..orderId = const fb.StringReader(asciiOptimization: true)
                 .vTableGet(buffer, rootOffset, 4, '')
             ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 70, 0);
@@ -2158,6 +2185,18 @@ class ReceiptModelSoldItem4_ {
   /// see [ReceiptModelSoldItem4.productPackage]
   static final productPackage = obx.QueryStringProperty<ReceiptModelSoldItem4>(
       _entities[6].properties[37]);
+
+  /// see [ReceiptModelSoldItem4.saleType]
+  static final saleType = obx.QueryIntegerProperty<ReceiptModelSoldItem4>(
+      _entities[6].properties[38]);
+
+  /// see [ReceiptModelSoldItem4.boxValue]
+  static final boxValue = obx.QueryIntegerProperty<ReceiptModelSoldItem4>(
+      _entities[6].properties[39]);
+
+  /// see [ReceiptModelSoldItem4.boxQuantity]
+  static final boxQuantity = obx.QueryIntegerProperty<ReceiptModelSoldItem4>(
+      _entities[6].properties[40]);
 
   /// see [ReceiptModelSoldItem4.discount]
   static final discount =

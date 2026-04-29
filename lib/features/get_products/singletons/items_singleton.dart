@@ -257,8 +257,8 @@ static Future<void> storeProducts() async {
 
     // Barcode bo'yicha qidirish
     return barcodeProducts.firstWhereOrNull((product) {
-      if (product.hasBoxBarcode == true) {
-        return product.boxBarcode == trimmed;
+      if (product.hasBoxBarcode == true && product.boxBarcode == trimmed) {
+        return true;
       }
       return product.barcode?.any((b) => b == trimmed) ?? false;
     });
@@ -267,6 +267,12 @@ static Future<void> storeProducts() async {
   static ItemModel? getProductByBoxBarcode(String pattern) {
     return barcodeProducts.firstWhereOrNull(
       (product) => product.barcode == pattern,
+    );
+  }
+
+  static ItemModel? getProductByBoxBarcodeOnly(String gtin) {
+    return barcodeProducts.firstWhereOrNull(
+      (product) => product.hasBoxBarcode == true && product.boxBarcode == gtin,
     );
   }
 
