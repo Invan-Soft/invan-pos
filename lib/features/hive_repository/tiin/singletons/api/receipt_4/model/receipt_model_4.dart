@@ -386,6 +386,7 @@ class ReceiptModelSoldItem4 {
 int saleType;
 int boxValue;
 int boxQuantity;
+  String? boxMark;
 
   ReceiptModelSoldItem4({
     required this.inBox,
@@ -427,6 +428,7 @@ int boxQuantity;
     this.saleType = 1,
     this.boxValue = 0,
     this.boxQuantity = 0,
+    this.boxMark,
   });
 
   Map<String, dynamic> toJson() {
@@ -456,6 +458,9 @@ int boxQuantity;
       'marking_name': "",
       'marking_names': (mark != null && mark!.isNotEmpty)
           ? mark!.split('\n').where((m) => m.isNotEmpty).toList()
+          : [],
+      'box_marking_names': (boxMark != null && boxMark!.isNotEmpty)
+          ? boxMark!.split('\n').where((m) => m.isNotEmpty).toList()
           : [],
       'product_type': productType,
       'product_package': productPackage,

@@ -97,27 +97,55 @@ class ReceiptSingleton4 {
     Map<String, double> totalPrice = {};
     Map<String, double> totalOnlyPrice = {};
     Map<String, List<String>> allMarks = {};
+    Map<String, List<String>> allBoxMarks = {};
+    Map<String, int> totalBoxQuantity = {};
+    Map<String, int> boxValueMap = {};
 
     for (ReceiptModelSoldItem4 r in receiptModel4.soldItemList) {
-      // Box, utsenka va oddiy itemlarni ajratamiz
-      final key = '${r.productId}_${r.saleType}_${r.isPriceOnlyChanged}';
+      // Utsenka alohida, box + individual birga birlashtiradi
+      final key = '${r.productId}_${r.isPriceOnlyChanged}';
+
+      // Box item narxini unit narxga normalize qilamiz (24000 → 3000)
+      final double unitPrice = (r.saleType == 2 && r.boxValue > 0)
+          ? r.price / r.boxValue
+          : r.price;
+      final double unitOnlyPrice = (r.saleType == 2 && r.boxValue > 0)
+          ? r.onlyPrice / r.boxValue
+          : r.onlyPrice;
+
       if (uniqueItems.containsKey(key)) {
         uniqueItems[key]!.value += r.value;
         totalSingleDiscount[key] =
             (totalSingleDiscount[key] ?? 0) + r.singleDiscount * r.value;
-        totalPrice[key] =
-            (totalPrice[key] ?? 0) + r.price * r.value;
+        totalPrice[key] = (totalPrice[key] ?? 0) + unitPrice * r.value;
         totalOnlyPrice[key] =
-            (totalOnlyPrice[key] ?? 0) + r.onlyPrice * r.value;
+            (totalOnlyPrice[key] ?? 0) + unitOnlyPrice * r.value;
+        if (r.saleType == 2) {
+          totalBoxQuantity[key] =
+              (totalBoxQuantity[key] ?? 0) + r.value.toInt();
+          if (r.boxValue > 0) boxValueMap[key] = r.boxValue;
+          uniqueItems[key]!.saleType = 2;
+        }
       } else {
         uniqueItems[key] = r;
         totalSingleDiscount[key] = r.singleDiscount * r.value;
-        totalPrice[key] = r.price * r.value;
-        totalOnlyPrice[key] = r.onlyPrice * r.value;
+        totalPrice[key] = unitPrice * r.value;
+        totalOnlyPrice[key] = unitOnlyPrice * r.value;
         allMarks[key] = [];
+        allBoxMarks[key] = [];
+        if (r.saleType == 2) {
+          totalBoxQuantity[key] = r.value.toInt();
+          if (r.boxValue > 0) boxValueMap[key] = r.boxValue;
+        } else {
+          totalBoxQuantity[key] = 0;
+        }
       }
       if (r.mark != null && r.mark!.isNotEmpty) {
-        allMarks[key]!.add(r.mark!);
+        if (r.saleType == 2) {
+          allBoxMarks[key]!.add(r.mark!);
+        } else {
+          allMarks[key]!.add(r.mark!);
+        }
       }
     }
 
@@ -131,8 +159,11 @@ class ReceiptSingleton4 {
         item.price = priceTotal / item.value;
         item.onlyPrice = onlyPriceTotal / item.value;
       }
-      final marks = allMarks[key] ?? [];
-      item.mark = marks.join('\n');
+      item.boxQuantity = totalBoxQuantity[key] ?? 0;
+      item.boxValue = boxValueMap[key] ?? 0;
+      if (item.boxQuantity > 0) item.saleType = 2;
+      item.mark = (allMarks[key] ?? []).join('\n');
+      item.boxMark = (allBoxMarks[key] ?? []).join('\n');
     }
 
     receiptModel4.soldItemList.clear();

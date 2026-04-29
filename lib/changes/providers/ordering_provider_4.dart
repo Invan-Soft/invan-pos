@@ -2109,7 +2109,7 @@ print('boxValue (fixed) = $boxValue');
       vatPercent: (freshProduct.vat?.percentage ?? 12).toDouble(),
       discountPercent: 0,
       productType: _getProductType(freshProduct.mxikCode?.trim() ?? ''),
-      productPackage: 'NomUpak',
+      productPackage: 'KIZ',
       saleType: 2,
       boxValue: boxValue,
       boxQuantity: newBoxQuantity,
