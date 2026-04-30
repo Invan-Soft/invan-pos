@@ -96,14 +96,18 @@ class ReceiptSingleton4 {
     Map<String, double> totalSingleDiscount = {};
     Map<String, double> totalPrice = {};
     Map<String, double> totalOnlyPrice = {};
+    Map<String, double> totalRealPrice = {};
     Map<String, List<String>> allMarks = {};
     Map<String, List<String>> allBoxMarks = {};
     Map<String, int> totalBoxQuantity = {};
     Map<String, int> boxValueMap = {};
 
     for (ReceiptModelSoldItem4 r in receiptModel4.soldItemList) {
-      // Utsenka alohida, box + individual birga birlashtiradi
-      final key = '${r.productId}_${r.isPriceOnlyChanged}';
+      // Bir xil productdagi barcha unit itemlar birlashtiriladi (utsenka ham)
+      // Box itemlar alohida key bilan saqlanadi
+      final key = r.saleType == 2
+          ? '${r.productId}_box_${r.boxValue}'
+          : r.productId;
 
       // Box item narxini unit narxga normalize qilamiz (24000 → 3000)
       final double unitPrice = (r.saleType == 2 && r.boxValue > 0)
@@ -112,6 +116,9 @@ class ReceiptSingleton4 {
       final double unitOnlyPrice = (r.saleType == 2 && r.boxValue > 0)
           ? r.onlyPrice / r.boxValue
           : r.onlyPrice;
+      final double unitRealPrice = (r.saleType == 2 && r.boxValue > 0)
+          ? r.realPrice / r.boxValue
+          : r.realPrice;
 
       if (uniqueItems.containsKey(key)) {
         uniqueItems[key]!.value += r.value;
@@ -120,6 +127,8 @@ class ReceiptSingleton4 {
         totalPrice[key] = (totalPrice[key] ?? 0) + unitPrice * r.value;
         totalOnlyPrice[key] =
             (totalOnlyPrice[key] ?? 0) + unitOnlyPrice * r.value;
+        totalRealPrice[key] =
+            (totalRealPrice[key] ?? 0) + unitRealPrice * r.value;
         if (r.saleType == 2) {
           totalBoxQuantity[key] =
               (totalBoxQuantity[key] ?? 0) + r.value.toInt();
@@ -131,6 +140,7 @@ class ReceiptSingleton4 {
         totalSingleDiscount[key] = r.singleDiscount * r.value;
         totalPrice[key] = unitPrice * r.value;
         totalOnlyPrice[key] = unitOnlyPrice * r.value;
+        totalRealPrice[key] = unitRealPrice * r.value;
         allMarks[key] = [];
         allBoxMarks[key] = [];
         if (r.saleType == 2) {
@@ -154,14 +164,28 @@ class ReceiptSingleton4 {
       final totalDiscount = totalSingleDiscount[key] ?? 0;
       final priceTotal = totalPrice[key] ?? 0;
       final onlyPriceTotal = totalOnlyPrice[key] ?? 0;
+      final realPriceTotal = totalRealPrice[key] ?? 0;
       if (item.value > 0) {
-        item.singleDiscount = totalDiscount / item.value;
         item.price = priceTotal / item.value;
         item.onlyPrice = onlyPriceTotal / item.value;
+        // Weighted average realPrice — OFD discount to'g'ri chiqsin uchun
+        item.realPrice = realPriceTotal / item.value;
+        // realPrice > price bo'lsa chegirma narxi, aks holda weighted average
+        item.singleDiscount = item.realPrice > item.price
+            ? double.parse((item.realPrice - item.price).toStringAsFixed(2))
+            : double.parse((totalDiscount / item.value).toStringAsFixed(2));
       }
       item.boxQuantity = totalBoxQuantity[key] ?? 0;
       item.boxValue = boxValueMap[key] ?? 0;
-      if (item.boxQuantity > 0) item.saleType = 2;
+      if (item.boxQuantity > 0) {
+        item.saleType = 2;
+        item.productName = item.productName.replaceAll(' //blok', '');
+      }
+      // value ni real fizik songa aylantirish (DB va chek uchun)
+      // Masalan: 4 blok + 3 dona → 4*8 + 3 = 35
+      if (item.boxQuantity > 0 && item.boxValue > 0) {
+        item.value = item.boxQuantity * item.boxValue + (item.value - item.boxQuantity);
+      }
       item.mark = (allMarks[key] ?? []).join('\n');
       item.boxMark = (allBoxMarks[key] ?? []).join('\n');
     }

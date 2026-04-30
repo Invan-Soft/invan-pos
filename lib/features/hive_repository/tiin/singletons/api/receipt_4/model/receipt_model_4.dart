@@ -438,7 +438,10 @@ int boxQuantity;
     }
     Map<String, dynamic> json = {
       "product_name": productName,
-      "value": value,
+      // DB da value = real fizik son (8), API ga token count (1) yuboramiz
+      "value": (boxQuantity > 0 && boxValue > 0)
+          ? boxQuantity + (value - boxQuantity * boxValue)
+          : value,
       "order_id": orderId,
       "price": onlyPrice,
       "product_barcode": barcode,
