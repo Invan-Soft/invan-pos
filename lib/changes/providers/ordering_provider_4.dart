@@ -990,7 +990,7 @@ void useFreeProducts() {
     if (isSameProduct) {
       final totalQtyOfProduct = orderedProducts
           .where((p) => p.productId == returnedProductId && !p.isPriceOnlyChanged)
-          .fold<num>(0, (sum, p) => sum + p.value);
+          .fold<num>(0, (sum, p) => sum + (p.saleType == 2 ? p.value * p.boxValue : p.value));
       thresholdMet = totalQtyOfProduct >= mustQty + returnedProductQty;
     } else {
       final nonGiftTotal = orderedProducts
@@ -1021,13 +1021,23 @@ void useFreeProducts() {
             !item.isPriceChanged)
         .toList();
 
+    // Box itemlar (katta effectiveQty) avval ishlansin — individual itemlar keyinida
+    eligibleItems.sort((a, b) {
+      final aQty = a.saleType == 2 ? (a.value * a.boxValue) : a.value;
+      final bQty = b.saleType == 2 ? (b.value * b.boxValue) : b.value;
+      return bQty.compareTo(aQty);
+    });
+
     num freeLeft = returnedProductQty;
 
     for (final item in eligibleItems) {
       // 1. Har bir qator uchun 6050 ni majburiy qo'yamiz
       if (firstTierPrice > 0) {
-        item.realPrice = firstTierPrice;
-        item.onlyPrice = firstTierPrice;
+        final adjustedFirstTierPrice = item.saleType == 2
+            ? firstTierPrice * item.boxValue
+            : firstTierPrice;
+        item.realPrice = adjustedFirstTierPrice;
+        item.onlyPrice = adjustedFirstTierPrice;
       }
 
       if (freeLeft <= 0) {
@@ -1039,7 +1049,9 @@ void useFreeProducts() {
         continue;
       }
 
-      final itemQty = item.value.toDouble();
+      final itemQty = item.saleType == 2
+          ? (item.value * item.boxValue).toDouble()
+          : item.value.toDouble();
       final effectiveFree = freeLeft >= itemQty ? itemQty : freeLeft;
       freeLeft -= effectiveFree;
 
@@ -1114,7 +1126,9 @@ void useFreeProducts() {
             continue;
           }
 
-          final itemQty = item.value.toDouble();
+          final itemQty = item.saleType == 2
+              ? (item.value * item.boxValue).toDouble()
+              : item.value.toDouble();
           final effectiveFree = freeLeft >= itemQty ? itemQty : freeLeft;
           freeLeft -= effectiveFree;
 
@@ -1167,7 +1181,9 @@ void useBuyXGetXProducts() {
     // ================== 1. BITTA QATOR (oddiy mahsulot) ==================
     if (items.length == 1) {
       final item = items.first;
-      final totalQty = item.value.toDouble();
+      final totalQty = item.saleType == 2
+          ? (item.value * item.boxValue).toDouble()
+          : item.value.toDouble();
       final buy = gift.buyAmount.toDouble();
       final get = gift.getProductAmount.toDouble();
 
@@ -1230,7 +1246,9 @@ void useBuyXGetXProducts() {
           continue;
         }
 
-        final itemQty = item.value.toDouble(); // odatda 1
+        final itemQty = item.saleType == 2
+            ? (item.value * item.boxValue).toDouble()
+            : item.value.toDouble();
 
         if (itemQty <= freeQtyLeft) {
           // Butun qator tekin
@@ -2128,6 +2146,15 @@ print('boxValue (fixed) = $boxValue');
 
     _currentClient.lastAddedIndex = 0;
     isTpEdited = false;
+
+    // BuyXGetY, BuyXGetX, Free Gift chegirmalarini box mahsulot uchun ham qo'llaymiz
+    DiscountSingleton.productId(freshProduct.id ?? '');
+    findFreeProducts();
+    await freeGiftDialog();
+    useFreeProducts();
+    useFreeGiftProducts();
+    useBuyXGetXProducts();
+
     notifyListeners();
   }
 

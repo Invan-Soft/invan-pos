@@ -214,11 +214,14 @@ class DiscountHelpers {
     double value = 0;
 
     // Markirovkali mahsulotlar bir xil productId bilan alohida entry sifatida
-    // qo'shiladi (har biri value=1). Umumiy sonni yig'amiz.
+    // qo'shiladi (har biri value=1). Box mahsulotlar uchun real dona soni ishlatiladi.
     final Map<String, double> totalQtyByProductId = {};
     for (final p in products) {
+      final effectiveQty = p.saleType == 2
+          ? (p.value * p.boxValue).toDouble()
+          : p.value.toDouble();
       totalQtyByProductId[p.productId] =
-          (totalQtyByProductId[p.productId] ?? 0) + p.value;
+          (totalQtyByProductId[p.productId] ?? 0) + effectiveQty;
     }
 
     for (final productsToBuy in buyXGetY.productsToBuy!) {
@@ -360,7 +363,9 @@ static List<ReturnedGiftX> _getBuyXGetXAsGift(
     double totalQty = 0.0;
     for (final product in products) {
       if (product.productId == productToBuy.id) {
-        totalQty += product.value.toDouble();
+        totalQty += product.saleType == 2
+            ? (product.value * product.boxValue).toDouble()
+            : product.value.toDouble();
       }
     }
 

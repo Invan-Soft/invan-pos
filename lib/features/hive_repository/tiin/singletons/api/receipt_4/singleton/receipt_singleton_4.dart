@@ -103,32 +103,19 @@ class ReceiptSingleton4 {
     Map<String, int> boxValueMap = {};
 
     for (ReceiptModelSoldItem4 r in receiptModel4.soldItemList) {
-      // Bir xil productdagi barcha unit itemlar birlashtiriladi (utsenka ham)
-      // Box itemlar alohida key bilan saqlanadi
-      final key = r.saleType == 2
-          ? '${r.productId}_box_${r.boxValue}'
-          : r.productId;
+      // Bir xil productId dagi barcha itemlar (box, individual, utsenka) birlashtiriladi
+      final key = r.productId;
 
-      // Box item narxini unit narxga normalize qilamiz (24000 → 3000)
-      final double unitPrice = (r.saleType == 2 && r.boxValue > 0)
-          ? r.price / r.boxValue
-          : r.price;
-      final double unitOnlyPrice = (r.saleType == 2 && r.boxValue > 0)
-          ? r.onlyPrice / r.boxValue
-          : r.onlyPrice;
-      final double unitRealPrice = (r.saleType == 2 && r.boxValue > 0)
-          ? r.realPrice / r.boxValue
-          : r.realPrice;
-
+      // Actual amount paid per item (not normalized): box price already represents N units
       if (uniqueItems.containsKey(key)) {
         uniqueItems[key]!.value += r.value;
         totalSingleDiscount[key] =
             (totalSingleDiscount[key] ?? 0) + r.singleDiscount * r.value;
-        totalPrice[key] = (totalPrice[key] ?? 0) + unitPrice * r.value;
+        totalPrice[key] = (totalPrice[key] ?? 0) + r.price * r.value;
         totalOnlyPrice[key] =
-            (totalOnlyPrice[key] ?? 0) + unitOnlyPrice * r.value;
+            (totalOnlyPrice[key] ?? 0) + r.onlyPrice * r.value;
         totalRealPrice[key] =
-            (totalRealPrice[key] ?? 0) + unitRealPrice * r.value;
+            (totalRealPrice[key] ?? 0) + r.realPrice * r.value;
         if (r.saleType == 2) {
           totalBoxQuantity[key] =
               (totalBoxQuantity[key] ?? 0) + r.value.toInt();
@@ -138,9 +125,9 @@ class ReceiptSingleton4 {
       } else {
         uniqueItems[key] = r;
         totalSingleDiscount[key] = r.singleDiscount * r.value;
-        totalPrice[key] = unitPrice * r.value;
-        totalOnlyPrice[key] = unitOnlyPrice * r.value;
-        totalRealPrice[key] = unitRealPrice * r.value;
+        totalPrice[key] = r.price * r.value;
+        totalOnlyPrice[key] = r.onlyPrice * r.value;
+        totalRealPrice[key] = r.realPrice * r.value;
         allMarks[key] = [];
         allBoxMarks[key] = [];
         if (r.saleType == 2) {
@@ -165,27 +152,29 @@ class ReceiptSingleton4 {
       final priceTotal = totalPrice[key] ?? 0;
       final onlyPriceTotal = totalOnlyPrice[key] ?? 0;
       final realPriceTotal = totalRealPrice[key] ?? 0;
-      if (item.value > 0) {
-        item.price = priceTotal / item.value;
-        item.onlyPrice = onlyPriceTotal / item.value;
-        // Weighted average realPrice — OFD discount to'g'ri chiqsin uchun
-        item.realPrice = realPriceTotal / item.value;
-        // realPrice > price bo'lsa chegirma narxi, aks holda weighted average
-        item.singleDiscount = item.realPrice > item.price
-            ? double.parse((item.realPrice - item.price).toStringAsFixed(2))
-            : double.parse((totalDiscount / item.value).toStringAsFixed(2));
-      }
+
       item.boxQuantity = totalBoxQuantity[key] ?? 0;
       item.boxValue = boxValueMap[key] ?? 0;
       if (item.boxQuantity > 0) {
         item.saleType = 2;
         item.productName = item.productName.replaceAll(' //blok', '');
       }
-      // value ni real fizik songa aylantirish (DB va chek uchun)
-      // Masalan: 4 blok + 3 dona → 4*8 + 3 = 35
+      // Expand value to physical unit count FIRST so price division is correct.
+      // Example: 1 box(8) + 4 individual → value = 1*8 + (5-1) = 12 physical units
       if (item.boxQuantity > 0 && item.boxValue > 0) {
         item.value = item.boxQuantity * item.boxValue + (item.value - item.boxQuantity);
       }
+
+      // Divide total money by physical unit count → correct per-unit price
+      if (item.value > 0) {
+        item.price = priceTotal / item.value;
+        item.onlyPrice = onlyPriceTotal / item.value;
+        item.realPrice = realPriceTotal / item.value;
+        item.singleDiscount = item.realPrice > item.price
+            ? double.parse((item.realPrice - item.price).toStringAsFixed(2))
+            : double.parse((totalDiscount / item.value).toStringAsFixed(2));
+      }
+
       item.mark = (allMarks[key] ?? []).join('\n');
       item.boxMark = (allBoxMarks[key] ?? []).join('\n');
     }
