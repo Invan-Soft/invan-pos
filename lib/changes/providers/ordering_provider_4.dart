@@ -1,6 +1,7 @@
 ﻿
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' show min;
 import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -1239,6 +1240,9 @@ void useBuyXGetXProducts() {
       DiscountSingleton.addDiscountForProduct(item);
     }
     else {
+      // BuyXGetX: perSetGet == perSetBuy (symmetric), perSet = buy + get = 2 × buyAmount
+      final perSetGet = gift.buyAmount.toDouble();
+      final perSetSize = perSetGet * 2;
 
       for (final item in items.reversed) {
         if (freeQtyLeft <= 0) {
@@ -1250,22 +1254,32 @@ void useBuyXGetXProducts() {
             ? (item.value * item.boxValue).toDouble()
             : item.value.toDouble();
 
-        if (itemQty <= freeQtyLeft) {
+        // Box: cap free at natural ratio so excess free slots pass to individual items.
+        // Individual: can absorb all remaining free slots (up to itemQty).
+        final naturalCap = item.saleType == 2
+            ? (itemQty / perSetSize).floor() * perSetGet
+            : itemQty;
+        final freeInThis = min(naturalCap, freeQtyLeft);
+
+        if (freeInThis <= 0) {
+          _resetItemDiscount(item);
+          continue;
+        }
+
+        if (freeInThis >= itemQty) {
           // Butun qator tekin
           item.price = 0;
           item.discountPercent = 100;
           item.singleDiscount = item.realPrice;
           freeQtyLeft -= itemQty;
         } else {
-          // Qisman tekin (lekin markirovka uchun odatda kerak emas)
-          final freeInThis = freeQtyLeft;
+          // Qisman tekin
           final paidQty = itemQty - freeInThis;
           final ratio = paidQty / itemQty;
-
           item.price = item.realPrice * ratio;
           item.discountPercent = 100 - (ratio * 100);
           item.singleDiscount = (item.realPrice * freeInThis) / itemQty;
-          freeQtyLeft = 0;
+          freeQtyLeft -= freeInThis;
         }
 
         // Discount model
@@ -2078,8 +2092,6 @@ String _markirovka(String rawMark) {
 final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     ? 1
     : rawBoxValue.toInt();
-    print('boxBarcodeQuantity (raw) = ${freshProduct.boxBarcodeQuantity}');
-print('boxValue (fixed) = $boxValue');
     final unitPrice =
         ItemsSingleton.finalPrice(freshProduct, 1, isKg).toDouble();
     final boxPrice = unitPrice * boxValue;
@@ -4145,32 +4157,22 @@ print('boxValue (fixed) = $boxValue');
         return; // ← bu dialogForMark dan TASHQARIDA bo'lishi kerak
       }
     }
-    // ─── Box barcode (GS1 marking kodi box productlar uchun) ──────
-    // GS1 standart: AI '01' + har doim aniq 14 ta raqam (GTIN-14)
-    // GTIN-14 = packaging_indicator(1 ta) + EAN-13(13 ta) = 14 ta
-    // Masalan: '0114780101733771...' → gtin14='14780101733771' → ean13='4780101733771'
     if (barcode.startsWith('01') && barcode.length > 16) {
       final boxGtinMatch = RegExp(r'^01(\d{14})').firstMatch(barcode);
       if (boxGtinMatch != null) {
         final gtin14 = boxGtinMatch.group(1)!;
-        // Packaging indicator (birinchi raqam) ni olib tashlab EAN-13 olamiz
         final ean13 = gtin14.substring(1);
-        // Ba'zi DBlar 14 raqamli saqlaydi, ba'zilari 13 — ikkalasini ham tekshiramiz
         final gtin14NoLeadZero = gtin14.replaceFirst(RegExp(r'^0+'), '');
 
-        debugPrint('[BOX] barcode: $barcode');
-        debugPrint('[BOX] gtin14: $gtin14  |  ean13: $ean13  |  trimmed: $gtin14NoLeadZero');
 
         final boxProduct =
             ItemsSingleton.getProductByBoxBarcodeOnly(ean13) ??
             ItemsSingleton.getProductByBoxBarcodeOnly(gtin14NoLeadZero) ??
             ItemsSingleton.getProductByBoxBarcodeOnly(gtin14);
 
-        debugPrint('[BOX] product found: ${boxProduct?.name ?? "NOT FOUND"}');
 
         if (boxProduct != null) {
           await _addBoxProduct(boxProduct, barcode);
-          debugPrint('[BOX] added: ${_currentClient.orderedProducts.first.toJson()}');
           return;
         }
       }

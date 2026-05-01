@@ -311,7 +311,7 @@ class ReceiptSingleton4 {
             amount: e.value * 1000,
             barcode: e.barcode,
             classCode: e.mxik,
-            name: e.productName,
+            name: e.productName.replaceAll(' //blok', ''),
             discount: discount,
             ownerType: e.ownerType,
             other: other,
