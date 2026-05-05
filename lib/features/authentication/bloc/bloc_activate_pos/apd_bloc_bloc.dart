@@ -243,6 +243,8 @@ class APDblocc extends Bloc<APDevent, APDstate> {
     await Pref.setString(PrefKeys.storeAddress, event.selectedStore.address);
     await Pref.setString(PrefKeys.storePhoneNum, event.selectedStore.number);
     await Pref.setString(PrefKeys.storeId, event.selectedStore.id);
+    // ignore: avoid_print
+    print('=== STORE ID: ${event.selectedStore.id} ===');
     await Pref.setString(PrefKeys.posName, event.selectedPos!.name!);
     await Pref.setString(PrefKeys.checkId, event.selectedPos?.prefix ?? "");
 

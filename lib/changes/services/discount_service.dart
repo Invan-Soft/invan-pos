@@ -18,8 +18,22 @@ class DiscountService {
 
   static Future<HttpResult> findDiscounts() async {
     final shopId = Pref.getString(PrefKeys.storeId, 'not initialized');
-    final url = 'api/v1/company_discounts_for_pos?shop_ids=$shopId';
+    final token = Pref.getString(PrefKeys.token, 'not initialized');
+    final posId = Pref.getString(PrefKeys.activatedPosId, 'not initialized');
+    final acceptService = Pref.getString(PrefKeys.acceptService, 'not initialized');
     // ignore: avoid_print
+    print('=== DISCOUNT REQUEST ===');
+    // ignore: avoid_print
+    print('shop_ids (storeId):   $shopId');
+    // ignore: avoid_print
+    print('Authorization token:  $token');
+    // ignore: avoid_print
+    print('Accept-Id (posId):    $posId');
+    // ignore: avoid_print
+    print('Accept-Service:       $acceptService');
+    // ignore: avoid_print
+    print('========================');
+    final url = 'api/v1/company_discounts_for_pos?shop_ids=$shopId';
     final response = await ApiProvider.getResponse(
       path: url,
       headers: AppConstants.getHeaders(),

@@ -15,7 +15,19 @@
       "Bash('C:/Users/Lenovo PC/AppData/Local/Microsoft/WindowsApps/python.exe' -c ':*)",
       "Bash(cmd /c \"cd /d d:\\\\flutter_projects\\\\pos-invan-2-ayyubxon && python -c \\\\\"lines=open\\('lib/changes/providers/ordering_provider_4.dart',encoding='utf-8'\\).readlines\\(\\); print\\(repr\\(lines[3534]\\)\\); print\\(repr\\(lines[3635]\\)\\)\\\\\"\")",
       "Bash(flutter gen-l10n:*)",
-      "Bash(python3)"
+      "Bash(python3)",
+      "Bash(grep -n \"productType\\\\|productPackage\" d:\\\\\\\\flutter_projects\\\\\\\\pos-invan-2-ayyubxon\\\\\\\\lib\\\\\\\\changes\\\\\\\\providers\\\\\\\\ordering_provider_4.dart)",
+      "Bash(taskkill /F /IM pos_desktop_flutter.exe)",
+      "PowerShell(Stop-Process -Name \"pos_desktop_flutter\" -Force -ErrorAction SilentlyContinue)",
+      "Bash(flutter doctor *)",
+      "Bash(flutter devices *)",
+      "Bash(flutter emulators *)",
+      "PowerShell($emulatorPath = \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe\"; if \\(Test-Path $emulatorPath\\) { Write-Host \"Found: $emulatorPath\" } else { Write-Host \"Not found at $emulatorPath\" }; Get-ChildItem \"$env:LOCALAPPDATA\\\\Android\\\\Sdk\\\\emulator\\\\\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "PowerShell(& \"D:\\\\Android\\\\emulator\\\\emulator.exe\" -avd Pixel_9 -no-window 2>&1)",
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.android\\\\avd\" -ErrorAction SilentlyContinue | Format-List Name)",
+      "PowerShell(Get-Content \"$env:USERPROFILE\\\\.android\\\\avd\\\\Pixel9_API35.ini\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Content \"$env:USERPROFILE\\\\.android\\\\avd\\\\Pixel9_API35.avd\\\\config.ini\" -ErrorAction SilentlyContinue | Select-String \"image|system|tag\")",
+      "PowerShell($env:ANDROID_SDK_ROOT = \"D:\\\\Android\"; Start-Process -FilePath \"D:\\\\Android\\\\emulator\\\\emulator.exe\" -ArgumentList \"-avd Pixel9_API35\" -WindowStyle Normal; Write-Host \"Emulator starting...\")"
     ]
   }
 }

@@ -3,8 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:invan2/changes/services/api.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
-import 'package:invan2/utils/helpers/helpers.dart';
-import 'package:invan2/utils/utils.dart';
 
 part 'client_search_event.dart';
 
