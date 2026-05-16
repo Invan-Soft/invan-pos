@@ -293,33 +293,21 @@ class SoldApiComponents {
     pw.TextStyle myMiniStyle,
     pw.TextStyle crilic,
   ) {
-    String barcode = "";
-    String sku = "";
-    String mxik = "";
-
-    String packageName = "";
+    String barcode = soldItem.barcode;
+    String sku = soldItem.sku == 0 ? "" : soldItem.sku.toString();
+    String mxik = soldItem.mxik;
+    String packageName = soldItem.packageName ?? "";
     dynamic oldPrice = soldItem.onlyPrice;
 
     bool ofd = Pref.getBool(PrefKeys.withOFD, false);
     if (ofd) {
       itemInfo?.forEach((element) {
         if (soldItem.productId == element.id) {
-          barcode = element.barcode ?? '';
-          mxik = element.mxikCode ?? '';
-          sku = soldItem.sku.toString();
-          packageName = element.packageName ?? '';
-        } else {
-          barcode = soldItem.barcode;
-          mxik = soldItem.mxik;
-          sku = soldItem.sku.toString();
-          packageName = soldItem.packageName ?? "";
+          barcode = element.barcode ?? soldItem.barcode;
+          mxik = element.mxikCode ?? soldItem.mxik;
+          packageName = element.packageName ?? soldItem.packageName ?? "";
         }
       });
-    } else {
-      sku = soldItem.sku.toString();
-      barcode = soldItem.barcode;
-      mxik = soldItem.mxik;
-      packageName = soldItem.packageName ?? "";
     }
 
     if (mxik.isEmpty) {
@@ -508,11 +496,9 @@ class SoldApiComponents {
             pw.Text(
               sku.isEmpty && mxik.isEmpty
                   ? "-/-"
-                  : sku.isNotEmpty && mxik.isNotEmpty
-                      ? "$sku/$mxik"
-                      : sku.isNotEmpty && mxik.isEmpty
-                          ? sku
-                          : mxik,
+                  : mxik.isNotEmpty
+                      ? "${sku.isEmpty ? '-' : sku}/$mxik"
+                      : sku,
               style: myMiniStyle,
             ),
           ],
