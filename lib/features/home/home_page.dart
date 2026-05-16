@@ -19,6 +19,7 @@ import 'package:invan2/widgets/alice_pincode.dart';
 import 'package:invan2/widgets/app_bar/app_bar_drawer_button.dart';
 import 'package:provider/provider.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+import 'package:invan2/changes/providers/settings_provider.dart';
 import 'package:invan2/utils/utils.dart';
 import '../../changes/dialogs/invoice_search_dialog.dart';
 import '../checks/checks_page.dart';
@@ -120,46 +121,43 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
               ),
               title: const ClientsPart(),
               actions: [
-                TextButton(
-                  focusNode: FocusNode(skipTraversal: true),
-                  onPressed: () async {
-                    final orderingProvider =
-                        Provider.of<OrderingProvider4>(context, listen: false);
-                    final pageContext = context;
-                    // setState(() {
-                    //   isInvoiceDialogOpen = true;
-                    // });
-                    blBlocc.add(BlVisibilityChangedEvent(false));
-
-                    await showDialog(
-                      context: context,
-                      builder: (dialogContext) => BlocProvider.value(
-                        value: BlocProvider.of<InvoiceBloc>(context),
-                        child: InvoiceSearchDialog(
-                          onSearch: (invoiceId) {
-                            orderingProvider.loadInvoiceByBarcodeWithBloc(
-                              barcode: invoiceId,
-                              context: pageContext,
+                Consumer<SettingsProvider>(
+                  builder: (context, settings, _) => settings.showInvoiceButton
+                      ? TextButton(
+                          focusNode: FocusNode(skipTraversal: true),
+                          onPressed: () async {
+                            final orderingProvider =
+                                Provider.of<OrderingProvider4>(context, listen: false);
+                            final pageContext = context;
+                            blBlocc.add(BlVisibilityChangedEvent(false));
+                            await showDialog(
+                              context: context,
+                              builder: (dialogContext) => BlocProvider.value(
+                                value: BlocProvider.of<InvoiceBloc>(context),
+                                child: InvoiceSearchDialog(
+                                  onSearch: (invoiceId) {
+                                    orderingProvider.loadInvoiceByBarcodeWithBloc(
+                                      barcode: invoiceId,
+                                      context: pageContext,
+                                    );
+                                  },
+                                ),
+                              ),
                             );
+                            blBlocc.add(BlVisibilityChangedEvent(true));
                           },
-                        ),
-                      ),
-                    );
-                    blBlocc.add(BlVisibilityChangedEvent(true));
-                    // setState(() {
-                    //   isInvoiceDialogOpen = false;
-                    // });
-                  },
-                  style: TextButton.styleFrom(
-                    fixedSize: Size(SizeConfig.h * 2, SizeConfig.v * 2),
-                    elevation: 0,
-                    foregroundColor: Theme.of(context).colorScheme.background,
-                  ),
-                  child: ImageIcon(
-                    AssetImage("assets/images/invoice.png"),
-                    size: SizeConfig.v * 3.2,
-                    color: Theme.of(context).canvasColor,
-                  ),
+                          style: TextButton.styleFrom(
+                            fixedSize: Size(SizeConfig.h * 2, SizeConfig.v * 2),
+                            elevation: 0,
+                            foregroundColor: Theme.of(context).colorScheme.background,
+                          ),
+                          child: ImageIcon(
+                            AssetImage("assets/images/invoice.png"),
+                            size: SizeConfig.v * 3.2,
+                            color: Theme.of(context).canvasColor,
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
                   SizedBox(width: SizeConfig.h),
            

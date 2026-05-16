@@ -20,6 +20,15 @@ class SettingsProvider extends ChangeNotifier {
   static final DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
   static Map<String, dynamic> _deviceData = <String, dynamic>{};
 
+  bool _showInvoiceButton = Pref.getBool('showInvoiceButton', false);
+  bool get showInvoiceButton => _showInvoiceButton;
+
+  void setShowInvoiceButton(bool value) {
+    Pref.setBool('showInvoiceButton', value);
+    _showInvoiceButton = value;
+    notifyListeners();
+  }
+
   Future<Map<String, dynamic>> initPlatformState() async {
     var deviceData = <String, dynamic>{};
 

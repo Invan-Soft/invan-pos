@@ -8,6 +8,7 @@ import 'package:invan2/features/settings/bloc/settings_bloc.dart';
 import 'package:invan2/features/settings/features/child_settings/view/switch_in_report_page.dart';
 import 'package:invan2/features/settings/view/report_setting/qr_code_dialog/qrcode_dialog.dart';
 import 'package:invan2/features/settings/view/report_setting/terminal_id_dialog.dart/terminal_id.dart';
+import 'package:invan2/changes/providers/settings_provider.dart';
 import 'package:invan2/utils/util_functions.dart';
 import 'package:invan2/utils/utils.dart';
 import '../../../../widgets/my_snackbar.dart';
@@ -45,6 +46,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
   late bool sellProductsWithMarking;
   late bool switchMarking;
   late bool checkProductByCashsale;
+  late bool showInvoiceButton;
 
   String casshierId = Pref.getString(PrefKeys.cashierId, "not initialized");
   String casshierName = Pref.getString(PrefKeys.cashierName, "not initialized");
@@ -68,6 +70,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
 
     switchMarking = Pref.getBool('switchMarking', false);
     checkProductByCashsale = Pref.getBool('checkProductByCashsale', true);
+    showInvoiceButton = Pref.getBool('showInvoiceButton', false);
 
     AppLocalizations loc = AppLocalizations.of(context)!;
     SettingsBloc settingsBloc = BlocProvider.of(context);
@@ -217,6 +220,15 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                 onTap: () {},
                 title: loc.ha == 'Ha' ? "ONKM kodi tekshiruvi" : "Проверка кода ОНКМ",
                 activ: validation_onkm,
+              ),
+              SwitchTileOfReportPage(
+                onChanged: (v) {
+                  Provider.of<SettingsProvider>(context, listen: false).setShowInvoiceButton(v);
+                  setState(() {});
+                },
+                onTap: () {},
+                title: loc.ha == 'Ha' ? "Invoice qidirish tugmasini ko'rsatish" : "Показывать кнопку поиска инвойса",
+                activ: showInvoiceButton,
               ),
               SwitchTileOfReportPage(
                 onChanged: (v) {
