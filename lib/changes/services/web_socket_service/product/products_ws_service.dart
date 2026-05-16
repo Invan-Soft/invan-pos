@@ -97,7 +97,10 @@ class ProductsWsService {
       print(
           '☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️ - Product  Get - ☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️');
     }
+    print(
+        'Response: ${response.statusCode} - ${response.body} - Product Get - ${DateTime.now()}');
     if (response.statusCode == 200) {
+
       if (jsonDecode(utf8.decode(response.bodyBytes))['notifications'] !=
           null) {
         List<String> deleteIds = [];

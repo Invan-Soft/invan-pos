@@ -315,7 +315,7 @@ class ReceiptSingleton4 {
             discount: discount,
             ownerType: e.ownerType,
             other: other,
-            vat: _countVat(e.price, e.vatPercent, e.value, other / 100),
+            vat: _countVat(price, e.vatPercent, other),
             vatPercent: e.vatPercent,
             price: price,
             packageCode: e.packageCode,
@@ -337,8 +337,9 @@ class ReceiptSingleton4 {
     return UtilFunctions.roundToNearest(e.value * e.price) * 100;
   }
 
-  static num _countVat(num price, num nds, num value, num other) {
-    num n = (100 * ((price * value) - other) * nds / (100 + nds));
+  static num _countVat(num priceJson, num nds, num other) {
+    // priceJson and other are both in tiins (already rounded), ensuring price = other + vat
+    num n = (priceJson - other) * nds / (100 + nds);
     return n < 0 ? 0 : n;
   }
 

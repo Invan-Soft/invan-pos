@@ -4093,6 +4093,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   onBarcodeScanned(String barcode, GlobalKey<ScaffoldState> scaffoldKey) async {
     if (barcode.isEmpty || barcode.startsWith('http')) return;
     if (isMarkingDialogDisplaying) return;
+    // UUID formatdagi QR kodlar (masalan, PayNet OTP) product emas
+    if (RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(barcode)) return;
 
     if (barcode.trimLeft().startsWith('{')) {
       final utsenkaItem = _parseUtsenkaQr(barcode);

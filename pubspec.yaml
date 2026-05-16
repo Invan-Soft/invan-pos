@@ -33,7 +33,7 @@ dependencies:
   internet_connection_checker: ^1.0.0+1 # non #
   intl: ^0.20.2 # non #
   mask_text_input_formatter: ^2.3.0 # non #
-  objectbox: ^2.2.0 # non #
+  objectbox: ^4.1.0 # non #
   objectbox_flutter_libs: any
   package_info_plus: ^6.0.0 # non #
   path_provider: ^2.1.5

@@ -28,15 +28,12 @@ class PaynetBloc extends Bloc<PaynetEvent, PaynetState> {
     Log.d('_pay() boshlandi — otp: ${event.otp}, summa: ${event.summa}', name: 'PaynetBloc');
 
     emit(PaynetLoadingState(PaynetLoadingStatus.internet));
-
-    if (event.isRetry) {
-      await Future.delayed(const Duration(milliseconds: 500));
-    }
+    if (event.isRetry) await Future.delayed(const Duration(milliseconds: 500));
 
     emit(PaynetLoadingState(PaynetLoadingStatus.paying));
 
-    // Paynet amount = tiyin (x100)
-    PaynetResponseModel result = await PaynetService.payment(
+    // 1-qadam: to'lovni yaratish
+    final PaynetResponseModel result = await PaynetService.payment(
       otpData: event.otp,
       amount: (event.summa * 100).toInt(),
       receiptNumber: event.receiptNumber,
@@ -47,35 +44,96 @@ class PaynetBloc extends Bloc<PaynetEvent, PaynetState> {
       name: 'PaynetBloc',
     );
 
-    // payment_status < 0 → xato
-    if ((result.paymentStatus ?? -1) < 0 || (result.errorCode ?? -1) < 0) {
-      Log.e('_pay() to\'lov xatosi — status: ${result.paymentStatus}, note: ${result.errorNote}', name: 'PaynetBloc');
+    // Xato holat
+    if ((result.errorCode ?? -1) < 0 || (result.paymentStatus ?? -1) < 0) {
+      Log.e('_pay() xato — status: ${result.paymentStatus}, note: ${result.errorNote}', name: 'PaynetBloc');
       emit(PaynetPaymentErrorState(result.errorNote ?? 'Xato yuz berdi'));
       return;
     }
 
-    // payment_status == 2 → muvaffaqiyatli
-    if (result.paymentStatus == 2) {
-      // confirm_mode == 1 bo'lsa tasdiqlash kerak
-      if (result.isConfirmMode) {
-        Log.d('_pay() confirm_mode=1, tasdiqlash so\'rovi yuborilmoqda', name: 'PaynetBloc');
-        final pid = PaynetService.paymentId;
-        if (pid != null) {
-          final confirmResult = await PaynetService.confirm(pid);
-          Log.d('confirm() natija — error_code: ${confirmResult.errorCode}', name: 'PaynetBloc');
-          if ((confirmResult.errorCode ?? -1) != 0) {
-            emit(PaynetPaymentErrorState(confirmResult.errorNote ?? 'Tasdiqlashda xato'));
-            return;
-          }
-        }
-      }
-      Log.d('_pay() muvaffaqiyatli to\'lov', name: 'PaynetBloc');
-      emit(PaynetPaymentSuccessState());
+    final int? pid = result.paymentId ?? PaynetService.paymentId;
+    if (pid == null) {
+      emit(PaynetPaymentErrorState('payment_id topilmadi'));
       return;
     }
 
-    // payment_status == 0 yoki 1 → hali tugamagan
-    Log.e('_pay() kutilmagan status: ${result.paymentStatus}', name: 'PaynetBloc');
-    emit(PaynetPaymentErrorState('To\'lov kutilmoqda (status: ${result.paymentStatus})'));
+    // confirm_mode ni birinchi javobdan olib qo'yamiz
+    // (keyingi status so'rovlarida bu maydon kelmaydi)
+    final bool needsConfirm = result.isConfirmMode;
+
+    // Birinchi javobdanoq muvaffaqiyatli bo'lsa
+    if (result.paymentStatus == 2) {
+      await _handleSuccess(pid, needsConfirm, emit);
+      return;
+    }
+
+    // status 0 yoki 1 → polling
+    if (result.paymentStatus == 0 || result.paymentStatus == 1) {
+      await _pollStatus(pid, needsConfirm, emit);
+      return;
+    }
+
+    emit(PaynetPaymentErrorState('Kutilmagan status: ${result.paymentStatus}'));
+  }
+
+  // Har 2 soniyada status so'raydi, max 15 marta (30 soniya)
+  Future<void> _pollStatus(
+    int pid,
+    bool needsConfirm,
+    Emitter<PaynetState> emit,
+  ) async {
+    const int maxAttempts = 15;
+    const Duration interval = Duration(seconds: 2);
+
+    Log.d('_pollStatus() boshlandi — pid: $pid, max: $maxAttempts', name: 'PaynetBloc');
+
+    for (int i = 0; i < maxAttempts; i++) {
+      emit(PaynetLoadingState(PaynetLoadingStatus.polling));
+      await Future.delayed(interval);
+
+      Log.d('_pollStatus() urinish ${i + 1}/$maxAttempts', name: 'PaynetBloc');
+
+      final statusResult = await PaynetService.checkPaymentStatus(pid);
+
+      // Xato keldi
+      if ((statusResult.paymentStatus ?? -1) < 0) {
+        Log.e('_pollStatus() xato — status: ${statusResult.paymentStatus}', name: 'PaynetBloc');
+        emit(PaynetPaymentErrorState(statusResult.errorNote ?? 'To\'lov bekor qilindi'));
+        return;
+      }
+
+      // Muvaffaqiyatli
+      if (statusResult.paymentStatus == 2) {
+        Log.d('_pollStatus() muvaffaqiyat — urinish: ${i + 1}', name: 'PaynetBloc');
+        await _handleSuccess(pid, needsConfirm, emit);
+        return;
+      }
+
+      // status 0 yoki 1 — davom etamiz
+      Log.d('_pollStatus() hali kutilmoqda — status: ${statusResult.paymentStatus}', name: 'PaynetBloc');
+    }
+
+    // 30 soniya o'tdi, javob yo'q
+    Log.e('_pollStatus() timeout — pid: $pid', name: 'PaynetBloc');
+    emit(PaynetPaymentErrorState('To\'lov vaqti tugadi. Qayta urinib ko\'ring.'));
+  }
+
+  // Muvaffaqiyatli to'lovni yakunlash (confirm_mode bo'lsa tasdiqlash)
+  Future<void> _handleSuccess(
+    int pid,
+    bool needsConfirm,
+    Emitter<PaynetState> emit,
+  ) async {
+    if (needsConfirm) {
+      Log.d('_handleSuccess() confirm_mode=1, tasdiqlash yuborilmoqda — pid: $pid', name: 'PaynetBloc');
+      final confirmResult = await PaynetService.confirm(pid);
+      Log.d('confirm() natija — error_code: ${confirmResult.errorCode}', name: 'PaynetBloc');
+      if ((confirmResult.errorCode ?? -1) != 0) {
+        emit(PaynetPaymentErrorState(confirmResult.errorNote ?? 'Tasdiqlashda xato'));
+        return;
+      }
+    }
+    Log.d('_handleSuccess() to\'lov yakunlandi — pid: $pid', name: 'PaynetBloc');
+    emit(PaynetPaymentSuccessState());
   }
 }

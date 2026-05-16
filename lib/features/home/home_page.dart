@@ -235,12 +235,33 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       }
                     },
                     onBarcodeScannedMagnetic: (v) {},
-                    onDelPressed: () {
+                    onDelPressed: () async {
                       if (blBlocc.isVisible) {
-                        Provider.of<OrderingProvider4>(
+                        bool result = Provider.of<OrderingProvider4>(
                           context,
                           listen: false,
-                        ).removeLastAdded();
+                        ).cancelOrdering(deleteTicketAccess);
+                        if (!result) {
+                          blBlocc.add(BlStatusChangedEvent(
+                            status: BLStatus.other,
+                            where: "lib/features/home/home_page.dart backspace",
+                          ));
+                          bool access = await showDialog(
+                            barrierDismissible: false,
+                            barrierColor: Colors.black.withValues(alpha: .5),
+                            context: context,
+                            builder: (context) => const NoAccessDialog(),
+                          );
+                          blBlocc.add(BlStatusChangedEvent(
+                            status: BLStatus.home,
+                            where: "lib/features/home/home_page.dart backspace",
+                          ));
+                          if (access) {
+                            // ignore: use_build_context_synchronously
+                            Provider.of<OrderingProvider4>(context, listen: false)
+                                .cancelOrdering(access);
+                          }
+                        }
                       }
                     },
                     onF12Pressed: () async {},

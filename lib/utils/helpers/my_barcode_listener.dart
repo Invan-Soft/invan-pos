@@ -267,6 +267,9 @@ String fixKeyboardLayout(String input) {
     if (keyEvent is RawKeyDownEvent) {
       if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
         _controller.sink.add(_lineFeed);
+      } else if (keyEvent.logicalKey == LogicalKeyboardKey.backspace &&
+          blBloc.status == BLStatus.home) {
+        _onDeLPressedCallback();
       } else {
         final String? char = keyEvent.character;
         if (char != null && char.isNotEmpty) {

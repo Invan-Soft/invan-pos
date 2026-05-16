@@ -267,6 +267,10 @@ class PaynetDialog extends StatelessWidget {
         return loc.internet_tekshirilmoqda;
       case PaynetLoadingStatus.paying:
         return loc.tolov_amalga_oshirilmoqda;
+      case PaynetLoadingStatus.polling:
+        return loc.ha == 'Ha'
+            ? 'To\'lov jarayonda...\nIltimos kuting'
+            : 'Платёж обрабатывается...\nПожалуйста, подождите';
     }
   }
 }

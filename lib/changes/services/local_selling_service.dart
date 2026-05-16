@@ -178,15 +178,29 @@ if (receiptData is ReceiptModel4) {
 
         return res;
       }
+      final failedErrorMsg = errorMessage.isNotEmpty
+          ? errorMessage
+          : (decoded.isNotEmpty ? decoded : 'Unknown error');
+
       LogRepository.addLog(
-        """
- RESPONSE BODY:   => $decoded, headers: => {'Content-Type': 'application/json'}, REQUEST BODY:: =>  ${body['params']['items'].map((e) => e).toList().toString()}""",
+        failedErrorMsg,
         method: "POST",
         path: AppConstants.localhost,
         where: "LOCAL SALING / TRY / FAILED",
         statusCode: _statusCode,
         url: AppConstants.localhost,
-        file: 'LocalService / sell / try 161 code line',
+        file: 'LocalService / sell /',
+      );
+
+      LogRepository.requestSend(
+        failedErrorMsg,
+        method: "POST",
+        path: AppConstants.localhost,
+        where: "LOCAL SALING / TRY / FAILED",
+        file: 'LocalService / sell /',
+        statusCode: _statusCode,
+        url: AppConstants.localhost,
+        body: body['params']['items'].map((e) => e).toList().toString(),
       );
 
       MxikError? mxikError = _checkForMxikError(response);

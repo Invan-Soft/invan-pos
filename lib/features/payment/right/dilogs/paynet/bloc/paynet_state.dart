@@ -21,4 +21,4 @@ class PaynetNoInternetState extends PaynetState {
   PaynetNoInternetState(this.otp);
 }
 
-enum PaynetLoadingStatus { internet, paying }
+enum PaynetLoadingStatus { internet, paying, polling }

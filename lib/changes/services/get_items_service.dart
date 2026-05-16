@@ -110,7 +110,7 @@ class OrdersService {
       'Accept': 'application/json',
       'Accept-Encoding': 'gzip, deflate',
     };
-
+    
     try {
       _activeClient = http.Client();
       final response = await _activeClient!.get(uri, headers: headers);

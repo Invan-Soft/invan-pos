@@ -40,7 +40,7 @@ class BaseService {
           : "BaseService Body== $body";
       if (orderBody.isNotEmpty) Pref.removeWithKey("bodyForDiscountError");
       LogRepository.requestSend(failure.errorMessage(),
-      file: 'baseservice.dart 39 line',
+      file: 'baseservice.dart',
       method: 'Post Method',
       path: '41 line in baseservice.dart',
           where: "",

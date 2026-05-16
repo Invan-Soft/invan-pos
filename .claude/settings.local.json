@@ -27,7 +27,32 @@
       "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.android\\\\avd\" -ErrorAction SilentlyContinue | Format-List Name)",
       "PowerShell(Get-Content \"$env:USERPROFILE\\\\.android\\\\avd\\\\Pixel9_API35.ini\" -ErrorAction SilentlyContinue)",
       "PowerShell(Get-Content \"$env:USERPROFILE\\\\.android\\\\avd\\\\Pixel9_API35.avd\\\\config.ini\" -ErrorAction SilentlyContinue | Select-String \"image|system|tag\")",
-      "PowerShell($env:ANDROID_SDK_ROOT = \"D:\\\\Android\"; Start-Process -FilePath \"D:\\\\Android\\\\emulator\\\\emulator.exe\" -ArgumentList \"-avd Pixel9_API35\" -WindowStyle Normal; Write-Host \"Emulator starting...\")"
+      "PowerShell($env:ANDROID_SDK_ROOT = \"D:\\\\Android\"; Start-Process -FilePath \"D:\\\\Android\\\\emulator\\\\emulator.exe\" -ArgumentList \"-avd Pixel9_API35\" -WindowStyle Normal; Write-Host \"Emulator starting...\")",
+      "PowerShell(Get-Process -Name \"pos_desktop_flutter\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force -Confirm:$false)",
+      "PowerShell(Get-Process | Where-Object { $_.Name -match \"msbuild|cl|link|vctip|VBCSCompiler|devenv\" } | Select-Object Name, Id | Format-Table -AutoSize)",
+      "Bash(flutter clean *)",
+      "PowerShell(Get-Process | Where-Object { $_.Name -match \"pos_desktop|flutter|dart|msbuild|link\" } | Select-Object Name, Id, CPU | Format-Table -AutoSize)",
+      "PowerShell(Get-Process dart | Select-Object Id, @{N='CommandLine';E={\\(Get-CimInstance Win32_Process -Filter \"ProcessId=$\\($_.Id\\)\"\\).CommandLine}} | Format-List)",
+      "PowerShell(Get-MpPreference)",
+      "PowerShell(Get-Process | Where-Object { $_.Name -match \"avast|avg|kasper|eset|norton|bitdef|malware|360|comodo|mcafee|trend|symantec|sophos\" } | Select-Object Name, Id)",
+      "Bash(powershell -Command \"\\(Get-Item 'C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/devenv.exe'\\).VersionInfo.ProductVersion\")",
+      "Bash(del \"D:\\\\flutter_projects\\\\pos-invan-2-ayyubxon\\\\.vscode\\\\launch.json\")",
+      "Bash(findstr /S \"ApiProvider\\\\.\" lib\\\\changes\\\\services\\\\*.dart)",
+      "Bash(findstr \"path:\")",
+      "Bash(taskkill /f /im pos_desktop_flutter.exe)",
+      "PowerShell(Stop-Process -Force)",
+      "PowerShell(Get-Process -Name \"tposd\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Add-MpPreference -ExclusionPath \"D:\\\\flutter_projects\\\\pos-invan-2-ayyubxon\\\\build\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Add-MpPreference -ExclusionPath \"D:\\\\flutter_projects\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Add-MpPreference -ExclusionProcess \"link.exe\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Add-MpPreference -ExclusionProcess \"dart.exe\" -ErrorAction SilentlyContinue)",
+      "Bash(flutter --version)",
+      "Bash(Get-Content pubspec.lock)",
+      "Bash(Select-String -Pattern \"objectbox\" -Context 0,3)",
+      "Bash(dart pub *)",
+      "Bash(Select-String -Pattern \"objectbox\")",
+      "Bash(xargs grep -l \"objectbox\\\\|@Entity\\\\|@Id\\\\|Store\\\\|Box<\")"
     ]
   }
 }
