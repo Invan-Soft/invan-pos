@@ -12,6 +12,8 @@ import 'package:provider/provider.dart';
 import '../../../../../../../changes/dialogs/virtual_keyboard/content_of_virtual_keyboard.dart';
 import '../../../../../../../changes/providers/product_search_provider.dart';
 import '../../top_buttons/button_widgets/select_search_button.dart';
+import '../../../../../../../features/get_products/singletons/items_singleton.dart';
+import '../../../../../../../changes/models/product/item_model.dart';
 
 class SearchDialogContent extends StatefulWidget {
   SearchDialogContent({
@@ -46,6 +48,20 @@ class SearchDialogContentState extends State<SearchDialogContent> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     sdBloc = BlocProvider.of<SDbloc>(context);
+  }
+
+  List<ItemModel> _getCurrentResults() {
+    final text = sdBloc.state.controller?.text ?? '';
+    switch (sdBloc.searchTypeEnum) {
+      case SearchTypeEnum.option:
+        return ItemsSingleton.search(text);
+      case SearchTypeEnum.byBarcode:
+        return ItemsSingleton.searchProductsByBarcode(text);
+      case SearchTypeEnum.bySKU:
+        return ItemsSingleton.searchProductsBySku(text);
+      case SearchTypeEnum.byProductName:
+        return ItemsSingleton.searchProductsByName(text);
+    }
   }
 
   @override
@@ -120,14 +136,15 @@ class SearchDialogContentState extends State<SearchDialogContent> {
               sdBloc.add(SDarrowEvent(ArrowTo.up));
             }
             if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
-              if (state.searchedProducts.isEmpty) return;
+              final results = _getCurrentResults();
+              if (results.isEmpty) return;
 
               int index = state.selected;
-              if (index < 0 || index >= state.searchedProducts.length) {
+              if (index < 0 || index >= results.length) {
                 index = 0;
               }
 
-              AppNavigation.pop(v: state.searchedProducts[index]);
+              AppNavigation.pop(v: results[index]);
             }
           },
           focusNode: _keyboardFocusNode,
@@ -173,8 +190,9 @@ class SearchDialogContentState extends State<SearchDialogContent> {
                               sdBloc.add(SDtypedEvent(v));
                             },
                             onSubmitted: (v) {
-                              if (state.searchedProducts.isNotEmpty) {
-                                AppNavigation.pop(v: state.searchedProducts[0]);
+                              final results = _getCurrentResults();
+                              if (results.isNotEmpty) {
+                                AppNavigation.pop(v: results[0]);
                               }
                             },
                           )

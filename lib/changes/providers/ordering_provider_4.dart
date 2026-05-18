@@ -228,6 +228,65 @@ class OrderingProvider4 extends ChangeNotifier {
     return true;
   }
 
+  Future<void> cancelOrderingWithTelegram() async {
+    if (_currentClient.orderedProducts.isEmpty) return;
+
+    final currentEmployee = HiveBoxes.getCurrentEmployee;
+    final employeeName = currentEmployee?.user?.firstName ?? "Noma'lum xodim";
+    final posName = Pref.getString(PrefKeys.posName, "Noma'lum POS");
+    final orgName = Pref.getString(PrefKeys.organizationName, "");
+    final deleteTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+
+    final products = _currentClient.orderedProducts
+        .where((p) => !(p.isDeleted ?? false))
+        .toList();
+
+    _currentClient.orderedProducts = [];
+    _currentClient.lastAddedIndex = -1;
+    _returnedProducts.clear();
+    _returnedFreeGiftProducts.clear();
+    _giftProducts.clear();
+    _freeGiftDialogCount = 0;
+    _showCount = {};
+    _showCountFreeGift = {};
+    DiscountSingleton.maxPrice();
+    notifyListeners();
+
+    if (products.isEmpty) return;
+
+    final StringBuffer productLines = StringBuffer();
+    for (int i = 0; i < products.length; i++) {
+      final p = products[i];
+      productLines.writeln('${i + 1}. ${p.productName} — qty: ${p.value}');
+    }
+
+    const String botToken = '8534579686:AAHuob2SA0ZdnV_emG0kSKmOOoDLdNbvrKQ';
+    const String channelId = '-1003834151006';
+
+    final String message = """
+<b>🚨 Chek o'chirildi!</b>
+
+<b>Org Name:</b> $orgName
+<b>Pos Name:</b> $posName
+<b>Employee:</b> $employeeName
+<b>Time:</b> $deleteTime
+
+<b>Mahsulotlar:</b>
+${productLines.toString().trim()}
+    """.trim();
+
+    final Uri url = Uri.parse(
+      'https://api.telegram.org/bot$botToken/sendMessage?'
+      'chat_id=$channelId'
+      '&text=${Uri.encodeComponent(message)}'
+      '&parse_mode=HTML',
+    );
+
+    try {
+      await http.get(url);
+    } catch (e) {}
+  }
+
   Future<void> onMxikError(List<NoMxikItem> v) async {
     for (int i = 0; i < _currentClient.orderedProducts.length; i++) {
       for (int n = 0; n < v.length; n++) {
@@ -2280,10 +2339,12 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   }) async {
     const String botToken = '8534579686:AAHuob2SA0ZdnV_emG0kSKmOOoDLdNbvrKQ';
     const String channelId = '-1003834151006';
+    final String orgName = Pref.getString(PrefKeys.organizationName, "");
 
     final String message = """
 <b>🚨 Mahsulot o'chirildi!</b>
 
+<b>Org Name:</b> $orgName
 <b>Product:</b> $productName
 <b>Quantity:</b> $product_qunatity
 <b>Pos Name:</b> $posName

@@ -23,6 +23,8 @@ import 'package:invan2/changes/providers/settings_provider.dart';
 import 'package:invan2/utils/utils.dart';
 import '../../changes/dialogs/invoice_search_dialog.dart';
 import '../checks/checks_page.dart';
+import '../hive_repository/hive_boxes.dart';
+import 'features/operation_on_product/delete_item/input_alert_dialog.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -234,32 +236,35 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     },
                     onBarcodeScannedMagnetic: (v) {},
                     onDelPressed: () async {
-                      if (blBlocc.isVisible) {
-                        bool result = Provider.of<OrderingProvider4>(
-                          context,
-                          listen: false,
-                        ).cancelOrdering(deleteTicketAccess);
-                        if (!result) {
-                          blBlocc.add(BlStatusChangedEvent(
-                            status: BLStatus.other,
-                            where: "lib/features/home/home_page.dart backspace",
-                          ));
-                          bool access = await showDialog(
-                            barrierDismissible: false,
-                            barrierColor: Colors.black.withValues(alpha: .5),
-                            context: context,
-                            builder: (context) => const NoAccessDialog(),
-                          );
-                          blBlocc.add(BlStatusChangedEvent(
-                            status: BLStatus.home,
-                            where: "lib/features/home/home_page.dart backspace",
-                          ));
-                          if (access) {
-                            // ignore: use_build_context_synchronously
-                            Provider.of<OrderingProvider4>(context, listen: false)
-                                .cancelOrdering(access);
-                          }
-                        }
+                      if (!blBlocc.isVisible) return;
+                      final employee = HiveBoxes.getCurrentEmployee;
+                      if (employee?.access?.deletePrice == true) {
+                        Provider.of<OrderingProvider4>(context, listen: false)
+                            .cancelOrderingWithTelegram();
+                      } else {
+                        blBlocc.add(BlStatusChangedEvent(
+                          status: BLStatus.other,
+                          where: "lib/features/home/home_page.dart backspace",
+                        ));
+                        await showDialog(
+                          context: context,
+                          builder: (_) => InputAlertDialog(
+                            onUniversalPinEntered: () {
+                              Provider.of<OrderingProvider4>(context, listen: false)
+                                  .cancelOrderingWithTelegram();
+                              AppNavigation.pop();
+                            },
+                            onValueEntered: (emp) {
+                              Provider.of<OrderingProvider4>(context, listen: false)
+                                  .cancelOrderingWithTelegram();
+                              AppNavigation.pop();
+                            },
+                          ),
+                        );
+                        blBlocc.add(BlStatusChangedEvent(
+                          status: BLStatus.home,
+                          where: "lib/features/home/home_page.dart backspace",
+                        ));
                       }
                     },
                     onF12Pressed: () async {},

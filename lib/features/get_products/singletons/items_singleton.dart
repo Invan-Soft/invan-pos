@@ -314,29 +314,16 @@ static Future<void> storeProducts() async {
     final trimmed = pattern.trim();
     if (trimmed.isEmpty) return [];
     final List<ItemModel> exactList = [];
-    final List<ItemModel> containsList = [];
     for (final product in products) {
       if (product.barcode == null || product.barcode!.isEmpty) continue;
-      bool exactMatch = false;
-      bool containsMatch = false;
       for (final b in product.barcode!) {
-        final bc = b.trim();
-        if (bc == trimmed) {
-          exactMatch = true;
+        if (b.trim() == trimmed) {
+          exactList.add(product);
           break;
         }
-        if (bc.contains(trimmed)) {
-          containsMatch = true;
-        }
-      }
-      if (exactMatch) {
-        exactList.add(product);
-      } else if (containsMatch) {
-        containsList.add(product);
       }
     }
-    // Exact match bo'lsa faqat ularni qaytaramiz, aks holda partial matchlarni
-    return exactList.isNotEmpty ? exactList : containsList;
+    return exactList;
   }
 
   static Translit translit = Translit();
