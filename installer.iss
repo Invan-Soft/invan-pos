@@ -1,22 +1,22 @@
-; Inno Setup script for InVan POS
+; Inno Setup script for INVAN 2
 ; Compiled by GitHub Actions on Windows runner.
 ; Version is injected via /DMyAppVersion="..." flag from the workflow.
 
-#define MyAppName "InVan POS"
+#define MyAppName "INVAN 2"
 #ifndef MyAppVersion
   #define MyAppVersion "1.1.100"
 #endif
 #define MyAppPublisher "Invan Soft"
-#define MyAppExeName "invan2.exe"
+#define MyAppExeName "pos_desktop_flutter.exe"
 #define MyAppURL "https://github.com/Invan-Soft/invan-pos"
 
 [Setup]
-AppId={{B3D9F5E8-1A2B-4C3D-9E4F-5A6B7C8D9E01}}
+AppId={{79533c12-cc3a-4d69-8f13-b0cd39959206}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
-DefaultDirName={autopf}\InVanPos2
+DefaultDirName={autopf}\INVAN 2
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=installers
@@ -40,9 +40,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
