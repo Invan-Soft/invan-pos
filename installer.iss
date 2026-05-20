@@ -4,7 +4,7 @@
 
 #define MyAppName "InVan POS"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.0.0"
+  #define MyAppVersion "1.1.100"
 #endif
 #define MyAppPublisher "Invan Soft"
 #define MyAppExeName "invan2.exe"

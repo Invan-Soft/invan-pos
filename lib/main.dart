@@ -58,10 +58,9 @@ class MyHttpOverrides extends HttpOverrides {
 }
 
 Future<void> main() async {
-
+  WidgetsFlutterBinding.ensureInitialized();
   PackageInfo.fromPlatform();
   HttpOverrides.global = MyHttpOverrides();
-  WidgetsFlutterBinding.ensureInitialized();
   GoogleFonts.config.allowRuntimeFetching = true;
 
   await windowManager.ensureInitialized();
