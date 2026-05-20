@@ -1,0 +1,606 @@
+{
+  "nomi": "Наименование",
+  "@nomi": {
+    "description": "Наименование || Nomi"
+  },
+  "miqdor": "Кол-во",
+  "@miqdor": {
+    "description": "Кол-во || Miqdor"
+  },
+  "narxi": "Цена",
+  "@narxi": {
+    "description": "Цена || Narxi"
+  },
+  "jami": "Итого",
+  "@jami": {
+    "description": "Итого || Jami"
+  },
+  "chek": "Чек",
+  "@chek": {
+    "description": "Чек || Chek"
+  },
+  "tolash": "К оплате",
+  "@tolash": {
+    "description": "К оплате || To'lash"
+  },
+  "chegirmalar": "Скидки",
+  "@chegirmalar": {
+    "description": "Скидки || Chegirmalar"
+  },
+  "barchasi": "Все",
+  "@barchasi": {
+    "description": "Все || Barchasi"
+  },
+  "qaytarish": "Возврат",
+  "@qaytarish": {
+    "description": "Возврат || Qaytarish"
+  },
+  "savdo": "Продажи",
+  "@savdo": {
+    "description": "Продажи || Savdo"
+  },
+  "cheklar": "Чеки",
+  "@cheklar": {
+    "description": "Чеки || Cheklar"
+  },
+  "kassaHisoboti": "Кассовые смены",
+  "@kassaHisoboti": {
+    "description": "Кассовые смены || Kassa hisoboti"
+  },
+  "sozlamalar": "Настройки",
+  "@sozlamalar": {
+    "description": "Настройки || Sozlamalar"
+  },
+  "izohJonatish": "Обратная связь",
+  "@izohJonatish": {
+    "description": "Обратная связь || Izoh jo'natish"
+  },
+  "chiqish": "Выход",
+  "@chiqish": {
+    "description": "Выход || Chiqish"
+  },
+  "kirim": "Доходы",
+  "@kirim": {
+    "description": "Доходы || Kirim"
+  },
+  "farq": "Разница",
+  "@farq": {
+    "description": "Разница || Farq"
+  },
+  "shtrixKodOrqaliQidirish": "Поиск по штрихкоду...",
+  "@shtrixKodOrqaliQidirish": {
+    "description": "Поиск по штрихкоду... || Shtrix-kod orqali qidirish..."
+  },
+  "artikulBoyichaQidirish": "Поиск по артикулу...",
+  "@artikulBoyichaQidirish": {
+    "description": "Поиск по артикулу... || Artikul bo'yicha qidirish..."
+  },
+  "mahsulotNomiBoyichaQidirish": "Поиск по имени...",
+  "@mahsulotNomiBoyichaQidirish": {
+    "description": "Поиск по имени товара... || Mahsulot nomi bo'yicha qidirish..."
+  },
+  "nominiKiriting": "Введите название...",
+  "@nominiKiriting": {
+    "description": "Введите название... || Nomini kiriting"
+  },
+  "mijoz": "Клиент",
+  "@mijoz": {
+    "description": "Клиент || Mijoz"
+  },
+  "qidirish": "Поиск",
+  "@qidirish": {
+    "description": "Поиск || Qidirish"
+  },
+  "tovarlar": "Товары",
+  "@tovarlar": {
+    "description": "Товары || Tovarlar"
+  },
+  "kategoriyalar": "Категории",
+  "@kategoriyalar": {
+    "description": "Категории || Kategoriyalar"
+  },
+  "elementQoshish": "Добавить элемент",
+  "@elementQoshish": {
+    "description": "Добавить элемент || Element qo'shish"
+  },
+  "soni": "Количество",
+  "@soni": {
+    "description": "Количество || Soni"
+  },
+  "chegirma": "Скидка",
+  "@chegirma": {
+    "description": "Скидка || Chegirma"
+  },
+  "bonus": "Бонус",
+  "@bonus": {
+    "description": "Бонус || Bonus"
+  },
+  "izoh": "Комментарий",
+  "@izoh": {
+    "description": "Комментарий || Izoh"
+  },
+  "izohniKiriting": "Введите комментарий",
+  "@izohniKiriting": {
+    "description": "Введите комментарий || Izohni kiriting"
+  },
+  "ochirish": "Удалить",
+  "@ochirish": {
+    "description": "Удалить || O'chirish"
+  },
+  "saqlash": "Сохранить",
+  "@saqlash": {
+    "description": "Сохранить || Saqlash"
+  },
+  "klientniIsmiBoyichaQidirish": "Поиск клиента по ID",
+  "@klientniIsmiBoyichaQidirish": {
+    "description": "Поиск клиента по имени и номеру || Klientni ismi va nomeri bo'yicha qidirish"
+  },
+  "mijozQoshish": "Добавить клиента",
+  "@mijozQoshish": {
+    "description": "Добавить клиента || Mijoz qo'shish"
+  },
+  "naqdPulda": "Наличными",
+  "@naqdPulda": {
+    "description": "Наличными || Naqd pulda"
+  },
+  "plastik": "Пластик",
+  "@plastik": {
+    "description": "Пластик || Plastik"
+  },
+  "sovga": "Подарок",
+  "@sovga": {
+    "description": "Подарок || Sovg'a"
+  },
+  "qarz": "Долг",
+  "@qarz": {
+    "description": "Долг || Qarz"
+  },
+  "sdacha": "Сдача",
+  "@sdacha": {
+    "description": "Сдача || Sdacha"
+  },
+  "tolash_oplatit": "Оплатить",
+  "@tolash_oplatit": {
+    "description": "Оплатить || To'lash"
+  },
+  "kassir": "Кассир",
+  "@kassir": {
+    "description": "Кассир || Kassir"
+  },
+  "pos": "ПОС",
+  "@pos": {
+    "description": "ПОС || POS"
+  },
+  "chekNo": "Чек Но",
+  "@chekNo": {
+    "description": "Чек Но || Chek No"
+  },
+  "ism": "Имя",
+  "@ism": {
+    "description": "Имя || Ism"
+  },
+  "familiya": "Фамилия",
+  "@familiya": {
+    "description": "Фамилия || Familiya"
+  },
+  "eslatma": "Примечание",
+  "@eslatma": {
+    "description": "Примечание || Eslatma"
+  },
+  "yaratishVaChekkaQoshish": "Создать и добавить в чек",
+  "@yaratishVaChekkaQoshish": {
+    "description": "Создать и добавить в чек || Yaratish va chekka qo'shish"
+  },
+  "chekRaqaminiKiriting": "Введите номер чек",
+  "@chekRaqaminiKiriting": {
+    "description": "Введите номер чек || Chek raqamini kiriting"
+  },
+  "tolovniQaytarish": "Возврат",
+  "@tolovniQaytarish": {
+    "description": "Возврат || To'lovni qaytarish"
+  },
+  "tolanganJami": "Общая сумма",
+  "@tolanganJami": {
+    "description": "Общая сумма || To'langan jami"
+  },
+  "yaratilganSanasi": "Дата создания",
+  "@yaratilganSanasi": {
+    "description": "Дата создания || Yaratilgan sanasi"
+  },
+  "qaytishUchunTovarniBosing": "Нажмите на товар для возврата",
+  "@qaytishUchunTovarniBosing": {
+    "description": "Нажмите на товар для возврата || Qaytish uchun tovarni bosing"
+  },
+  "soliqlar": "Налоги",
+  "@soliqlar": {
+    "description": "Налоги || Soliqlar"
+  },
+  "qaytarishniBekorQilishUchunTovarniBosing": "Нажмите на товар для отмены возврата",
+  "@qaytarishniBekorQilishUchunTovarniBosing": {
+    "description": "Нажмите на товар для отмены возврата || Qaytarishni bekor qilish uchun tovarni bosing"
+  },
+  "qaytishCheki": "Чек возврата",
+  "@qaytishCheki": {
+    "description": "Чек возврата || Qaytish cheki"
+  },
+  "smena": "Смена",
+  "@smena": {
+    "description": "Смена || Smena"
+  },
+  "naqdPulniBoshqarish": "Управление наличными",
+  "@naqdPulniBoshqarish": {
+    "description": "Управление наличными || Naqd pulni boshqarish"
+  },
+  "smenaniYopish": "Закрыт смену",
+  "@smenaniYopish": {
+    "description": "Закрыт смену || Smenani yopish"
+  },
+  "tomonidanOchilgan": "Открыт",
+  "@tomonidanOchilgan": {
+    "description": "Открыт || Tomonidan ochilgan"
+  },
+  "kassadaNaqdPul": "Наличные в кассе",
+  "@kassadaNaqdPul": {
+    "description": "Наличные в кассе || Kassada naqd pul"
+  },
+  "smenaBoshidaNaqdPul": "Наличные на начало смены",
+  "@smenaBoshidaNaqdPul": {
+    "description": "Наличные на начало смены || Smena boshida naqd pul"
+  },
+  "naqdTolovlar": "Оплаты наличными",
+  "@naqdTolovlar": {
+    "description": "Оплаты наличными || Naqd to'lovlar"
+  },
+  "naqdPuldaQaytimlar": "Возврат наличными",
+  "@naqdPuldaQaytimlar": {
+    "description": "Возврат наличными || Naqd pulda qaytimlar"
+  },
+  "kirimlar": "Внесения",
+  "@kirimlar": {
+    "description": "Внесения || Kirimlar"
+  },
+  "chiqimlar": "Изъятия",
+  "@chiqimlar": {
+    "description": "Изъятия || Chiqimlar"
+  },
+  "inkassatsiya": "Инкассация",
+  "@inkassatsiya": {
+    "description": "Инкассация || Inkassatsiya"
+  },
+  "kutilayotganPulMiqdori": "Ожидаемая сумма наличных",
+  "@kutilayotganPulMiqdori": {
+    "description": "Ожидаемая сумма наличных || Kutilayotgan pul miqdori"
+  },
+  "pulMiqdori": "Сумма наличных",
+  "@pulMiqdori": {
+    "description": "Сумма наличных ||  Pul miqdori"
+  },
+  "jamiSotuvlar": "Итог продаж",
+  "@jamiSotuvlar": {
+    "description": "Итог продаж || Jami sotuvlar"
+  },
+  "savdolar": "Продажи",
+  "@savdolar": {
+    "description": "Продажи || Savdolar"
+  },
+  "chiqim": "Изъять",
+  "@chiqim": {
+    "description": "Изъять || Chiqim"
+  },
+  "summa": "Сумма",
+  "@summa": {
+    "description": "Сумма || Summa"
+  },
+  "kirim_vnesti": "Внести",
+  "@kirim_vnesti": {
+    "description": "Внести || Kirim"
+  },
+  "hisobotniChopEtish": "Распечатать отчет",
+  "@hisobotniChopEtish": {
+    "description": "Распечатать отчет || Hisobotni chop etish"
+  },
+  "smenaniOchish": "Открыть смену",
+  "@smenaniOchish": {
+    "description": "Открыть смену || Smenani ochish"
+  },
+  "boshlangichMiqdor": "Сумма наличных в начале смены",
+  "@boshlangichMiqdor": {
+    "description": "Сумма наличных в начале смены || Boshlang'ich miqdor"
+  },
+  "smenaYopilgan": "Смена закрыта.",
+  "@smenaYopilgan": {
+    "description": "Смена закрыта. || Smena yopilgan."
+  },
+  "ishniBoshlashUchunSmenaniOching": "Откройте смену, чтобы начать работу.",
+  "@ishniBoshlashUchunSmenaniOching": {
+    "description": "Откройте смену, чтобы начать работу. || Ishni boshlash uchun smenani oching."
+  },
+  "printerlar": "Принтеры",
+  "@printerlar": {
+    "description": "Принтеры || Printerlar"
+  },
+  "qogozOlchami": "Размер бумаги",
+  "@qogozOlchami": {
+    "description": "Размер бумаги || Qog'oz o'lchami"
+  },
+  "printerQoshish": "Добавить принтер",
+  "@printerQoshish": {
+    "description": "Добавить принтер || Printer qo'shish"
+  },
+  "til": "Язык",
+  "@til": {
+    "description": "Язык || Til"
+  },
+  "taroziUchunPrefix": "Префикс весов",
+  "@taroziUchunPrefix": {
+    "description": "Префикс весов || Tarozi uchun prefix"
+  },
+  "taroziPorti": "Порт весов",
+  "@taroziPorti": {
+    "description": "Порт весов || Tarozi porti"
+  },
+  "shriftSozlamalari": "Настройки шрифта",
+  "@shriftSozlamalari": {
+    "description": "Настройки шрифта || Shrift sozlamalari"
+  },
+  "tungiRejim": "Ночной режим",
+  "@tungiRejim": {
+    "description": "Ночной режим || Tungi rejim"
+  },
+  "tizimdanChiqish": "Выход из системы",
+  "@tizimdanChiqish": {
+    "description": "Выход из системы || Tizimdan chiqish"
+  },
+  "tilniTanlang": "Выберите язык",
+  "@tilniTanlang": {
+    "description": "Выберите язык || Tilni tanlang"
+  },
+  "ozbek": "O'zbek",
+  "@ozbek": {
+    "description": "O'zbek || O'zbek"
+  },
+  "russkiy": "Русский",
+  "@russkiy": {
+    "description": "Русский || Русский"
+  },
+  "taroziUchunShtrixKodPrefixiniKiriting": "Введите префикс штрих-кода для весов",
+  "@taroziUchunShtrixKodPrefixiniKiriting": {
+    "description": "Введите префикс штрих-кода для весов || Tarozi uchun shtrix kod prefixini kiriting"
+  },
+  "taroziPortiniTanlang": "Выберите последовательный порт весов",
+  "@taroziPortiniTanlang": {
+    "description": "Выберите последовательный порт весов || Tarozi portini tanlang"
+  },
+  "shriftOlchaminiOzgartiring": "Размер шрифта",
+  "@shriftOlchaminiOzgartiring": {
+    "description": "Размер шрифта || Shrift o'lchamini o'zgartiring"
+  },
+  "tizimdanChiqishdanOldin": "Перед выходом из системы:",
+  "@tizimdanChiqishdanOldin": {
+    "description": "Перед выходом из системы: || Tizimdan chiqishdan oldin:"
+  },
+  "ochiqSmenaniYopish": "Закрытие открытой смены",
+  "@ochiqSmenaniYopish": {
+    "description": "Закрытие открытой смены || Ochiq smenani yopish"
+  },
+  "cancel": "Отмена",
+  "@cancel": {
+    "description": "Отмена || Bekor qilish"
+  },
+  "matnniKiriting": "Текст сообщения...",
+  "@matnniKiriting": {
+    "description": "Текст сообщения... || Matnni kiriting"
+  },
+  "jonatish": "Отправить",
+  "@jonatish": {
+    "description": "Отправить || Jo'natish"
+  },
+  "telefonNomer": "Телефонный номер",
+  "@telefonNomer": {
+    "description": "Телефонный номер || Telefon nomer"
+  },
+  "tizimgaKirish": "Войти в систему",
+  "@tizimgaKirish": {
+    "description": "Войти в систему || Tizimga kirish"
+  },
+  "smsKod": "Код СМС",
+  "@smsKod": {
+    "description": "Код СМС || SMS kod"
+  },
+  "tasdiqlash": "Подтверждать",
+  "@tasdiqlash": {
+    "description": "Подтверждать || Tasdiqlash"
+  },
+  "ozFilialingizniTanlang": "Выберите свою заведение",
+  "@ozFilialingizniTanlang": {
+    "description": " || O'z filialingizni tanlang"
+  },
+  "keyingisi": "Следующий",
+  "@keyingisi": {
+    "description": "Следующий || Keyingisi"
+  },
+  "posQurilmasiniTanlang": "Выберите POS-устройство",
+  "@posQurilmasiniTanlang": {
+    "description": "Выберите POS-устройство || POS qurilmasini tanlang"
+  },
+  "tizimdanChiqmoqchimisiz": "Вы хотите выйти?",
+  "@tizimdanChiqmoqchimisiz": {
+    "description": "Вы хотите выйти? || Tizimdan chiqmoqchimisiz?"
+  },
+  "ha": "Да",
+  "@ha": {
+    "description": "Да || Ha"
+  },
+  "yoq": "Нет",
+  "@yoq": {
+    "description": "Нет || Yo'q"
+  },
+  "ilovadanChiqish": "Выйти из приложения",
+  "@ilovadanChiqish": {
+    "description": "Выйти из приложения || Ilovadan chiqish"
+  },
+  "variant": "Вариант",
+  "@variant": {
+    "description": "Вариант || Variant"
+  },
+  "mijoz_tanlanmagan": "Клиент не выбран",
+  "@mijoz_tanlanmagan": {
+    "description": " || Mijoz tanlanmagan"
+  },
+  "yangilash": "Обновить",
+  "@yangilash": {
+    "description": "Обновить || Yangilash"
+  },
+  "keshbek_tolov": "Кешбек оплата",
+  "@keshbek_tolov": {
+    "description": "Кешбек оплата || Keshbek to'lov"
+  },
+  "kassa_tanlang": "Выберите кассу",
+  "tel_raqam": "Номер телефона",
+  "kirish": "Вход",
+  "parol": "Пароль",
+  "filial_tanlang": "Выберите филиал",
+  "min": "мин",
+  "sek": "сек",
+  "soat": "часы",
+  "sotuv": "Продажа",
+  "parol_keriting": "Введите пароль",
+  "shtrix_code": "Штрих Код",
+  "xodim": "Сотрудник",
+  "sync": "Синхронизация",
+  "tolov_turi": "Вид оплаты",
+  "tolandi": "Оплачен",
+  "qoldiq": "Остаток",
+  "terminal": "Терминал",
+  "bonus_karta": "Бонус карта",
+  "yakunlash": "Закрыть чек",
+  "naqd": "Наличный",
+  "x_otchetga_access_yoq": "У вас нет разрешения на X-отчет!!!",
+  "z_otchetga_access_yoq": "У вас нет разрешения на Z-отчет!!!",
+  "hisoblash": "Расчет",
+  "hujjatni_yopish": "Закрыть документ",
+  "qoldi": "Осталось",
+  "karta": "Карта",
+  "qaytim": "Сдача",
+  "narxni_ozgartirish": "Изменить цену",
+  "tolov": "Оплата",
+  "bu_belgi_bilan_mahsulot_mavjud_emas": "Нет продукта с этим штрих-кодом",
+  "click_pass": "Click Pass",
+  "id": "ID",
+  "balans": "Баланс",
+  "notogri_raqam": "Неправильный номер",
+  "client_cartasida_yetarli_emas": "На карте клиента недостаточно денег!!!",
+  "clint_tanlanmagan": "Выбранный клиент не существует",
+  "pinkodni_kiriting": "Введите свой пин-код!",
+  "activligi": "активность",
+  "internet_yoq": "Нет доступа к интернету",
+  "xaridornig_ismini_kiriting": "Введите имя клиента",
+  "sharif": "Отчество",
+  "xaridorning_sharifini_kiriting": "Введите отчество клиента",
+  "xaridorning_telefon_raqamini_kiriting": "Введите номер телефона клиента",
+  "erkak": "Мужской",
+  "ayol": "Женщина",
+  "qiymat_kiriting": "Введите значение",
+  "narh_qoyilmagan": "Цена выбранного товара еще не определена!!!",
+  "som": "сум",
+  "mijozga_qaytimini_bering_va_tekshiring": "Передайте клиенту сдачу и чек",
+  "xisobot": "отчет",
+  "komunikator_ishlamaypti": "Коммуникатор не работает !!!",
+  "mavjud_pos_qurilmalar": "Доступные pos-устройства",
+  "chop_etish_ruhsati_yoq": "У вас нет разрешения на печать",
+  "tolov_amalga_oshmadi": "Платеж не прошел",
+  "dark_mode": "Темный режим",
+  "send_telegram": "Отправлять ошибки в телеграм",
+  "mjoz_topilmadi": "Клиент не найден",
+  "auto_yangilanish": "Автоматическое обновление",
+  "oraliq_vaqtni_kiriting": "Введите интервал",
+  "daqiqa": "минута",
+  "tarnsaksiya_yaratildi": " успешно\n создана транзакция!!!\n",
+  "kartani_oqiting": "Прочитай карту !!!",
+  "tolov_amalga_oshirildi": "Платеж произведен",
+  "kod_notogri_yoki_internet_yoq": "Вы ввели неверный СМС-код, или проблемы с интернетом",
+  "xodim_uchun_tashkilot_biriktirilmagan": "К данному сотруднику не привязана организация",
+  "yaroqsiz_id_kiritdingiz": "Вы ввели неверный ID",
+  "kodni_scanerlash": "Сканирование кода",
+  "tovar": "Товар",
+  "sana": "Дата",
+  "qoshish": "Добавить",
+  "scanerni_codga_qarating_va_scanerlang": "Наведите сканер на код и отсканируйте",
+  "ijobiy_loglarni_jonatish": "Отправить положительные логы",
+  "sync_warning": "Приложение обновит данные о товарах, сотрудниках и клиентах. Это может занять немного времени. Вы хотите обновить?",
+  "yopish": "Закрыть",
+  "yangilash": "Обновить",
+  "kun": "день",
+  "intervalni_tanlang": "Выберите интервал",
+  "kuting": "Подождите",
+  "turi": "Тип",
+  "ulgurji": "ОПТОВЫЙ",
+  "tolov_turi_activlashtirilmagan": " оплаты не активирован",
+  "summa_minimal_summadan_kam": "Сумма меньше минимальной суммы",
+  "yuklanishlar_muvaffaqiyatli_yakunlandi": "Загрузка завершена успешно",
+  "qayta_yuklash": "Перезагрузить",
+  "pos_qurilma_mavjud_emas": "Не активировано для этого компьютера\nPOS-устройство недоступно.\nЧерез бэк-офис создайте новое устройство.\nЗатем повторите попытку!",
+  "qayta_urinish": "Повторить попытку",
+  "pos_qurilma_aktivlashtirilmoqda": "Активация POS-устройства...",
+  "pos_qurilma_activlashtirish_yakunlanmadi": "Не удалось активировать Pos-устройство",
+  "employee_yuklanmoqda": "Загрузка сотрудника...",
+  "employee_yuklash_yakunlanmadi": "Не удалось загрузить сотрудника",
+  "kategoriyalar_yuklanmoqda": "Загрузка категорий...",
+  "kategoriyalar_yuklash_yakunlanmadi": "Не удалось загрузить категории",
+  "service_yuklanmoqda": "Загрузка сервиса...",
+  "service_yuklash_yakunlanmadi": "Сбой загрузки службы",
+  "productlar_olib_kelinmoqda": "Получение продуктов...",
+  "productlar_olib_kelish_yakunlanmadi": "Не удалось импортировать товары",
+  "discountlar_olib_kelinmoqda": "Скидки принимаются...",
+  "discountlar_olib_kelish_yakunlanmadi": "Вычеты завершены.",
+  "internet_tekshirilmoqda": "Проверка интернета...",
+  "malumotlar_tekshirilmoqda": "Проверка данных...",
+  "tasdiqlash_kodi_jonatilmoqda": "Отправка кода подтверждения...",
+  "raqam_jonatishda_hatolik": "ОШИБКА ОТПРАВКИ НОМЕРА:",
+  "mavjud_qurilmalar_yuklanmoqda": "Загрузка доступной информации об устройстве...",
+  "yangilangan_tovarlar_mavjud_emas": "Нет доступных обновленных элементов",
+  "ta_tovar_yangilandi": "товары были обновлены",
+  "yangilanish_amalga_oshirilmadi": "Не удалось обновить",
+  "tolov_amalga_oshirilmoqda": "Оплата производится...",
+  "bekor_qilish": "Отмена",
+  "qaytarish_amalga_oshirilmoqda": "Возвращение...",
+  "qaytarish_muvaffaqiyatli_yakunlandi": "Возврат успешно завершен",
+  "qaytarish_amalga_oshirilmadi": "Возврата не было",
+  "check_qidirilmoqda": "Ищу чек...",
+  "belgiga_tegishli_check_topilmadi": "Не найдено чеков, соответствующих символу",
+  "hali_checklar_mavjud_emas": "Чеки пока недоступны",
+  "notogri_pin_kiritdingiz": "Вы ввели неправильный пин-код!",
+  "klient_qidirilmoqda": "Ищем клиента...",
+  "tizimdan_chiqish_imkonsiz": "Не удалось выйти, обратитесь к администратору",
+  "jonatilmagan_cheklar_mavjud_emas": "Не отправленные чеки нет!",
+  "jonatish_allaqachon_ishlamoqda": "Отправка уже выполняется...",
+  "jonatish_tugatildi": "Отправка завершена!",
+  "jonatish_jaroyonda": "Идет отправка...",
+  "mijoz_qoshish_muvaffaqiyatli_amalga_oshirildi": "Добавление клиента прошло успешно!",
+  "mijoz_qoshilmoqda": "Добавление клиента...",
+  "mijoz_qoshish_oxshamadi": "Не удалось добавить клиента!",
+  "organization_olib_kelinmoqda": "Привлечение организации...",
+  "organization_olib_kelish_yakunlanmadi": "Не удалось получить данные об организации.",
+  "kutish_vaqti": "Время ожидания:",
+  "sek": "сек",
+  "quiyidagi_mahsulotlarda_mxik_xatoliklar_mavjud": "Эти продукты содержат несколько мxик ошибок",
+  "dastur_haqida": "О программе",
+  "qarzga_sotishga_client_tanlangan_boloshi_lozim": "Для продажи в кредит необходимо выбрать клиента",
+  "chegirmali_narx": "Цена со скидкой",
+  "mijoz_hisobida_mablag_yetarli_emas": "На счету клиента недостаточно средств",
+  "bosh_sahifaga_otish": "Перейти на домашнюю страницу",
+  "bekor_qilish": "Отмена",
+  "qayta_urinish": "Повторить попытку",
+  "yuklab_olish": "Скачать",
+  "yuklanish_yakunlandi": "Загрузка завершена",
+  "yaratish": "Создать",
+  "ha": "Да",
+  "haqiqatan_ham_barcha_jurnallarni_ochirib_tashlamoqchimisiz": "Вы уверены, что хотите удалить все журналы?",
+  "hammasini_tozalash": "Очистить все",
+  "yuklanmoqda": "Загрузка",
+  "perecisleniya":"Перечисления",
+  "naqd_tolov_mumkin_emas": "Оплата данного товара наличными невозможна",
+  "naqd_tolov_taqiq": "Оплата наличными запрещена",
+  "narx_limit_oshdi": "Общая сумма превысила 25 млн"
+}
+    

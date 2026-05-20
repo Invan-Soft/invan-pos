@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "invan2 (dev)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=TELEGRAM_BOT_TOKEN=PASTE_DEV_BOT_TOKEN_HERE",
+        "--dart-define=TELEGRAM_CHANNEL_ID=PASTE_DEV_CHANNEL_ID_HERE",
+        "--dart-define=FISCAL_API_TOKEN=PASTE_DEV_FISCAL_TOKEN_HERE"
+      ]
+    }
+  ]
+}
