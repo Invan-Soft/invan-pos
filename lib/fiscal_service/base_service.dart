@@ -6,7 +6,6 @@ import 'package:invan2/changes/services/log_helper.dart';
 import 'package:invan2/fiscal_service/fiscal.dart';
 import '../alice_service.dart';
 import '../changes/services/api_state.dart';
-import '../utils/helpers/prefs.dart';
 
 class BaseService {
   const BaseService._();
@@ -14,7 +13,10 @@ class BaseService {
   static final Uri _url = Uri.parse(AppLinks.baseUrl);
   static const _headers = {'Content-Type': 'application/json'};
 
-  static Future<ApiState> post(Map<String, dynamic> body) async {
+  static Future<ApiState> post(
+    Map<String, dynamic> body, {
+    String? orderBody,
+  }) async {
     final String method = body['method'];
     try {
       http.Response response = await http.post(
@@ -22,6 +24,7 @@ class BaseService {
         headers: _headers,
         body: jsonEncode(body),
       );
+
       await LogHelper.logRequest(
           method: "POST",
           path: _url.toString(),
@@ -33,16 +36,13 @@ class BaseService {
         return Success(200, response.body);
       }
       Failure failure = Failure(200, response.body);
-      final bool isSaleMethod = method.contains('Sale') || method.contains('Receipt');
-      final String orderBody = isSaleMethod ? Pref.getString("bodyForDiscountError", "") : "";
-      final String logBody = orderBody.isNotEmpty
+      final String logBody = (orderBody != null && orderBody.isNotEmpty)
           ? "Order Body == $orderBody\n\nBaseService Body== $body"
           : "BaseService Body== $body";
-      if (orderBody.isNotEmpty) Pref.removeWithKey("bodyForDiscountError");
       LogRepository.requestSend(failure.errorMessage(),
-      file: 'baseservice.dart',
-      method: 'Post Method',
-      path: '41 line in baseservice.dart',
+          file: 'baseservice.dart',
+          method: 'Post Method',
+          path: '41 line in baseservice.dart',
           where: "",
           body: logBody);
       _requestSend(
@@ -53,6 +53,7 @@ class BaseService {
         statusCode: response.statusCode,
         body: body.toString(),
       );
+
       return failure;
     } on SocketException {
       _addLog(ApiErrorResponses.fiscalModuleIstConnected,
@@ -69,8 +70,7 @@ class BaseService {
     } catch (err) {
       LogRepository.requestSend(
         method: "POSt Method",
-        
-      " Error berdi ${err.toString()}",
+        " Error berdi ${err.toString()}",
         where: "",
         file: "BaseService 65",
         path: "lib/fiscal_service/base_service.dart 68 line",
@@ -142,7 +142,7 @@ class BaseService {
   }) {
     LogRepository.addLog(
       message,
-      file: 'BaseService eror 135',
+      file: 'BaseService eror',
       method: method,
       where: "",
 

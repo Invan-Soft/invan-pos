@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:io' show Platform;
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,20 +9,20 @@ import 'package:invan2/features/lock/access_level/view/access_level_page.dart';
 
 import 'features/lock/access_level/bloc/access/access_bloc.dart';
 
-final user32 = DynamicLibrary.open('user32.dll');
-final kernel32 = DynamicLibrary.open('kernel32.dll');
-
+final DynamicLibrary? user32 =
+    Platform.isWindows ? DynamicLibrary.open('user32.dll') : null;
+final DynamicLibrary? kernel32 =
+    Platform.isWindows ? DynamicLibrary.open('kernel32.dll') : null;
 typedef GetLastInputInfoC = Int32 Function(Pointer<LASTINPUTINFO>);
 typedef GetLastInputInfoDart = int Function(Pointer<LASTINPUTINFO>);
 
-final getLastInputInfo =
-    user32.lookupFunction<GetLastInputInfoC, GetLastInputInfoDart>(
+final int Function(Pointer<LASTINPUTINFO>)? getLastInputInfo = user32
+    ?.lookupFunction<GetLastInputInfoC, GetLastInputInfoDart>(
         'GetLastInputInfo');
-
 typedef GetTickCountC = Uint32 Function();
 
-final getTickCount =
-    kernel32.lookupFunction<GetTickCountC, int Function()>('GetTickCount');
+final int Function()? getTickCount =
+    kernel32?.lookupFunction<GetTickCountC, int Function()>('GetTickCount');
 
 class LASTINPUTINFO extends Struct {
   @Uint32()
@@ -99,11 +100,12 @@ class IdleService {
   }
 
   bool _isIdle() {
+    if (!Platform.isWindows) return false;
     final info = calloc<LASTINPUTINFO>();
     try {
       info.ref.cbSize = sizeOf<LASTINPUTINFO>();
-      final result = getLastInputInfo(info);
-      final idleTime = result != 0 ? getTickCount() - info.ref.dwTime : 0;
+      final result = getLastInputInfo!(info);
+      final idleTime = result != 0 ? getTickCount!() - info.ref.dwTime : 0;
       return idleTime > _idleTimeout.inMilliseconds;
     } finally {
       calloc.free(info);

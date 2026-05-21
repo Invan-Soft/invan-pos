@@ -73,15 +73,6 @@ static String cleanMarkForFiscal(String rawMark) {
     } else {
       body = receiptData;
     }
-if (receiptData is ReceiptModel4) {
-      for (var item in receiptData.soldItemList) {
-        if (item.mark != null && item.mark!.isNotEmpty) {
-          final originalMark = item.mark!;
-          item.mark = cleanMarkForFiscal(originalMark);
-
-        }
-      }
-    }
     var data;
 
     try {
@@ -300,8 +291,10 @@ if (receiptData is ReceiptModel4) {
       dateTime,
       extraInfo,
     );
-    Pref.setString("bodyForDiscountError", jsonEncode(body));
-    ApiState state = await BaseService.post(receiptModel.toJson());
+    ApiState state = await BaseService.post(
+      receiptModel.toJson(),
+      orderBody: jsonEncode(body),
+    );
 
     if (state is Success) {
       
