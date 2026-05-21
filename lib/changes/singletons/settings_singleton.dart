@@ -29,16 +29,9 @@ class SettingsSingleton {
 
   static Map<String, dynamic> readMacOsDeviceInfo(MacOsDeviceInfo data) {
     return <String, dynamic>{
+      'numberOfCores': data.activeCPUs,
       'computerName': data.computerName,
-      'hostName': data.hostName,
-      'arch': data.arch,
-      'model': data.model,
-      'kernelVersion': data.kernelVersion,
-      'osRelease': data.osRelease,
-      'activeCPUs': data.activeCPUs,
-      'memorySize': data.memorySize,
-      'cpuFrequency': data.cpuFrequency,
-      'systemGUID': data.systemGUID,
+      'systemMemoryInMegabytes': data.memorySize ~/ (1024 * 1024),
     };
   }
 

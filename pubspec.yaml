@@ -78,8 +78,15 @@ dev_dependencies:
   msix: ^3.9.1 # non #
   objectbox_generator: any
 
-flutter_icons:
-  image_path: ""
+flutter_launcher_icons:
+  image_path: "assets/images/app_icon_1024.png"
+  macos:
+    generate: true
+    image_path: "assets/images/app_icon_1024.png"
+  windows:
+    generate: false
+  android: false
+  ios: false
 
 flutter:
   generate: true

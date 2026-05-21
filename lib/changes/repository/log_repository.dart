@@ -19,6 +19,38 @@ LogRepository {
   static final Employee? _currentEmployee = HiveBoxes.getCurrentEmployee;
   static bool successToTelegram = false;
 
+  // Internet/tarmoq bilan bog'liq xatolar Telegramga jo'natilmaydi.
+  // ClientException/SocketException/timeout/Windows va Russian variantlari.
+  static const List<String> _networkErrorPatterns = [
+    'socketexception',
+    'clientexception',
+    'httpexception',
+    'timeoutexception',
+    'handshakeexception',
+    'connection timed out',
+    'connection closed',
+    'connection refused',
+    'connection reset',
+    'connection aborted',
+    'connection failed',
+    'failed host lookup',
+    'no route to host',
+    'network is unreachable',
+    'network is down',
+    'software caused connection abort',
+    'broken pipe',
+    'operation timed out',
+    'превышен таймаут',
+  ];
+
+  static bool _isNetworkError(String message) {
+    final lower = message.toLowerCase();
+    for (final pattern in _networkErrorPatterns) {
+      if (lower.contains(pattern)) return true;
+    }
+    return false;
+  }
+
   static Future addLog(
     String message, {
     required String where,
@@ -32,15 +64,7 @@ LogRepository {
     String? checkNo,
   }) async {
     successToTelegram = Pref.getBool(PrefKeys.successToTelegram, false);
-    if (message.toLowerCase().contains('socketexception') ||
-        message.toLowerCase().contains('connection timed out') ||
-        message.toLowerCase().contains('failed host lookup') ||
-        message.toLowerCase().contains('connection refused') ||
-        message.toLowerCase().contains('no route to host') ||
-        message.toLowerCase().contains('network is unreachable') ||
-        message.toLowerCase().contains('connection reset by peer')) {
-      return;
-    }
+    if (_isNetworkError(message)) return;
     LogModel log = LogModel(
       version: _version,
       userName: _currentEmployee?.user?.firstName ?? "null",
@@ -160,15 +184,7 @@ LogRepository {
     String? checkNo,
   }) async {
     successToTelegram = Pref.getBool(PrefKeys.successToTelegram, false);
-    if (message.toLowerCase().contains('socketexception') ||
-        message.toLowerCase().contains('connection timed out') ||
-        message.toLowerCase().contains('failed host lookup') ||
-        message.toLowerCase().contains('connection refused') ||
-        message.toLowerCase().contains('no route to host') ||
-        message.toLowerCase().contains('network is unreachable') ||
-        message.toLowerCase().contains('connection reset by peer')) {
-      return;
-    }
+    if (_isNetworkError(message)) return;
     LogModel log = LogModel(
         version: _version,
         userName: _currentEmployee?.user?.firstName ?? "null",
