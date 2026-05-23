@@ -355,7 +355,6 @@ ${productLines.toString().trim()}
       required BuildContext context,
       bool isTarozi = false}) async {
     try {
-      print('[addProduct] name="${product.name}" mxik="${product.mxikCode}"');
       if (_currentClient.orderedProducts.isEmpty) {
         _returnedProducts.clear();
         _returnedFreeGiftProducts.clear();

@@ -212,6 +212,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
     final bool isPaymeEnabled = Pref.getBool(PrefKeys.paymeEnable, false);
     final bool isClickEnabled = Pref.getBool(PrefKeys.clickEnable, false);
     final bool isUzumEnabled = Pref.getBool(PrefKeys.uzumEnable, false);
+    final bool isPaynetEnabled = Pref.getBool(PrefKeys.paynetEnable, false);
 
 
     return Column(
@@ -289,10 +290,9 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
           });
         }
 
-    //    PAYNET TEMPORARILY HIDDEN
         if ((paynetId.isNotEmpty && id == paynetId) ||
             (p.name?.toUpperCase().contains('PAYNET') == true)) {
-          if (cardOnly) return const SizedBox.shrink();
+          if (!isPaynetEnabled || cardOnly) return const SizedBox.shrink();
           return Padding(
             padding: EdgeInsets.only(bottom: SizeConfig.v * 1.78),
             child: SizedBox(
