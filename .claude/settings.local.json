@@ -52,7 +52,8 @@
       "Bash(Select-String -Pattern \"objectbox\" -Context 0,3)",
       "Bash(dart pub *)",
       "Bash(Select-String -Pattern \"objectbox\")",
-      "Bash(xargs grep -l \"objectbox\\\\|@Entity\\\\|@Id\\\\|Store\\\\|Box<\")"
+      "Bash(xargs grep -l \"objectbox\\\\|@Entity\\\\|@Id\\\\|Store\\\\|Box<\")",
+      "Bash(dir \"d:\\\\flutter_projects\\\\pos-invan-2-ayyubxon\\\\build\\\\windows\\\\x64\\\\runner\\\\Release\\\\\" /b | findstr -i \"objectbox\\\\|dll\")"
     ]
   }
 }
