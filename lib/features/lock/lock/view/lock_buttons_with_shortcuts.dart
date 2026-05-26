@@ -139,7 +139,9 @@ class PincodeKeyboardWidgetState extends State<PincodeKeyboardWidget>
           ),
           child: VisibilityDetector(
             onVisibilityChanged: (VisibilityInfo v) {
-              blBloc.add(BlVisibilityChangedEvent(v.visibleFraction > 0));
+              if (v.visibleFraction > 0) {
+                blBloc.add(BlVisibilityChangedEvent(true));
+              }
             },
             key: const Key('magnetic_stripe_listener'),
             child: MyBarcodeListener(

@@ -1,8 +1,10 @@
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:invan2/changes/models/discount_model.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
 import 'package:invan2/changes/models/product/sale_item_model.dart';
+import 'package:invan2/changes/models/product_discount_model.dart';
 import 'package:invan2/changes/services/payment/click_service.dart';
 import 'package:invan2/changes/services/receipt_api_4.dart';
 import 'package:invan2/features/features.dart';
@@ -30,6 +32,19 @@ class ReceiptSingleton4 {
     if (!receiptModel4.isRefund) {
       receiptModel4.externalId = await getCheckNo();
       receiptModel4.orderId = const Uuid().v7();
+    }
+
+    // Discount ToMany'larni qayta print ucun ishonchli saqlash — nested cascade
+    // ba'zida ToMany linklarni to'liq saqlamaydi, shu sababli explicit put
+    final pdBox = MyObjectbox.saleStore.box<ProductDiscountModel>();
+    final dBox = MyObjectbox.saleStore.box<DiscountModel>();
+    for (final soldItem in receiptModel4.soldItemList) {
+      for (final pd in soldItem.productDiscount) {
+        if (pd.id == 0) pdBox.put(pd);
+      }
+      for (final d in soldItem.discount) {
+        if (d.id == 0) dBox.put(d);
+      }
     }
 
     final box = MyObjectbox.saleStore.box<ReceiptModel4>();

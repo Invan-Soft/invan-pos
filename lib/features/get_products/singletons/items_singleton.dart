@@ -314,16 +314,28 @@ static Future<void> storeProducts() async {
     final trimmed = pattern.trim();
     if (trimmed.isEmpty) return [];
     final List<ItemModel> exactList = [];
+    final List<ItemModel> prefixList = [];
     for (final product in products) {
       if (product.barcode == null || product.barcode!.isEmpty) continue;
+      bool exact = false;
+      bool prefix = false;
       for (final b in product.barcode!) {
-        if (b.trim() == trimmed) {
-          exactList.add(product);
+        final bt = b.trim();
+        if (bt == trimmed) {
+          exact = true;
           break;
         }
+        if (bt.startsWith(trimmed)) {
+          prefix = true;
+        }
+      }
+      if (exact) {
+        exactList.add(product);
+      } else if (prefix) {
+        prefixList.add(product);
       }
     }
-    return exactList;
+    return [...exactList, ...prefixList];
   }
 
   static Translit translit = Translit();

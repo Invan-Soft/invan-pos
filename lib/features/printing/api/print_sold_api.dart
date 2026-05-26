@@ -24,10 +24,13 @@ class PrintSoldApi {
     double discount = 0;
     const client = null;
     for (int i = 0; i < receiptsCreateGroup.soldItemList.length; i++) {
-      for (int n = 0;
-          n < receiptsCreateGroup.soldItemList[i].discount.length;
-          n++) {
-        discount += receiptsCreateGroup.soldItemList[i].discount[n].total;
+      final item57 = receiptsCreateGroup.soldItemList[i];
+      if (item57.discount.isNotEmpty) {
+        for (int n = 0; n < item57.discount.length; n++) {
+          discount += item57.discount[n].total;
+        }
+      } else if (item57.singleDiscount > 0) {
+        discount += item57.singleDiscount;
       }
     }
     File? file = await FilePrinterImage.getPrinterImage();
@@ -202,11 +205,13 @@ class PrintSoldApi {
     double discount = 0;
     const client = null;
     for (int i = 0; i < receiptsCreateGroup.soldItemList.length; i++) {
-      for (int n = 0;
-          n < receiptsCreateGroup.soldItemList[i].discount.length;
-          n++) {
-        discount += (receiptsCreateGroup.soldItemList[i].discount[n].total *
-            receiptsCreateGroup.soldItemList[i].value);
+      final item80 = receiptsCreateGroup.soldItemList[i];
+      if (item80.discount.isNotEmpty) {
+        for (int n = 0; n < item80.discount.length; n++) {
+          discount += item80.discount[n].total * item80.value;
+        }
+      } else if (item80.singleDiscount > 0) {
+        discount += item80.singleDiscount * item80.value;
       }
     }
     File? file = await FilePrinterImage.getPrinterImage();

@@ -28,7 +28,6 @@ class BlBloc extends Bloc<BlEvent, BlState> {
     Emitter<BlState> emit,
   ) {
     isVisible = event.visibility;
-    // Log.d('Bl Visible: $isVisible', name: 'BlBloc._visibility');
     emit(BlInitial(status));
   }
 }

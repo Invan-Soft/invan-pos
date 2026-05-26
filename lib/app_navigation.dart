@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'alice_service.dart';
 
 class AppNavigation {
@@ -49,7 +48,7 @@ class AppNavigation {
   }
 
   static void showAliceInspector() {
-      alice.setNavigatorKey(navigatorKey);
+    alice.setNavigatorKey(navigatorKey);
     alice.showInspector();
   }
 

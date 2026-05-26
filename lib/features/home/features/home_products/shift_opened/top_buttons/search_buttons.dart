@@ -160,7 +160,7 @@ class SearchButtons extends StatelessWidget {
                 status: BLStatus.other,
                 where:
                     "lib/features/home/features/home_products/shift_opened/top_buttons/search_buttons.dart  clientSearch"));
-            Provider.of<OrderingProvider4>(context, listen: false)
+            await Provider.of<OrderingProvider4>(context, listen: false)
                 .onClientSearchButtonPressed(contact, WherePath.homeScreen);
             if (kDebugMode) {
               // virtualKeyboardShow(context);

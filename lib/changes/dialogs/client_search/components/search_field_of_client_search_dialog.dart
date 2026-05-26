@@ -250,9 +250,9 @@ class _SearchFieldOfClientSearchDialogState
         where: widget.isHome == true ? 'Other' : 'Home',
       ),
     );
-    blBloc.add(
-      BlVisibilityChangedEvent(false),
-    );
+    // Dialog overlay'dir — home page hech qachon ekrandan ketmagan.
+    // BlVisibilityChangedEvent(false) yuborish home page'ning scannerini
+    // bloklaydi (lock screen fix bilan bir xil printsip).
     super.dispose();
   }
 }
