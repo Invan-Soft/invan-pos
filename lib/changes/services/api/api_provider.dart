@@ -7,7 +7,6 @@ import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/changes/services/api.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/services/log_out_service.dart';
-
 import '../../../alice_service.dart';
 import '../log_helper.dart';
 
@@ -22,10 +21,11 @@ class ApiProvider {
   static const INVAN2DEV = 'https://dev.api.7i.uz/';
   static const INVAN2PRO = 'https://api.7i.uz/';
 
-  static const baseUrlINVAN2 = INVAN2PRO;
-  static const imageUrl = imageUrlPro;
-  // static const baseUrlINVAN2 = INVAN2DEV;
-  // static const imageUrl = imageUrlDev;
+  // static const baseUrlINVAN2 = INVAN2PRO;
+  // static const imageUrl = imageUrlPro;
+
+  static const baseUrlINVAN2 = INVAN2DEV;
+  static const imageUrl = imageUrlDev;
 
   static const Duration _duration = Duration(seconds: 30);
 
