@@ -814,4 +814,7 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get narx_limit_oshdi => 'Umumiy narx 25 mln dan oshdi';
+
+  @override
+  String get notogri_format_qr => 'Noto\'g\'ri formatdagi QR kod skanerlandi';
 }

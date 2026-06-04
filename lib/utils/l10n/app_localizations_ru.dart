@@ -802,4 +802,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get narx_limit_oshdi => 'Общая сумма превысила 25 млн';
+
+  @override
+  String get notogri_format_qr => 'Отсканирован QR-код неправильного формата';
 }

@@ -1633,6 +1633,12 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Общая сумма превысила 25 млн'**
   String get narx_limit_oshdi;
+
+  /// No description provided for @notogri_format_qr.
+  ///
+  /// In ru, this message translates to:
+  /// **'Отсканирован QR-код неправильного формата'**
+  String get notogri_format_qr;
 }
 
 class _AppLocalizationsDelegate

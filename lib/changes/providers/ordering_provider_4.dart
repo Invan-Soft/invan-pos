@@ -4093,6 +4093,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   List<CategoryData> _pathList = [];
 
   bool displayingNotFoundDialog = false;
+  bool _invalidBarcodeDialogActive = false;
 
 /* //////////////////////// PROVIDER GETTERS //////////////////////// */
 
@@ -4169,6 +4170,29 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
 /* //////////////////////// PROVIDER METHODS //////////////////////// */
 
+  Future<void> _showInvalidFormatBarcodeDialog() async {
+    if (_invalidBarcodeDialogActive) return;
+    _invalidBarcodeDialogActive = true;
+    final ctx = AppNavigation.navigatorKey.currentContext;
+    if (ctx == null) {
+      _invalidBarcodeDialogActive = false;
+      return;
+    }
+    final loc = AppLocalizations.of(ctx);
+    await showGeneralDialog(
+      barrierDismissible: false,
+      context: ctx,
+      pageBuilder: (_, __, ___) => ContainsZeroPriceItemDialog(
+        text: loc?.notogri_format_qr ?? "Noto'g'ri formatdagi QR kod",
+        text2: 'Ok',
+        delete: false,
+        isFirst: false,
+        provider: this,
+      ),
+    );
+    _invalidBarcodeDialogActive = false;
+  }
+
   onBarcodeScanned(String barcode, GlobalKey<ScaffoldState> scaffoldKey) async {
     debugPrint('━━━━━ SCAN ━━━━━ raw="$barcode" len=${barcode.length}');
 
@@ -4186,6 +4210,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         lowerTrim.startsWith('mailto:') ||
         lowerTrim.contains('://')) {
       debugPrint('[SCAN] REJECT: URL/link input → product qidirilmaydi');
+      await _showInvalidFormatBarcodeDialog();
       return;
     }
 
@@ -4210,6 +4235,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         return;
       }
       debugPrint('[SCAN] REJECT: utsenka JSON parse fail');
+      await _showInvalidFormatBarcodeDialog();
       return;
     }
 
@@ -4218,6 +4244,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     // SKU bo'yicha noto'g'ri mahsulot topib qo'shilib qoladi.
     if (RegExp(r'\s').hasMatch(barcode.trim())) {
       debugPrint('[SCAN] REJECT: bo\'sh joy/yangi qator (erkin matn)');
+      await _showInvalidFormatBarcodeDialog();
       return;
     }
 
@@ -4225,6 +4252,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     // Faqat harflar bo'lsa — bu matn yoki noto'g'ri input.
     if (!RegExp(r'\d').hasMatch(barcode)) {
       debugPrint('[SCAN] REJECT: raqam yo\'q (matn)');
+      await _showInvalidFormatBarcodeDialog();
       return;
     }
 
