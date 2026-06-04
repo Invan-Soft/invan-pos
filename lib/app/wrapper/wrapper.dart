@@ -18,8 +18,10 @@ import '../../objectbox.g.dart';
 import 'package:invan2/features/lock/access_level/view/access_level_page.dart';
 import 'package:invan2/utils/constants/constants.dart';
 import 'package:invan2/utils/helpers/auth_backup.dart';
+import 'package:invan2/utils/helpers/network_error_helper.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 import 'package:invan2/utils/helpers/size_config.dart';
+import 'package:invan2/utils/l10n/app_localizations.dart';
 import 'package:invan2/utils/themes.dart';
 import 'package:provider/provider.dart';
 import '../../changes/providers/update_provider.dart';
@@ -108,7 +110,12 @@ class _WrapperState extends State<Wrapper> {
         }
       } catch (e) {
         if (mounted) {
-          await showErrorDialog(context, "Xatolik yuz berdi:\n${e.toString()}");
+          final loc = AppLocalizations.of(context);
+          final isUz = loc != null && loc.ha.toLowerCase() == 'ha';
+          await showErrorDialog(
+              context,
+              "${isUz ? 'Xatolik yuz berdi' : 'Произошла ошибка'}:\n"
+              "${NetworkErrorHelper.friendlyMessage(e, isUz: isUz)}");
         }
       }
     });

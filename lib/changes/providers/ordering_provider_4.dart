@@ -1803,7 +1803,8 @@ String _markirovka(String rawMark) {
                   context: AppNavigation.navigatorKey.currentContext!,
                   pageBuilder: (f, d, context) {
                     return ContainsZeroPriceItemDialog(
-                      text: e.toString(),
+                      text: NetworkErrorHelper.friendlyMessage(e,
+                          isUz: loc.ha.toLowerCase() == 'ha'),
                       text2: 'Ok',
                       provider: this,
                       delete: false,
@@ -3705,8 +3706,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
           }
         },
       ).catchError((error) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(mySnackBar(context, msg: error.toString()));
+        ScaffoldMessenger.of(context).showSnackBar(mySnackBar(context,
+            msg: NetworkErrorHelper.friendlyMessage(error,
+                isUz: loc.ha.toLowerCase() == 'ha')));
       });
     } else {
       ScaffoldMessenger.of(context)
@@ -3824,8 +3826,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
           }
         },
       ).catchError((error) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(mySnackBar(context, msg: error.toString()));
+        ScaffoldMessenger.of(context).showSnackBar(mySnackBar(context,
+            msg: NetworkErrorHelper.friendlyMessage(error,
+                isUz: loc.ha.toLowerCase() == 'ha')));
       });
     } else {
       ScaffoldMessenger.of(context)

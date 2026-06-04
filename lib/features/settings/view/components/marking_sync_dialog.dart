@@ -45,7 +45,7 @@ class _MarkingSyncDialogState extends State<MarkingSyncDialog> {
       if (mounted) {
         setState(() {
           _step = _MarkingSyncStep.error;
-          _errorMessage = e.toString();
+          _errorMessage = NetworkErrorHelper.friendlyMessage(e, isUz: _isUz);
         });
       }
     }
