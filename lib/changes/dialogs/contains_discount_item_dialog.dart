@@ -80,14 +80,29 @@ class _ContainsDiscountItemDialogState
                         // Listdagi matnlarni qo‘shish
                         if (widget.returnedProduct.availableProducts != null)
                           ...widget.returnedProduct.availableProducts!.map(
-                            (product) => Text(
-                              product.name ?? '',
-                              textAlign: TextAlign.center,
-                              style: MyThemes.txtStyle(
-                                color: MyThemes.textWhiteColor,
-                                fontSize: 4,
-                              ),
-                            ),
+                            (product) {
+                              // Parsing vaqtida server ba'zan products_to_buy ni
+                              // faqat UUID stringlar ro'yxati ko'rinishida yuboradi.
+                              // U holda model uni id va name ga teng o'rnatadi —
+                              // dialogda UUID ko'rinib qolardi. ItemsSingleton dan
+                              // haqiqiy nomni olamiz; topilmasa bo'sh ko'rsatamiz.
+                              final fromCache = ItemsSingleton.getProductById(
+                                  product.id ?? '');
+                              final displayName = (fromCache?.name?.isNotEmpty ?? false)
+                                  ? fromCache!.name!
+                                  : ((product.name != null &&
+                                          product.name != product.id)
+                                      ? product.name!
+                                      : '');
+                              return Text(
+                                displayName,
+                                textAlign: TextAlign.center,
+                                style: MyThemes.txtStyle(
+                                  color: MyThemes.textWhiteColor,
+                                  fontSize: 4,
+                                ),
+                              );
+                            },
                           ),
 
                         if (widget.returnedProduct.availableProducts != null)

@@ -574,7 +574,10 @@ class SoldApiComponents {
                       pw.Expanded(
                         flex: 3,
                         child: pw.Text(
-                          "${soldItem.mark}",
+                          soldItem.mark!.split('\n').firstWhere(
+                                (m) => m.isNotEmpty,
+                                orElse: () => '',
+                              ),
                           textAlign: pw.TextAlign.end,
                           style: myMiniStyle,
                         ),

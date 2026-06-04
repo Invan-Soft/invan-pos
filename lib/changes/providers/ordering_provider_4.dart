@@ -1167,7 +1167,18 @@ void useFreeProducts() {
               !item.isPriceChanged)
           .toList();
 
-      if (nonGiftTotal >= gift.buyAmount) {
+      // Sovg'a producti savatda bo'lsa, uning to'lanadigan qismi ham
+      // threshold ga kiritiladi: (savatdagi sovg'a product summasi − tekin qism)
+      // + boshqa productlar summasi >= buyAmount.
+      final giftProductInCartValue = giftItems.fold<num>(
+          0, (sum, p) => sum + p.realPrice * p.value);
+      final giftRealPrice =
+          giftItems.isNotEmpty ? giftItems.first.realPrice : 0;
+      final freeValue = giftRealPrice * gift.getProductAmount;
+      final effectivePaidTotal =
+          nonGiftTotal + giftProductInCartValue - freeValue;
+
+      if (effectivePaidTotal >= gift.buyAmount) {
         // Threshold qondirildi — faqat gift.getProductAmount miqdorini tekin ber
         _giftProducts[giftProductId] = gift.discountId ?? '';
         num freeLeft = gift.getProductAmount.toDouble();
@@ -4156,22 +4167,67 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 /* //////////////////////// PROVIDER METHODS //////////////////////// */
 
   onBarcodeScanned(String barcode, GlobalKey<ScaffoldState> scaffoldKey) async {
-    if (barcode.isEmpty || barcode.startsWith('http')) return;
-    if (isMarkingDialogDisplaying) return;
+    debugPrint('━━━━━ SCAN ━━━━━ raw="$barcode" len=${barcode.length}');
+
+    if (barcode.isEmpty) {
+      debugPrint('[SCAN] REJECT: empty input');
+      return;
+    }
+
+    // URL'larni qat'iy rad qilish (http/https/ftp/www/tel/mailto, yoki :// borligi)
+    final lowerTrim = barcode.trim().toLowerCase();
+    if (lowerTrim.startsWith('http') ||
+        lowerTrim.startsWith('ftp') ||
+        lowerTrim.startsWith('www.') ||
+        lowerTrim.startsWith('tel:') ||
+        lowerTrim.startsWith('mailto:') ||
+        lowerTrim.contains('://')) {
+      debugPrint('[SCAN] REJECT: URL/link input → product qidirilmaydi');
+      return;
+    }
+
+    if (isMarkingDialogDisplaying) {
+      debugPrint('[SCAN] REJECT: markirovka dialogi ochiq');
+      return;
+    }
+
     // UUID formatdagi QR kodlar (masalan, PayNet OTP) product emas
-    if (RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(barcode)) return;
+    if (RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(barcode)) {
+      debugPrint('[SCAN] REJECT: UUID format (PayNet OTP)');
+      return;
+    }
 
     if (barcode.trimLeft().startsWith('{')) {
+      debugPrint('[SCAN] BRANCH: JSON utsenka');
       final utsenkaItem = _parseUtsenkaQr(barcode);
       if (utsenkaItem != null) {
+        debugPrint('[SCAN] ✓ UTSENKA qo\'shildi: name="${utsenkaItem.productName}" barcode=${utsenkaItem.barcode} sku=${utsenkaItem.sku}');
         _currentClient.orderedProducts.insert(0, utsenkaItem);
         notifyListeners();
         return;
       }
+      debugPrint('[SCAN] REJECT: utsenka JSON parse fail');
+      return;
+    }
+
+    // Erkin matn (kompaniya manzili, telefon, izoh va h.k.) — bo'sh joy yoki yangi qator
+    // bo'lsa, bu product barcode emas. Aks holda matndan tasodifan raqam ajratib olib,
+    // SKU bo'yicha noto'g'ri mahsulot topib qo'shilib qoladi.
+    if (RegExp(r'\s').hasMatch(barcode.trim())) {
+      debugPrint('[SCAN] REJECT: bo\'sh joy/yangi qator (erkin matn)');
+      return;
+    }
+
+    // Haqiqiy product barcode/SKU har doim kamida bitta raqam tutadi.
+    // Faqat harflar bo'lsa — bu matn yoki noto'g'ri input.
+    if (!RegExp(r'\d').hasMatch(barcode)) {
+      debugPrint('[SCAN] REJECT: raqam yo\'q (matn)');
+      return;
     }
 
     int taroziPrefix = Pref.getInt(PrefKeys.taroziPrefix, 28);
     if (barcode.startsWith('$taroziPrefix') && barcode.length == 13) {
+      debugPrint('[SCAN] BRANCH: Tarozi (prefix=$taroziPrefix, len=13)');
       scanWeightItem(barcode, scaffoldKey);
       return;
     }
@@ -4239,6 +4295,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
 
         if (boxProduct != null) {
+          debugPrint('[SCAN] ✓ BOX product topildi: name="${boxProduct.name}" barcode=${boxProduct.barcode} sku=${boxProduct.sku} boxBarcode=${boxProduct.boxBarcode}');
           await _addBoxProduct(boxProduct, barcode);
           return;
         }
@@ -4247,6 +4304,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     // ─────────────────────────────────────────────────────────
     // Narxi=0 tekshiruvi uchun sinab ko'rilgan barcode variantlarini yig'amiz
     final List<String> triedPatterns = [barcode];
+    String foundVia = '';
 
     if (barcode.contains('(01)')) {
       final gtinMatch = RegExp(r'\(01\)(\d{13,14})').firstMatch(barcode);
@@ -4254,8 +4312,10 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         String gtin = gtinMatch.group(1)!;
         gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
         triedPatterns.add(gtin);
+        debugPrint('[SCAN] BRANCH: GS1 "(01)" parenthesized → gtin="$gtin"');
         item = ItemsSingleton.getProductByBarcode(gtin);
         if (item != null) {
+          foundVia = 'GS1 (01) gtin=$gtin';
           item.mark = _isProductMarkable(item) ? _markirovka(barcode) : null;
         }
       }
@@ -4267,8 +4327,10 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         String gtin = gtinMatch.group(1)!;
         gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
         triedPatterns.add(gtin);
+        debugPrint('[SCAN] BRANCH: GS1 "01" prefix → gtin="$gtin"');
         item = ItemsSingleton.getProductByBarcode(gtin);
         if (item != null) {
+          foundVia = 'GS1 01 gtin=$gtin';
           item.mark = _isProductMarkable(item) ? _markirovka(barcode) : null;
         }
       }
@@ -4282,14 +4344,19 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
             ? pattern.substring(0, pattern.length - 2)
             : pattern;
         triedPatterns.add(pattern);
+        debugPrint('[SCAN] BRANCH: extractBarcode fallback → pattern="$pattern"');
+      } else {
+        debugPrint('[SCAN] BRANCH: to\'g\'ridan getProductByBarcode → pattern="$pattern"');
       }
       item = ItemsSingleton.getProductByBarcode(pattern);
       if (item != null) {
+        foundVia = 'getProductByBarcode pattern=$pattern';
         item.mark = null;
       }
     }
 
     if (item != null) {
+      debugPrint('[SCAN] ✓ TOPILDI ($foundVia): name="${item.name}" barcode=${item.barcode} sku=${item.sku} mxik=${item.mxikCode}');
       final mxikStr = (item.mxikCode ?? '').trim();
       final bool markCheckEnabled =
           Pref.getBool(PrefKeys.markCheckWithOfd, false);
@@ -4328,6 +4395,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         if (zeroPriceItem != null) break;
       }
       if (zeroPriceItem != null) {
+        debugPrint('[SCAN] ✓ ZERO-PRICE topildi: name="${zeroPriceItem.name}" barcode=${zeroPriceItem.barcode} sku=${zeroPriceItem.sku}');
         // Dialog addProduct ichida _checkAndShowDialogsIfNeeded orqali 1 marta ko'rsatiladi
         // ignore: use_build_context_synchronously
         addProduct(
@@ -4339,6 +4407,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         return;
       }
     }
+
+    debugPrint('[SCAN] ✗ TOPILMADI: tried=$triedPatterns');
 
     // // ─── Box barcode ─────────────────────────────────────────
     // ItemModel? boxItem = ItemsSingleton.getProductByBoxBarcode(barcode);

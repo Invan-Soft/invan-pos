@@ -126,7 +126,7 @@ class ApiProvider {
           );
         }
       }
-
+      
       return _result(
           res: response, data: body, path: path, receiptModel4: receiptModel4);
     } on TimeoutException catch (e, stack) {
@@ -143,8 +143,8 @@ class ApiProvider {
         isSuccess: false,
         result: "Internet ulanmadi (Timeout)",
         statusCode: -1,
-      );
-    } catch (e, stack) {
+      );      
+    }catch (e, stack) {
       LogRepository.requestSend(
         "Kutilmagan xato: $e",
         where: "ApiProvider.postResponse",
@@ -155,7 +155,6 @@ class ApiProvider {
         body: body?.toString() ?? "body mavjud emas",
         success: false,
       );
-
       // Stack trace ham yuborish uchun (juda foydali!)
       LogRepository.addLog(
         "Catch error: $e\nStack: $stack",
