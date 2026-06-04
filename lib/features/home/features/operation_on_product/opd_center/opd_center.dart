@@ -104,6 +104,10 @@ class OPDCenterState extends State<OPDCenter> {
   }
 
   _onKeyEventFunc(RawKeyEvent event) {
+    // Skaner faol bo'lsa (tugmalar tez-tez kelmoqda — odam emas), bu dialogga
+    // tegishli emas: raqamlar quantity ga yozilib, Enter Saqlashni bosib qo'ymasin.
+    if (MyBarcodeListener.isLikelyScanning) return;
+
     if (event.logicalKey == LogicalKeyboardKey.digit0 ||
         event.logicalKey == LogicalKeyboardKey.numpad0) {
       if (event is RawKeyDownEvent) return;

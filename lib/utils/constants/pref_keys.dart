@@ -5,7 +5,6 @@ class PrefKeys {
   static const String language = 'language_key';
   static const String theme = 'app_theme_pref_key';
   static const String doubleReceipt = 'double_receipt';
-
   static const String isAutoSyncActive = 'is_auto_sync_active';
   static const String autoSyncInterval = 'auto_sync_interval';
   static const String macAddress = 'current_comp_mac_address';

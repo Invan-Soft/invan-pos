@@ -194,7 +194,11 @@ class ItemModel extends HiveObject {
   }
 
   ItemModel.fromWebSocketJson(Map<String, dynamic> json) {
-    id = json['product_id'];
+    // Notification data'da product ID maydoni 'id' (server fromWebSocketJsonUpdate
+    // bilan bir xil). Avval 'product_id' o'qilardi va u null qaytarardi, natijada
+    // ItemsSingleton.putItems id=null elementlarni tashlab yuborib, yangi product
+    // umuman lokal bazaga saqlanmasdi (scan qilganda "topilmadi" chiqardi).
+    id = json['id'] ?? json['product_id'];
     sku = json['sku'];
     name = json['name'];
     image = json['images'] != null

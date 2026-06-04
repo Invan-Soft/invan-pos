@@ -24,6 +24,30 @@ typedef OnShiftDeletePressedCallback = void Function();
 const int _lineFeed = 10;
 
 class MyBarcodeListener extends StatefulWidget {
+  // Skanner aniqlash: tugmalar tez-tez kelsa (skanner odam emas), bu flag true bo'ladi.
+  // Boshqa widgetlar (masalan order_list space-handler) shu flagga qarab, skan vaqtida
+  // dialog ochmaslik uchun ishlatadi.
+  static DateTime? _lastKeyAt;
+  static int _consecutiveKeyCount = 0;
+
+  /// Tugmalar yaqin orada (200 ms) va ketma-ket (2+) kelgan bo'lsa — skaner faol.
+  static bool get isLikelyScanning {
+    if (_lastKeyAt == null) return false;
+    if (_consecutiveKeyCount < 2) return false;
+    return DateTime.now().difference(_lastKeyAt!).inMilliseconds < 200;
+  }
+
+  static void _noteKeyTiming() {
+    final now = DateTime.now();
+    if (_lastKeyAt != null &&
+        now.difference(_lastKeyAt!).inMilliseconds < 100) {
+      _consecutiveKeyCount++;
+    } else {
+      _consecutiveKeyCount = 1;
+    }
+    _lastKeyAt = now;
+  }
+
   const MyBarcodeListener(
       {super.key,
       required this.child,
@@ -265,6 +289,9 @@ String fixKeyboardLayout(String input) {
     if (!(blBloc.isVisible && blBloc.status != BLStatus.other)) return;
 
     if (keyEvent is RawKeyDownEvent) {
+      // Tezlik bo'yicha skaner aniqlash uchun har tugma vaqtini qayd qilamiz
+      MyBarcodeListener._noteKeyTiming();
+
       if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
         _controller.sink.add(_lineFeed);
       } else if (keyEvent.logicalKey == LogicalKeyboardKey.backspace &&

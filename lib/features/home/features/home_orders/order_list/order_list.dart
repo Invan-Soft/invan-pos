@@ -67,6 +67,12 @@ class OrderListState extends State<OrderList> {
                         );
                       }
                       if (event.isKeyPressed(LogicalKeyboardKey.space)) {
+                        // Skaner tez-tez tugma yuborayotgan bo'lsa (QR matnida bo'sh joy
+                        // bor), edit dialog ochilmasin — aks holda raqamlar quantity ga
+                        // kirib ketadi.
+                        await Future.delayed(const Duration(milliseconds: 30));
+                        if (!context.mounted) return;
+                        if (MyBarcodeListener.isLikelyScanning) return;
                         if (!orderedProducts[indexBloc.state.selected].isDeleted!) {
                           orderingProvider.tapIndexToEdit(indexBloc.state.selected);
                           blBloc.add(BlStatusChangedEvent(
