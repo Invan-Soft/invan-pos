@@ -253,12 +253,18 @@ class OperationOnProductProvider extends ChangeNotifier {
     if (priceManuallyEdited) {
       if (editedInThisSession) {
         target.discount.clear();
+        // Avvalgi auto-discount entry'lari (admin'ga "discounts" massivida
+        // ketadi) tozalanmasa, manual narx tahriridan keyin ham eski
+        // discount ma'lumoti adminkaga va soliqqa ketib qoladi.
+        target.productDiscount.clear();
       }
       if (_usedDiscountInput) {
         target.singleDiscount = (target.realPrice - target.price).clamp(0.0, double.infinity);
         target.onlyPrice = target.realPrice;
       } else if (onlyPriceIsEdited) {
         target.discountPercent = 0;
+        // Manual narx override = sotuv shu narxda, discount yo'q.
+        target.singleDiscount = 0;
       }
       // else: user only changed qty on already-discounted product — preserve discountPercent/singleDiscount
       target.isPriceOnlyChanged = true;
