@@ -54,7 +54,10 @@ supplierId: "",
       shopId: r.shop?.id ?? "",
       userId: Pref.getString(PrefKeys.userId, ''),
     );
-    data.soldItemList.addAll(_globalToLocalSoldItem(r.items ?? <ItemsGTR>[]));
+    data.soldItemList.addAll(_globalToLocalSoldItem(
+      r.items ?? <ItemsGTR>[],
+      orderTotalPaid: r.totalPrice?.toDouble() ?? 0,
+    ));
     data.payment.addAll(_globalTolocalPayment(r.pays ?? <PaysGTR>[]));
     return data;
   }
@@ -81,8 +84,33 @@ supplierId: "",
   }
 
   static List<ReceiptModelSoldItem4> _globalToLocalSoldItem(
-    List<ItemsGTR> v,
-  ) {
+    List<ItemsGTR> v, {
+    double orderTotalPaid = 0,
+  }) {
+    // Order darajadagi chegirma koeffitsientini hisoblaymiz.
+    // Server chegirmani item darajasida emas, order darajasida saqlaganda
+    // (masalan 4 × 5000 = 20000 sub-total, lekin total_price = 10000 keldi),
+    // har bir itemga shu koeffitsientni qo'llaymiz. Aks holda refund asl narxda
+    // ketib, klient to'lagandan ko'p qaytariladi.
+    //
+    // Qisman refund holatida: re_update_bloc `value` dan `refundAmount` ni
+    // kamaytirib yuboradi (qolgan qty), lekin API `total_price` ni o'zgartirmaydi.
+    // Shuning uchun ratio buzilmasligi uchun ORIGINAL qty (value + refundAmount)
+    // bo'yicha hisoblaymiz.
+    double itemsSubtotal = 0;
+    for (final it in v) {
+      final p = it.price?.toDouble() ?? 0;
+      final q = it.value?.toDouble() ?? 0;
+      final ra = it.refundAmount?.toDouble() ?? 0;
+      final originalQty = q + ra;
+      final disc = it.singleDiscount?.toDouble() ?? 0;
+      itemsSubtotal += (p - disc).clamp(0, double.infinity) * originalQty;
+    }
+    final double orderDiscountRatio =
+        (orderTotalPaid > 0 && itemsSubtotal > orderTotalPaid + 0.01)
+            ? orderTotalPaid / itemsSubtotal
+            : 1.0;
+
     return List.generate(v.length, (i) {
       final double originalPrice = v[i].price?.toDouble() ?? 0;
       final double qty = (v[i].value?.toDouble() ?? 0) > 0 ? v[i].value!.toDouble() : 1;
@@ -92,9 +120,11 @@ supplierId: "",
 
       double effectiveUnitPrice;
       if (originalPrice > 0) {
-        effectiveUnitPrice = (originalPrice - singleDisc).clamp(0, double.infinity);
+        effectiveUnitPrice =
+            ((originalPrice - singleDisc) * orderDiscountRatio)
+                .clamp(0, double.infinity);
       } else if ((v[i].newPrice?.toDouble() ?? 0) > 0) {
-        effectiveUnitPrice = v[i].newPrice!.toDouble();
+        effectiveUnitPrice = v[i].newPrice!.toDouble() * orderDiscountRatio;
       } else if (totalPaid > 0) {
         effectiveUnitPrice = totalPaid / qty;
       } else {
