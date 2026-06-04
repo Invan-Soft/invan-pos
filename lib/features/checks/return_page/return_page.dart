@@ -83,16 +83,19 @@ class ReturnPage extends StatelessWidget {
   }
 }
 
-/// Local DB dan original sotuv receiptini olib, har bir productning boshlang'ich qty sini qaytaradi
-Map<String, double> _getOriginalQtyFromLocalDB(String externalId) {
-  final result = <String, double>{};
+/// Local DB dan original sotuv receiptining itemlarini productId bo'yicha qaytaradi.
+/// Narxlar (price, realPrice, singleDiscount) API GET javobida har doim ham
+/// to'g'ri qaytmasligi mumkin (masalan free gift va order-level diskontda),
+/// shuning uchun bu yerda sotuv momentidagi original qiymatlarga tayanamiz.
+Map<String, ReceiptModelSoldItem4> _getOriginalItemsFromLocalDB(String externalId) {
+  final result = <String, ReceiptModelSoldItem4>{};
   try {
     final box = MyObjectbox.saleStore.box<ReceiptModel4>();
     final all = box.getAll();
     final originals = all.where((r) => !r.isRefund && r.externalId == externalId).toList();
     if (originals.isNotEmpty) {
       for (final item in originals.first.soldItemList) {
-        result[item.productId] = item.value;
+        result[item.productId] = item;
       }
     }
   } catch (e) {
@@ -122,20 +125,21 @@ Map<String, double> _getAlreadyRefundedQty(String originalExternalId) {
 }
 
 ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
-  // Local DB dan boshlang'ich qty ni olamiz (API value ni kamaytirgan bo'lishi mumkin)
-  final Map<String, double> originalQtyMap =
-      _getOriginalQtyFromLocalDB(receipt.externalId);
+  // Local DB dan original sotuv itemlarini olamiz. Narxlarni shulardan
+  // tiklaymiz — API GET javobi free gift va order-level diskontda har doim
+  // ham per-item discount ma'lumotini saqlamaydi, lokal sotuv esa to'g'ri saqlangan.
+  final Map<String, ReceiptModelSoldItem4> originalItemsMap =
+      _getOriginalItemsFromLocalDB(receipt.externalId);
   // Allaqachon qaytarilgan miqdorlarni olamiz
   final Map<String, double> alreadyRefunded =
       _getAlreadyRefundedQty(receipt.externalId);
 
   final List<ReceiptModelSoldItem4> list = [];
   for (var e in receipt.soldItemList) {
+    final ReceiptModelSoldItem4? local = originalItemsMap[e.productId];
     // Agar local DB da original topilsa — undan foydalanamiz (API reduced bo'lmasin).
     // Topilmasa — e.value dan foydalanamiz (refund bo'lmagan holat).
-    final double baseQty = originalQtyMap.containsKey(e.productId)
-        ? originalQtyMap[e.productId]!
-        : e.value;
+    final double baseQty = local?.value ?? e.value;
     final double refundedSoFar = alreadyRefunded[e.productId] ?? 0;
     // min() — admin paneldan qilingan refundlarni ham hisobga olamiz:
     // e.value = API dan kelgan qoldiq (refundAmount ni chegirilgan),
@@ -143,31 +147,38 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
     final double remainingQty = min(baseQty - refundedSoFar, e.value);
     if (remainingQty <= 0) continue; // Hammasi qaytarilgan — ro'yxatga qo'shmaymiz
 
+    // Narxlarni local DB dan olamiz (free gift = 0, diskontli = effektiv narx).
+    // Topilmasa API qiymatlariga qaytamiz.
+    final double itemPrice = local?.price ?? e.price;
+    final double itemRealPrice = local?.realPrice ?? e.realPrice;
+    final double itemOnlyPrice = local?.onlyPrice ?? e.price;
+    final double itemSingleDiscount = local?.singleDiscount ?? e.singleDiscount;
+
     final soldItem = ReceiptModelSoldItem4(
       inBox: e.inBox,
       // unnecessary
       mark: e.mark,
-      onlyPrice: e.price,
-      realPrice: e.realPrice,
+      onlyPrice: itemOnlyPrice,
+      realPrice: itemRealPrice,
       ownerType: e.ownerType,
       refundItemId: e.refundItemId,
       marking: e.marking,
       soldBy: e.soldBy,
       cost: e.cost,
       createdTime: e.createdTime,
-      price: e.price,
+      price: itemPrice,
       value: remainingQty,
       productId: e.productId,
       productName: e.productName,
       // pricePosition: e.pricePosition,
       barcode: e.barcode,
       sku: e.sku,
-      vat: (e.price * e.vatPercent) / (100 + e.vatPercent),
+      vat: (itemPrice * e.vatPercent) / (100 + e.vatPercent),
       mxik: e.mxik,
       discountPercent: e.discountPercent,
       vatPercent: e.vatPercent,
       // tin: e.tin,
-      singleDiscount: e.singleDiscount,
+      singleDiscount: itemSingleDiscount,
       packageCode: e.packageCode,
       packageName: e.packageName,
       sellerId: e.sellerId,
