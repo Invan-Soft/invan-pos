@@ -2233,6 +2233,17 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   Future<void> pressDialogSaveButton(ReceiptModelSoldItem4 item) async {
     if (item.value > 0) {
       _currentClient.orderedProducts[_tappedIndexToEdit] = item;
+
+      // Qty o'zgartirilganda OPD provider narxni finalPrice (wholesale tier) ga
+      // reset qiladi va product/category discount yo'qolib qoladi.
+      // Manual narx tahriri qilinmagan bo'lsa, discount'ni qayta qo'llaymiz.
+      if (!item.isPriceOnlyChanged) {
+        final freshProduct = ItemsSingleton.getProductById(item.productId);
+        if (freshProduct != null) {
+          item.singleDiscount = 0;
+          _applyDiscounts(freshProduct, item);
+        }
+      }
     } else {
       pressDialogDeleteButton();
     }
