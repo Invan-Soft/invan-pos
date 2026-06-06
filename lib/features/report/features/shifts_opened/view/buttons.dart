@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:invan2/changes/models/shift/shift_hive_model.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart';
 import 'button.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:invan2/features/features.dart';
@@ -37,10 +37,14 @@ class Buttons extends StatelessWidget {
                         HiveBoxes.getCurrentEmployee?.access?.openShift ??
                             false;
                     if (canAccessToShift) {
-                      // Provider.of<OpenShiftProvider>(context, listen: false)
-                      //     .setPrintReportFalse();
-                      ShiftModelHive shift = HiveBoxes.getShifts()
-                          .get(Pref.getInt(PrefKeys.currentShiftKey, -1))!;                          
+                      // Smena yozuvini getCurrentHiveShift orqali olamiz: u
+                      // summalarni ObjectBox cheklaridan qaytadan hisoblaydi va
+                      // yozuv yo'qolgan bo'lsa (shifts.hive buzilgan) uni qayta
+                      // tiklaydi. Shu sababli null bo'lmaydi (oldin .get(...)!
+                      // null'da crash berib, tugma "ishlamay" qolardi) va dialog
+                      // to'g'ri "kutilayotgan pul" qiymatini ko'rsatadi.
+                      final shift = ShiftSingleton4.getCurrentHiveShift();
+                      if (shift == null) return;
                       showDialog(
                         context: context,
                         builder: (context) => CloseShiftDialog(shiftt: shift),

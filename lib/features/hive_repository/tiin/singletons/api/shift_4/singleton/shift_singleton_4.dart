@@ -85281,7 +85281,26 @@ class ShiftSingleton4 {
     final shiftBox = HiveBoxes.getShifts();
     int currentShiftKey = Pref.getInt(PrefKeys.currentShiftKey, -1);
     ShiftModelHive? currentShift = shiftBox.get(currentShiftKey);
-    if (currentShift == null) return null;
+    // SELF-HEAL: smena "ochiq" deb belgilangan (prefs.shiftsOpened=true), lekin
+    // Hive yozuvi yo'qolgan — masalan svet o'chib shifts.hive compaction paytida
+    // buzilgan (0KB). Cheklar ObjectBox'da butun bo'lgani uchun, smenani prefs'dagi
+    // ochilish vaqti asosida qayta tiklaymiz; summalar pastda cheklardan hisoblanadi.
+    // (startingCash yo'qolgan — 0 deb olinadi.) Shu orqali otchot to'ladi va
+    // smenani yopish yana ishlaydi, dastur "qotib" qolmaydi.
+    if (currentShift == null) {
+      final openedTime = Pref.getInt(PrefKeys.shiftOpenedTime, 0);
+      // Faqat smena ochiq bo'lsa VA ochilish vaqti ma'lum bo'lsa tiklaymiz.
+      // shiftOpenedTime=0 bo'lsa, cheklar oralig'ini aniqlay olmaymiz va otchot
+      // butun tarixni qamrab xato bo'lardi — shuning uchun tiklamaymiz.
+      if (currentShiftKey < 0 ||
+          openedTime <= 0 ||
+          !Pref.getBool(PrefKeys.shiftsOpened, false)) {
+        return null;
+      }
+      final restored = _initOfflineShiftOnHive(0)..iV = currentShiftKey;
+      shiftBox.put(currentShiftKey, restored);
+      currentShift = restored;
+    }
 
     int shiftOpenedTime = currentShift.openingTime!;
     final receiptBox = MyObjectbox.saleStore.box<ReceiptModel4>();

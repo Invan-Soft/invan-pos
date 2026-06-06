@@ -10,7 +10,6 @@ import 'package:invan2/changes/services/receipt_api_4.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
-import 'package:invan2/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:objectbox/objectbox.dart';
@@ -74,13 +73,16 @@ class ReceiptSingleton4 {
     }
 
     box.put(receiptModel4, mode: PutMode.update);
-    if (receiptModel4.isRefund) {
-      ShiftSingleton4.updateShiftOnRefund(receiptModel4.payment);
-    } else {
-      double zdachaToCashBack = receiptModel4.zdachiToCashback ?? 0;
-      ShiftSingleton4.updateTheShift(receiptModel4.payment, zdachaToCashBack,
-          countDiscounts(receiptModel4));
-    }
+    // DIQQAT: smena yig'indilari endi HAR sotuvda shifts.hive ga yozilmaydi.
+    // Sabab: getCurrentHiveShift() Z/X-otchotda barcha summalarni ObjectBox
+    // cheklaridan qaytadan hisoblaydi — shu sababli per-sotuv yozuv ortiqcha edi.
+    // Eski kod shifts.hive ni har sotuvda yangilab, Hive compaction'ini tez-tez
+    // ishga tushirardi; svet o'chgan/ilova o'ldirilgan lahzaga to'g'ri kelsa,
+    // fayl 0KB bo'lib buzilardi (smena yozuvi yo'qoladi, otchot bo'sh chiqadi).
+    // Eski chaqiruvlar (endi kerak emas):
+    //   ShiftSingleton4.updateShiftOnRefund(receiptModel4.payment);
+    //   ShiftSingleton4.updateTheShift(receiptModel4.payment,
+    //       receiptModel4.zdachiToCashback ?? 0, countDiscounts(receiptModel4));
 
     bool doubleReceipt = Pref.getBool(PrefKeys.doubleReceipt, false);
     if (doubleReceipt) {
