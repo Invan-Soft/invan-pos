@@ -2605,9 +2605,13 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
 /////         Client Search Functions                     //////
 
+  bool _isInnClient = false;
+
   initClientByBloc(
-    ClientModel? client,
-  ) {
+    ClientModel? client, {
+    bool isInnClient = false,
+  }) {
+    _isInnClient = isInnClient;
     _currentClient.selectedClient = client;
     _currentClient.discountPercent = _currentClient.discountPercent ??
         0 + (client?.discountValue ?? 0).toDouble();
@@ -2712,6 +2716,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       userId: Pref.getString(PrefKeys.userId, ""),
     );
     receiptModel4.payment.addAll(paymentsMapAsList);
+    receiptModel4.hasDept = paymentsMapAsList
+        .any((p) => p.name.toLowerCase() == 'debt');
     receiptModel4.soldItemList.addAll(_sixClientModel4.orderedProducts);
 
     for (var item in receiptModel4.soldItemList) {
@@ -2771,7 +2777,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         receiptModel4.soldItemList.isNotEmpty) {
       await ReceiptSingleton4.toOBJECTBOX(
         receiptModel4,
-        clientBalance: getCurrentClient.selectedClient?.pointBalance,
+        clientBalance:
+            _isInnClient ? null : getCurrentClient.selectedClient?.pointBalance,
       );
 
       /// Tekin maxsulotlarni tozalash ///
@@ -2954,6 +2961,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     receiptModel4.pptId = _lastRRN;
 
     receiptModel4.payment.addAll(paymentsMapAsList);
+    receiptModel4.hasDept = paymentsMapAsList
+        .any((p) => p.name.toLowerCase() == 'debt');
     receiptModel4.soldItemList.addAll(_sixClientModel4.orderedProducts);
 
     for (var item in receiptModel4.soldItemList) {
@@ -3031,7 +3040,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
             await ReceiptSingleton4.toOBJECTBOX(
               receiptModel4,
               communicatorRECEIPT: response,
-              clientBalance: getCurrentClient.selectedClient?.pointBalance,
+              clientBalance: _isInnClient
+                  ? null
+                  : getCurrentClient.selectedClient?.pointBalance,
             );
           }
 

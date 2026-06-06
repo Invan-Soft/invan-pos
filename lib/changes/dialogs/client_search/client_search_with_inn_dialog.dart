@@ -180,7 +180,7 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                     listener: (context, state) async {
                       if (state is ClientFoundState) {
                         Provider.of<OrderingProvider4>(context, listen: false)
-                            .initClientByBloc(state.client);
+                            .initClientByBloc(state.client, isInnClient: true);
                         await Future.delayed(const Duration(seconds: 1));
                         clientBloc.add(ClientClearControllerEvent());
                         // AppNavigation.pop();
@@ -244,8 +244,10 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                         );
                       }
                       if (state is ClientFoundState) {
-                        companyController.text =
-                            "Название компании:   ${state.client.firstName}";
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          companyController.text =
+                              "Название компании:   ${state.client.firstName}";
+                        });
                       }
                       if (state is ClientInvalidIdState) {
                         return Center(

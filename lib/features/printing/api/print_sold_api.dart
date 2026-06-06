@@ -126,6 +126,9 @@ class PrintSoldApi {
                 // incomInfo?.qrCodeUrl != null
                 //     ? SoldApiComponents.buildThanks(myBoldStyle)
                 //     : pw.SizedBox(),
+                receiptsCreateGroup.hasDept
+                    ? SoldApiComponents.buildDebtSignature(myStyle)
+                    : pw.SizedBox(),
                 pw.SizedBox(height: 8.0),
                 incomInfo == null &&
                         Pref.getBool('enableQrReceipts', false) == true &&
@@ -328,7 +331,9 @@ class PrintSoldApi {
                         //     ? SoldApiComponents.buildThanks(myBoldStyle)
                         //     : pw.SizedBox(),
                         SoldApiComponents.buildThanks(myBoldStyle),
-
+                        receiptsCreateGroup.hasDept
+                            ? SoldApiComponents.buildDebtSignature(myStyle)
+                            : pw.SizedBox(),
                         pw.SizedBox(height: 8.0),
                         incomInfo == null &&
                                 Pref.getBool('enableQrReceipts', false) == true &&

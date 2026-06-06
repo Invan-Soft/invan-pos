@@ -736,6 +736,38 @@ class SoldApiComponents {
     );
   }
 
+  static pw.Widget buildDebtSignature(pw.TextStyle style) {
+    pw.Widget signRow(String label) => pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 18),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Text(label, style: style),
+              pw.Expanded(
+                child: pw.Container(
+                  height: 0.5,
+                  color: PdfColors.black,
+                ),
+              ),
+            ],
+          ),
+        );
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.SizedBox(height: 12),
+        pw.Text("------" * 20, style: style, maxLines: 1),
+        pw.SizedBox(height: 14),
+        signRow("Sotuvchi:        "),
+        signRow("Oluvchi FIO:     "),
+        signRow("Oluvchi Imzo:    "),
+        signRow("Ekspeditor:      "),
+        pw.SizedBox(height: 8),
+      ],
+    );
+  }
+
   static pw.Widget _buildProductInnerItem(
     pw.TextStyle myStyle,
     String str1,
