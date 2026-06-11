@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/app/app.dart';
+import 'package:invan2/fiscal_service/ofd_config_migrator.dart';
 import 'package:invan2/changes/models/epay/e_pay_model.dart';
 import 'package:invan2/changes/models/feedback_model.dart';
 import 'package:invan2/changes/models/log/log_model.dart';
@@ -122,6 +123,11 @@ Future<void> main() async {
     win.title = "InVan 2";
     win.show();
   });
+
+  // OFD manzillarini fon rejimida tekshirib/to'g'rilab qo'yamiz.
+  // Faqat eski manzil topilsa ishlaydi (bir martalik), startup'ni bloklamaydi.
+  // ignore: discarded_futures
+  OfdConfigMigrator.migrateIfNeeded();
 }
 
 Future<void> hiveClose() async {
