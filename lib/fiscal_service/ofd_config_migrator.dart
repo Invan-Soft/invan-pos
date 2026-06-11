@@ -18,10 +18,10 @@ import 'package:shell/shell.dart';
 /// talab qiladi. Ilova admin sifatida ishlamasa, yozish "access denied" bilan
 /// tugaydi — bu holat log faylga yoziladi (jim o'tib ketmaydi).
 class OfdConfigMigrator {
-  /// Config fayli ehtimoliy joylashuvlari (screenshot'dan tasdiqlangan birinchisi).
-  static const List<String> _configPaths = [
-    r'C:\Program Files\FiscalDriveAPI\config',
-    r'C:\Program Files (x86)\FiscalDriveAPI\config',
+  /// FiscalDriveAPI o'rnatilish papkalari.
+  static const List<String> _installDirs = [
+    r'C:\Program Files\FiscalDriveAPI',
+    r'C:\Program Files (x86)\FiscalDriveAPI',
   ];
 
   /// 1-maydan keyin o'chiriladigan eski OFD hostlari.
@@ -59,7 +59,7 @@ class OfdConfigMigrator {
     if (!Platform.isWindows) return;
 
     try {
-      final file = _findConfig();
+      final file = await _findConfig();
       if (file == null) {
         await _log('config fayli topilmadi (FiscalDriveAPI o\'rnatilmaganmi?)');
         return;
@@ -98,10 +98,37 @@ class OfdConfigMigrator {
     }
   }
 
-  static File? _findConfig() {
-    for (final path in _configPaths) {
-      final f = File(path);
-      if (f.existsSync()) return f;
+  /// Config faylni topadi. Windows fayl kengaytmasini yashirishi mumkin,
+  /// shuning uchun papkani skanerlab `config` yoki `config.ini/.cfg/.conf`
+  /// faylini qidiramiz. Topilmasa, papkadagi haqiqiy fayl nomlarini log'ga
+  /// yozamiz (diagnostika uchun).
+  static Future<File?> _findConfig() async {
+    for (final dirPath in _installDirs) {
+      final dir = Directory(dirPath);
+      if (!dir.existsSync()) continue;
+
+      File? exact;
+      File? withExt;
+      final foundNames = <String>[];
+
+      for (final entity in dir.listSync(followLinks: false)) {
+        if (entity is! File) continue;
+        final name = entity.path.split(RegExp(r'[\\/]')).last;
+        foundNames.add(name);
+        final lower = name.toLowerCase();
+        if (lower == 'config') {
+          exact = entity;
+        } else if (lower == 'config.ini' ||
+            lower == 'config.cfg' ||
+            lower == 'config.conf') {
+          withExt ??= entity;
+        }
+      }
+
+      final match = exact ?? withExt;
+      if (match != null) return match;
+
+      await _log('papkada config topilmadi ($dirPath). Fayllar: $foundNames');
     }
     return null;
   }
