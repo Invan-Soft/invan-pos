@@ -91,8 +91,9 @@ class OfdConfigMigrator {
 
       final restarted = await _restartFiscalService();
       await _log(restarted
-          ? 'FiscalDriveAPI jarayoni qayta ishga tushirildi'
-          : 'ogohlantirish: jarayon qayta ishga tushmadi (admin yo\'qmi?)');
+          ? 'FiscalDriveAPI jarayoni qayta ishga tushirildi — tayyor'
+          : 'config to\'g\'rilandi. O\'zgarish kuchga kirishi uchun kompyuterni '
+              'BIR MARTA qayta yoqing (yoki FiscalDriveAPI servisini restart qiling)');
     } catch (e) {
       await _log('XATO: $e');
     }
@@ -192,7 +193,9 @@ class OfdConfigMigrator {
           out.toUpperCase().contains('УСПЕ') ||
           out.toUpperCase().contains('PID');
     } catch (e) {
-      await _log('jarayonni o\'chirishda xato: $e');
+      // Admin huquqi bo'lmasa SYSTEM servisini o'chirib bo'lmaydi — bu
+      // kutilgan holat. Asosiy ish (config yozildi) baribir bajarilgan,
+      // kompyuter restart'idan keyin yangi config o'qiladi.
       return false;
     }
   }
