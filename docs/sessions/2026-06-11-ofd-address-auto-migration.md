@@ -45,11 +45,29 @@ restart QILMASDAN).
 - Xato JIM o'tmaydi — log faylga yoziladi (admin yo'qligini aniqlash uchun).
 - [server] dan tashqari hech narsaga tegilmaydi (factory_id, [api], [qrcode]).
 
+## Kassada test natijasi (2026-06-11)
+- Config fayl `config.ini` ekan (kengaytma yashirilgan) — papka-skanerlash tuzatdi.
+- ✅ Config YOZISH admin'siz ham ishladi — haqiqiy `config.ini` to'g'ri o'zgardi
+  (eski ofd*.yt.uz ketdi, s0/s1/s2 qoldi). VirtualStore taxmini NOTO'G'RI chiqdi.
+- ⚠️ Faqat `taskkill` ishlamadi (exit 1) — SYSTEM servisini o'chirish admin
+  talab qiladi. Servis hali ishlab turgan eski config'ni xotirada ushlaydi.
+- YECHIM: config allaqachon to'g'ri → kompyuterni BIR MARTA restart qilsa
+  (yoki services.msc'dan FiscalDriveAPI restart), servis yangisini o'qiydi. Tamom.
+- Log xabari yumshatildi: endi "kompyuterni bir marta qayta yoqing" deb yozadi.
+
+## Yakuniy qaror (2026-06-12)
+- Admin (requireAdministrator manifest) yondashuvi KO'RIB CHIQILDI va RAD ETILDI.
+  Sabab: minuslari har kunlik (har ochilganda UAC, oddiy hisobda admin parol
+  so'rashi → POS ochilmasligi, autostart buzilishi), foydasi esa atigi bir
+  martalik servis restart. Arzimaydi.
+- TANLANGAN yo'l: admin'siz. POS startup'da config'ni o'zi to'g'rilaydi
+  (ishlayapti), servis yangisini KEYINGI PC restartda o'qiydi. Bir martalik.
+- Manifest o'zgarishi qaytarib tashlandi (git checkout), push qilinmadi.
+
+## Holat: working (admin'siz, per-register reboot bilan kuchga kiradi)
+Kod tayyor va push qilingan: d1b22ab, d110763, 7a2f4ec.
+
 ## Ochiq savollar
-- Ilova admin huquqi bilan ishlaydimi? NOMA'LUM. Agar yo'q bo'lsa, Program
-  Files'ga yozolmaydi va taskkill ishlamaydi → log'da access denied chiqadi.
-  Yechim variantlari: (a) Windows app manifestiga requireAdministrator qo'shish
-  (har ochilganda UAC so'raydi), (b) alohida bir martalik admin skript.
 - Config CRLF emas, LF (screenshot status bar: UNIX LF) — split/join '\n' to'g'ri.
 
 ## Test / Verifikatsiya
