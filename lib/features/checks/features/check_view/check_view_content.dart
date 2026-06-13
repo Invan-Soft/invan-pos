@@ -38,8 +38,6 @@ class _CheckViewContentState extends State<CheckViewContent> {
       final receipt = BlocProvider.of<CheckFBloc>(context).selectedCheck;
       if (receipt == null) return;
 
-      _debugPrintReceipt(receipt);
-
       if (Pref.getBool(PrefKeys.withOFD, false)) {
         await PrintingMethods.printCheck(
           receipt,
@@ -63,55 +61,6 @@ class _CheckViewContentState extends State<CheckViewContent> {
         setState(() => _isPrinting = false);
       }
     }
-  }
-
-  void _debugPrintReceipt(ReceiptModel4 r) {
-    final line = '─' * 40;
-    final buf = StringBuffer();
-    buf.writeln('\n$line');
-    buf.writeln('            ЧЕК (NUSXA)');
-    buf.writeln(line);
-    if (r.posName.isNotEmpty) buf.writeln('ПОС:      ${r.posName}');
-    buf.writeln('Кассир:   ${r.cashierName}');
-    if (r.clientName.isNotEmpty) buf.writeln('Клиент:   ${r.clientName}');
-    buf.writeln('Чек №:    ${r.newid}');
-    buf.writeln('Сана:     ${r.createdDate}');
-    buf.writeln(line);
-    for (final item in r.soldItemList) {
-      final qty = item.value;
-      final total = qty * item.price;
-      buf.writeln(item.productName);
-      buf.writeln('  ${qty.toStringAsFixed(qty % 1 == 0 ? 0 : 3)} x ${_fmt(item.price)} = ${_fmt(total)}');
-      if (item.onlyPrice > item.price) {
-        buf.writeln('  Chegirma: -${_fmt(qty * (item.onlyPrice - item.price))} [scalar]');
-      }
-      if (item.productDiscount.isNotEmpty) {
-        for (final d in item.productDiscount) {
-          buf.writeln('  ${d.name} [ToMany]');
-        }
-      }
-      if (item.singleDiscount > 0) {
-        buf.writeln('  singleDiscount=${_fmt(item.singleDiscount)}, discount.len=${item.discount.length}');
-      }
-    }
-    buf.writeln(line);
-    buf.writeln('ИТОГО:    ${_fmt(r.totalPrice)}');
-    for (final pay in r.payment) {
-      buf.writeln('  ${pay.name}:  ${_fmt(pay.value)}');
-    }
-    if (r.sdacha != 0) buf.writeln('Сдача:    ${_fmt(r.sdacha)}');
-    buf.writeln(line);
-    debugPrint(buf.toString());
-  }
-
-  String _fmt(num v) {
-    final s = v.toStringAsFixed(0);
-    final result = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) result.write(',');
-      result.write(s[i]);
-    }
-    return result.toString();
   }
 
   @override

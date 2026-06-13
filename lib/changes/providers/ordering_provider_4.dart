@@ -887,7 +887,7 @@ ${productLines.toString().trim()}
 
     if (isPriceZero) {
       await _showZeroPriceDialog(context);
-      return false; // narxi 0 bo'lsa dialog ko'rsatib basketga qo'shamiz
+      return true; // narxi 0/qo'yilmagan — dialog ko'rsatamiz, basketga QO'SHMAYMIZ
     }
 
     if (isMxikOrPackageInvalid) {
@@ -2446,6 +2446,98 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     }
   }
 
+  /// Mijoz savatga qo'shilganda (QR scan / person-icon qidiruv orqali)
+  /// diskontlarni qayta hisoblaydi va diskont dialoglarini ko'rsatadi.
+  ///
+  /// Muammo: diskontlar `getClientGroupId` bo'yicha filtrlanadi. Maxsus
+  /// mijozlar uchun yaratilgan diskont (masalan Free Gift "50k dan oshsa")
+  /// savat allaqachon shartni qondirgan bo'lsa ham, mijoz tanlanganda
+  /// dialog chiqmasdi — faqat keyingi product urilganda `addProduct`
+  /// oqimi orqali chiqardi. Bu metod o'sha oqimni mijoz tanlangan zahoti
+  /// yangi product urilishini kutmasdan ishga tushiradi.
+  Future<void> recheckDiscountsAfterClientChanged() async {
+    if (_currentClient.orderedProducts.isEmpty) return;
+
+    // 1. Product/Category chegirmalarini yangi client group bilan qayta
+    //    qo'llaymiz. Qo'lda narxi/chegirmasi o'zgartirilgan qatorlarga tegmaymiz
+    //    (flat-rate mijoz diskonti ham isPriceChanged orqali bu yerda saqlanadi).
+    for (final item in _currentClient.orderedProducts) {
+      if (item.isPriceOnlyChanged || item.isPriceChanged) continue;
+      final freshProduct = ItemsSingleton.getProductById(item.productId);
+      if (freshProduct == null) continue;
+      item.singleDiscount = 0;
+      _applyDiscounts(freshProduct, item);
+    }
+
+    // 2. BuyXGetY / Free Gift / BuyXGetX chegirmalarini topamiz
+    findFreeProducts();
+    notifyListeners();
+
+    // 3. Free Gift dialog — jami summa threshold'iga bog'liq, productga emas
+    await freeGiftDialog();
+
+    // 4. Chegirmalarni savatga qo'llaymiz
+    useFreeProducts();
+    useFreeGiftProducts();
+    useBuyXGetXProducts();
+
+    notifyListeners();
+  }
+
+  /// Mijoz tepadan o'chirilganda chaqiriladi. Faqat o'sha mijoz (customer group)
+  /// uchun qo'llangan avtomatik diskontlarni bekor qiladi va savatni mijozsiz
+  /// holatda qayta hisoblaydi.
+  ///
+  /// Mijoz olib tashlangach `getClientGroupId` bo'sh bo'ladi — customer-group
+  /// diskontlar `_checkOptions` filtridan o'tmaydi va qo'llanmaydi. `isForAllClients`
+  /// diskontlar esa saqlanadi. Qo'lda narxi o'zgartirilgan (`isPriceOnlyChanged`,
+  /// masalan utsenka) qatorlarga tegmaydi.
+  ///
+  /// Misol: Free Gift'da tekin berilgan 10,000 li product mijoz o'chirilganda
+  /// yana 10,000 ga qaytadi (tekin emas).
+  void recalcDiscountsAfterClientRemoved() {
+    if (_currentClient.orderedProducts.isEmpty) return;
+
+    // Avvalgi avtomatik diskont holatini to'liq tozalaymiz (mijoz endi yo'q)
+    _returnedProducts.clear();
+    _returnedFreeGiftProducts.clear();
+    _returnedBuyXGetX.clear();
+    _giftProducts.clear();
+    _showCount.clear();
+    _showCountFreeGift.clear();
+    _freeGiftDialogCount = 0;
+    DiscountSingleton.maxPrice();
+    DiscountSingleton.resetAll();
+
+    for (final item in _currentClient.orderedProducts) {
+      // Qo'lda narx o'zgartirilgan qatorlarga tegmaymiz (utsenka va h.k.)
+      if (item.isPriceOnlyChanged) continue;
+      final freshProduct = ItemsSingleton.getProductById(item.productId);
+      if (freshProduct == null) continue;
+
+      // Asl narxga qaytarib, mijoz tufayli qo'llangan eski diskontlarni tozalaymiz
+      item.price = item.realPrice;
+      item.discountPercent = 0;
+      item.singleDiscount = 0;
+      item.isPriceChanged = false;
+      item.discount.clear();
+      item.productDiscount.clear();
+
+      // Mijozsiz holatda faqat amaldagi (isForAllClients) product/category
+      // diskontlarini qayta qo'llaymiz
+      _applyDiscounts(freshProduct, item);
+    }
+
+    // BuyXGetY / Free Gift / BuyXGetX ni mijozsiz qayta hisoblab qo'llaymiz.
+    // Customer-group diskontlar topilmaydi → tekin/chegirmali qatorlar asl narxda qoladi.
+    findFreeProducts();
+    useFreeProducts();
+    useFreeGiftProducts();
+    useBuyXGetXProducts();
+
+    notifyListeners();
+  }
+
 /////////////////// OPERATION ON SIX CLIENTS //////////////////////
   int i = 0;
 
@@ -3387,6 +3479,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
                   .setNewClientDiscountPercentage(0);
               OrderingProvider4().getCurrentClient.discountAmountFromNewClient =
                   0;
+              // Mijoz olib tashlandi — faqat o'sha mijoz uchun qo'llangan
+              // customer-group diskontlarni (Free Gift va h.k.) bekor qilamiz.
+              recalcDiscountsAfterClientRemoved();
               AppNavigation.pop();
               notifyListeners();
             },

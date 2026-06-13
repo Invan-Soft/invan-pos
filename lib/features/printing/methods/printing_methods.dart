@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
 import 'package:invan2/changes/models/shift/shift_hive_model.dart';
 import 'package:invan2/changes/models/six_client_model.dart';
@@ -5,6 +7,7 @@ import 'package:invan2/features/features.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 import 'package:invan2/utils/utils.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import '../api/print_payment_page_api.dart';
@@ -389,7 +392,101 @@ class PrintingMethods {
       }
       Pref.removeWithKey(PrefKeys.companyResipt);
       Pref.removeWithKey(PrefKeys.companyNameDialog);
+    } else if (Platform.isMacOS) {
+      // macOS'da real printer topilmadi. Foydalanuvchi "PDF (faylga saqlash)"
+      // soxta printerini saqlagan bo'lsa, chekni PDF fayl sifatida saqlaymiz.
+      PrinterModel? pdfPrinter;
+      for (final p in printers) {
+        if (p.url == kPdfExportPrinterUrl) {
+          pdfPrinter = p;
+          break;
+        }
+      }
+      if (pdfPrinter != null) {
+        await _exportCheckToPdf(
+          receipt: receipt,
+          model: pdfPrinter,
+          sdacha: sdacha,
+          incomInfo: incomInfo,
+          method: method,
+          itemInfo: itemInfo,
+          imageAccess: imageAccess,
+          isCopy: isCopy,
+          clientBalance: clientBalance,
+        );
+      }
     }
+  }
+
+  /// macOS'da chekni PDF fayl(lar) sifatida ~/Downloads/InVan Cheklar papkasiga
+  /// saqlaydi va Finder'da ko'rsatadi. Faqat PDF soxta printeri tanlanganda
+  /// chaqiriladi — boshqa platformalarga ta'sir qilmaydi.
+  static Future<void> _exportCheckToPdf({
+    required ReceiptModel4 receipt,
+    required PrinterModel model,
+    required double sdacha,
+    Info? incomInfo,
+    String? method,
+    List<ItemInfo>? itemInfo,
+    bool? imageAccess,
+    bool? isCopy,
+    num? clientBalance,
+  }) async {
+    final baseDir =
+        await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+    final folder = Directory('${baseDir.path}/InVan Cheklar');
+    if (!folder.existsSync()) {
+      folder.createSync(recursive: true);
+    }
+
+    final companyName = Pref.getString(PrefKeys.companyNameDialog, "");
+    final int lengthR = Pref.getInt(PrefKeys.companyResipt, 1);
+
+    String? lastPath;
+    for (int i = 1; i <= lengthR; i++) {
+      final bytes = model.paperSize == 80
+          ? await PrintSoldApi.generatePdf80(
+              receiptsCreateGroup: receipt,
+              sdacha: sdacha,
+              method: method,
+              incomInfo: incomInfo,
+              companyName: companyName,
+              copyNumber: i,
+              itemInfo: itemInfo,
+              // isCut: true bo'lmasa chekning pastki qismi (jami, to'lov, QR,
+              // footer) chizilmaydi — buBottomSection shu shart bilan gated.
+              isCut: true,
+              imageAccess: imageAccess,
+              isCopy: isCopy,
+              clientBalance: clientBalance,
+            )
+          : await PrintSoldApi.generatePdf57(
+              receiptsCreateGroup: receipt,
+              sdacha: sdacha,
+              method: method,
+              companyName: companyName,
+              incomInfo: incomInfo,
+              itemInfo: itemInfo,
+            );
+
+      final id = receipt.newid.isNotEmpty
+          ? receipt.newid
+          : '${DateTime.now().millisecondsSinceEpoch}';
+      final suffix = lengthR > 1 ? '_$i' : '';
+      final file = File('${folder.path}/chek_$id$suffix.pdf');
+      await file.writeAsBytes(bytes);
+      lastPath = file.path;
+    }
+
+    Pref.removeWithKey(PrefKeys.companyResipt);
+    Pref.removeWithKey(PrefKeys.companyNameDialog);
+
+    // Saqlangan faylni Finder'da ochib ko'rsatamiz (foydalanuvchiga feedback).
+    try {
+      if (lastPath != null) {
+        await Process.run('open', ['-R', lastPath]);
+      }
+    } catch (_) {}
   }
 
   static Future<void> printing(

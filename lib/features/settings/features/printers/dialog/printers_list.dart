@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:invan2/features/printing/model/printer_model.dart';
 import 'package:invan2/utils/themes.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
@@ -17,11 +20,24 @@ class PrintersList extends StatelessWidget {
       initialData:const  [],
       future: Printing.listPrinters(),
       builder: (BuildContext context, AsyncSnapshot<List<Printer>> snapshot) {
-        final printers = snapshot.data;
+        final printers = <Printer>[...?snapshot.data];
+
+        // macOS'da real PDF printeri yo'q (Windows'dagi "Microsoft Print to PDF"
+        // kabi). Shuning uchun faqat macOS'da soxta "PDF" elementini qo'shamiz.
+        // Boshqa platformalarda ro'yxat o'zgarmaydi.
+        if (Platform.isMacOS) {
+          printers.insert(
+            0,
+            const Printer(
+              url: kPdfExportPrinterUrl,
+              name: 'PDF (faylga saqlash)',
+            ),
+          );
+        }
 
         return ListView.builder(
           physics: const BouncingScrollPhysics(),
-          itemCount: printers!.length,
+          itemCount: printers.length,
           itemBuilder: (context, index) {
             Printer printer = printers[index];
 

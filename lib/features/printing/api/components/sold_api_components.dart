@@ -62,7 +62,7 @@ class SoldApiComponents {
         height: mm * 1,
       ),
       Pref.getBool(PrefKeys.phoneNumberRD, true)
-          ? pw.Center(
+          ? pw.Center( 
               child: pw.Text(
                 '+$numberPhone',
                 textAlign: pw.TextAlign.center,

@@ -1,3 +1,4 @@
+
 class HttpResult {
   int statusCode;
   bool isSuccess;

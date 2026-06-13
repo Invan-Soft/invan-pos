@@ -6,6 +6,7 @@ import 'package:invan2/changes/models/product/item_model.dart';
 import 'package:invan2/changes/models/shift/shift_hive_model.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/features/get_discounts/get_discounts.dart';
+import 'package:invan2/features/printing/repository/printer_backup.dart';
 import 'package:invan2/utils/constants/constants.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 
@@ -26,6 +27,10 @@ class HiveBoxes {
       vatUnitBox().clear(),
       getDiscounts().clear()
     ]);
+    // Logout printerni ham o'chiradi (foydalanuvchi qarori). Hive'dan tashqari
+    // backup ham tozalanmasa SELF-HEAL keyingi startup'da printerni qaytarib
+    // logoutni yo'qqa chiqarardi — shuning uchun backupni ham o'chiramiz.
+    await PrinterBackup.clear();
   }
 
   static Box<DiscountItem> getDiscounts() =>

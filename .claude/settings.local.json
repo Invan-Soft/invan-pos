@@ -53,7 +53,25 @@
       "Bash(dart pub *)",
       "Bash(Select-String -Pattern \"objectbox\")",
       "Bash(xargs grep -l \"objectbox\\\\|@Entity\\\\|@Id\\\\|Store\\\\|Box<\")",
-      "Bash(dir \"d:\\\\flutter_projects\\\\pos-invan-2-ayyubxon\\\\build\\\\windows\\\\x64\\\\runner\\\\Release\\\\\" /b | findstr -i \"objectbox\\\\|dll\")"
+      "Bash(dir \"d:\\\\flutter_projects\\\\pos-invan-2-ayyubxon\\\\build\\\\windows\\\\x64\\\\runner\\\\Release\\\\\" /b | findstr -i \"objectbox\\\\|dll\")",
+      "Read(//Users/ayyubxon/.pub-cache/hosted/pub.dev/**)",
+      "Bash(git commit -m ' *)",
+      "Bash(ls /Users/ayyubxon/Documents/carinfopro_project/)",
+      "Read(//Users/ayyubxon/Documents/carinfopro_project/**)",
+      "Bash(.venv/bin/python manage.py shell -c \"from main.models import CarModel; [print\\(f'{m.id}|{m.name}|{m.image}|{m.is_active}'\\) for m in CarModel.objects.all\\(\\).order_by\\('name'\\)]\")",
+      "Bash(curl -s \"https://api.carinfopro.uz/api/v1/cars/\")",
+      "Bash(python3 -c ' *)",
+      "WebFetch(domain:github.com)",
+      "Bash(git check-ignore *)",
+      "Bash(awk '{print $6, $7, $8, $NF}')",
+      "Bash(grep -rn -A3 \"bool defaultCompactionStrategy\\\\|defaultCompactionStrategy =\" lib/src/utils/ lib/src/box/)",
+      "Bash(sed -n '95,135p' lib/src/backend/vm/storage_backend_vm.dart)",
+      "Bash(sed -n '1,9p' lib/src/box/default_compaction_strategy.dart)",
+      "Bash(sed -n '135,160p' lib/src/backend/vm/storage_backend_vm.dart)",
+      "Bash(sed -n '16,34p' lib/features/hive_repository/hive_boxes.dart)",
+      "Bash(sed -n '70,130p' lib/features/settings/features/child_settings/view/child_settings_content.dart)",
+      "Bash(git rev-list *)",
+      "Bash(git commit *)"
     ]
   }
 }

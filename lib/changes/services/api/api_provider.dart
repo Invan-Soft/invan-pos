@@ -119,7 +119,8 @@ class ApiProvider {
             path: "120 line in api provider $path",
             url: baseUrlINVAN2,
             statusCode: response.statusCode,
-            body: body?.toString() ?? "body yo'q",
+            body: "So'rov (request):\n${body?.toString() ?? "body yo'q"}"
+                "\n\nServer javobi (response):\n${response.body}",
             createdDate: receiptModel4?.createdDate ?? "",
             checkNo: receiptModel4?.externalId ?? "",
             success: false,

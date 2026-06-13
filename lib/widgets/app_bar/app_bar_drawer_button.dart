@@ -17,9 +17,7 @@ class AppBarDrawerButton extends StatelessWidget {
       focusNode: FocusNode(skipTraversal: true),
       style: TextButton.styleFrom(
           foregroundColor: Theme.of(context).colorScheme.background),
-
       onPressed: onPress,
-      // color: color,
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: SizeConfig.h),
         child: Center(

@@ -18,7 +18,9 @@ import 'package:invan2/changes/providers/settings_provider.dart';
 import 'package:invan2/changes/singletons/organization_singleton.dart';
 import 'package:invan2/features/get_discounts/model/discounts_response.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
+import 'package:invan2/features/printing/repository/printer_backup.dart';
 import 'dart:async'; 
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:invan2/features/home/bloc/invoice/invoice_bloc.dart';
@@ -70,6 +72,7 @@ Future<void> main() async {
   await MyObjectbox.init();
   await _hiveInit();
   await hiveOpen();
+  await _healPrintersIfNeeded();
   // birinchi kirishda ofd
   // await Pref.setBool(PrefKeys.withOFD, true);
   // Printer required
@@ -132,6 +135,28 @@ Future<void> main() async {
 
 Future<void> hiveClose() async {
   await Hive.close();
+}
+
+/// SELF-HEAL: startup'da printers.hive bo'sh bo'lsa (svet o'chib yozuv yo'qolgan,
+/// fayl buzilgan yoki tashqaridan o'chirilgan) — JSON backupdan tiklaydi.
+/// Box butun bo'lsa, backupni dolzarb ushlab turadi.
+Future<void> _healPrintersIfNeeded() async {
+  try {
+    final box = HiveBoxes.getPrinters();
+    if (box.isNotEmpty) {
+      // Box joyida — backupni hozirgi holatga moslab qo'yamiz.
+      await PrinterBackup.save(box.values.toList().cast<PrinterModel>());
+      return;
+    }
+    // Box bo'sh — backupdan tiklaymiz (agar bor bo'lsa).
+    final backup = await PrinterBackup.load();
+    if (backup.isNotEmpty) {
+      await box.addAll(backup);
+      await box.flush();
+    }
+  } catch (_) {
+    // tiklash ixtiyoriy — xato bo'lsa dastur baribir ishga tushaversin.
+  }
 }
 
 Future<void> _hiveInit() async {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/printing/repository/printer_backup.dart';
 import 'package:printing/printing.dart';
 import 'package:invan2/features/features.dart';
 
@@ -50,6 +51,11 @@ class PrinterSelectDialogProvider extends ChangeNotifier {
 
     if (!printers.any((element) => element.url == _printerModel!.url)) {
       await box.add(_printerModel!);
+      // Hive yozuvni darrov diskka yozmaydi (OS buferida turadi) — svet o'chsa
+      // yo'qoladi. flush() bilan majburan diskka yozdiramiz.
+      await box.flush();
+      // Hive'dan mustaqil zaxira (printers.hive buzilsa SELF-HEAL shu fayldan tiklaydi).
+      await PrinterBackup.save(box.values.toList().cast<PrinterModel>());
 
       notifyListeners();
     }

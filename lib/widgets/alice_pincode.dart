@@ -5,22 +5,17 @@ import 'package:invan2/app_navigation.dart';
 import 'package:invan2/utils/helpers/size_config.dart';
 import 'package:invan2/utils/themes.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
-
 import '../utils/l10n/app_localizations.dart';
 
 class AlicePincodePage extends StatefulWidget {
   const AlicePincodePage({Key? key}) : super(key: key);
-
   @override
   State<AlicePincodePage> createState() => _AlicePincodePageState();
 }
-
 class _AlicePincodePageState extends State<AlicePincodePage> {
   late FocusNode focusNode;
   late TextEditingController controller;
-
   String? errorText;
-
   @override
   void initState() {
     focusNode = FocusNode();
@@ -30,8 +25,8 @@ class _AlicePincodePageState extends State<AlicePincodePage> {
   bool isPinValid(String enteredPin) {
     final now = DateTime.now();
 
-    final pin24 = DateFormat('HHmm').format(now); // 24h format
-    final pin12 = DateFormat('hhmm').format(now); // 12h format
+    final pin24 = DateFormat('HHmm').format(now);
+    final pin12 = DateFormat('hhmm').format(now);
 
     return enteredPin == pin24 || enteredPin == pin12;
   }
@@ -129,7 +124,8 @@ class _AlicePincodePageState extends State<AlicePincodePage> {
                   if (errorText != null) {
                     setState(() {
                       errorText = null;
-                    });
+                    },
+                  );
                   }
                 },
               ),
@@ -152,3 +148,4 @@ class _AlicePincodePageState extends State<AlicePincodePage> {
     );
   }
 }
+ 

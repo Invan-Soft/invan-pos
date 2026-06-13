@@ -75,11 +75,12 @@ class _ClientSearchDialogWithBlocState
         child: BlocConsumer<ClientBloc, SearchClientState>(
           listener: (context, state) async {
             if (state is ClientFoundState) {
-              Provider.of<OrderingProvider4>(context, listen: false)
-                  .initClientByBloc(state.client);
+              final orderingProvider =
+                  Provider.of<OrderingProvider4>(context, listen: false);
+              orderingProvider.initClientByBloc(state.client);
               if (state.client.discountGroupType ==
                   Pref.getString(PrefKeys.flatRate, "")) {
-                Provider.of<OrderingProvider4>(context, listen: false)
+                orderingProvider
                     .setNewClientDiscountPercentage(
                         state.client.discountValue ?? 0);
                 OrderingProvider4()
@@ -87,13 +88,16 @@ class _ClientSearchDialogWithBlocState
                     .discountAmountFromNewClient = state.client.discountValue;
 
                 if (widget.route == WherePath.paymentScreen) {
-                  Provider.of<OrderingProvider4>(context, listen: false)
-                      .addedClientInPaymentScreen(context);
+                  orderingProvider.addedClientInPaymentScreen(context);
                 }
               }
               await Future.delayed(const Duration(seconds: 1));
               clientBloc.add(ClientClearControllerEvent());
               AppNavigation.pop();
+              // Mijoz tanlangani bilan client group o'zgaradi — maxsus mijozlar
+              // uchun yaratilgan diskont (Free Gift va h.k.) darhol qayta
+              // hisoblanib, dialog yangi product urilishini kutmasdan chiqsin.
+              await orderingProvider.recheckDiscountsAfterClientChanged();
             }
             if (state is ClientNotFoundState) {
               // ignore: use_build_context_synchronously

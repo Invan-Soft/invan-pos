@@ -1,12 +1,9 @@
 import 'dart:convert';
-import 'package:flutter/cupertino.dart';
 import 'package:invan2/changes/services/api.dart';
 import 'package:invan2/changes/services/api/api_provider.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/utils/constants/constants.dart';
 import 'package:invan2/utils/helpers/helpers.dart';
-
-import '../../utils/l10n/app_localizations.dart';
 
 class ClientApi {
   static Future<HttpResult> clientByCardIdd(
