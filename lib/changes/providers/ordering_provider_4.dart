@@ -2810,7 +2810,13 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     receiptModel4.payment.addAll(paymentsMapAsList);
     receiptModel4.hasDept = paymentsMapAsList
         .any((p) => p.name.toLowerCase() == 'debt');
-    receiptModel4.soldItemList.addAll(_sixClientModel4.orderedProducts);
+    // Red-delete rejimida o'chirilgan (isDeleted=true) mahsulotlar listda qoladi,
+    // lekin kassir totali (getTotalPrice) ularni hisobga olmaydi. Shuning uchun
+    // ularni fiskal/server/qog'oz chekka ham yubormaymiz — aks holda OFD 10.2.1
+    // tenglamasi buziladi (items jami ≠ to'langan summa).
+    receiptModel4.soldItemList.addAll(
+      _sixClientModel4.orderedProducts.where((p) => !(p.isDeleted ?? false)),
+    );
 
     for (var item in receiptModel4.soldItemList) {
       if (item.mark != null && item.mark!.isNotEmpty) {
@@ -3055,7 +3061,13 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     receiptModel4.payment.addAll(paymentsMapAsList);
     receiptModel4.hasDept = paymentsMapAsList
         .any((p) => p.name.toLowerCase() == 'debt');
-    receiptModel4.soldItemList.addAll(_sixClientModel4.orderedProducts);
+    // Red-delete rejimida o'chirilgan (isDeleted=true) mahsulotlar listda qoladi,
+    // lekin kassir totali (getTotalPrice) ularni hisobga olmaydi. Shuning uchun
+    // ularni fiskal/server/qog'oz chekka ham yubormaymiz — aks holda OFD 10.2.1
+    // tenglamasi buziladi (items jami ≠ to'langan summa).
+    receiptModel4.soldItemList.addAll(
+      _sixClientModel4.orderedProducts.where((p) => !(p.isDeleted ?? false)),
+    );
 
     for (var item in receiptModel4.soldItemList) {
       if (item.mark != null && item.mark!.isNotEmpty) {
