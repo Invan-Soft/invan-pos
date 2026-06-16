@@ -2981,6 +2981,16 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   return clean;
 }
       Future<PaymentResult> pressPaymentButtonOnlyOFD(BuildContext context) async {
+    // ===== FAQAT TEST UCHUN — bo'sh-items race'ni kafolatli chiqarish =====
+    // Bir to'lov sessiyasida 1-chaqiruv darhol ketadi, 2-chi (double-trigger)
+    // 3s kutadi => u 1-sotuv orderedProducts'ni tozalagandan KEYIN quriladi =>
+    // items:[] hosil bo'ladi. Guard buni ushlab, "BO'SH ITEMS" logini yozadi.
+    // TEST TUGAGACH SHU BLOKNI O'CHIRING.
+    _testOfdCallSeq++;
+    if (_testOfdCallSeq > 1) {
+      await Future.delayed(const Duration(seconds: 3));
+    }
+    // =====================================================================
     AppLocalizations loc = AppLocalizations.of(context)!;
 
     if (_isChangeToCashback && _sdachaa > 0) {
@@ -3129,6 +3139,31 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
     receiptModel4.discountVat = double.parse(receiptModel4.discountVat.round().toStringAsFixed(1));
 
+    // GUARD: items bo'sh bo'lsa OFD'ga umuman yubormaymiz.
+    // Double-trigger holatida birinchi muvaffaqiyatli sotuv orderedProducts'ni
+    // tozalaydi (_paymentOnClients), lekin paymentsMap qolib ketishi mumkin —
+    // natijada ikkinchi chaqiruv "items:[] + receivedCash" yuborib, fiskal modul
+    // "Передан недействительный параметр в JSON" xatosini qaytaradi.
+    // skipped=true bilan qaytamiz => kassirga qizil xato ko'rsatilmaydi.
+    if (receiptModel4.soldItemList.isEmpty) {
+      LogHelper.write(
+        LogLevel.warn,
+        "BO'SH ITEMS aniqlandi. "
+        "paymentsMap.length=${paymentsMap.length}, "
+        "orderedProducts.length=${_sixClientModel4.orderedProducts.length}",
+      );
+      // ===== FAQAT TEST UCHUN: originaln OFD xatosini KO'RISH uchun guard
+      // vaqtincha O'CHIRILGAN — bo'sh chek atayin OFD'ga o'tkazib yuborilmoqda.
+      // ASL ISH (xatoni to'xtatish) uchun pastdagi 4 qatorni IZOHDAN CHIQARING:
+      // _comments = "";
+      // _showComments = true;
+      // controller.text = '0';
+      // _newClientPersentageDiscount = 0;
+      // notifyListeners();
+      // return PaymentResult(mxikError: null, success: false, skipped: true);
+      // =====================================================================
+    }
+
     PaymentResult paymentResult = await LocalService.sell(
       loc: loc,
       receiptData: receiptModel4,
@@ -3172,6 +3207,11 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
       DiscountSingleton.maxPrice();
       _paymentOnClients();
+      // Muvaffaqiyatli sotuvdan keyin to'lov ro'yxatini DARHOL tozalaymiz.
+      // Aks holda double-trigger holatida qolib ketgan naqd/karta qiymati
+      // keyingi (bo'sh items) chaqiruvga "sizib" o'tib, noto'g'ri chek hosil
+      // qiladi. Avval paymentsMap faqat sahifaga qayta kirishda tozalanardi.
+      paymentsMap = {};
     }
 
     _comments = "";
@@ -3195,6 +3235,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     _mustPay = totalPrice;
     _sdachaa = 0;
     paymentsMap = {};
+    _testOfdCallSeq = 0; // FAQAT TEST UCHUN — har yangi to'lov sessiyasida nolga tushadi
     _lastCardNumber = '';
     _lastRRN = '';
     _lastCardType = 0;
@@ -3221,6 +3262,11 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   }
 
   late bool _paymentInProgress;
+
+  // ===== FAQAT TEST UCHUN — bo'sh-items race'ni kafolatli chiqarish =====
+  // Bir to'lov sessiyasidagi OFD chaqiruvlari sonini sanaydi. TEST TUGAGACH O'CHIRING.
+  int _testOfdCallSeq = 0;
+  // =====================================================================
 
   int selectedPaymentIndex = -1;
   TextEditingController controller = TextEditingController(text: '0');

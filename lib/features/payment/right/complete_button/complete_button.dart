@@ -206,6 +206,13 @@ class CompleteButtonOfPaymentPageOnBloc extends StatelessWidget {
                         (state.sdacha > 0 && !state.sdachaToCashback),
                   ),
                 );
+              } else if (result.skipped) {
+                // Bo'sh items guard ishladi (double-trigger). Asl sotuv allaqachon
+                // o'tgan — kassirni qizil xato bilan qo'rqitmaymiz, faqat tugmani
+                // boshlang'ich (qayta bosiladigan) holatga qaytaramiz.
+                ctBloc.add(CmtBInitialEvent());
+                Provider.of<OrderingProvider4>(context, listen: false)
+                    .setPaymentInProgress(false);
               } else {
                 ctBloc.add(
                   CtErrorEvent(
