@@ -2981,6 +2981,15 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   return clean;
 }
       Future<PaymentResult> pressPaymentButtonOnlyOFD(BuildContext context) async {
+    // ===== FAQAT TEST UCHUN — real double-trigger (SPACE + Yakunlash) bilan
+    // bo'sh-items case'ini chiqarish. 1-chaqiruv darhol ketadi, 2-chi 3s kutadi
+    // => u 1-sotuv orderedProducts'ni tozalagandan KEYIN quriladi => items:[].
+    // TEST TUGAGACH SHU BLOKNI O'CHIRING.
+    _testOfdCallSeq++;
+    if (_testOfdCallSeq > 1) {
+      await Future.delayed(const Duration(seconds: 3));
+    }
+    // =====================================================================
     AppLocalizations loc = AppLocalizations.of(context)!;
 
     if (_isChangeToCashback && _sdachaa > 0) {
@@ -3129,13 +3138,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
     receiptModel4.discountVat = double.parse(receiptModel4.discountVat.round().toStringAsFixed(1));
 
-    // ===== FAQAT TEST UCHUN — maydondagi "items:[] + naqd" holatini majburan yaratish.
-    // Har OFD sotuvда items'ni bo'shatamiz (receivedCash to'liq qoladi, chunki u
-    // paymentsMap'dan alohida quriladi) => OFD aynan "Передан недействительный
-    // параметр в JSON" xatosini qaytaradi. TEST TUGAGACH SHU QATORNI O'CHIRING.
-    receiptModel4.soldItemList.clear();
-    // =====================================================================
-
     // GUARD: items bo'sh bo'lsa OFD'ga umuman yubormaymiz.
     // Double-trigger holatida birinchi muvaffaqiyatli sotuv orderedProducts'ni
     // tozalaydi (_paymentOnClients), lekin paymentsMap qolib ketishi mumkin —
@@ -3208,7 +3210,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       // Aks holda double-trigger holatida qolib ketgan naqd/karta qiymati
       // keyingi (bo'sh items) chaqiruvga "sizib" o'tib, noto'g'ri chek hosil
       // qiladi. Avval paymentsMap faqat sahifaga qayta kirishda tozalanardi.
-      paymentsMap = {};
+      // ===== FAQAT TEST UCHUN izohlangan — naqd 2-chaqiruvga yetib borishi uchun.
+      // TEST TUGAGACH IZOHDAN CHIQARING (asl fix). =====
+      // paymentsMap = {};
     }
 
     _comments = "";
@@ -3232,6 +3236,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     _mustPay = totalPrice;
     _sdachaa = 0;
     paymentsMap = {};
+    _testOfdCallSeq = 0; // FAQAT TEST UCHUN — har yangi to'lov sessiyasida nolga tushadi
     _lastCardNumber = '';
     _lastRRN = '';
     _lastCardType = 0;
@@ -3258,6 +3263,10 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   }
 
   late bool _paymentInProgress;
+
+  // ===== FAQAT TEST UCHUN — OFD chaqiruvlari sonini sanaydi. TEST TUGAGACH O'CHIRING.
+  int _testOfdCallSeq = 0;
+  // =====================================================================
 
   int selectedPaymentIndex = -1;
   TextEditingController controller = TextEditingController(text: '0');
