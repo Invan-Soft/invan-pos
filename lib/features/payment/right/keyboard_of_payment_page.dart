@@ -620,16 +620,11 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
               } else if (event.isKeyPressed(LogicalKeyboardKey.escape)) {
                 AppNavigation.pop();
               } else if (event.isKeyPressed(LogicalKeyboardKey.space)) {
-                // ===== FAQAT TEST UCHUN — !getPaymentInProgress guard vaqtincha
-                // O'CHIRILGAN, shunda SPACE to'lov ketayotgan paytda ham 2-triggerni
-                // ishga tushiradi (double-trigger reproduksiya). TEST TUGAGACH
-                // pastdagi shartni asl holiga qaytaring:
-                //   if (getIsButtonEnabled && !getPaymentInProgress)
-                if (context.read<OrderingProvider4>().getIsButtonEnabled) {
+                if (context.read<OrderingProvider4>().getIsButtonEnabled &&
+                    !context.read<OrderingProvider4>().getPaymentInProgress) {
                   BlocProvider.of<CmtBBloc>(context, listen: false)
                       .add(CtPrepareToPayEvent());
                 }
-                // =====================================================================
               }
             },
             child: NumberButtonOfPaymentPage(

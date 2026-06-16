@@ -42,13 +42,19 @@ Log: version 1.1.2+104, 2026-06-15 23:43, Kassa 1a, Tiin Optom. Bu xatoni butunl
   → lib/features/payment/right/complete_button/complete_button.dart:209-216
 - [x] flutter analyze: yangi error yo'q (faqat avvaldan mavjud info/warning).
 
+## Reproduksiya (2026-06-16, boshqa Windows PC'da tasdiqlandi)
+- Vaqtinchalik test kodi bilan double-trigger qo'lda chiqarildi: SPACE'dagi `!getPaymentInProgress`
+  guard'ni ochib + 2-OFD chaqiruviga 3s delay + paymentsMap clear'ni izohlab. "Yakunlash"+SPACE
+  bosilganda 1-chek muvaffaqiyatli, 2-chaqiruv `items:[] + naqd` yuborib AYNAN
+  "Передан недействительный параметр в JSON" xatosini berdi. ROOT CAUSE TASDIQLANDI: double-trigger.
+- Test kodi to'liq qaytarib olindi (35942c4 dan keyin), faqat toza prod fix qoldi.
+
 ## Keyingi qadamlar (prioritet bo'yicha)
-- [ ] Windows'da test: oddiy OFD sotuv ishlashi; tez ikki marta "Yakunlash"/SPACE → dubl chek YO'Q,
-  bo'sh-items xatosi YO'Q, kassir qizil xato ko'rmasligi.
-- [ ] Maydonda `request_logs_of_invan_pos.txt` da "BO'SH ITEMS — OFD'ga yuborilmadi" logini kuzatib,
-  haqiqiy trigger ketma-ketligini tasdiqlash (paymentsMap.length / orderedProducts.length bilan).
-- [ ] Agar diagnostika double-fire'ni tasdiqlasa: root-cause fix — guard'ni press paytida sinxron
-  o'rnatish (masalan onPressed/SPACE ichida darhol setPaymentInProgress(true)) yoki bloc droppable.
+- [ ] Prod build'da yakuniy tekshiruv: oddiy OFD sotuv ishlashi; "Yakunlash"+SPACE → dubl chek YO'Q,
+  bo'sh-items xatosi YO'Q, kassir qizil xato ko'rmasligi (guard log yozadi, jim o'tadi).
+- [ ] (Ixtiyoriy) chuqurroq root-cause: guard'ni press paytida sinxron o'rnatish
+  (onPressed/SPACE ichida darhol setPaymentInProgress(true)) yoki bloc droppable transformer.
+  Hozirgi fix (bo'sh-items bloklash + paymentsMap darhol tozalash) buni baribir yopadi.
 
 ## Qabul qilingan qarorlar
 - Defense-in-depth: aniq trigger pinlanmasa ham, bo'sh-items guard + paymentsMap darhol tozalash
