@@ -71,15 +71,39 @@ class ActivatePosDeviceInitialWidget extends StatelessWidget {
                           itemBuilder: (_) {
                             return availablePosList.map(
                               (e) {
+                                final bool isOpen = e.isShiftOpen;
                                 return PopupMenuItem(
                                   value: e.sId,
+                                  enabled: !isOpen,
                                   child: SizedBox(
                                     width: SizeConfig.h * 30,
-                                    child: Text(
-                                      e.name!,
-                                      style: MyThemes.txtStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            e.name!,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: MyThemes.txtStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: isOpen
+                                                  ? Colors.grey
+                                                  : Colors.black,
+                                            ),
+                                          ),
+                                        ),
+                                        if (isOpen)
+                                          Text(
+                                            loc.ha == 'Ha'
+                                                ? 'Smena ochiq'
+                                                : 'Смена открыта',
+                                            style: MyThemes.txtStyle(
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.red,
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ),
                                 );

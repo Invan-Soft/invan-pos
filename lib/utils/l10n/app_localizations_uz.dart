@@ -297,7 +297,7 @@ class AppLocalizationsUz extends AppLocalizations {
   String get tizimdanChiqishdanOldin => 'Tizimdan chiqishdan oldin:';
 
   @override
-  String get ochiqSmenaniYopish => 'Ochiq smenani yopish';
+  String get ochiqSmenaniYopish => 'Ochiq smenani yopishingiz kerak';
 
   @override
   String get cancel => 'Bekor qilish';

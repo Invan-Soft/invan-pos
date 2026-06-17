@@ -52,7 +52,10 @@ class _AccessLevelPageState extends State<AccessLevelPage> {
     super.initState();
     IdleService().enable();
     IdleService().onLockPageEntered(); // Endi bu pageda turibmiz
-    versionUpdate();
+    // POS aktivlashmagan bo'lsa activatedPosId bo'sh — bekorga so'rov yubormaymiz
+    if (Pref.getString(PrefKeys.activatedPosId, "").isNotEmpty) {
+      versionUpdate();
+    }
   }
 
   @override

@@ -46,6 +46,8 @@ class GetAvailablePosResponseData {
   String? name;
   String? prefix;
   bool? isActive;
+  // Serverdan kelmaydi: shift_statuses bo'yicha lokal hisoblanadi
+  bool isShiftOpen = false;
   // String? service;
   // String? organization;
   // String? serviceId;

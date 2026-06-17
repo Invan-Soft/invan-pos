@@ -71,6 +71,13 @@ class SsBloc extends Bloc<SsEvent, SsState> {
           }
         }
       }
+
+      // Smenasi ochiq kassalarni belgilab qo'yamiz (tanlab bo'lmaydi)
+      final Set<String> openIds =
+          await GetAvailablePosApi.getOpenShiftCashboxIds(token: token);
+      for (final p in availablePosList) {
+        p.isShiftOpen = openIds.contains(p.sId);
+      }
     } else {
       if (httpResult.getError == "Internet Error") {
         emit(SsLoadingFailedState("net"));

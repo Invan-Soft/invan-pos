@@ -144,7 +144,9 @@ class APDblocc extends Bloc<APDevent, APDstate> {
     selectedPos =
         availablePosList.firstWhere((e) => e.sId == event.selectedPosId);
     emit(APDinitial(
-        isButtonEnabled: true,
+        // Smenasi ochiq kassa tanlansa tugma yoqilmaydi (qo'shimcha himoya;
+        // popupda allaqachon disabled)
+        isButtonEnabled: !(selectedPos?.isShiftOpen ?? false),
         availablePosList: availablePosList,
         selectedPos: selectedPos,
         selectedStore: selectedStore));

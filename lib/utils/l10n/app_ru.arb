@@ -379,7 +379,7 @@
   "@tizimdanChiqishdanOldin": {
     "description": "Перед выходом из системы: || Tizimdan chiqishdan oldin:"
   },
-  "ochiqSmenaniYopish": "Закрытие открытой смены",
+  "ochiqSmenaniYopish": "Необходимо закрыть открытую смену",
   "@ochiqSmenaniYopish": {
     "description": "Закрытие открытой смены || Ochiq smenani yopish"
   },

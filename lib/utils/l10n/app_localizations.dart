@@ -671,7 +671,7 @@ abstract class AppLocalizations {
   /// Закрытие открытой смены || Ochiq smenani yopish
   ///
   /// In ru, this message translates to:
-  /// **'Закрытие открытой смены'**
+  /// **'Необходимо закрыть открытую смену'**
   String get ochiqSmenaniYopish;
 
   /// Отмена || Bekor qilish

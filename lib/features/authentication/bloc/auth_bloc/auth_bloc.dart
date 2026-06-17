@@ -176,6 +176,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
                 availablePosList.add(p);
               }
             }
+
+            // Smenasi ochiq kassalarni belgilab qo'yamiz (tanlab bo'lmaydi)
+            final Set<String> openIds =
+                await GetAvailablePosApi.getOpenShiftCashboxIds(token: token);
+            for (final p in availablePosList) {
+              p.isShiftOpen = openIds.contains(p.sId);
+            }
           }
           AppNavigation.pushReplacement(
             ActivatePosPage(

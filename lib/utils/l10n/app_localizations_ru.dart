@@ -297,7 +297,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get tizimdanChiqishdanOldin => 'Перед выходом из системы:';
 
   @override
-  String get ochiqSmenaniYopish => 'Закрытие открытой смены';
+  String get ochiqSmenaniYopish => 'Необходимо закрыть открытую смену';
 
   @override
   String get cancel => 'Отмена';

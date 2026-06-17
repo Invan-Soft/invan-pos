@@ -53,6 +53,18 @@ class ShiftApi4 {
     };
     String cashBoxId = Pref.getString(PrefKeys.activatedPosId, "");
 
+    // POS hali aktivlashmagan bo'lsa activatedPosId bo'sh bo'ladi.
+    // Bo'sh id bilan URL "api/v1/cashbox_version/" ga aylanib 404 beradi —
+    // shuning uchun so'rovni umuman yubormaymiz.
+    if (cashBoxId.isEmpty) {
+      return HttpResult(
+        statusCode: -1,
+        isSuccess: false,
+        result: "skipped: activatedPosId empty",
+        reBytes: "",
+      );
+    }
+
     var body = {
       "version": Pref.getString(PrefKeys.version, ''),
     };
@@ -131,10 +143,14 @@ class ShiftApi4 {
     );
   }
 
-  static Future<HttpResult> shiftStatusInvan2() async {
-    final token = Pref.getString(PrefKeys.token, "not initialized");
+  static Future<HttpResult> shiftStatusInvan2({String? token}) async {
+    // Aktivatsiyadan oldin (kassa tanlash) PrefKeys.token hali bo'sh bo'ladi,
+    // shuning uchun login token'ini parametr orqali uzatish mumkin.
+    final String authToken = (token != null && token.isNotEmpty)
+        ? token
+        : Pref.getString(PrefKeys.token, "not initialized");
     final headers = <String, String>{
-      'Authorization': "Bearer $token",
+      'Authorization': "Bearer $authToken",
       'timezone': "-300",
     };
     return ApiProvider.getResponse(

@@ -35,10 +35,13 @@ class BeforeLogOutDialog extends StatelessWidget {
                 fontSize: 3,
               ),
             ),
+            SizedBox(height: SizeConfig.v * 1.5),
             Text(
               loc.ochiqSmenaniYopish,
+              // colorScheme.error fon bilan bir xil rang (ko'rinmaydi),
+              // shuning uchun aniq qizil rang ishlatamiz
               style: MyThemes.txtStyle(
-                color: Theme.of(context).colorScheme.error,
+                color: const Color(0xffE53935),
                 fontWeight: FontWeight.bold,
                 fontSize: 2.5,
               ),

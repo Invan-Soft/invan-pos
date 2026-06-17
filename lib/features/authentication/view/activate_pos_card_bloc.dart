@@ -117,7 +117,10 @@ void dispose() {
         builder: (context, state) {
           if (state is APDinitial) {
             if (state.selectedPos != null) {
-              if (state.availablePosList.length == 1) {
+              // Yagona kassa smena-ochiq bo'lmasagina avto-aktivlashtiramiz.
+              // Ochiq bo'lsa, popupda "Smena ochiq" ko'rsatiladi, user o'tolmaydi.
+              if (state.availablePosList.length == 1 &&
+                  !state.availablePosList.first.isShiftOpen) {
                 apDbloc.add(APDactivatePosDeviceEvent(
                   macAddress: widget.macAddress,
                   selectedPos: state.availablePosList.first,
