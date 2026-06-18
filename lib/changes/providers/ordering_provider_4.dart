@@ -130,8 +130,6 @@ class OrderingProvider4 extends ChangeNotifier {
     DiscountService.onDiscountsCleared = clearAllDiscountEffects;
   }
 
-  /// Discountlar serverdan o'chirilganda barcha savatchadagi
-  /// discount ta'sirlarini tozalash uchun chaqiriladi.
   void clearAllDiscountEffects() {
     for (final client in _sixClient4List) {
       for (final item in client.orderedProducts) {

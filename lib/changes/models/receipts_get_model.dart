@@ -360,7 +360,10 @@ class ItemsGTR {
     orderId = json['order_id'];
     barcode = json['barcode'];
     sku = json['sku'];
-    singleDiscount = json['single_item_discount'];
+    // Server per-dona diskontni 'single_order_discount' da yuboradi
+    // ('single_item_discount' emas). Noto'g'ri nom => singleDiscount=0 bo'lib,
+    // promo diskonti qaytarishda hamma itemga proporsional yoyilardi.
+    singleDiscount = json['single_order_discount'] ?? json['single_item_discount'];
     mxikCode = json['mxik_code'];
     image = json['image'];
     vatName = json['vat_name'];
@@ -382,7 +385,7 @@ class ItemsGTR {
     data['refund_amount'] = refundAmount;
     data['last_refund_amount'] = lastRefundAmount;
     data['price'] = price;
-    data['single_item_discount'] = singleDiscount;
+    data['single_order_discount'] = singleDiscount;
     data['supply_price'] = supplyPrice;
     data['total_price'] = totalPrice;
     data['new_price'] = newPrice;

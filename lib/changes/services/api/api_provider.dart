@@ -16,6 +16,7 @@ class ApiProvider {
   // static const baseUrlINVAN2 = 'https://dev.api.7i.uz/';
   // static const baseUrlINVAN2 = 'https://test.7i.uz/';
   // static const baseUrlINVAN2Test = 'https://test.7i.uz/';
+  
   static const imageUrlDev = 'https://dev.cdn.7i.uz/file/';
   static const imageUrlPro = 'https://cdn.7i.uz/file/';
   static const INVAN2DEV = 'https://dev.api.7i.uz/';
