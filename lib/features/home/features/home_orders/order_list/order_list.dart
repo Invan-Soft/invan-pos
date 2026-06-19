@@ -11,6 +11,7 @@ import 'bloc/order_items_select_bloc.dart';
 import 'order_list_top.dart';
 import 'package:invan2/utils/utils.dart';
 import 'order_list_item.dart';
+import 'basket_grouping.dart';
 import '../../operation_on_product/operation_on_product.dart';
 
 class OrderList extends StatefulWidget {
@@ -37,6 +38,9 @@ class OrderListState extends State<OrderList> {
     final orderingProvider = Provider.of<OrderingProvider4>(context);
     final List<ReceiptModelSoldItem4> orderedProducts =
         context.watch<OrderingProvider4>().getCurrentClient.orderedProducts;
+    // Markirovkali itemlar bir xil mahsulot bo'yicha 1 qatorga guruhlanadi.
+    // Tanlash/tahrirlash/o'chirish shu guruhlangan qatorlar (rows) bo'yicha ishlaydi.
+    final List<BasketRow> rows = groupBasketRows(orderedProducts);
     final lastAI =
         context.watch<OrderingProvider4>().getCurrentClient.lastAddedIndex;
     return Expanded(
@@ -58,12 +62,12 @@ class OrderListState extends State<OrderList> {
                       Log.d(event.physicalKey, name: 'order_list');
                       if (event.isKeyPressed(LogicalKeyboardKey.arrowDown)) {
                         indexBloc.add(
-                          GetItemIdexEvent(ArrowTo.down, orderedProducts.length),
+                          GetItemIdexEvent(ArrowTo.down, rows.length),
                         );
                       }
                       if (event.isKeyPressed(LogicalKeyboardKey.arrowUp)) {
                         indexBloc.add(
-                          GetItemIdexEvent(ArrowTo.up, orderedProducts.length),
+                          GetItemIdexEvent(ArrowTo.up, rows.length),
                         );
                       }
                       if (event.isKeyPressed(LogicalKeyboardKey.space)) {
@@ -73,24 +77,15 @@ class OrderListState extends State<OrderList> {
                         await Future.delayed(const Duration(milliseconds: 30));
                         if (!context.mounted) return;
                         if (MyBarcodeListener.isLikelyScanning) return;
-                        if (!orderedProducts[indexBloc.state.selected].isDeleted!) {
-                          orderingProvider.tapIndexToEdit(indexBloc.state.selected);
+                        final sel = indexBloc.state.selected;
+                        if (sel < 0 || sel >= rows.length) return;
+                        final row = rows[sel];
+                        if (!row.representative.isDeleted!) {
                           blBloc.add(BlStatusChangedEvent(
                               status: BLStatus.other,
                               where:
                                   "lib/features/home/features/home_orders/order_list/order_list.dart oderlistItem"));
-                          await OperationOnProduct.operationOnProductDialog(
-                            context: context,
-                            item: orderedProducts[indexBloc.state.selected],
-                            isClientMinimumPrice:
-                                //  Provider.of<OrderingProvider4>(
-                                //             context,
-                                //             listen: false)
-                                //         .getCurrentClient
-                                //         .selectedClient
-                                //         ?.isMinimumPrice ??
-                                false,
-                          );
+                          await _openRowEditor(context, orderingProvider, row);
                           blBloc.add(BlStatusChangedEvent(
                               status: BLStatus.home,
                               where:
@@ -106,7 +101,7 @@ class OrderListState extends State<OrderList> {
                               duration: const Duration(milliseconds: 500),
                               curve: Curves.ease);
                         } else if (state.selected > -1 &&
-                            state.selected < (orderedProducts.length - 4)) {
+                            state.selected < (rows.length - 4)) {
                           _scrollController.animateTo(state.selected - 1 * 10,
                               duration: const Duration(milliseconds: 50),
                               curve: Curves.ease);
@@ -118,25 +113,23 @@ class OrderListState extends State<OrderList> {
                           physics: const BouncingScrollPhysics(),
                           controller: _scrollController,
                           shrinkWrap: true,
-                          itemCount: orderedProducts.length,
+                          itemCount: rows.length,
                           itemBuilder: (context, index) {
+                            final row = rows[index];
                             return OrderListItem(
                               selected: index == state.selected,
-                              index: (index - orderedProducts.length).abs(),
-                              isLastAdded: lastAI == index,
-                              orderedProduct: orderedProducts[index],
+                              index: (index - rows.length).abs(),
+                              isLastAdded: lastAI == row.indices.first,
+                              orderedProduct: row.representative,
+                              group: row.isMarkGroup ? row : null,
                               onPressed: () async {
-                                if (!orderedProducts[index].isDeleted!) {
-                                  orderingProvider.tapIndexToEdit(index);
+                                if (!row.representative.isDeleted!) {
                                   blBloc.add(BlStatusChangedEvent(
                                       status: BLStatus.other,
                                       where:
                                           "lib/features/home/features/home_orders/order_list/order_list.dart oderlistItem"));
-                                  await OperationOnProduct.operationOnProductDialog(
-                                    context: context,
-                                    item: orderedProducts[index],
-                                    isClientMinimumPrice: false,
-                                  );
+                                  await _openRowEditor(
+                                      context, orderingProvider, row);
                                   blBloc.add(BlStatusChangedEvent(
                                       status: BLStatus.home,
                                       where:
@@ -174,6 +167,38 @@ class OrderListState extends State<OrderList> {
         ],
       ),
     );
+  }
+
+  /// Qatorni tahrirlash dialogini ochadi.
+  /// Markirovka guruhi bo'lsa: guruh-tahrir rejimini yoqadi (qty kamaytirish =
+  /// eng yangi markalarni o'chirish, delete = butun guruh) va umumiy qty ni
+  /// ko'rsatadi. Aks holda oddiy item tahriri.
+  Future<void> _openRowEditor(
+    BuildContext context,
+    OrderingProvider4 orderingProvider,
+    BasketRow row,
+  ) async {
+    if (row.isMarkGroup) {
+      orderingProvider.beginMarkGroupEdit(row.productId);
+      orderingProvider.tapIndexToEdit(row.indices.first);
+      try {
+        await OperationOnProduct.operationOnProductDialog(
+          context: context,
+          item: row.representative,
+          isClientMinimumPrice: false,
+          displayValue: row.totalValue,
+        );
+      } finally {
+        orderingProvider.endMarkGroupEdit();
+      }
+    } else {
+      orderingProvider.tapIndexToEdit(row.indices.first);
+      await OperationOnProduct.operationOnProductDialog(
+        context: context,
+        item: row.representative,
+        isClientMinimumPrice: false,
+      );
+    }
   }
 
   @override

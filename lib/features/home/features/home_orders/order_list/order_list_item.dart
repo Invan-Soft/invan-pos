@@ -4,6 +4,7 @@ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/mo
 import 'package:invan2/features/home/features/home_orders/order_list/order_list_top.dart';
 import 'package:invan2/features/home/features/home_orders/order_list/text_widget.dart';
 import 'package:invan2/utils/utils.dart';
+import 'basket_grouping.dart';
 
 class OrderListItem extends StatelessWidget {
   const OrderListItem(
@@ -13,12 +14,17 @@ class OrderListItem extends StatelessWidget {
       required this.orderedProduct,
       required this.onPressed,
       required this.selected,
+      this.group,
       re});
   final int index;
   final bool selected;
   final bool isLastAdded;
   final ReceiptModelSoldItem4 orderedProduct;
   final VoidCallback onPressed;
+
+  /// Markirovka guruhi bo'lsa, yig'ma (blended) qty/narx/chegirma/summa shu
+  /// orqali ko'rsatiladi. `null` bo'lsa oddiy item maydonlari ishlatiladi.
+  final BasketRow? group;
 
   bool _isAlcoholMxik(String mxik) =>
       mxik.startsWith('02203') ||
@@ -53,6 +59,16 @@ class OrderListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Markirovka guruhi bo'lsa yig'ma (blended) qiymatlar, aks holda item maydonlari.
+    final num displayValue = group?.totalValue ?? orderedProduct.value;
+    final double unitPrice = group?.unitPrice ?? orderedProduct.price;
+    final double unitRealPrice = group?.unitRealPrice ?? orderedProduct.realPrice;
+    final double discPercent = group != null
+        ? group!.discountPercent
+        : (orderedProduct.discountPercent ?? 0);
+    final double lineTotal = group?.totalPrice ?? (orderedProduct.price * orderedProduct.value);
+    final double lineRealTotal =
+        group?.totalRealPrice ?? (orderedProduct.realPrice * orderedProduct.value);
     final bool hardRestricted = _isHardRestricted();
     final bool bigTotalRestricted = !hardRestricted && _isBigTotalRestricted();
 
@@ -141,44 +157,32 @@ class OrderListItem extends StatelessWidget {
                   _verticalDivider(),
                   SoldItemWidgetWithDiscount(
                     flex: Flexes.price,
-                    price: MoneyFormatter.formatter.format(orderedProduct.price),
+                    price: MoneyFormatter.formatter.format(unitPrice),
                     isDeleted: orderedProduct.isDeleted!,
-                    oldPrice: MoneyFormatter.formatter
-                        .format(orderedProduct.realPrice),
-                    discountPercent: orderedProduct.discountPercent != null &&
-                            orderedProduct.discountPercent! > 0
-                        ? orderedProduct.discountPercent!
-                        : 0,
+                    oldPrice: MoneyFormatter.formatter.format(unitRealPrice),
+                    discountPercent: discPercent > 0 ? discPercent : 0,
                   ),
                   _verticalDivider(),
                   SoldItemWidget(
                     flex: Flexes.number,
-                    title: orderedProduct.value % 1 == 0
-                        ? orderedProduct.value.toStringAsFixed(0)
-                        : orderedProduct.value.toString(),
+                    title: displayValue % 1 == 0
+                        ? displayValue.toStringAsFixed(0)
+                        : displayValue.toString(),
                     isDeleted: orderedProduct.isDeleted!,
                   ),
                   _verticalDivider(),
                   SoldItemWidget(
                     flex: Flexes.discount,
-                    title: orderedProduct.discountPercent != null &&
-                            orderedProduct.discountPercent! > 0
-                        ? orderedProduct.discountPercent!.toStringAsFixed(1)
-                        : '',
+                    title: discPercent > 0 ? discPercent.toStringAsFixed(1) : '',
                     isDeleted: orderedProduct.isDeleted!,
                   ),
                   _verticalDivider(),
                   SoldItemWidgetWithDiscount(
                     flex: Flexes.price,
-                    price: MoneyFormatter.formatter
-                        .format(orderedProduct.value * orderedProduct.price),
+                    price: MoneyFormatter.formatter.format(lineTotal),
                     isDeleted: orderedProduct.isDeleted!,
-                    oldPrice: MoneyFormatter.formatter
-                        .format(orderedProduct.realPrice * orderedProduct.value),
-                    discountPercent: orderedProduct.discountPercent != null &&
-                            orderedProduct.discountPercent! > 0
-                        ? orderedProduct.discountPercent!
-                        : 0,
+                    oldPrice: MoneyFormatter.formatter.format(lineRealTotal),
+                    discountPercent: discPercent > 0 ? discPercent : 0,
                   ),
                 ],
               ),

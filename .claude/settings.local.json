@@ -71,7 +71,29 @@
       "Bash(sed -n '16,34p' lib/features/hive_repository/hive_boxes.dart)",
       "Bash(sed -n '70,130p' lib/features/settings/features/child_settings/view/child_settings_content.dart)",
       "Bash(git rev-list *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(openssl s_client -connect gitlab.7i.uz:443 -servername gitlab.7i.uz)",
+      "Bash(openssl x509 *)",
+      "Bash(awk 'NR>=2600 && NR<=2820 && /^[[:space:]]*\\(Future|void|Map|List|String|bool|double|int|dynamic|ReceiptModel4\\)[^=]*\\\\\\([^\\)]*\\\\\\)[[:space:]]*\\(async\\)?[[:space:]]*\\\\{/ {print NR\": \"$0}' lib/changes/providers/ordering_provider_4.dart)",
+      "Bash(git -c http.sslVerify=false push gitlab ayyubxon)",
+      "Bash(git -c http.sslVerify=false ls-remote gitlab ayyubxon)",
+      "Bash(git --no-pager diff 461fbb4 -- lib/)",
+      "Bash(curl -s -m 20 https://dev.api.7i.uz/file)",
+      "Bash(curl -s -m 20 -o /dev/null -w \"%{http_code}\\\\n\" https://dev.api.7i.uz/file)",
+      "Bash(git show *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Release:', d['name']\\); print\\('Tag:', d['tagName']\\); print\\('URL:', d['url']\\); print\\('Fayllar:', [a['name'] for a in d['assets']]\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Release:', d['name']\\); print\\('Yaratildi:', d['createdAt']\\); print\\('URL:', d['url']\\); print\\('Fayllar:', [a['name'] for a in d['assets']]\\)\")",
+      "Bash(curl -s -m 20 -o /dev/null -w \"no-auth POST status: %{http_code}\\\\n\" -X POST https://dev.api.7i.uz/upload/build)",
+      "Bash(curl -s -m 20 https://api.7i.uz/file)",
+      "Read(//Users/ayyubxon/Library/Caches/**)",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(curl -sI -m 20 \"https://dev.cdn.7i.uz/file/pos_1.1.2+105.exe\")",
+      "Bash(curl -s -m 300 -w \"\\\\n--- HTTP: %{http_code}, vaqt: %{time_total}s ---\\\\n\" -X POST \"https://api.7i.uz/upload/build\" -F \"version=1.1.2+105\" -F \"changelog=Kassa tanlashda ochiq smena himoyasi, ba'zi xatolar tuzatildi\" -F \"file=@1.1.2+105.exe\")",
+      "Bash(curl -sI -m 20 \"https://cdn.7i.uz/file/pos_1.1.2+105.exe\")",
+      "Bash(git -C /Users/ayyubxon/Documents/pos-invan-2-ayyubxon log --oneline -15)",
+      "Bash(git -C /Users/ayyubxon/Documents/pos-invan-2-ayyubxon show 1b780f6 --stat)",
+      "Bash(git -C /Users/ayyubxon/Documents/pos-invan-2-ayyubxon show 1b780f6 -- lib/changes/services/shift_api_4.dart)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Release:', d['name']\\); print\\('URL:', d['url']\\); print\\('Fayllar:', [a['name'] for a in d['assets']]\\)\")"
     ]
   }
 }

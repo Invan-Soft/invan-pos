@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:invan2/utils/utils.dart';
 
 import '../../../changes/providers/ordering_provider_4.dart';
+import '../../home/features/home_orders/order_list/basket_grouping.dart';
 
 
 class ReceiptList extends StatelessWidget {
@@ -13,13 +14,21 @@ class ReceiptList extends StatelessWidget {
     final paymentPageProvider = Provider.of<OrderingProvider4>(context);
     final orderedProducts =
         paymentPageProvider.getSixClientModel4.orderedProducts;
+    // Markirovkali itemlar 1 qatorga guruhlanadi (savatdagi kabi).
+    final rows = groupBasketRows(orderedProducts);
 
     return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: orderedProducts.length,
+      itemCount: rows.length,
       shrinkWrap: true,
       itemBuilder: (context, index) {
-        final item = orderedProducts[index];
+        final row = rows[index];
+        final item = row.representative;
+        // Guruh bo'lsa yig'ma (blended) qiymatlar, aks holda item maydonlari.
+        final displayValue = row.isMarkGroup ? row.totalValue : item.value;
+        final unitPrice = row.isMarkGroup ? row.unitPrice : item.price;
+        final lineTotal =
+            row.isMarkGroup ? row.totalPrice : (displayValue * item.price);
 
         return ListTile(
           contentPadding: EdgeInsets.only(
@@ -60,7 +69,7 @@ class ReceiptList extends StatelessWidget {
             ],
           ),
           subtitle: Text(
-            '${item.value % 1 == 0 ? item.value.toStringAsFixed(0) : item.value.toString()} * ${(item.price).toStringAsFixed(2)}',
+            '${displayValue % 1 == 0 ? displayValue.toStringAsFixed(0) : displayValue.toString()} * ${unitPrice.toStringAsFixed(2)}',
             style: MyThemes.txtStyle(
               fontSize: 2.1,
               fontWeight: FontWeight.normal,
@@ -68,7 +77,7 @@ class ReceiptList extends StatelessWidget {
             ),
           ),
           trailing: Text(
-            (item.value * item.price).toStringAsFixed(2),
+            lineTotal.toStringAsFixed(2),
             style: MyThemes.txtStyle(
               fontSize: 2.1,
               fontWeight: FontWeight.bold,

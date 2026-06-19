@@ -115,6 +115,11 @@ class OrderingProvider4 extends ChangeNotifier {
       GlobalKey<MarkingDialogState>();
   int _clientNumber = 1;
   int _tappedIndexToEdit = -1;
+
+  /// Markirovka guruhi tahrir rejimi: null bo'lmasa, tahrir qilinayotgan
+  /// markirovka guruhining productId si. Bu rejimda save/delete butun guruhga
+  /// (bir xil productId dagi barcha aktiv markalarga) ta'sir qiladi.
+  String? _markGroupEditProductId;
   String _lastRRN = '';
   String _lastCardNumber = '';
   int _lastCardType = 0;
@@ -1463,10 +1468,17 @@ String _markirovka(String rawMark) {
   if (rawMark.trim().isEmpty) return rawMark;
 
   String clean = rawMark
-      .replaceAll(RegExp(r'[\x1D\x1E\x1F]'), '')
-      .replaceAll(RegExp(r'\(\d{2}\)'), '');     
+      // (01), (21) kabi AI qavslarini olib tashlash
+      .replaceAll(RegExp(r'\(\d{2}\)'), '')
+      // Barcha ASCII boshqaruv belgilari: GS(0x1D), FS, RS, US, NUL...DEL
+      // va C1 (0x80-0x9F). Skaner GS1 ajratuvchini turli kodda yuborishi mumkin,
+      // shuning uchun butun diapazonni tozalaymiz (aks holda chekda "▯" chiqadi).
+      .replaceAll(RegExp(r'[\x00-\x1F\x7F-\x9F]'), '')
+      // Unicode replacement / object-replacement belgilari
+      .replaceAll('￼', '')
+      .replaceAll('�', '');
 
-  return clean; 
+  return clean;
 }
 
   bool isLoading = false;
@@ -1489,6 +1501,14 @@ String _markirovka(String rawMark) {
       ItemModel item,
       String v,
       BuildContext context) async {
+    // Markni ishlatishdan/saqlashdan oldin boshqaruv belgilarini (GS1 <GS>=0x1D,
+    // FS, RS, US va boshqa ko'rinmas kodlar) tozalaymiz. Aks holda chekda/JSON da
+    // "▯" kabi g'alati belgilar chiqib qoladi. (17)/(15) AI qavslari validatsiya
+    // uchun saqlanadi — faqat boshqaruv belgilari olib tashlanadi.
+    v = v
+        .replaceAll(RegExp(r'[\x00-\x1F\x7F-\x9F]'), '')
+        .replaceAll('￼', '')
+        .replaceAll('�', '');
     if (!dialogForMark) {
       item.mark = v;
       AppLocalizations loc = AppLocalizations.of(context)!;
@@ -2240,7 +2260,131 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     _tappedIndexToEdit = i;
   }
 
+  /// Markirovka guruhi tahririni boshlaydi (order_list dan chaqiriladi).
+  void beginMarkGroupEdit(String productId) {
+    _markGroupEditProductId = productId;
+  }
+
+  /// Markirovka guruhi tahririni tugatadi (dialog yopilgach).
+  void endMarkGroupEdit() {
+    _markGroupEditProductId = null;
+  }
+
+  /// Berilgan productId uchun aktiv (o'chirilmagan) markirovka itemlarining
+  /// orderedProducts dagi indekslari. Eng yangi (insert(0) bilan qo'shilgan)
+  /// markalar pastroq indeksda bo'ladi.
+  List<int> _activeMarkIndices(String productId) {
+    final result = <int>[];
+    for (var i = 0; i < _currentClient.orderedProducts.length; i++) {
+      final e = _currentClient.orderedProducts[i];
+      if (e.productId == productId &&
+          e.marking &&
+          !(e.isDeleted ?? false)) {
+        result.add(i);
+      }
+    }
+    return result;
+  }
+
+  /// Markirovka guruhini saqlash: yangi qty ga qarab eng yangi markalarni
+  /// o'chiradi (qty kamayganda) yoki narx/diskont o'zgarishini barcha markalarga
+  /// qo'llaydi. Qty ni oshirib bo'lmaydi (yangi mark skanerlanishi kerak).
+  Future<void> _saveMarkGroup(ReceiptModelSoldItem4 edited) async {
+    final pid = _markGroupEditProductId!;
+    final indices = _activeMarkIndices(pid);
+    if (indices.isEmpty) return;
+
+    final currentCount = indices.length;
+    final newCount = edited.value.floor();
+
+    if (newCount <= 0) {
+      _deleteMarkGroup(pid);
+      return;
+    }
+
+    if (newCount < currentCount) {
+      // Eng yangi markalarni o'chiramiz: indices o'sish tartibida, eng past
+      // indeks = eng yangi. Birinchi (currentCount - newCount) tasini olamiz.
+      final removeCount = currentCount - newCount;
+      final toRemove = indices.take(removeCount).toList()
+        ..sort((a, b) => b.compareTo(a)); // teskari tartib (xavfsiz o'chirish)
+      final redDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
+      for (final idx in toRemove) {
+        if (redDelete) {
+          _currentClient.orderedProducts[idx].isDeleted = true;
+        } else {
+          _currentClient.orderedProducts.removeAt(idx);
+        }
+      }
+    }
+    // newCount >= currentCount → qty oshmaydi (skan kerak), o'zgarishsiz.
+
+    // Narx/diskont o'zgarishini guruhdagi qolgan barcha markalarga qo'llaymiz.
+    for (final m in _activeMarkIndices(pid)) {
+      final item = _currentClient.orderedProducts[m];
+      item.price = edited.price;
+      item.realPrice = edited.realPrice;
+      item.onlyPrice = edited.onlyPrice;
+      item.singleDiscount = edited.singleDiscount;
+      item.discountPercent = edited.discountPercent;
+      item.isPriceOnlyChanged = edited.isPriceOnlyChanged;
+      item.isPriceChanged = edited.isPriceChanged;
+      item.tin = edited.tin;
+      item.vat = (edited.price * item.vatPercent) / (100 + item.vatPercent);
+    }
+
+    final remaining = _activeMarkIndices(pid);
+    if (remaining.isEmpty) {
+      _showCount.remove(pid);
+      _showCountFreeGift.remove(pid);
+      if (_currentClient.orderedProducts
+          .every((e) => (e.isDeleted ?? false))) {
+        _currentClient.selectedClient = null;
+        _newClientPersentageDiscount = 0;
+      }
+    }
+
+    findFreeProducts();
+    useFreeProducts();
+    useFreeGiftProducts();
+    useBuyXGetXProducts();
+    notifyListeners();
+  }
+
+  /// Markirovka guruhidagi barcha aktiv markalarni o'chiradi (red-delete ni hisobga olib).
+  void _deleteMarkGroup(String pid) {
+    final redDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
+    final indices = _activeMarkIndices(pid)..sort((a, b) => b.compareTo(a));
+    for (final idx in indices) {
+      if (redDelete) {
+        _currentClient.orderedProducts[idx].isDeleted = true;
+      } else {
+        _currentClient.orderedProducts.removeAt(idx);
+      }
+    }
+    _showCount.remove(pid);
+    _showCountFreeGift.remove(pid);
+
+    if (_currentClient.orderedProducts.isEmpty ||
+        _currentClient.orderedProducts.every((e) => (e.isDeleted ?? false))) {
+      _currentClient.selectedClient = null;
+      _newClientPersentageDiscount = 0;
+    }
+
+    findFreeProducts();
+    useFreeProducts();
+    useFreeGiftProducts();
+    useBuyXGetXProducts();
+    notifyListeners();
+  }
+
   Future<void> pressDialogSaveButton(ReceiptModelSoldItem4 item) async {
+    // Markirovka guruhi tahriri: butun guruhga qo'llaymiz (qty kamaytirish =
+    // eng yangi markalarni o'chirish, narx o'zgarishi = barcha markalarga).
+    if (_markGroupEditProductId != null) {
+      await _saveMarkGroup(item);
+      return;
+    }
     if (item.value > 0) {
       _currentClient.orderedProducts[_tappedIndexToEdit] = item;
 
@@ -2290,6 +2434,12 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   }
 
   void pressDialogDeleteButton() async {
+    // Markirovka guruhi tahririda: butun guruhni o'chiramiz.
+    if (_markGroupEditProductId != null) {
+      _deleteMarkGroup(_markGroupEditProductId!);
+      return;
+    }
+
     bool isRedDeleteActivated =
         Pref.getBool(PrefKeys.isRedDeleteActivated, false);
 
@@ -4336,10 +4486,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   }
 
   onBarcodeScanned(String barcode, GlobalKey<ScaffoldState> scaffoldKey) async {
-    debugPrint('━━━━━ SCAN ━━━━━ raw="$barcode" len=${barcode.length}');
-
     if (barcode.isEmpty) {
-      debugPrint('[SCAN] REJECT: empty input');
       return;
     }
 
@@ -4351,32 +4498,26 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         lowerTrim.startsWith('tel:') ||
         lowerTrim.startsWith('mailto:') ||
         lowerTrim.contains('://')) {
-      debugPrint('[SCAN] REJECT: URL/link input → product qidirilmaydi');
       await _showInvalidFormatBarcodeDialog();
       return;
     }
 
     if (isMarkingDialogDisplaying) {
-      debugPrint('[SCAN] REJECT: markirovka dialogi ochiq');
       return;
     }
 
     // UUID formatdagi QR kodlar (masalan, PayNet OTP) product emas
     if (RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(barcode)) {
-      debugPrint('[SCAN] REJECT: UUID format (PayNet OTP)');
       return;
     }
 
     if (barcode.trimLeft().startsWith('{')) {
-      debugPrint('[SCAN] BRANCH: JSON utsenka');
       final utsenkaItem = _parseUtsenkaQr(barcode);
       if (utsenkaItem != null) {
-        debugPrint('[SCAN] ✓ UTSENKA qo\'shildi: name="${utsenkaItem.productName}" barcode=${utsenkaItem.barcode} sku=${utsenkaItem.sku}');
         _currentClient.orderedProducts.insert(0, utsenkaItem);
         notifyListeners();
         return;
       }
-      debugPrint('[SCAN] REJECT: utsenka JSON parse fail');
       await _showInvalidFormatBarcodeDialog();
       return;
     }
@@ -4385,7 +4526,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     // bo'lsa, bu product barcode emas. Aks holda matndan tasodifan raqam ajratib olib,
     // SKU bo'yicha noto'g'ri mahsulot topib qo'shilib qoladi.
     if (RegExp(r'\s').hasMatch(barcode.trim())) {
-      debugPrint('[SCAN] REJECT: bo\'sh joy/yangi qator (erkin matn)');
       await _showInvalidFormatBarcodeDialog();
       return;
     }
@@ -4393,14 +4533,12 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     // Haqiqiy product barcode/SKU har doim kamida bitta raqam tutadi.
     // Faqat harflar bo'lsa — bu matn yoki noto'g'ri input.
     if (!RegExp(r'\d').hasMatch(barcode)) {
-      debugPrint('[SCAN] REJECT: raqam yo\'q (matn)');
       await _showInvalidFormatBarcodeDialog();
       return;
     }
 
     int taroziPrefix = Pref.getInt(PrefKeys.taroziPrefix, 28);
     if (barcode.startsWith('$taroziPrefix') && barcode.length == 13) {
-      debugPrint('[SCAN] BRANCH: Tarozi (prefix=$taroziPrefix, len=13)');
       scanWeightItem(barcode, scaffoldKey);
       return;
     }
@@ -4468,7 +4606,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
 
         if (boxProduct != null) {
-          debugPrint('[SCAN] ✓ BOX product topildi: name="${boxProduct.name}" barcode=${boxProduct.barcode} sku=${boxProduct.sku} boxBarcode=${boxProduct.boxBarcode}');
           await _addBoxProduct(boxProduct, barcode);
           return;
         }
@@ -4477,7 +4614,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     // ─────────────────────────────────────────────────────────
     // Narxi=0 tekshiruvi uchun sinab ko'rilgan barcode variantlarini yig'amiz
     final List<String> triedPatterns = [barcode];
-    String foundVia = '';
 
     if (barcode.contains('(01)')) {
       final gtinMatch = RegExp(r'\(01\)(\d{13,14})').firstMatch(barcode);
@@ -4485,10 +4621,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         String gtin = gtinMatch.group(1)!;
         gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
         triedPatterns.add(gtin);
-        debugPrint('[SCAN] BRANCH: GS1 "(01)" parenthesized → gtin="$gtin"');
         item = ItemsSingleton.getProductByBarcode(gtin);
         if (item != null) {
-          foundVia = 'GS1 (01) gtin=$gtin';
           item.mark = _isProductMarkable(item) ? _markirovka(barcode) : null;
         }
       }
@@ -4500,10 +4634,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         String gtin = gtinMatch.group(1)!;
         gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
         triedPatterns.add(gtin);
-        debugPrint('[SCAN] BRANCH: GS1 "01" prefix → gtin="$gtin"');
         item = ItemsSingleton.getProductByBarcode(gtin);
         if (item != null) {
-          foundVia = 'GS1 01 gtin=$gtin';
           item.mark = _isProductMarkable(item) ? _markirovka(barcode) : null;
         }
       }
@@ -4517,19 +4649,14 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
             ? pattern.substring(0, pattern.length - 2)
             : pattern;
         triedPatterns.add(pattern);
-        debugPrint('[SCAN] BRANCH: extractBarcode fallback → pattern="$pattern"');
-      } else {
-        debugPrint('[SCAN] BRANCH: to\'g\'ridan getProductByBarcode → pattern="$pattern"');
       }
       item = ItemsSingleton.getProductByBarcode(pattern);
       if (item != null) {
-        foundVia = 'getProductByBarcode pattern=$pattern';
         item.mark = null;
       }
     }
 
     if (item != null) {
-      debugPrint('[SCAN] ✓ TOPILDI ($foundVia): name="${item.name}" barcode=${item.barcode} sku=${item.sku} mxik=${item.mxikCode}');
       final mxikStr = (item.mxikCode ?? '').trim();
       final bool markCheckEnabled =
           Pref.getBool(PrefKeys.markCheckWithOfd, false);
@@ -4568,7 +4695,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         if (zeroPriceItem != null) break;
       }
       if (zeroPriceItem != null) {
-        debugPrint('[SCAN] ✓ ZERO-PRICE topildi: name="${zeroPriceItem.name}" barcode=${zeroPriceItem.barcode} sku=${zeroPriceItem.sku}');
         // Dialog addProduct ichida _checkAndShowDialogsIfNeeded orqali 1 marta ko'rsatiladi
         // ignore: use_build_context_synchronously
         addProduct(
@@ -4580,8 +4706,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         return;
       }
     }
-
-    debugPrint('[SCAN] ✗ TOPILMADI: tried=$triedPatterns');
 
     // // ─── Box barcode ─────────────────────────────────────────
     // ItemModel? boxItem = ItemsSingleton.getProductByBoxBarcode(barcode);

@@ -7,6 +7,7 @@ class OperationOnProduct {
     required BuildContext context,
     required bool isClientMinimumPrice,
     required ReceiptModelSoldItem4 item,
+    num? displayValue,
   }) async {
     final focusedItem = ReceiptModelSoldItem4(
       isPriceOnlyChanged: item.isPriceOnlyChanged,
@@ -18,7 +19,8 @@ class OperationOnProduct {
       singleDiscount: item.singleDiscount,
       createdTime: item.createdTime,
       price: item.price,
-      value: item.value,
+      // Markirovka guruhi uchun umumiy qty ko'rsatiladi (item.value=1 emas)
+      value: (displayValue ?? item.value).toDouble(),
       ownerType: item.ownerType,
       realPrice: item.realPrice,
       productId: item.productId,
