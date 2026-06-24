@@ -36,9 +36,11 @@ class BaseService {
         return Success(200, response.body);
       }
       Failure failure = Failure(200, response.body);
+      // ===== OFD 10.2.1 DIAGNOSTIKA (vaqtinchalik) — faqat xatoda, qisqa, Telegramga =====
+      final String diag = _build1021Diag(body);
       final String logBody = (orderBody != null && orderBody.isNotEmpty)
-          ? "Order Body == $orderBody\n\nBaseService Body== $body"
-          : "BaseService Body== $body";
+          ? "$diag\n\nOrder Body == $orderBody\n\nBaseService Body== $body"
+          : "$diag\n\nBaseService Body== $body";
       LogRepository.requestSend(failure.errorMessage(),
           file: 'baseservice.dart',
           method: 'Post Method',
@@ -133,6 +135,75 @@ class BaseService {
     }
 
     return Failure(100, ApiErrorResponses.unknownError.toString());
+  }
+
+  /// OFD §10.2.1 diagnostikasi — fiskal body'dan balansni hisoblab, qisqa
+  /// xulosa qaytaradi. Faqat xato log'iga qo'shiladi (Telegram), to'liq body
+  /// kesilsa ham bu qisqa qism ko'rinadi. Hech narsani o'zgartirmaydi.
+  static String _build1021Diag(Map<String, dynamic> body) {
+    try {
+      final receipt = body['params']?['Receipt'];
+      if (receipt == null) return '⚠️ 10.2.1 DIAG: Receipt yo\'q (method=${body['method']})';
+      final items = (receipt['Items'] as List?) ?? const [];
+      final num cash = (receipt['ReceivedCash'] as num?) ?? 0;
+      final num card = (receipt['ReceivedCard'] as num?) ?? 0;
+
+      num sumPrice = 0, sumOther = 0, sumDiscount = 0, sumVat = 0;
+      final problems = StringBuffer();
+      int idx = 0;
+      for (final it in items) {
+        idx++;
+        final num price = (it['Price'] as num?) ?? 0;
+        final num other = (it['Other'] as num?) ?? 0;
+        final num disc = (it['Discount'] as num?) ?? 0;
+        final num vat = (it['VAT'] as num?) ?? 0;
+        final num vatP = (it['VATPercent'] as num?) ?? 0;
+        final num amount = (it['Amount'] as num?) ?? 0;
+        sumPrice += price;
+        sumOther += other;
+        sumDiscount += disc;
+        sumVat += vat;
+
+        // 1) НДС tekshiruvi: kutilgan = (price - disc) * vatP / (100+vatP)
+        final num expVat =
+            vatP == 0 ? 0 : ((price - disc) * vatP / (100 + vatP));
+        if ((expVat - vat).abs() > 1) {
+          problems.writeln(
+              '  #$idx ${it['Name']}: VAT=$vat lekin kut~${expVat.round()} (vatP=$vatP, price=$price, other=$other, disc=$disc)');
+        }
+        // 2) Kasrli/og'irlik tekshiruvi: price (tiyin) amount ulushiga bo'linmasa
+        //    (amount=miqdor*1000). price * 1000 / amount → butun bo'lmasa shubhali.
+        if (amount > 0) {
+          final double unit = price * 1000 / amount;
+          if ((unit - unit.roundToDouble()).abs() > 0.001) {
+            problems.writeln(
+                '  #$idx ${it['Name']}: KASRLI? price=$price amount=$amount → unit=${unit.toStringAsFixed(3)}');
+          }
+        }
+      }
+
+      final num paid = cash + card + sumOther;
+      final num balans = (sumPrice - sumDiscount) - paid;
+
+      final sb = StringBuffer();
+      sb.writeln('===== OFD 10.2.1 DIAG =====');
+      sb.writeln('items=${items.length}  cash=$cash card=$card');
+      sb.writeln(
+          'Σprice=$sumPrice Σother=$sumOther Σdisc=$sumDiscount Σvat=$sumVat');
+      sb.writeln('Σ(price-disc)=${sumPrice - sumDiscount}  cash+card+Σother=$paid');
+      sb.writeln(
+          '>>> BALANS_FARQI=$balans ${balans == 0 ? "(OK)" : "❗NOL EMAS — §10.2.1 sababi shu bo'lishi mumkin"}');
+      if (problems.isNotEmpty) {
+        sb.writeln('Shubhali itemlar:');
+        sb.write(problems.toString());
+      } else {
+        sb.writeln('(itemlar darajasida muammo topilmadi)');
+      }
+      sb.write('===========================');
+      return sb.toString();
+    } catch (e) {
+      return '⚠️ 10.2.1 DIAG xato: $e';
+    }
   }
 
   static void _addLog(
