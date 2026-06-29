@@ -281,6 +281,51 @@ class ReceiptSingleton4 {
     String terId = Pref.getString(PrefKeys.terminalID, '');
     double totalPrice = ItemsSingleton.getOfdTotalPrice(receipt.soldItemList);
 
+    // OFD itemlarini avval MODEL sifatida quramiz (toJson keyin). Shunda
+    // yuborishdan oldin §10.2.1 balansini tekshirib/tuzatish imkoni bo'ladi.
+    final List<SalingItemModel> ofdItems = receipt.soldItemList.map((e) {
+      double discount = _countDiscountOFD(e);
+      double other = _countOtherOFD(
+        e,
+        cashback: receipt.cashback + otherValue,
+        totalPrice: totalPrice,
+      );
+      num price = _countPrice(e);
+
+      return SalingItemModel(
+        id: e.productId,
+        tin: e.commissionTIN,
+        label: e.mark ?? '',
+        amount: e.value * 1000,
+        barcode: e.barcode,
+        classCode: e.mxik,
+        name: e.productName.replaceAll(' //blok', ''),
+        discount: discount,
+        ownerType: e.ownerType,
+        other: other,
+        vat: _countVat(price, e.vatPercent, other),
+        vatPercent: e.vatPercent,
+        price: price,
+        packageCode: e.packageCode,
+        packageName: e.packageName,
+        commissionInfo: {"TIN": e.commissionTIN ?? "", "PINFL": ""},
+      );
+    }).toList();
+
+    // §10.2.1 BALANS MAJBURLASH (sotuv uchun): yarim-so'mli tarozi mahsuloti
+    // (masalan 0.29×204950=59435.5) `_countPrice` da yuqoriga, to'lov tomonida
+    // pastga yaxlitlanib, Σ(Price−Disc) bilan haqiqiy to'lov o'rtasida 1 so'mlik
+    // farq qoladi. 100% elektron to'lovda (cashback/click) bu §10.2.1 ni buzadi.
+    // Qoldiqni eng katta narxli item'ning Other'iga yig'amiz — balans allaqachon
+    // 0 bo'lsa hech narsa o'zgarmaydi (ishlayotgan sotuvlar xavfsiz).
+    if (!receipt.isRefund) {
+      _enforce1021Balance(
+        ofdItems,
+        receivedCash: receivedCashValue,
+        receivedCard: receivedCardValue,
+      );
+    }
+
     Map<String, dynamic> receiptMap = {
       'token': token,
       'method': receipt.isRefund ? 'refund' : 'sale',
@@ -312,34 +357,7 @@ class ReceiptSingleton4 {
           "cardNumber": receipt.cardNumber ?? '',
           "pptId": receipt.pptId ?? '',
         },
-        "items": receipt.soldItemList.map((e) {
-          double discount = _countDiscountOFD(e);
-          double other = _countOtherOFD(
-            e,
-            cashback: receipt.cashback + otherValue,
-            totalPrice: totalPrice,
-          );
-          num price = _countPrice(e);
-
-          return SalingItemModel(
-            id: e.productId,
-            tin: e.commissionTIN,
-            label: e.mark ?? '',
-            amount: e.value * 1000,
-            barcode: e.barcode,
-            classCode: e.mxik,
-            name: e.productName.replaceAll(' //blok', ''),
-            discount: discount,
-            ownerType: e.ownerType,
-            other: other,
-            vat: _countVat(price, e.vatPercent, other),
-            vatPercent: e.vatPercent,
-            price: price,
-            packageCode: e.packageCode,
-            packageName: e.packageName,
-            commissionInfo: {"TIN": e.commissionTIN ?? "", "PINFL": ""},
-          ).toJson();
-        }).toList(),
+        "items": ofdItems.map((e) => e.toJson()).toList(),
       },
     };
 
@@ -347,6 +365,79 @@ class ReceiptSingleton4 {
 
     return receiptMap;
   }
+  /// §10.2.1 balans tenglamasini yuborishdan OLDIN majburlaydi:
+  ///   Σ(Price − Discount) == ReceivedCash + ReceivedCard + Σ Other
+  ///
+  /// Yarim-so'mli tarozi item OFD tomonida yuqoriga, to'lov tomonida pastga
+  /// yaxlitlanib, Σ(Price) bilan haqiqiy to'lov o'rtasida farq qoladi (1 so'm
+  /// yoki bir necha so'm — bir necha yarim-so'mli item bo'lsa). Bu farq 100%
+  /// elektron to'lovda §10.2.1 ni buzadi.
+  ///
+  /// Yechim: farq qancha bo'lsa ham, OFD goods jamini (Σ Price) mijoz HAQIQATAN
+  /// to'lagan summaga AYNAN tenglashtiramiz — eng katta narxli item'ning Price'ini
+  /// qoldiq miqdoricha to'g'rilab (OFD = to'lov, ortiqcha ko'rsatmaymiz). Agar
+  /// o'sha item'da Other Price'dan oshib ketadigan bo'lsa (kam holatda), qoldiqni
+  /// Other'ga yig'ish zaxira yo'liga o'tamiz. Qoldiq 0 ⇒ NO-OP (ishlayotgan
+  /// sotuvlar umuman o'zgarmaydi). Hammasi tiyinda (Price/Other allaqachon ×100).
+  static void _enforce1021Balance(
+    List<SalingItemModel> items, {
+    required double receivedCash,
+    required double receivedCard,
+  }) {
+    if (items.isEmpty) return;
+
+    num sumPrice = 0;
+    num sumDiscount = 0;
+    num sumOther = 0;
+    int largestIdx = 0;
+    num largestPrice = -1;
+    for (int i = 0; i < items.length; i++) {
+      final it = items[i];
+      final num p = it.price ?? 0;
+      sumPrice += p;
+      // DIQQAT: `it.discount` getter'i List<DiscountModel>? deb tiplangan, lekin
+      // bu yerda unga double saqlanadi → getter'ni o'qish cast-crash beradi.
+      // Shuning uchun xom qiymatni toJson() orqali olamiz.
+      final dynamic dRaw = it.toJson()['discount'];
+      sumDiscount += (dRaw is num) ? dRaw : 0;
+      sumOther += it.other ?? 0;
+      if (p > largestPrice) {
+        largestPrice = p;
+        largestIdx = i;
+      }
+    }
+
+    final num residual =
+        (sumPrice - sumDiscount) - (receivedCash + receivedCard + sumOther);
+    if (residual == 0) return; // balans joyida — tegmaymiz
+
+    // XAVFSIZLIK CHEGARASI: farq faqat YAXLITLASH o'lchamida bo'lsa to'g'rilaymiz.
+    // Maksimal 500 so'm — yaxlitlash qoldig'i bundan oshmaydi (har item ≤ ~1 so'm).
+    // 500 so'mdan KATTA farq = boshqa bug (yaxlitlash emas) → jimgina narxga yopib
+    // YASHIRMAYMIZ, OFD'ga o'z holicha ketsin (xato ko'rinib qolsin).
+    const num maxRoundingTiyin = 500 * 100; // 500 so'm = 50000 tiyin
+    if (residual.abs() > maxRoundingTiyin) return;
+
+    final SalingItemModel target = items[largestIdx];
+    final num price = target.price ?? 0;
+    final num other = target.other ?? 0;
+
+    if (price - residual >= other) {
+      // Afzal yo'l: Price'ni qoldiqcha to'g'rilaymiz → Σ Price = to'langan summa.
+      target.price = price - residual;
+    } else {
+      // Zaxira: Other Price'dan oshib ketmasligi uchun qoldiqni Other'ga yig'amiz.
+      final num newOther = other + residual;
+      target.other = newOther < 0 ? 0 : newOther;
+    }
+
+    target.vat = _countVat(
+      target.price ?? 0,
+      target.vatPercent ?? 0,
+      target.other ?? 0,
+    );
+  }
+
   static num _countPrice(ReceiptModelSoldItem4 e) {
     if (e.realPrice > e.price) {
       return UtilFunctions.roundToNearest(e.value * e.realPrice) * 100;

@@ -34,6 +34,7 @@ class _ContainsDiscountItemDialogState
   ItemModel? item;
 
   @override
+  
   void initState() {
     item = ItemsSingleton.getProductById(
         widget.returnedProduct.returnedProductId ?? '');

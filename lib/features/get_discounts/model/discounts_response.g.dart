@@ -75,13 +75,14 @@ class DiscountItemAdapter extends TypeAdapter<DiscountItem> {
       isForAllClients: fields[18] as bool?,
       gifts: (fields[19] as List?)?.cast<Gifts>(),
       buyXGetX: fields[20] as BuyXGetX?,
+      bonusDiscountValue: fields[21] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, DiscountItem obj) {
     writer
-      ..writeByte(21)
+      ..writeByte(22)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -123,7 +124,9 @@ class DiscountItemAdapter extends TypeAdapter<DiscountItem> {
       ..writeByte(19)
       ..write(obj.gifts)
       ..writeByte(20)
-      ..write(obj.buyXGetX);
+      ..write(obj.buyXGetX)
+      ..writeByte(21)
+      ..write(obj.bonusDiscountValue);
   }
 
   @override

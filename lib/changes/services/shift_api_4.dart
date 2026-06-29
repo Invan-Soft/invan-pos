@@ -68,6 +68,7 @@ class ShiftApi4 {
     var body = {
       "version": Pref.getString(PrefKeys.version, ''),
     };
+    
     return ApiProvider.putResponse(
       path: "api/v1/cashbox_version/$cashBoxId",
       headers: headers,

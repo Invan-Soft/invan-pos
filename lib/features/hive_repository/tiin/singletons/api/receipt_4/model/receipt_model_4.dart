@@ -231,7 +231,7 @@ class ReceiptModel4 {
       "id": orderId,
       "order_type": "sale",
       "shop_id": shopId,
-      "cashbox_version": Pref.getString(PrefKeys.version, ''),
+      "pos_version": Pref.getString(PrefKeys.version, ''),
       "items": soldItemJsonList,
       "created_date": createdDate,
       "order_discount": {

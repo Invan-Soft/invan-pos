@@ -81,6 +81,11 @@ class DiscountItem extends HiveObject {
   List<Gifts>? gifts;
   @HiveField(20)
   BuyXGetX? buyXGetX;
+
+  /// BonusPoint (keshbek) discount turi uchun: xariddan mijozga beriladigan
+  /// keshbek summasi (`bonus_discount_value`). Faqat BonusPoint turida to'ladi.
+  @HiveField(21)
+  int? bonusDiscountValue;
   DiscountItem({
     this.id,
     this.name,
@@ -102,7 +107,8 @@ class DiscountItem extends HiveObject {
     this.isRepeatable,
     this.isForAllClients,
     this.gifts,
-    this.buyXGetX
+    this.buyXGetX,
+    this.bonusDiscountValue,
   });
 
   DiscountItem.fromJson(Map<String, dynamic> json) {
@@ -183,6 +189,7 @@ class DiscountItem extends HiveObject {
       });
     }
     buyXGetX = json['buy_x_get_x'] != null ? BuyXGetX.fromJson(json['buy_x_get_x']) : null;
+    bonusDiscountValue = json['bonus_discount_value'];
   }
 
   Map<String, dynamic> toJson() => {
@@ -209,6 +216,7 @@ class DiscountItem extends HiveObject {
     'is_repeatable': isRepeatable,
         'is_for_all_clients': isForAllClients,
         'gifts': gifts?.map((v) => v.toJson()).toList(),
+        'bonus_discount_value': bonusDiscountValue,
       };
 
   Map<String, dynamic> toMap() => toJson();
