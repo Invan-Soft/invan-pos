@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:invan2/changes/services/log_navigator_observer.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:in_app_notification/in_app_notification.dart';
@@ -240,6 +241,7 @@ class AppState extends State<App> {
                         return child ?? const SizedBox.shrink();
                       },
                       navigatorKey: AppNavigation.navigatorKey,
+                      navigatorObservers: [LogNavigatorObserver()],
                       title: 'InVan POS',
                       debugShowCheckedModeBanner: false,
                       localizationsDelegates:

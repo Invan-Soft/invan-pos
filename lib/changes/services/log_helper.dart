@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -10,19 +11,28 @@ class LogHelper {
     try {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/request_logs_of_invan_pos.txt');
+      // Rolling 24 soatlik oyna boshlangan vaqtni saqlaydigan kichik marker fayl.
+      final marker = File('${dir.path}/request_logs_window_start.txt');
+      final now = DateTime.now();
 
-      if (await file.exists()) {
-        final fileStats = await file.stat();
-        final lastModified = fileStats.modified;
-        final now = DateTime.now();
-        final difference = now.difference(lastModified).inDays;
-
-        if (difference >= 1) {
-          await file.writeAsString('', mode: FileMode.write);
-        }
+      // Oyna boshlanish vaqtini marker fayldan o'qiymiz (fayl kattaligiga bog'liq emas).
+      DateTime? windowStart;
+      if (await marker.exists()) {
+        windowStart = DateTime.tryParse((await marker.readAsString()).trim());
       }
 
-      final time = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+      if (windowStart == null || !await file.exists()) {
+        // Yangi oyna: birinchi yozuv yoki marker yo'q.
+        windowStart = now;
+        await marker.writeAsString(now.toIso8601String());
+      } else if (now.difference(windowStart).inHours >= 24) {
+        // Oxirgi 24 soatdan ko'p vaqt o'tdi -> tozalab, yangi kunni boshlaymiz.
+        await file.writeAsString('', mode: FileMode.write);
+        windowStart = now;
+        await marker.writeAsString(now.toIso8601String());
+      }
+
+      final time = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
       final levelStr = level.name.toUpperCase();
 
       final logLine = 'time="$time" level=$levelStr msg="$message"\n';
@@ -35,6 +45,28 @@ class LogHelper {
             mode: FileMode.append);
       } catch (_) {}
     }
+  }
+
+  /// UI / biznes harakatlarini yozish uchun umumiy metod.
+  /// Masalan: LogHelper.activity('CART_ADD', {'name': 'Coca', 'qty': 2});
+  static Future<void> activity(String action,
+      [Map<String, dynamic>? details]) async {
+    final buffer = StringBuffer('[ACTIVITY] $action');
+    if (details != null && details.isNotEmpty) {
+      final parts = details.entries
+          .map((e) => '${e.key}=${_short(e.value)}')
+          .join(', ');
+      buffer.write(' | $parts');
+    }
+    debugPrint(buffer.toString());
+    await write(LogLevel.info, buffer.toString());
+  }
+
+  /// Log ichida juda uzun qiymatlarni qisqartirib beradi.
+  static String _short(dynamic value, {int max = 300}) {
+    final s = value?.toString() ?? 'null';
+    if (s.length <= max) return s;
+    return '${s.substring(0, max)}…(${s.length})';
   }
 
   static String truncateWithPadding(String text, int maxLength) {

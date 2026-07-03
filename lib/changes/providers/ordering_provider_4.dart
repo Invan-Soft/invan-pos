@@ -304,6 +304,7 @@ ${productLines.toString().trim()}
   }
 
   void removeLastAdded() {
+    LogHelper.activity('CART_REMOVE_LAST', {'index': getLastAddedIndex});
     bool canDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
 
     if (canDelete) {
@@ -373,6 +374,15 @@ ${productLines.toString().trim()}
       final price =
           ItemsSingleton.finalPrice(product, value.toInt(), isKg, isFirst: true)
               .toDouble();
+
+      LogHelper.activity('CART_ADD', {
+        'name': product.name,
+        'barcode': product.barcode,
+        'qty': value,
+        'price': price,
+        'where': where,
+        'isTarozi': isTarozi,
+      });
 
       final mxikStr = (product.mxikCode ?? product.mxikCode ?? '').trim();
       final bool markCheckEnabled =
@@ -782,8 +792,14 @@ ${productLines.toString().trim()}
 
   Future<void> _handleRegularProduct(BuildContext context, ItemModel product,
       double value, double price, bool isKg) async {
-    final existingIndex = _currentClient.orderedProducts
-        .indexWhere((e) => e.productId == product.id && !e.isPriceOnlyChanged);
+    // Bir xil product qayta qo'shilsa bitta qatorga birlashadi.
+    // Qo'lda narxi override qilingan qatorlar (isPriceOnlyChanged) ham birlashadi —
+    // _updateExistingProduct ularning onlyPrice'ini saqlaydi (qayta hisoblamaydi).
+    // FAQAT haqiqiy chegirmali/utsenka qatorlar (singleDiscount > 0) alohida qoladi,
+    // aks holda ularning markdown narxi yangi qo'shishga "yuqib" ketardi.
+    final existingIndex = _currentClient.orderedProducts.indexWhere((e) =>
+        e.productId == product.id &&
+        (!e.isPriceOnlyChanged || e.singleDiscount == 0));
 
     if (existingIndex != -1) {
       await _updateExistingProduct(context, product, value, existingIndex);
@@ -2434,6 +2450,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   }
 
   void pressDialogDeleteButton() async {
+    LogHelper.activity('CART_DELETE_ITEM', {'editIndex': _tappedIndexToEdit});
     // Markirovka guruhi tahririda: butun guruhni o'chiramiz.
     if (_markGroupEditProductId != null) {
       _deleteMarkGroup(_markGroupEditProductId!);
@@ -2711,6 +2728,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   }
 
   void selectClient(int i) {
+    LogHelper.activity('CLIENT_SELECT', {'index': i});
     _currentClient = _sixClient4List[i];
     _index = i;
     _clearEmptyClients();
@@ -2876,6 +2894,11 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   }
 
   Future<void> pressPaymentButton(BuildContext context) async {
+    LogHelper.activity('PAYMENT_PRESS', {
+      'items': _sixClientModel4.orderedProducts.length,
+      'mustPay': _mustPay,
+      'paymentType': _selectedPaymentType,
+    });
     for (int i = 0; i < _sixClientModel4.orderedProducts.length; i++) {
       if (_sixClientModel4.orderedProducts[i].isDeleted!) {
         _sixClientModel4.orderedProducts.removeAt(i);
@@ -4486,6 +4509,14 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   }
 
   onBarcodeScanned(String barcode, GlobalKey<ScaffoldState> scaffoldKey) async {
+    // Skaner (ayniqsa macOS klaviatura-emulyatsiyasida) barcode oxiriga
+    // ko'rinmas maxsus belgi qo'shib yuborishi mumkin (masalan codeUnit
+    // 63233 = U+F701). Private-use (0xE000-0xF8FF) belgilarni olib
+    // tashlaymiz — ular hech qachon haqiqiy barcode qismi emas. Aks holda
+    // aniq/nol-farqli qidiruv mos kelmay mahsulot "topilmadi" bo'lardi.
+    barcode = String.fromCharCodes(
+      barcode.codeUnits.where((c) => c < 0xE000 || c > 0xF8FF),
+    ).trim();
     if (barcode.isEmpty) {
       return;
     }

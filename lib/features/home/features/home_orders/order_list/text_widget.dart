@@ -21,16 +21,23 @@ class SoldItemWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       flex: flex,
-      child: Text(
-        title,
-        textAlign: textAlign,
-        style: MyThemes.txtStyle(
-          textDecoration:
-              isDeleted ? TextDecoration.lineThrough : TextDecoration.none,
-          fontSize: 2.2,
-          fontWeight: FontWeight.bold,
-          fontStyle: isDeleted ? FontStyle.italic : FontStyle.normal,
-          color: Theme.of(context).canvasColor,
+      // FittedBox: uzun sarlavha (masalan "Chegirma") ustunga sig'masa bir
+      // qatorga sig'adigan qilib avtomatik kichrayadi (ikki qatorga bo'linmaydi).
+      // Qisqa qiymatlar tabiiy o'lchamda qoladi.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          title,
+          textAlign: textAlign,
+          maxLines: 1,
+          style: MyThemes.txtStyle(
+            textDecoration:
+                isDeleted ? TextDecoration.lineThrough : TextDecoration.none,
+            fontSize: 2.2,
+            fontWeight: FontWeight.bold,
+            fontStyle: isDeleted ? FontStyle.italic : FontStyle.normal,
+            color: Theme.of(context).canvasColor,
+          ),
         ),
       ),
     );
