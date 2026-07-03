@@ -817,4 +817,22 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get notogri_format_qr => 'Noto\'g\'ri formatdagi QR kod skanerlandi';
+
+  @override
+  String get upd_discounts => 'Chegirmalar';
+
+  @override
+  String get upd_items => 'Mahsulotlar';
+
+  @override
+  String get upd_category => 'Kategoriya';
+
+  @override
+  String get upd_organization => 'Tashkilot';
+
+  @override
+  String get upd_employee => 'Xodimlar';
+
+  @override
+  String get upd_service => 'Xizmat';
 }

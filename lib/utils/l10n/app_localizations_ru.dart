@@ -805,4 +805,22 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get notogri_format_qr => 'Отсканирован QR-код неправильного формата';
+
+  @override
+  String get upd_discounts => 'Скидки';
+
+  @override
+  String get upd_items => 'Товары';
+
+  @override
+  String get upd_category => 'Категория';
+
+  @override
+  String get upd_organization => 'Организация';
+
+  @override
+  String get upd_employee => 'Сотрудники';
+
+  @override
+  String get upd_service => 'Сервис';
 }

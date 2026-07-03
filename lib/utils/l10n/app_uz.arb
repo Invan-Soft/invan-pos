@@ -258,5 +258,11 @@
   "naqd_tolov_mumkin_emas": "Bu mahsulot basketga qo'shilganiga naqd pul orqali to'lab bo'lmaydi",
   "naqd_tolov_taqiq": "Naqd to'lov mumkin emas",
   "narx_limit_oshdi": "Umumiy narx 25 mln dan oshdi",
-  "notogri_format_qr": "Noto'g'ri formatdagi QR kod skanerlandi"
+  "notogri_format_qr": "Noto'g'ri formatdagi QR kod skanerlandi",
+  "upd_discounts": "Chegirmalar",
+  "upd_items": "Mahsulotlar",
+  "upd_category": "Kategoriya",
+  "upd_organization": "Tashkilot",
+  "upd_employee": "Xodimlar",
+  "upd_service": "Xizmat"
 }

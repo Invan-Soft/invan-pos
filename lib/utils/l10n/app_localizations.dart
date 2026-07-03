@@ -1639,6 +1639,42 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Отсканирован QR-код неправильного формата'**
   String get notogri_format_qr;
+
+  /// No description provided for @upd_discounts.
+  ///
+  /// In ru, this message translates to:
+  /// **'Скидки'**
+  String get upd_discounts;
+
+  /// No description provided for @upd_items.
+  ///
+  /// In ru, this message translates to:
+  /// **'Товары'**
+  String get upd_items;
+
+  /// No description provided for @upd_category.
+  ///
+  /// In ru, this message translates to:
+  /// **'Категория'**
+  String get upd_category;
+
+  /// No description provided for @upd_organization.
+  ///
+  /// In ru, this message translates to:
+  /// **'Организация'**
+  String get upd_organization;
+
+  /// No description provided for @upd_employee.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сотрудники'**
+  String get upd_employee;
+
+  /// No description provided for @upd_service.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сервис'**
+  String get upd_service;
 }
 
 class _AppLocalizationsDelegate

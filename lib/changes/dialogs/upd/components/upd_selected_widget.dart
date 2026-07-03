@@ -5,7 +5,6 @@ import 'package:invan2/app_navigation.dart';
 import 'package:invan2/changes/dialogs/upd/bloc/upd_bloc.dart';
 import 'package:invan2/changes/dialogs/upd/components/upd_text.dart';
 import 'package:invan2/features/features.dart';
-import 'package:invan2/utils/helpers/upper_case_string_extention.dart';
 
 import '../../../../features/authentication/bloc/bloc_activate_pos/apd_bloc_bloc.dart';
 import '../../../../utils/utils.dart';
@@ -39,6 +38,25 @@ class _UpdSelectedWidgetState extends State<UpdSelectedWidget> {
     selectedItems = {for (int i = 0; i < widget.repos.length; i++) i: true};
   }
 
+  String _localizedName(APDstatus status, AppLocalizations loc) {
+    switch (status) {
+      case APDstatus.discounts:
+        return loc.upd_discounts;
+      case APDstatus.items:
+        return loc.upd_items;
+      case APDstatus.category:
+        return loc.upd_category;
+      case APDstatus.organization:
+        return loc.upd_organization;
+      case APDstatus.employee:
+        return loc.upd_employee;
+      case APDstatus.service:
+        return loc.upd_service;
+      default:
+        return status.name;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     UpdBloc updBloc = BlocProvider.of(context);
@@ -65,7 +83,7 @@ class _UpdSelectedWidgetState extends State<UpdSelectedWidget> {
                     });
                   },
                   title: UpdText(
-                    widget.repos[index].apdStatus.name.capitalize(),
+                    _localizedName(widget.repos[index].apdStatus, loc),
                     textAlign: TextAlign.start,
                     fw: FontWeight.bold,
                   ),
