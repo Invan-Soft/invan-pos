@@ -46,6 +46,29 @@ class CheckFBloc extends Bloc<CheckFEvent, CheckFState> {
     on<CheckFCallInitialEvent>(_callInitial);
     on<CheckFSelectCheckEvent>(_selectCheck);
     on<CheckFDateChangedEvent>(_dataChanged);
+    on<CheckFRefreshEvent>(_refresh);
+  }
+
+  /// Ro'yxatni ObjectBox'dan kelgan yangi ma'lumot bilan jonli yangilaydi.
+  /// `_dataChanged`'dan farqi: tanlangan chekni saqlab qoladi (selected=0 ga
+  /// tashlamaydi) va qidiruv faol bo'lsa umuman tegmaydi.
+  _refresh(CheckFRefreshEvent event, Emitter<CheckFState> emit) {
+    if (event.isSearching) return; // qidiruv natijasini buzmaymiz
+    checksList = event.data;
+    listt = checksList;
+    final receipts = getReceipts;
+    if (receipts.isEmpty) {
+      selectedCheck = null;
+      selected = 0;
+      emit(CheckFInitial(null, selected: 0, checksList: receipts));
+      return;
+    }
+    if (selected < 0 || selected >= receipts.length) {
+      selected = 0;
+    }
+    selectedCheck = receipts[selected];
+    emit(CheckFInitial(selectedCheck,
+        selected: selected, checksList: receipts));
   }
 
   _selectCheck(CheckFSelectCheckEvent event, Emitter<CheckFState> emit) {

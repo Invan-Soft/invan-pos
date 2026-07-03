@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/features/checks/features/checks_list/bloc/check_f_bloc.dart';
@@ -18,13 +20,39 @@ class _ChecksListtState extends State<ChecksListt> {
   List<ReceiptModel4> receipts = [];
 
   late CheckFBloc checkFBloc;
+  StreamSubscription? _receiptsSub;
+
   @override
   void initState() {
     receipts =
         MyObjectbox.saleStore.box<ReceiptModel4>().getAll().reversed.toList();
     checkFBloc = BlocProvider.of(context);
 
+    // Cheklar bazasini bevosita kuzatamiz. triggerImmediately: true — sahifaga
+    // kirilgan zahoti joriy holat bilan bir marta ishlaydi (kirishdagi eskirishni
+    // tuzatadi), keyin har o'zgarishda (masalan chek orqa fonda yuborilib
+    // uploaded=true bo'lganda) ro'yxatni jonli yangilaydi. Wrapper listeneriga
+    // bog'liq emas, shuning uchun ishonchli.
+    _receiptsSub = MyObjectbox.saleStore
+        .box<ReceiptModel4>()
+        .query()
+        .watch(triggerImmediately: true)
+        .listen((query) {
+      if (!mounted) return;
+      final fresh = query.find().reversed.toList();
+      receipts = fresh;
+      checkFBloc.add(CheckFRefreshEvent(fresh,
+          isSearching: controller.text.trim().isNotEmpty));
+    });
+
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    _receiptsSub?.cancel();
+    controller.dispose();
+    super.dispose();
   }
 
   @override

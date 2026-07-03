@@ -28,3 +28,12 @@ class CheckFDateChangedEvent extends CheckFEvent {
 }
 
 class CheckFCallInitialEvent extends CheckFEvent {}
+
+/// ObjectBox o'zgarganda (masalan chek orqa fonda yuborilib uploaded=true
+/// bo'lganda) cheklar ro'yxatini jonli yangilaydi. Tanlangan chek va qidiruv
+/// holatini buzmaydi.
+class CheckFRefreshEvent extends CheckFEvent {
+  final List<ReceiptModel4> data;
+  final bool isSearching;
+  CheckFRefreshEvent(this.data, {this.isSearching = false});
+}

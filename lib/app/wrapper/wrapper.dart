@@ -84,6 +84,11 @@ class _WrapperState extends State<Wrapper> {
           IdleService().disable(); // auth sahifalarida idle redirect ishlamasin
           AppNavigation.pushAndRemoveUntil(const PhoneNumberPage());
         } else {
+          /// Ilova ochilganda ketmagan (rejected=false) cheklarni fon rejimida
+          /// yuborishni boshlaymiz. Internet tekshiruvi UsrBloc._send ichida
+          /// bajariladi, shuning uchun internet bo'lmasa xavfsiz to'xtaydi.
+          _flushUnsentReceiptsOnStartup();
+
           if (!kDebugMode) {
             /// Full employees update ///
             ///
@@ -123,6 +128,33 @@ class _WrapperState extends State<Wrapper> {
       usrBloc.add(UsrSendSpecialEvent("Checks appBar", usrBloc.unsents));
     }
     super.initState();
+  }
+
+  /// Ilova ochilganda ObjectBox'da qolib ketgan (serverga ketmagan, lekin
+  /// server rad etmagan) cheklarni fon rejimida yuborishni boshlaydi.
+  ///
+  /// Nima uchun kerak: startup'da ObjectBox `.watch()` (triggerImmediately=false)
+  /// eski ma'lumot uchun emit qilmaydi va network listener ham faqat internet
+  /// statusi o'zgarsa ishlaydi. Shu sabab internet allaqachon ulangan holda
+  /// ilova ochilsa, ketmagan cheklarni avtomatik yuboradigan trigger yo'q edi.
+  ///
+  /// Faqat `rejected == false` cheklar olinadi — ular internet yo'q edi yoki
+  /// urinilmagan cheklar bo'lib, qayta yuborishda odatda muvaffaqiyatli ketadi.
+  /// `rejected == true` (server rad etgan) cheklar bu yerda tegilmaydi.
+  /// Internet tekshiruvi UsrBloc._send ichida bo'lgani uchun internet bo'lmasa
+  /// xavfsiz to'xtaydi.
+  void _flushUnsentReceiptsOnStartup() {
+    final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+    final query = box
+        .query(ReceiptModel4_.uploaded.equals(false) &
+            ReceiptModel4_.rejected.equals(false))
+        .build();
+    final int pending = query.count();
+    query.close();
+
+    if (pending > 0) {
+      usrBloc.add(UsrSendEvent("Wrapper Startup", pending));
+    }
   }
 
   _dataChanged(List<ReceiptModel4> v) {
