@@ -26,6 +26,7 @@ import 'package:invan2/changes/models/ofd/payment_result_model.dart';
 import 'package:invan2/changes/models/product/item_model.dart';
 import 'package:invan2/changes/models/six_client_model.dart';
 import 'package:invan2/changes/services/api.dart';
+import 'package:invan2/changes/services/cashier_service_time/cashier_service_time_service.dart';
 import 'package:invan2/changes/services/local_selling_service.dart';
 import 'package:invan2/changes/services/log_helper.dart';
 import 'package:invan2/features/features.dart';
@@ -359,6 +360,12 @@ ${productLines.toString().trim()}
       required BuildContext context,
       bool isTarozi = false}) async {
     try {
+      // Xizmat vaqti: birinchi mahsulot qo'shilgan payt start hisoblanadi;
+      // slot uchun start allaqachon bor bo'lsa (savat sotuvsiz tozalangan
+      // bo'lsa ham) tegilmaydi — faqat sotuv yakunida tozalanadi.
+      CashierServiceTimeService.instance
+          .onProductAdded(_currentClient.clientNumber);
+
       if (_currentClient.orderedProducts.isEmpty) {
         _returnedProducts.clear();
         _returnedFreeGiftProducts.clear();
@@ -3050,6 +3057,13 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
             _isInnClient ? null : getCurrentClient.selectedClient?.pointBalance,
       );
 
+      // Xizmat vaqti: chek raqami (externalId) toOBJECTBOX ichida berildi —
+      // endi yozuvni yakunlab orqa fonda jo'natamiz.
+      CashierServiceTimeService.instance.onSaleCompleted(
+        clientNumber: _sixClientModel4.clientNumber,
+        receipt: receiptModel4,
+      );
+
       /// Tekin maxsulotlarni tozalash ///
       _returnedProducts = {};
       _returnedFreeGiftProducts = [];
@@ -3356,6 +3370,13 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     });
 
     if (paymentResult.success) {
+      // Xizmat vaqti: sotuv (fiskal + toOBJECTBOX) to'liq yakunlandi,
+      // chek raqami externalId'da — yozuv orqa fonda jo'natiladi.
+      CashierServiceTimeService.instance.onSaleCompleted(
+        clientNumber: _sixClientModel4.clientNumber,
+        receipt: receiptModel4,
+      );
+
       _returnedProducts = {};
       _giftProducts = {};
       _freeGiftDialogCount = 0;
