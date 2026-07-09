@@ -4530,6 +4530,10 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   }
 
   onBarcodeScanned(String barcode, GlobalKey<ScaffoldState> scaffoldKey) async {
+    // Kiritish manbasini DARHOL aniqlab olamiz (vaqtga bog'liq flag) —
+    // skanerdan kelgan kiritish hech qachon SKU deb taxmin qilinmasligi kerak.
+    final bool fromScanner = MyBarcodeListener.isScannerBurst;
+
     // Skaner (ayniqsa macOS klaviatura-emulyatsiyasida) barcode oxiriga
     // ko'rinmas maxsus belgi qo'shib yuborishi mumkin (masalan codeUnit
     // 63233 = U+F701). Private-use (0xE000-0xF8FF) belgilarni olib
@@ -4694,15 +4698,18 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     }
 
     if (item == null) {
-      if (pattern.length > 18) {
-        pattern = ItemsSingleton.extractBarcode(
-            barcode.startsWith('01') ? barcode.substring(2) : barcode);
-        pattern = pattern.endsWith('21')
-            ? pattern.substring(0, pattern.length - 2)
-            : pattern;
-        triedPatterns.add(pattern);
-      }
-      item = ItemsSingleton.getProductByBarcode(pattern);
+      // Hech qanday "ichidan raqam ajratib olish" YO'Q: satr qanday o'qitilgan
+      // bo'lsa shundayligicha 100% teng barcode sifatida solishtiriladi.
+      // Ma'lum formatlar (GS1 "01"+GTIN14, tarozi prefiksi, utsenka QR)
+      // yuqorida strukturaviy tarzda ochilgan; ularga tushmagan noto'g'ri
+      // format hech narsa topmaydi — "topilmadi" dialogi chiqadi.
+      //
+      // Skaner kiritishida SKU fallback ham O'CHIQ: uzilib qolgan skan
+      // fragmenti tasodifan mavjud SKU'ga teng kelib, mutlaqo boshqa mahsulot
+      // qo'shilib qolmasligi uchun. Qo'lda terilgan sof-raqamli qisqa kod esa
+      // avvalgidek SKU sifatida (aynan kiritilganidek) qidiriladi.
+      item = ItemsSingleton.getProductByBarcode(pattern,
+          allowSkuFallback: !fromScanner);
       if (item != null) {
         item.mark = null;
       }
@@ -4883,7 +4890,18 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
     double val = (value * 1000).floorToDouble() / 1000;
 
-    final item = ItemsSingleton.getProductByBarcode(barcode.substring(2, 7));
+    // Tarozi formati: PLU (SKU) 5 xonaga nol bilan to'ldiriladi ("00206").
+    // Avval aynan shu ko'rinishda, topilmasa format bo'yicha nol'lar olib
+    // tashlangan ko'rinishda qidiriladi. Bu tarozi FORMATINING qoidasi —
+    // ixtiyoriy kiritishdan raqam ajratib olish emas.
+    final String plu = barcode.substring(2, 7);
+    var item = ItemsSingleton.getProductByBarcode(plu);
+    if (item == null) {
+      final noZeros = plu.replaceFirst(RegExp(r'^0+'), '');
+      if (noZeros.isNotEmpty && noZeros != plu) {
+        item = ItemsSingleton.getProductByBarcode(noZeros);
+      }
+    }
     if (item != null) {
       addProduct(
         context: scaffoldKey.currentState!.context,

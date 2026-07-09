@@ -30,7 +30,6 @@ class BuildTypeahead extends StatefulWidget {
 class BuildTypeaheadState extends State<BuildTypeahead> {
   TextEditingController controller = TextEditingController();
   FocusNode focusNode = FocusNode();
-  ItemModel? oneProduct;
 
   @override
   void dispose() {
@@ -112,12 +111,6 @@ class BuildTypeaheadState extends State<BuildTypeahead> {
         list = ItemsSingleton.searchProductsBySku(pattern);
       }
 
-      if (list.length == 1) {
-        oneProduct = list[0];
-      } else {
-        oneProduct = null;
-      }
-
       return list;
     }
   }
@@ -142,9 +135,40 @@ class BuildTypeaheadState extends State<BuildTypeahead> {
     return null;
   }
 
+  /// Enter bosilganda mahsulot tanlash. Avvalgi implementatsiya oxirgi
+  /// suggestionsCallback'da keshlab qo'yilgan `oneProduct`ni ishlatardi —
+  /// skaner tez terganda bu qisman matnga mos kelgan BOSHQA mahsulot bo'lib
+  /// qolishi mumkin edi. Endi natija topshirilgan matndan yangidan hisoblanadi:
+  ///  - skaner kiritishi yoki barcode-ko'rinishdagi matn (faqat raqam, ≥6) —
+  ///    faqat 100% teng barcode;
+  ///  - barcode rejimida aniq moslik bo'lmasa avto-qo'shilmaydi;
+  ///  - nom/SKU rejimida yagona natija bo'lsagina qo'shiladi (eski xatti-harakat).
   void onSubmitted(String v) {
-    if (oneProduct != null) {
-      onSuggestionSelected(oneProduct!);
+    final q = v.trim();
+    final bool scanner = MyBarcodeListener.isScannerBurst;
+
+    if (scanner || RegExp(r'^\d{6,}$').hasMatch(q)) {
+      final exact = q.length >= 6
+          ? ItemsSingleton.getProductByBarcode(q, allowSkuFallback: false)
+          : null;
+      if (exact != null) {
+        onSuggestionSelected(exact);
+        return;
+      }
+      if (scanner || widget.searchType == SearchTypeEnum.byBarcode) {
+        focusNode.requestFocus();
+        return;
+      }
+    }
+
+    if (widget.searchType == SearchTypeEnum.byBarcode) {
+      focusNode.requestFocus();
+      return;
+    }
+
+    final list = suggestionsCallback(q);
+    if (list.length == 1) {
+      onSuggestionSelected(list.first);
     } else {
       focusNode.requestFocus();
     }

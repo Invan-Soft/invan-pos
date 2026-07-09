@@ -8,7 +8,6 @@ import 'package:invan2/features/home/features/home_products/shift_opened/product
 import 'package:invan2/features/home/features/home_products/shift_opened/product_search/dialog/components/search_product_button.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:invan2/features/features.dart';
-import 'package:provider/provider.dart';
 import '../../../../../../../changes/dialogs/virtual_keyboard/content_of_virtual_keyboard.dart';
 import '../../../../../../../changes/providers/product_search_provider.dart';
 import '../../top_buttons/button_widgets/select_search_button.dart';
@@ -64,6 +63,76 @@ class SearchDialogContentState extends State<SearchDialogContent> {
     }
   }
 
+  bool _popped = false;
+  bool _retryScheduled = false;
+
+  bool _isBarcodeLike(String q) => RegExp(r'^\d{6,}$').hasMatch(q);
+
+  void _popWith(ItemModel item) {
+    if (_popped) return;
+    _popped = true;
+    AppNavigation.pop(v: item);
+  }
+
+  /// Enter bosilganda mahsulot tanlash — yagona kirish nuqtasi (raw Enter,
+  /// TextField onSubmitted va virtual klaviatura shu yerga keladi, _popped
+  /// flag ikki marta pop bo'lishdan saqlaydi). Qoidalar:
+  ///  - Skaner kiritishi yoki barcode-ko'rinishdagi matn (faqat raqam, ≥6):
+  ///    FAQAT 100% teng barcode qabul qilinadi — prefix/contains taxmin yo'q.
+  ///  - Skanerning raw Enter'i matn to'liq yetib kelishidan OLDIN kelishi
+  ///    mumkin (klaviatura va text-input pipeline'lari alohida) — bunda
+  ///    biroz kutib qayta tekshiriladi, qisman matndan mahsulot tanlanmaydi.
+  ///  - Qo'lda ishlash: strelka bilan aniq tanlangan bo'lsa o'sha, aks holda
+  ///    nom/SKU qidiruvida birinchi natija (eski xatti-harakat saqlanadi).
+  ///  - Barcode rejimida aniq moslik bo'lmasa hech narsa avto-qo'shilmaydi.
+  void _submit() {
+    if (_popped) return;
+    final text = sdBloc.state.controller.text.trim();
+    final bool scanner = MyBarcodeListener.isScannerBurst;
+
+    if (scanner || _isBarcodeLike(text)) {
+      final exact = text.length >= 6
+          ? ItemsSingleton.getProductByBarcode(text, allowSkuFallback: false)
+          : null;
+      if (exact != null) return _popWith(exact);
+      if (scanner) return _retryExactAfterTextSettles();
+      if (sdBloc.searchTypeEnum == SearchTypeEnum.byBarcode) return;
+    }
+
+    final results = _getCurrentResults();
+    if (results.isEmpty) return;
+
+    final selected = sdBloc.state.selected;
+    if (selected >= 0) {
+      // Foydalanuvchi strelka bilan aniq tanlagan. Indeks joriy ro'yxatga
+      // sig'masa (ro'yxat o'zgarib ulgurgan) — taxmin qilmaymiz.
+      if (selected < results.length) _popWith(results[selected]);
+      return;
+    }
+
+    if (sdBloc.searchTypeEnum == SearchTypeEnum.byBarcode) return;
+    _popWith(results[0]);
+  }
+
+  /// Skaner belgilarining bir qismi Enter'dan keyin yetib keladi — matn
+  /// "to'lgach" aniq moslik bir marta qayta tekshiriladi. Baribir topilmasa,
+  /// keyingi skan eski matnga yopishib qolmasligi uchun maydon tozalanadi.
+  void _retryExactAfterTextSettles() {
+    if (_retryScheduled) return;
+    _retryScheduled = true;
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _retryScheduled = false;
+      if (!mounted || _popped) return;
+      final text = sdBloc.state.controller.text.trim();
+      final exact = text.length >= 6
+          ? ItemsSingleton.getProductByBarcode(text, allowSkuFallback: false)
+          : null;
+      if (exact != null) return _popWith(exact);
+      sdBloc.state.controller.clear();
+      sdBloc.add(SDtypedEvent(''));
+    });
+  }
+
   @override
   void dispose() {
     _focusNode.dispose();
@@ -109,20 +178,15 @@ class SearchDialogContentState extends State<SearchDialogContent> {
         }
 
         if (state.status == SDStatus.pop) {
-          if (state.searchedProducts.isNotEmpty) {
-            if (state.selected >= 0) {
-              Provider.of<OrderingProvider4>(context, listen: false)
-                  .pressProduct(context, state.searchedProducts[state.selected],
-                      "Buttons / SearchDialog");
-              AppNavigation.pop();
-              return;
-            }
-            Provider.of<OrderingProvider4>(context, listen: false).pressProduct(
-                context, state.searchedProducts[0], "Buttons / SearchDialog");
+          // Virtual klaviatura Enter'i. _submit() aniq moslik qoidalarini
+          // qo'llab, topilsa mahsulot bilan pop qiladi (mahsulotni dialog
+          // ochgan tomon pressProduct qiladi). Topilmasa dialog shunchaki
+          // yopiladi — bloc'ning eskirgan (stale) ro'yxatidan taxmin qilinmaydi.
+          _submit();
+          if (!_popped) {
+            _popped = true;
             AppNavigation.pop();
-            return;
           }
-          AppNavigation.pop();
           return;
         }
       },
@@ -136,15 +200,7 @@ class SearchDialogContentState extends State<SearchDialogContent> {
               sdBloc.add(SDarrowEvent(ArrowTo.up));
             }
             if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
-              final results = _getCurrentResults();
-              if (results.isEmpty) return;
-
-              int index = state.selected;
-              if (index < 0 || index >= results.length) {
-                index = 0;
-              }
-
-              AppNavigation.pop(v: results[index]);
+              _submit();
             }
           },
           focusNode: _keyboardFocusNode,
@@ -190,10 +246,7 @@ class SearchDialogContentState extends State<SearchDialogContent> {
                               sdBloc.add(SDtypedEvent(v));
                             },
                             onSubmitted: (v) {
-                              final results = _getCurrentResults();
-                              if (results.isNotEmpty) {
-                                AppNavigation.pop(v: results[0]);
-                              }
+                              _submit();
                             },
                           )
                         : TextField(

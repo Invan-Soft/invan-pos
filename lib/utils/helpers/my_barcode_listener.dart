@@ -37,6 +37,17 @@ class MyBarcodeListener extends StatefulWidget {
     return DateTime.now().difference(_lastKeyAt!).inMilliseconds < 200;
   }
 
+  /// Qat'iy skaner-burst aniqlash: 6+ tugma ketma-ket <100ms oraliqda kelgan.
+  /// Odam eng qisqa SKU'ni ham (3-5 raqam + Enter) bunchalik tez tera olmaydi,
+  /// skaner esa har doim teradi. Bu flag skanerdan kelgan (to'liq yoki uzilib
+  /// qolgan) kiritishni qo'lda terilgan kiritishdan ajratish uchun ishlatiladi —
+  /// skaner kiritishi hech qachon SKU yoki qisman moslik deb taxmin qilinmasligi kerak.
+  static bool get isScannerBurst {
+    if (_lastKeyAt == null) return false;
+    if (_consecutiveKeyCount < 6) return false;
+    return DateTime.now().difference(_lastKeyAt!).inMilliseconds < 500;
+  }
+
   static void _noteKeyTiming() {
     final now = DateTime.now();
     if (_lastKeyAt != null &&

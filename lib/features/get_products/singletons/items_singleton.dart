@@ -196,18 +196,9 @@ static Future<void> storeProducts() async {
     }).toList();
   }
 
-  static String extractBarcode(String input) {
-    if (RegExp(r'^\d+\$').hasMatch(input)) {
-      return input;
-    }
-
-    final match = RegExp(r'\d+').firstMatch(input);
-    if (match != null) {
-      return match.group(0)!.replaceFirst(RegExp(r'^0+'), '');
-    }
-
-    return "";
-  }
+  // extractBarcode olib tashlandi (2026-07-08): ixtiyoriy satrdan raqamlar
+  // ketma-ketligini ajratib olib qidirish taqiqlangan — noto'g'ri format
+  // hech narsa topmasligi kerak. Barcha qidiruvlar 100% teng moslikda.
 
   /*static List<ItemModel> getStaticProducts(int index) {
     List<String> skus = ['13874', '10977', '14271'];
@@ -238,21 +229,25 @@ static Future<void> storeProducts() async {
   }
 
   
-  static ItemModel? getProductByBarcode(String barcode) {
+  /// [allowSkuFallback] false bo'lsa, qisqa (≤5 belgi) kiritish SKU deb
+  /// taxmin qilinmaydi — faqat 100% teng barcode qidiriladi. Skanerdan kelgan
+  /// kiritish uchun false berilishi shart: uzilib qolgan skan fragmenti
+  /// tasodifan mavjud SKU'ga to'g'ri kelib, boshqa mahsulot qo'shilib
+  /// qolmasligi uchun. Qo'lda terilgan SKU va tarozi PLU uchun true qoladi.
+  static ItemModel? getProductByBarcode(String barcode,
+      {bool allowSkuFallback = true}) {
     if (barcode.isEmpty) return null;
 
     final trimmed = barcode.trim();
 
-    // SKU bo'yicha qidirish (5 belgidan qisqa)
+    // SKU bo'yicha qidirish (5 belgidan qisqa).
+    // SKU FAQAT raqamlardan iborat: harf/belgi aralashgan kiritish SKU emas —
+    // ichidan raqam ajratib olinmaydi, normalizatsiya qilinmaydi.
+    // Noto'g'ri format → null (kick). Qidiruv aynan kiritilganidek bajariladi.
     if (trimmed.length <= 5) {
-      var item = products.firstWhereOrNull((p) => p.sku == trimmed);
-      if (item == null) {
-        final skuInt = int.tryParse(trimmed);
-        if (skuInt != null) {
-          item = products.firstWhereOrNull((p) => p.sku == skuInt.toString());
-        }
-      }
-      return item;
+      if (!allowSkuFallback) return null;
+      if (!RegExp(r'^\d+$').hasMatch(trimmed)) return null;
+      return products.firstWhereOrNull((p) => p.sku == trimmed);
     }
 
     // Barcode bo'yicha qidirish
