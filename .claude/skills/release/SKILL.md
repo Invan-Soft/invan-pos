@@ -13,6 +13,10 @@ Yangi POS versiyasini chiqarish jarayoni. Argument: `/release 1.1.3+108 Changelo
 - `git status` toza bo'lishi kerak. Commit qilinmagan o'zgarishlar bo'lsa, foydalanuvchidan so'ra: commit qilamizmi yoki releasega kirmasinmi.
 - Joriy branch `ayyubxon` bo'lishi kerak.
 - Joriy versiyani o'qi: `grep '^version:' pubspec.yaml`
+- **PROD/DEV tekshiruvi (MAJBURIY):** quyidagi ikkala fayl aktiv qiymatlari PROD ekanini tekshir; DEV bo'lsa foydalanuvchidan so'rab PROD'ga o'tkaz (dev-rejim ataylab bo'lishi ham mumkin — test buildlar):
+  - `lib/changes/services/api/api_provider.dart` → `baseUrlINVAN2 = INVAN2PRO`, `imageUrl = imageUrlPro`
+  - `lib/changes/services/web_socket_service/urls/urls.dart` → `baseSocketUrl = socketUrlPro`, `baseNotificationUrl = notificationUrlPro`
+  - Qo'shimcha: `grep -rn "dev\.api\.7i\.uz\|dev-ws\|dev\.cdn" lib/ --include="*.dart"` — aktiv (kommentga olinmagan) dev-havola qolmasin.
 
 ## 1. Versiya aniqlash
 
