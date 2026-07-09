@@ -77,6 +77,7 @@ class ApiProvider {
   //     );
   //   }
   // }
+
   static Future<HttpResult> postResponse({
     required String path,
     dynamic body,
@@ -101,14 +102,12 @@ class ApiProvider {
         );
       }
       alice.onHttpResponse(response);
-
       ReceiptModel4? receiptModel4;
       if (body != null && body is String) {
         try {
           receiptModel4 = ReceiptModel4.fromJson(jsonDecode(body));
         } catch (_) {}
       }
-
       if (response.statusCode < 200 || response.statusCode > 300) {
         if (response.statusCode != 409) {
           LogRepository.requestSend(
@@ -127,7 +126,7 @@ class ApiProvider {
           );
         }
       }
-      
+     
       return _result(
           res: response, data: body, path: path, receiptModel4: receiptModel4);
     } on TimeoutException catch (e, stack) {
@@ -156,7 +155,6 @@ class ApiProvider {
         body: body?.toString() ?? "body mavjud emas",
         success: false,
       );
-      // Stack trace ham yuborish uchun (juda foydali!)
       LogRepository.addLog(
         "Catch error: $e\nStack: $stack",
         where: "ApiProvider.catch",

@@ -20,4 +20,5 @@ class HttpResult {
       return result.toString();
     }
   }
+  
 }

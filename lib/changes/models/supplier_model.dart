@@ -56,4 +56,5 @@ class SupplierResponse {
       total: json['total'] ?? 0,
     );
   }
+  
 }
