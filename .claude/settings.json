@@ -7,7 +7,9 @@
       "Bash(dart analyze *)",
       "Bash(flutter test)",
       "Bash(flutter test *)",
-      "Bash(flutter --version)"
+      "Bash(flutter --version)",
+      "Bash(echo \"---exit: $?\")",
+      "Bash(echo \"exit=$? \\(1 bo'lsa error yo'q\\)\")"
     ]
   }
 }

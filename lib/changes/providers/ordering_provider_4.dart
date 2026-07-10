@@ -182,7 +182,8 @@ class OrderingProvider4 extends ChangeNotifier {
     var products = _currentClient.orderedProducts;
     double newPRICE = 0;
     for (int i = 0; i < products.length; i++) {
-      num basePrice = ItemsSingleton.getItemBasePrice(products[i], false);
+      num basePrice = ItemsSingleton.getItemBasePrice(products[i], false,
+          allRows: products);
       num onlyBasePrice = products[i].price;
       newPRICE = (onlyBasePrice / 100) * (100 - percentage);
       for (int n = 0; n < products[i].discount.length; n++) {
@@ -323,6 +324,7 @@ ${productLines.toString().trim()}
             _showCountFreeGift.remove(removedId);
           }
         }
+        _repriceProductRowsByTotalUnits(removedId);
         notifyListeners();
         return;
       }
@@ -341,6 +343,7 @@ ${productLines.toString().trim()}
             _showCountFreeGift.remove(removedId);
           }
         }
+        _repriceProductRowsByTotalUnits(removedId);
         notifyListeners();
       } catch (e) {
         return;
@@ -408,6 +411,9 @@ ${productLines.toString().trim()}
       } else {
         await _handleRegularProduct(context, product, value, price, isKg);
       }
+
+      // Tier savatdagi umumiy son (dona + blok donalari) bo'yicha
+      _repriceProductRowsByTotalUnits(product.id);
 
       DiscountSingleton.productId(product.id ?? '');
 
@@ -806,6 +812,7 @@ ${productLines.toString().trim()}
     // aks holda ularning markdown narxi yangi qo'shishga "yuqib" ketardi.
     final existingIndex = _currentClient.orderedProducts.indexWhere((e) =>
         e.productId == product.id &&
+        e.saleType != 2 &&
         (!e.isPriceOnlyChanged || e.singleDiscount == 0));
 
     if (existingIndex != -1) {
@@ -2036,27 +2043,9 @@ String _markirovka(String rawMark) {
 
     _currentClient.orderedProducts.insert(0, soldItem);
 
-    // Avvalgi dona itemlarning narxini yangilaymiz (box itemlar o'zgarmaydi)
-    for (final item in _currentClient.orderedProducts) {
-      if (item.productId == freshProduct.id &&
-          !(item.isDeleted ?? false) &&
-          item.saleType != 2) {
-        item.price = price;
-        item.realPrice = price;
-        item.onlyPrice = price;
-      }
-    }
-
-    // Markirovkali mahsulotlarga ham product/category chegirmalarini qo'llaymiz
-    for (final item in _currentClient.orderedProducts) {
-      if (item.productId == freshProduct.id &&
-          !(item.isDeleted ?? false) &&
-          item.saleType != 2 &&
-          !item.isPriceOnlyChanged) {
-        item.singleDiscount = 0;
-        _applyDiscounts(freshProduct, item);
-      }
-    }
+    // Umumiy son (dona + blok donalari) bo'yicha tier — barcha qatorlar
+    // qayta narxlanadi va product/category chegirmalari qayta qo'llanadi
+    _repriceProductRowsByTotalUnits(freshProduct.id);
 
     // BuyXGetY, Free Gift, BuyXGetX chegirmalarini tekshiramiz
     DiscountSingleton.productId(freshProduct.id ?? '');
@@ -2160,6 +2149,54 @@ String _markirovka(String rawMark) {
     }
   }
 
+  /// Mahsulot qatorlarini savatdagi UMUMIY dona soni bo'yicha qayta narxlaydi.
+  /// Umumiy son = dona qatorlari value + blok qatorlari (value × boxValue).
+  /// Biznes qoida: tier shu umumiy songa qarab tanlanadi (masalan 3 blok(12) +
+  /// 1 dona = 37 dona → hammasi 3-tier narxida). Dona qatoriga tierUnit,
+  /// blok qatoriga tierUnit × boxValue qo'yiladi. Qo'lda narxi o'zgartirilgan
+  /// (isPriceOnlyChanged) qatorlarga tegilmaydi. Dona qatorlariga
+  /// product/category chegirmalari qayta qo'llanadi (blokka qo'llanmaydi —
+  /// _addBoxProduct bilan izchil).
+  void _repriceProductRowsByTotalUnits(String? productId) {
+    if (productId == null || productId.isEmpty) return;
+    final product = ItemsSingleton.getProductById(productId);
+    if (product == null) return;
+
+    final isKg = _isKg(product);
+    num totalUnits = 0;
+    for (final e in _currentClient.orderedProducts) {
+      if (e.productId == productId && !(e.isDeleted ?? false)) {
+        totalUnits += (e.saleType == 2 && e.boxValue > 0)
+            ? e.value * e.boxValue
+            : e.value;
+      }
+    }
+    if (totalUnits <= 0) return;
+
+    final unitPrice =
+        ItemsSingleton.finalPrice(product, totalUnits.toInt(), isKg).toDouble();
+    if (unitPrice <= 0) return;
+
+    final vatPct = (product.vat?.percentage ?? 12);
+    for (final e in _currentClient.orderedProducts) {
+      if (e.productId != productId || (e.isDeleted ?? false)) continue;
+      if (e.isPriceOnlyChanged) continue;
+
+      final newPrice = (e.saleType == 2 && e.boxValue > 0)
+          ? unitPrice * e.boxValue
+          : unitPrice;
+      e.price = newPrice;
+      e.realPrice = newPrice;
+      e.onlyPrice = newPrice;
+      e.vat = newPrice == 0 ? 0 : (newPrice * vatPct) / (100 + vatPct);
+
+      if (e.saleType != 2) {
+        e.singleDiscount = 0;
+        _applyDiscounts(product, e);
+      }
+    }
+  }
+
   Future<void> _addBoxProduct(ItemModel product, String rawMark) async {
     final freshProduct =
         ItemsSingleton.getProductById(product.id ?? '') ?? product;
@@ -2197,8 +2234,10 @@ String _markirovka(String rawMark) {
 final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     ? 1
     : rawBoxValue.toInt();
+    // Tier narx blok ichidagi dona soni bo'yicha tanlanadi: 6 talik blok
+    // "4+ dona" tier'iga tushsa, har bir dona o'sha tier narxida hisoblanadi.
     final unitPrice =
-        ItemsSingleton.finalPrice(freshProduct, 1, isKg).toDouble();
+        ItemsSingleton.finalPrice(freshProduct, boxValue, isKg).toDouble();
     final boxPrice = unitPrice * boxValue;
 
     final existingBoxCount = _currentClient.orderedProducts
@@ -2260,6 +2299,10 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         item.boxQuantity = newBoxQuantity;
       }
     }
+
+    // Umumiy son (dona + blok donalari) bo'yicha tier — shu productning barcha
+    // qatorlari (avvalgi dona qatorlari ham) qayta narxlanadi
+    _repriceProductRowsByTotalUnits(freshProduct.id);
 
     _currentClient.lastAddedIndex = 0;
     isTpEdited = false;
@@ -2367,6 +2410,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       }
     }
 
+    _repriceProductRowsByTotalUnits(pid);
     findFreeProducts();
     useFreeProducts();
     useFreeGiftProducts();
@@ -2394,6 +2438,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       _newClientPersentageDiscount = 0;
     }
 
+    _repriceProductRowsByTotalUnits(pid);
     findFreeProducts();
     useFreeProducts();
     useFreeGiftProducts();
@@ -2411,16 +2456,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     if (item.value > 0) {
       _currentClient.orderedProducts[_tappedIndexToEdit] = item;
 
-      // Qty o'zgartirilganda OPD provider narxni finalPrice (wholesale tier) ga
-      // reset qiladi va product/category discount yo'qolib qoladi.
-      // Manual narx tahriri qilinmagan bo'lsa, discount'ni qayta qo'llaymiz.
-      if (!item.isPriceOnlyChanged) {
-        final freshProduct = ItemsSingleton.getProductById(item.productId);
-        if (freshProduct != null) {
-          item.singleDiscount = 0;
-          _applyDiscounts(freshProduct, item);
-        }
-      }
+      // Qty o'zgargach tier savatdagi umumiy son bo'yicha qayta tanlanadi va
+      // product/category discount qayta qo'llanadi (manual narx saqlanadi).
+      _repriceProductRowsByTotalUnits(item.productId);
     } else {
       pressDialogDeleteButton();
     }
@@ -2502,6 +2540,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       _currentClient.selectedClient = null;
       _newClientPersentageDiscount = 0;
     }
+
+    // Qator o'chgach umumiy son kamayadi — qolgan qatorlar tier'i qayta tanlanadi
+    _repriceProductRowsByTotalUnits(deletedProductId);
 
     useFreeProducts();
     useFreeGiftProducts();

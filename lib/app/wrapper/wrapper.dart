@@ -18,6 +18,7 @@ import '../../objectbox.g.dart';
 import 'package:invan2/features/lock/access_level/view/access_level_page.dart';
 import 'package:invan2/utils/constants/constants.dart';
 import 'package:invan2/utils/helpers/auth_backup.dart';
+import 'package:invan2/changes/services/discount_auto_sync_service.dart';
 import 'package:invan2/utils/helpers/network_error_helper.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 import 'package:invan2/utils/helpers/size_config.dart';
@@ -69,6 +70,12 @@ class _WrapperState extends State<Wrapper> {
         usrBloc.add(UsrSendEvent("Wrapper Network Listener", null));
       }
     });
+    /// Kompaniya diskontlarini har 10 daqiqada fonda jimgina yangilab turadi
+    /// (WS o'tkazib yuborgan diskontlarni qoplash uchun). Login bo'lmaguncha
+    /// har tsikl ichidagi token/shop guard tufayli no-op — shuning uchun
+    /// autentifikatsiyadan qat'i nazar shu yerda ishga tushirish xavfsiz.
+    DiscountAutoSyncService.instance.start();
+
     Timer(const Duration(milliseconds: 1000), () async {
       try {
         String token = Pref.getString(PrefKeys.token, '');

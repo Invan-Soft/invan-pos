@@ -104,7 +104,8 @@ class TpBloc extends Bloc<TpEvent, TpState> {
         products[i].discountPercent = 0;
 
         products[i].price = ItemsSingleton.getItemBasePrice(
-                products[i], isClientMinimumPriced) +
+                products[i], isClientMinimumPriced,
+                allRows: products) +
             0;
         for (int n = 0; n < products[i].discount.length; n++) {
           if (products[i].discount[n].type == "sum") {

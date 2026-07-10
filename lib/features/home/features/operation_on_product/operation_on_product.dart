@@ -41,6 +41,11 @@ class OperationOnProduct {
       sellerId: item.sellerId,
       vatName: item.vatName,
       isKg: item.isKg,
+      // Blok qatori maydonlari — nusxada yo'qolsa, saqlashda blok oddiy
+      // qatorga aylanib qoladi (saleType default 1)
+      saleType: item.saleType,
+      boxValue: item.boxValue,
+      boxQuantity: item.boxQuantity,
     );
     focusedItem.discount.addAll(item.discount);
     focusedItem.productDiscount.addAll(item.productDiscount);

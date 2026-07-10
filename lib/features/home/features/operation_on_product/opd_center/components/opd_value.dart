@@ -151,9 +151,11 @@ class OPDQuantityState extends State<OPDQuantity> {
         backgroundColor: Theme.of(context).dividerColor.withOpacity(.4),
         padding: const EdgeInsets.all(0.0),
       ),
-      onPressed: () {
-        opdProvider.increaseQuantity(1);
-      },
+      onPressed: item.saleType == 2
+          ? null
+          : () {
+              opdProvider.increaseQuantity(1);
+            },
       child: Icon(
         Icons.add,
         color: Theme.of(context).canvasColor,

@@ -107,6 +107,8 @@ class OperationOnProductProvider extends ChangeNotifier {
   void increaseQuantity(int n) {
     _cancelSelectedAll();
     if (target.marking && Pref.getBool(PrefKeys.markCheckWithOfd, false)) return;
+    // Blok qatori qty'sini oshirib bo'lmaydi — yangi blok skanerlanishi kerak
+    if (target.saleType == 2) return;
 
     target.value = n + target.value;
 
@@ -435,6 +437,10 @@ class OperationOnProductProvider extends ChangeNotifier {
     }
 
     if (target.marking && Pref.getBool(PrefKeys.markCheckWithOfd, false)) {
+      return;
+    }
+    // Blok qatori qty'si klaviaturadan o'zgartirilmaydi (narxi blok bo'yicha)
+    if (target.saleType == 2) {
       return;
     }
     if (_dialogOpened) {

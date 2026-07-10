@@ -22,6 +22,7 @@ class _AlicePincodePageState extends State<AlicePincodePage> {
     controller = TextEditingController();
     super.initState();
   }
+  
   bool isPinValid(String enteredPin) {
     final now = DateTime.now();
 

@@ -125,6 +125,23 @@ class ItemsSingleton {
     return price;
   }
 
+  /// Qatorning fizik dona soni: blok qatorida value × boxValue, aks holda value
+  static num _rowUnits(ReceiptModelSoldItem4 r) =>
+      r.saleType == 2 && r.boxValue > 0 ? r.value * r.boxValue : r.value;
+
+  /// Savatdagi shu productning umumiy dona soni (dona + blok donalari) —
+  /// tier narx shu umumiy songa qarab tanlanadi
+  static num _totalUnitsOf(
+      String productId, List<ReceiptModelSoldItem4> products) {
+    num total = 0;
+    for (final r in products) {
+      if (r.productId == productId && !(r.isDeleted ?? false)) {
+        total += _rowUnits(r);
+      }
+    }
+    return total;
+  }
+
   static double getBaseTotalPrice(
       List<ReceiptModelSoldItem4> products, bool isMinimumPricedClient) {
     double baseTotalPrice = 0;
@@ -132,25 +149,36 @@ class ItemsSingleton {
       if (!products[i].isDeleted!) {
         ItemModel? item = getProductById(products[i].productId);
         if (item != null) {
+          final totalUnits = _totalUnitsOf(products[i].productId, products);
           double price =
-              finalPrice(item, products[i].value.toInt(), products[i].isKg)
-                  .toDouble();
+              finalPrice(item, totalUnits.toInt(), products[i].isKg).toDouble();
 
           baseTotalPrice +=
-              UtilFunctions.roundToNearest(price * products[i].value);
+              UtilFunctions.roundToNearest(price * _rowUnits(products[i]));
         }
       }
     }
     return UtilFunctions.roundToNearest(baseTotalPrice);
   }
 
+  /// Qatorning bazaviy narxi. [allRows] berilsa tier savatdagi umumiy son
+  /// bo'yicha tanlanadi (dona + blok donalari), aks holda qator o'z soni bo'yicha.
+  /// Blok qatorida qaytariladigan qiymat = tierUnit × boxValue (butun blok narxi).
   static num getItemBasePrice(
-      ReceiptModelSoldItem4 soldItem4, bool isMinimumPricedClient) {
+      ReceiptModelSoldItem4 soldItem4, bool isMinimumPricedClient,
+      {List<ReceiptModelSoldItem4>? allRows}) {
     ItemModel? item = getProductById(soldItem4.productId);
+    if (item == null) return 0;
 
-    return item != null
-        ? finalPrice(item, soldItem4.value.toInt(), soldItem4.isKg).toDouble()
-        : 0;
+    final units = allRows != null
+        ? _totalUnitsOf(soldItem4.productId, allRows)
+        : _rowUnits(soldItem4);
+    final unit =
+        finalPrice(item, units.toInt(), soldItem4.isKg).toDouble();
+
+    return soldItem4.saleType == 2 && soldItem4.boxValue > 0
+        ? unit * soldItem4.boxValue
+        : unit;
   }
 
 static Future<void> storeProducts() async {
