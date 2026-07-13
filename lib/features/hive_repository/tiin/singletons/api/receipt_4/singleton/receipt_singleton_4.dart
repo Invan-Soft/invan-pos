@@ -312,19 +312,19 @@ class ReceiptSingleton4 {
       );
     }).toList();
 
-    // §10.2.1 BALANS MAJBURLASH (sotuv uchun): yarim-so'mli tarozi mahsuloti
-    // (masalan 0.29×204950=59435.5) `_countPrice` da yuqoriga, to'lov tomonida
+    // §10.2.1 BALANS MAJBURLASH: yarim-so'mli tarozi mahsuloti (masalan
+    // 0.29×77950=22605.5) `_countPrice` da yuqoriga, to'lov taqsimotida
     // pastga yaxlitlanib, Σ(Price−Disc) bilan haqiqiy to'lov o'rtasida 1 so'mlik
     // farq qoladi. 100% elektron to'lovda (cashback/click) bu §10.2.1 ni buzadi.
-    // Qoldiqni eng katta narxli item'ning Other'iga yig'amiz — balans allaqachon
-    // 0 bo'lsa hech narsa o'zgarmaydi (ishlayotgan sotuvlar xavfsiz).
-    if (!receipt.isRefund) {
-      _enforce1021Balance(
-        ofdItems,
-        receivedCash: receivedCashValue,
-        receivedCard: receivedCardValue,
-      );
-    }
+    // Qoldiq aynan muvozanatni buzgan itemlarning o'zidan olinadi — balans
+    // allaqachon 0 bo'lsa hech narsa o'zgarmaydi (ishlayotgan sotuvlar xavfsiz).
+    // Refund ham himoyalanadi: u ham xuddi shu `_countPrice` yaxlitlashidan
+    // o'tadi (hammasi naqd, other=0 — algoritm bunda ham to'g'ri ishlaydi).
+    _enforce1021Balance(
+      ofdItems,
+      receivedCash: receivedCashValue,
+      receivedCard: receivedCardValue,
+    );
 
     Map<String, dynamic> receiptMap = {
       'token': token,
@@ -365,20 +365,22 @@ class ReceiptSingleton4 {
 
     return receiptMap;
   }
-  /// §10.2.1 balans tenglamasini yuborishdan OLDIN majburlaydi:
-  ///   Σ(Price − Discount) == ReceivedCash + ReceivedCard + Σ Other
+  /// §10.2.1 shartlarini yuborishdan OLDIN IKKI darajada majburlaydi:
+  ///   1) har bir itemda: Other + Discount ≤ Price (per-item invariant —
+  ///      buzilsa modul "ошибочные параметры" bilan rad etadi);
+  ///   2) chek bo'yicha: Σ(Price − Discount) == ReceivedCash + ReceivedCard + ΣOther.
   ///
-  /// Yarim-so'mli tarozi item OFD tomonida yuqoriga, to'lov tomonida pastga
-  /// yaxlitlanib, Σ(Price) bilan haqiqiy to'lov o'rtasida farq qoladi (1 so'm
-  /// yoki bir necha so'm — bir necha yarim-so'mli item bo'lsa). Bu farq 100%
-  /// elektron to'lovda §10.2.1 ni buzadi.
+  /// Yarim-so'mli tarozi item (masalan 0.29×77950 = 22605.5) OFD narxida
+  /// yuqoriga, to'lov taqsimotida pastga yaxlitlanib 1 so'm farq qoldiradi.
+  /// 100% elektron to'lovda (naqd=karta=0) modul aniq tenglikni talab qiladi.
   ///
-  /// Yechim: farq qancha bo'lsa ham, OFD goods jamini (Σ Price) mijoz HAQIQATAN
-  /// to'lagan summaga AYNAN tenglashtiramiz — eng katta narxli item'ning Price'ini
-  /// qoldiq miqdoricha to'g'rilab (OFD = to'lov, ortiqcha ko'rsatmaymiz). Agar
-  /// o'sha item'da Other Price'dan oshib ketadigan bo'lsa (kam holatda), qoldiqni
-  /// Other'ga yig'ish zaxira yo'liga o'tamiz. Qoldiq 0 ⇒ NO-OP (ishlayotgan
-  /// sotuvlar umuman o'zgarmaydi). Hammasi tiyinda (Price/Other allaqachon ×100).
+  /// Y24996 saboqlari: qoldiqni IXTIYORIY (eng qimmat) itemga yuklash ishlamaydi —
+  /// 100% elektronda har itemning Other'i Price'iga teng, shuning uchun boshqa
+  /// itemga tegish per-item invariantni buzadi va xato shunchaki ko'chadi.
+  /// To'g'ri yo'l: qoldiqni aynan muvozanatni buzgan itemlardan (δ = Price −
+  /// Discount − Other > 0) olish — narxlari δ dan oshirmay kamaytiriladi.
+  /// Matematik kafolat: residual = Σδ − (naqd+karta) ≤ Σδ, ya'ni doim yetadi.
+  /// Qoldiq 0 ⇒ NO-OP. Hammasi tiyinda (Price/Other allaqachon ×100).
   static void _enforce1021Balance(
     List<SalingItemModel> items, {
     required double receivedCash,
@@ -386,56 +388,98 @@ class ReceiptSingleton4 {
   }) {
     if (items.isEmpty) return;
 
-    num sumPrice = 0;
-    num sumDiscount = 0;
-    num sumOther = 0;
-    int largestIdx = 0;
-    num largestPrice = -1;
-    for (int i = 0; i < items.length; i++) {
-      final it = items[i];
+    // DIQQAT: `it.discount` getter'i List<DiscountModel>? deb tiplangan, lekin
+    // unga double saqlanadi → getter'ni o'qish cast-crash beradi. Shuning
+    // uchun xom qiymatni toJson() orqali olamiz.
+    num discountOf(SalingItemModel it) {
+      final dynamic d = it.toJson()['discount'];
+      return d is num ? d : 0;
+    }
+
+    // Itemning "naqd ulushi": δ = Price − Discount − Other (butun tiyinga
+    // yaxlitlab float changini yo'qotamiz).
+    num deltaOf(SalingItemModel it) =>
+        ((it.price ?? 0) - discountOf(it) - (it.other ?? 0)).roundToDouble();
+
+    // ===== 0-BOSQICH: butun tiyinga normallashtirish =====
+    // FiscalReceiptModel transformatsiyasi hamma summani `.toInt()` bilan
+    // KESADI. Float chang (masalan discount=259869.9999) kesilganda 1 tiyinga
+    // siljiydi va modul tenglamasi biz balanslagandan boshqacha chiqadi.
+    // Avval hamma pul maydonini butun tiyinga yaxlitlaymiz — shunda `.toInt()`
+    // hech narsani o'zgartirmaydi va modul AYNAN biz balanslagan sonlarni ko'radi.
+    for (final it in items) {
+      it.price = (it.price ?? 0).roundToDouble();
+      it.other = (it.other ?? 0).roundToDouble();
+      it.discount = discountOf(it).roundToDouble();
+      // VAT'ga tegmaymiz: u balans tenglamasiga kirmaydi va kasrli VAT
+      // azaldan yuborilib kelinadi (transform kesadi, modul qabul qiladi).
+    }
+
+    // ===== 1-BOSQICH (per-item): Other hech qachon Price − Discount'dan =====
+    // oshmasin. Taqsimot yaxlitlashi oshirib yuborgan bo'lsa — qirqamiz.
+    for (final it in items) {
       final num p = it.price ?? 0;
-      sumPrice += p;
-      // DIQQAT: `it.discount` getter'i List<DiscountModel>? deb tiplangan, lekin
-      // bu yerda unga double saqlanadi → getter'ni o'qish cast-crash beradi.
-      // Shuning uchun xom qiymatni toJson() orqali olamiz.
-      final dynamic dRaw = it.toJson()['discount'];
-      sumDiscount += (dRaw is num) ? dRaw : 0;
-      sumOther += it.other ?? 0;
-      if (p > largestPrice) {
-        largestPrice = p;
-        largestIdx = i;
+      final num d = discountOf(it);
+      final num payable = (p - d) < 0 ? 0 : (p - d);
+      if ((it.other ?? 0) > payable) {
+        it.other = payable;
+        it.vat = _countVat(p, it.vatPercent ?? 0, payable);
       }
     }
 
-    final num residual =
-        (sumPrice - sumDiscount) - (receivedCash + receivedCard + sumOther);
+    // ===== 2-BOSQICH (global balans) =====
+    num sumPrice = 0, sumDiscount = 0, sumOther = 0;
+    for (final it in items) {
+      sumPrice += it.price ?? 0;
+      sumDiscount += discountOf(it);
+      sumOther += it.other ?? 0;
+    }
+    final num residual = ((sumPrice - sumDiscount) -
+            (receivedCash + receivedCard + sumOther))
+        .roundToDouble();
     if (residual == 0) return; // balans joyida — tegmaymiz
 
     // XAVFSIZLIK CHEGARASI: farq faqat YAXLITLASH o'lchamida bo'lsa to'g'rilaymiz.
-    // Maksimal 500 so'm — yaxlitlash qoldig'i bundan oshmaydi (har item ≤ ~1 so'm).
     // 500 so'mdan KATTA farq = boshqa bug (yaxlitlash emas) → jimgina narxga yopib
     // YASHIRMAYMIZ, OFD'ga o'z holicha ketsin (xato ko'rinib qolsin).
     const num maxRoundingTiyin = 500 * 100; // 500 so'm = 50000 tiyin
     if (residual.abs() > maxRoundingTiyin) return;
 
-    final SalingItemModel target = items[largestIdx];
-    final num price = target.price ?? 0;
-    final num other = target.other ?? 0;
+    final List<int> idx = List<int>.generate(items.length, (i) => i);
 
-    if (price - residual >= other) {
-      // Afzal yo'l: Price'ni qoldiqcha to'g'rilaymiz → Σ Price = to'langan summa.
-      target.price = price - residual;
+    if (residual > 0) {
+      // Tovar jami to'lovdan ko'p. Qoldiqni δ > 0 bo'lgan itemlardan olamiz
+      // (aynan buzganlar, eng kattasidan boshlab) — narx δ dan oshirmay
+      // kamayadi, per-item invariant saqlanadi, OFD jami = to'langan summa.
+      idx.sort((a, b) => deltaOf(items[b]).compareTo(deltaOf(items[a])));
+      num remaining = residual;
+      for (final i in idx) {
+        if (remaining <= 0) break;
+        final it = items[i];
+        final num delta = deltaOf(it);
+        if (delta <= 0) break; // kamayish tartibida — davomi ham ≤ 0
+        final num take = delta < remaining ? delta : remaining;
+        it.price = (it.price ?? 0) - take;
+        it.vat = _countVat(it.price ?? 0, it.vatPercent ?? 0, it.other ?? 0);
+        remaining -= take;
+      }
     } else {
-      // Zaxira: Other Price'dan oshib ketmasligi uchun qoldiqni Other'ga yig'amiz.
-      final num newOther = other + residual;
-      target.other = newOther < 0 ? 0 : newOther;
+      // To'lov tovar jamidan ko'p (faqat naqd/karta bor holatda bo'ladi) —
+      // Other'ni kamaytiramiz: to'lov nisbati elektron'dan naqdga o'tadi,
+      // per-item invariant faqat mustahkamlanadi.
+      idx.sort((a, b) => (items[b].other ?? 0).compareTo(items[a].other ?? 0));
+      num remaining = -residual;
+      for (final i in idx) {
+        if (remaining <= 0) break;
+        final it = items[i];
+        final num o = it.other ?? 0;
+        if (o <= 0) break; // kamayish tartibida — davomi ham ≤ 0
+        final num take = o < remaining ? o : remaining;
+        it.other = o - take;
+        it.vat = _countVat(it.price ?? 0, it.vatPercent ?? 0, it.other ?? 0);
+        remaining -= take;
+      }
     }
-
-    target.vat = _countVat(
-      target.price ?? 0,
-      target.vatPercent ?? 0,
-      target.other ?? 0,
-    );
   }
 
   static num _countPrice(ReceiptModelSoldItem4 e) {

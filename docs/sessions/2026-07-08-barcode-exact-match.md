@@ -90,7 +90,26 @@ boshlanadi, Pringles prefikslari unga mos kelmaydi.
       endi asosiy oqimda topilmaydi — kassir EAN'ni skan qilishi kerak.
       Bu ataylab qilingan (foydalanuvchi talabi: noto'g'ri format → kick).
 
+- [x] REGRESSIYA TUZATILDI (2026-07-13): skaner orqali SKU-barcode (narx
+  yorlig'idagi Code128, masalan "7105") topilmay qolgan edi — do'kon SKU'ni
+  barcode qilib chiqarar ekan, kassir uni skan qiladi. `fromScanner` bo'yicha
+  SKU fallback bloklash olib tashlandi (`allowSkuFallback` endi asosiy skan
+  yo'lida default true).
+  → lib/changes/providers/ordering_provider_4.dart onBarcodeScanned
+    (fromScanner o'zgaruvchisi o'chirildi, getProductByBarcode(pattern) param'siz)
+  → lib/features/get_products/singletons/items_singleton.dart:260 (izoh yangilandi)
+  → Sabab: "skaner hech qachon SKU o'qimaydi" degan taxmin noto'g'ri chiqdi.
+    Pringles-fragment himoyasi endi SKU branch'ning o'zida yetarli: faqat sof
+    raqam (^\d+$) va normalizatsiyasiz AYNAN teng moslik — "0206" fragmenti
+    "206"ni topa olmaydi. isScannerBurst flag'i MyBarcodeListener'da qoldi
+    (boshqa ishlatuvchilar uchun), lekin SKU yo'lida ishlatilmaydi.
+    Qo'shimcha: 4 raqam+Enter=5 tugma bo'lgani uchun burst (≥6) baribir
+    beqaror ishlardi — skaner suffiks belgisi bor/yo'qligiga qarab.
+
 ## Keyingi qadamlar (prioritet bo'yicha)
+- [ ] Do'konda test: narx yorlig'idagi SKU-barcode (7105) skan → mahsulot
+  savatga tushishi; DataMatrix skan → begona mahsulot tushmasligi (fragment
+  himoyasi saqlangan).
 - [ ] Windows buildda real skaner bilan test:
   1) Pringles EAN skan → Pringles tushishi;
   2) DataMatrix skan → Pringles yoki "topilmadi" (hech qachon boshqa mahsulot emas);

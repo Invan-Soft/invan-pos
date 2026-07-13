@@ -258,10 +258,10 @@ static Future<void> storeProducts() async {
 
   
   /// [allowSkuFallback] false bo'lsa, qisqa (≤5 belgi) kiritish SKU deb
-  /// taxmin qilinmaydi — faqat 100% teng barcode qidiriladi. Skanerdan kelgan
-  /// kiritish uchun false berilishi shart: uzilib qolgan skan fragmenti
-  /// tasodifan mavjud SKU'ga to'g'ri kelib, boshqa mahsulot qo'shilib
-  /// qolmasligi uchun. Qo'lda terilgan SKU va tarozi PLU uchun true qoladi.
+  /// taxmin qilinmaydi — faqat 100% teng barcode qidiriladi. Skaner kiritishi
+  /// uchun ham true qoladi: do'konlar narx yorlig'iga SKU'ni barcode qilib
+  /// chiqaradi va kassir uni skan qiladi. Fragment-himoya SKU branch'ning
+  /// o'zida — faqat sof raqam, normalizatsiyasiz aynan teng moslik.
   static ItemModel? getProductByBarcode(String barcode,
       {bool allowSkuFallback = true}) {
     if (barcode.isEmpty) return null;

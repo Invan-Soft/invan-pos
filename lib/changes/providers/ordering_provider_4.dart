@@ -4571,10 +4571,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   }
 
   onBarcodeScanned(String barcode, GlobalKey<ScaffoldState> scaffoldKey) async {
-    // Kiritish manbasini DARHOL aniqlab olamiz (vaqtga bog'liq flag) —
-    // skanerdan kelgan kiritish hech qachon SKU deb taxmin qilinmasligi kerak.
-    final bool fromScanner = MyBarcodeListener.isScannerBurst;
-
     // Skaner (ayniqsa macOS klaviatura-emulyatsiyasida) barcode oxiriga
     // ko'rinmas maxsus belgi qo'shib yuborishi mumkin (masalan codeUnit
     // 63233 = U+F701). Private-use (0xE000-0xF8FF) belgilarni olib
@@ -4745,12 +4741,11 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       // yuqorida strukturaviy tarzda ochilgan; ularga tushmagan noto'g'ri
       // format hech narsa topmaydi — "topilmadi" dialogi chiqadi.
       //
-      // Skaner kiritishida SKU fallback ham O'CHIQ: uzilib qolgan skan
-      // fragmenti tasodifan mavjud SKU'ga teng kelib, mutlaqo boshqa mahsulot
-      // qo'shilib qolmasligi uchun. Qo'lda terilgan sof-raqamli qisqa kod esa
-      // avvalgidek SKU sifatida (aynan kiritilganidek) qidiriladi.
-      item = ItemsSingleton.getProductByBarcode(pattern,
-          allowSkuFallback: !fromScanner);
+      // SKU fallback skaner uchun ham OCHIQ: do'konlar narx yorlig'iga SKU'ni
+      // barcode qilib chiqaradi, kassir uni skan qiladi. Fragment-himoya SKU
+      // qidiruvining o'zida: faqat sof raqam va normalizatsiyasiz AYNAN teng
+      // moslik ("0206" hech qachon "206" deb topilmaydi).
+      item = ItemsSingleton.getProductByBarcode(pattern);
       if (item != null) {
         item.mark = null;
       }

@@ -22,34 +22,50 @@ class GetMxikFromSoliqBloc
     Emitter<GetMxikFromSoliqState> emit,
   ) async {
     emit(CreatToInvan2ProccesState());
-    HttpResult skeGenerateResponse = await CreatProductService.skuGenerate();
-    if (skeGenerateResponse.isSuccess) {
+    try {
+      HttpResult skeGenerateResponse = await CreatProductService.skuGenerate();
+      if (!skeGenerateResponse.isSuccess) {
+        emit(CreatToInvan2FailureState());
+        return;
+      }
       String newSku = skeGenerateResponse.result['id'];
       event.item.sku = newSku;
       HttpResult cpresponse = await CreatProductService.productCreate(
           jsonEncode(event.item.toJson()));
-      if (cpresponse.isSuccess) {
-        HttpResult getProductResponse =
-            await CreatProductService.productGet(cpresponse.result['id']);
-        if (getProductResponse.isSuccess) {
-          String sku = getProductResponse.result['sku'];
-          HttpResult oldProductRes =
-              await CreatProductService.productOldGet(sku);
-          List<ItemModel> itemsList = List<ItemModel>.from(
-            oldProductRes.result['data'].map(
-              (e) => ItemModel.fromJson(e),
-            ),
-          ).toList();
-          itemsList.where((e) => e.id == cpresponse.result['id']);
-
-          await ItemsSingleton.putItems(itemsList);
-          await ItemsSingleton.storeProducts();
-          emit(CreatToInvan2SuccesState(item: itemsList.first, value :event.value));
-        }
-      } else {
+      if (!cpresponse.isSuccess) {
         emit(CreatToInvan2FailureState());
+        return;
       }
-    } else {
+      HttpResult getProductResponse =
+          await CreatProductService.productGet(cpresponse.result['id']);
+      if (!getProductResponse.isSuccess) {
+        emit(CreatToInvan2FailureState());
+        return;
+      }
+      String sku = getProductResponse.result['sku'];
+      HttpResult oldProductRes = await CreatProductService.productOldGet(sku);
+      if (!oldProductRes.isSuccess) {
+        emit(CreatToInvan2FailureState());
+        return;
+      }
+      List<ItemModel> itemsList = List<ItemModel>.from(
+        oldProductRes.result['data'].map(
+          (e) => ItemModel.fromJson(e),
+        ),
+      ).toList();
+      if (itemsList.isEmpty) {
+        emit(CreatToInvan2FailureState());
+        return;
+      }
+      ItemModel createdItem = itemsList.firstWhere(
+        (e) => e.id == cpresponse.result['id'],
+        orElse: () => itemsList.first,
+      );
+
+      await ItemsSingleton.putItems(itemsList);
+      await ItemsSingleton.storeProducts();
+      emit(CreatToInvan2SuccesState(item: createdItem, value: event.value));
+    } catch (_) {
       emit(CreatToInvan2FailureState());
     }
   }

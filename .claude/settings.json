@@ -9,7 +9,15 @@
       "Bash(flutter test *)",
       "Bash(flutter --version)",
       "Bash(echo \"---exit: $?\")",
-      "Bash(echo \"exit=$? \\(1 bo'lsa error yo'q\\)\")"
+      "Bash(echo \"exit=$? \\(1 bo'lsa error yo'q\\)\")",
+      "Bash(git commit -q -m 'release: 1.1.2+109 — blok tier narx + diskont avto-sinxron *)",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(awk '/static num _countVat/,/^  }$/' lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart)",
+      "Bash(awk '/static void _enforce1021Balance/,/^ }$/' lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart)",
+      "Bash(dart sim_full.dart)",
+      "Bash(awk '/static void _enforce1021Balance/,/^  }$/' lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart)",
+      "Bash(git commit -q -m 'release: 1.1.2+110 — mahsulot yaratish + skaner SKU-barcode fix *)",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }

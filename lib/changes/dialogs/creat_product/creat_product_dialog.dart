@@ -78,7 +78,7 @@ class _CreateProductDialogState extends State<CreateProductDialog> {
       backgroundColor: Colors.transparent,
       content: Container(
         width: SizeConfig.h * 45,
-        height: SizeConfig.v * 55,
+        constraints: BoxConstraints(maxHeight: SizeConfig.v * 85),
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
@@ -97,18 +97,26 @@ class _CreateProductDialogState extends State<CreateProductDialog> {
               Provider.of<OrderingProvider4>(context, listen: false)
                   .pressAllPath();
 
-              for (int i = 0; i < state.value; i++) {
-                Provider.of<OrderingProvider4>(context, listen: false)
-                    .addProduct(
-                        context: context,
-                        value: 1,
-                        product: state.item,
-                        where: "SEARCH LIST ITEM / ");
-              }
+              Provider.of<OrderingProvider4>(context, listen: false)
+                  .addProduct(
+                      context: context,
+                      value: state.value,
+                      product: state.item,
+                      where: "SEARCH LIST ITEM / ");
 
               AppNavigation.pop();
               ScaffoldMessenger.of(context).showSnackBar(
                 mySnackBar(context, msg: "Succes"),
+              );
+            }
+            if (state is CreatToInvan2FailureState) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                mySnackBar(context, msg: "Ошибка при создании товара"),
+              );
+            }
+            if (state is GetMxikFromSoliqFailureState) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                mySnackBar(context, msg: "Товар не найден в базе налоговой"),
               );
             }
             if (state is GetMxikFromSoliqSuccesState) {
@@ -119,14 +127,14 @@ class _CreateProductDialogState extends State<CreateProductDialog> {
             }
           },
           builder: (context, state) {
-            return Center(
+            return SingleChildScrollView(
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   vertical: SizeConfig.v * 2,
                   horizontal: SizeConfig.v * 2,
                 ),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     AppTextFormField(
@@ -415,7 +423,31 @@ class _CreateProductDialogState extends State<CreateProductDialog> {
                                   fontSize: 2.2, color: Colors.white),
                               textAlign: TextAlign.center,
                             ),
-                      onPressed: () {
+                      onPressed: state is CreatToInvan2ProccesState
+                          ? null
+                          : () {
+                        final double? price = double.tryParse(
+                          priceCon.text.replaceAll(',', ''),
+                        );
+                        final double? value = double.tryParse(valueCon.text);
+                        if (nameCon.text.trim().isEmpty ||
+                            barcodeCon.text.trim().isEmpty ||
+                            price == null ||
+                            value == null ||
+                            value <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            mySnackBar(context,
+                                msg: "Заполните все поля правильно"),
+                          );
+                          return;
+                        }
+                        if (selectedVat.id == null ||
+                            selectedVat.id!.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            mySnackBar(context, msg: "Выберите тип НДС"),
+                          );
+                          return;
+                        }
                         CreatProductToInvanModel item =
                             CreatProductToInvanModel(
                           barcode: [barcodeCon.text],
@@ -432,18 +464,14 @@ class _CreateProductDialogState extends State<CreateProductDialog> {
                             ShopPricesToInvan2Model(
                               maxPrice: 0,
                               minPrice: 0,
-                              retailPrice: double.parse(
-                                priceCon.text.replaceAll(',', ''),
-                              ),
+                              retailPrice: price,
                               shopId: Pref.getString(PrefKeys.storeId, ""),
                               supplyPrice: 0,
                               wholeSalePrice: 0,
                               shopPriceTiers: [
                                 ShopPriceTiers(
                                   minQuantity: 1,
-                                  retailPrice: double.parse(
-                                    priceCon.text.replaceAll(',', ''),
-                                  ),
+                                  retailPrice: price,
                                 ),
                               ],
                             ),
@@ -469,17 +497,14 @@ class _CreateProductDialogState extends State<CreateProductDialog> {
                           tags: [],
                           vatId: selectedVat.id,
                         );
-                        if (selectedVat.id != null &&
-                            selectedVat.id!.isNotEmpty) {
-                          BlocProvider.of<GetMxikFromSoliqBloc>(
-                            context,
-                          ).add(
-                            CreatToInvan2Event(
-                              item: item,
-                              value: double.parse(valueCon.text),
-                            ),
-                          );
-                        }
+                        BlocProvider.of<GetMxikFromSoliqBloc>(
+                          context,
+                        ).add(
+                          CreatToInvan2Event(
+                            item: item,
+                            value: value,
+                          ),
+                        );
                       },
                     )
                   ],

@@ -164,14 +164,22 @@ class BaseService {
         sumDiscount += disc;
         sumVat += vat;
 
-        // 1) НДС tekshiruvi: kutilgan = (price - disc) * vatP / (100+vatP)
+        // 1) PER-ITEM invariant: Other + Discount ≤ Price. Buzilsa modul
+        //    chekni "ошибочные параметры" bilan rad etadi — ASOSIY signal.
+        if (other + disc - price > 1) {
+          problems.writeln(
+              '  #$idx ${it['Name']}: ❗OTHER+DISC>PRICE (price=$price, other=$other, disc=$disc)');
+        }
+        // 2) НДС tekshiruvi: app formulasi vat = (price - other) * vatP/(100+vatP).
+        //    (price - disc) EMAS — 100% elektronda other=price bo'lib VAT=0
+        //    to'g'ri hisoblanadi, uni bayroqlash false positive edi.
         final num expVat =
-            vatP == 0 ? 0 : ((price - disc) * vatP / (100 + vatP));
+            vatP == 0 ? 0 : ((price - other) * vatP / (100 + vatP));
         if ((expVat - vat).abs() > 1) {
           problems.writeln(
               '  #$idx ${it['Name']}: VAT=$vat lekin kut~${expVat.round()} (vatP=$vatP, price=$price, other=$other, disc=$disc)');
         }
-        // 2) Kasrli/og'irlik tekshiruvi: price (tiyin) amount ulushiga bo'linmasa
+        // 3) Kasrli/og'irlik tekshiruvi: price (tiyin) amount ulushiga bo'linmasa
         //    (amount=miqdor*1000). price * 1000 / amount → butun bo'lmasa shubhali.
         if (amount > 0) {
           final double unit = price * 1000 / amount;
