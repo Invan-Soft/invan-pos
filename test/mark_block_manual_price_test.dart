@@ -77,6 +77,21 @@ ReceiptModelSoldItem4 editedMark(double newPrice, int markCount) {
   return copy;
 }
 
+/// Blok guruhi tahririda saqlanadigan "tahrirlangan nusxa" (qo'lda blok narxi).
+/// [blockCount] guruhdagi blok soni (dialog displayValue), [boxValue] 1 blokdagi dona.
+ReceiptModelSoldItem4 editedBox(double newBlockPrice, int blockCount, int boxValue) {
+  final copy = makeRow(
+    price: newBlockPrice,
+    value: blockCount.toDouble(),
+    saleType: 2,
+    boxValue: boxValue,
+    boxQuantity: blockCount,
+  );
+  copy.isPriceOnlyChanged = true;
+  copy.isPriceChanged = true;
+  return copy;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Directory tempDir;
@@ -183,6 +198,31 @@ void main() {
         expect(m.price, 4000); // ikkala marka ham 4000 — o'rtacha (3375) EMAS
       }
       expect(rows.firstWhere((e) => e.saleType == 2).price, 48000);
+    });
+
+    test(
+        'Teskari yo\'nalish: blok narxini 30000->40000 (10 tali blok) qilsa, '
+        '2 ta alohida marka (dona) ham 4000 bo\'ladi', () async {
+      final p = freshProvider();
+      final blok = makeRow(
+          price: 30000, value: 1, saleType: 2, boxValue: 10, boxQuantity: 1);
+      final m1 = makeRow(price: 3000, value: 1, marking: true, mark: 'm1');
+      final m2 = makeRow(price: 3000, value: 1, marking: true, mark: 'm2');
+      p.getCurrentClient.orderedProducts.addAll([blok, m1, m2]);
+
+      // Blok guruhi tahriri: 1 blok, narxi 30000->40000
+      p.beginBoxGroupEdit('hydro-id');
+      p.tapIndexToEdit(0);
+      await p.pressDialogSaveButton(editedBox(40000, 1, 10));
+      p.endBoxGroupEdit();
+
+      final rows = p.getCurrentClient.orderedProducts;
+      final blokRow = rows.firstWhere((e) => e.saleType == 2);
+      expect(blokRow.price, 40000);
+      for (final m in rows.where((e) => e.marking)) {
+        expect(m.price, 4000); // 40000 / 10
+        expect(m.isPriceOnlyChanged, true);
+      }
     });
 
     test('qty-only marka tahririda blokka tegilmaydi (narx o\'zgarmagan)',
