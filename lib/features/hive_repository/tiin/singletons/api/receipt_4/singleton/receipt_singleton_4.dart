@@ -24,7 +24,14 @@ class ReceiptSingleton4 {
     CommunicatorRESPONSE? communicatorRECEIPT,
     num? clientBalance,
   }) async {
-    receiptModel4 = consolidateSoldItems(receiptModel4);
+    // Konsolidatsiya faqat SOTUV chekiga: savat qatorlari (blok qatori value=1
+    // token) shu yerda dona hisobiga birlashadi. Vozvrat cheki qatorlari esa
+    // return sahifasidan allaqachon dona hisobida keladi — qayta konsolidatsiya
+    // blok qatorining dona value'sini blok soni deb olib value'ni boxValue
+    // marta oshirib yuborardi (12 dona -> "12 blok"=144 dona buzilishi).
+    if (!receiptModel4.isRefund) {
+      receiptModel4 = consolidateSoldItems(receiptModel4);
+    }
 
     // Refund uchun externalId return_bloc da oldindan set qilingan (API bilan bir xil bo'lsin)
     // Sotuv uchun: ID larni box.put DAN OLDIN beramiz — crash bo'lsa to'liq saqlanadi yoki umuman saqlanmaydi

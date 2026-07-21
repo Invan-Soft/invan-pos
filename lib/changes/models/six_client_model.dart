@@ -1,10 +1,15 @@
 import 'package:invan2/changes/models/client_model.dart';
+import 'package:invan2/changes/models/deleted_item_model.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 
 class SixClientModel4 {
   int clientNumber;
   int lastAddedIndex;
   List<ReceiptModelSoldItem4> orderedProducts;
+
+  /// Shu savat sessiyasida kassir tomonidan o'chirilgan mahsulotlar.
+  /// Sotuv yakunlanganda chekka biriktiriladi va tozalanadi.
+  final List<DeletedItemModel4> deletedItems = [];
   String? clientPhone;
   ClientModel? selectedClient;
   double? discountAmount;

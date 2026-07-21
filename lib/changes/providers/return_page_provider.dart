@@ -53,13 +53,27 @@ class ReturnPageProviderr extends ChangeNotifier {
     _rightIndex = i;
   }
 
+  /// Blok qatori (saleType==2) faqat blok qatoriga, dona qatori dona qatoriga
+  /// qo'shiladi — aks holda blok donaga aralashib blok granulyarligi buziladi.
+  bool _sameRow(ReceiptModelSoldItem4 a, ReceiptModelSoldItem4 b) =>
+      a.productId == b.productId && (a.saleType == 2) == (b.saleType == 2);
+
+  /// value dona hisobida o'zgargach blok sonini sinxron ushlaymiz.
+  void _syncBoxQuantity(ReceiptModelSoldItem4 e) {
+    if (e.saleType == 2 && e.boxValue > 0) {
+      e.boxQuantity = e.value ~/ e.boxValue;
+    }
+  }
+
   void pressLeftProduct() {
     final item = _leftList.removeAt(_leftIndex);
-    final i = _rightList.indexWhere((e) => e.productId == item.productId);
+    final i = _rightList.indexWhere((e) => _sameRow(e, item));
     if (i >= 0) {
       double v = _rightList[i].value.toDouble();
-      v++;
+      // Butun qator ko'chdi — blok qatorida value=boxValue×blok (dona), oddiyda 1
+      v += item.value;
       _rightList[i].value = v;
+      _syncBoxQuantity(_rightList[i]);
     } else {
       _rightList.add(item);
     }
@@ -68,11 +82,12 @@ class ReturnPageProviderr extends ChangeNotifier {
 
   void pressRightProduct() {
     final item = _rightList.removeAt(_rightIndex);
-    final i = _leftList.indexWhere((e) => e.productId == item.productId);
+    final i = _leftList.indexWhere((e) => _sameRow(e, item));
     if (i >= 0) {
       double v = _leftList[i].value.toDouble();
-      v++;
+      v += item.value;
       _leftList[i].value = v;
+      _syncBoxQuantity(_leftList[i]);
     } else {
       _leftList.add(item);
     }
@@ -82,11 +97,12 @@ class ReturnPageProviderr extends ChangeNotifier {
   void pressLeftProductDialog2(double arrivedValue) {
     if (_leftList[_leftIndex].value <= arrivedValue) {
       final item = _leftList.removeAt(_leftIndex);
-      final i = _rightList.indexWhere((e) => e.productId == item.productId);
+      final i = _rightList.indexWhere((e) => _sameRow(e, item));
       if (i >= 0) {
         double v = _rightList[i].value.toDouble();
         v += arrivedValue;
         _rightList[i].value = v;
+        _syncBoxQuantity(_rightList[i]);
       } else {
         _rightList.add(item);
       }
@@ -94,12 +110,14 @@ class ReturnPageProviderr extends ChangeNotifier {
       double v = _leftList[_leftIndex].value.toDouble();
       v -= arrivedValue;
       _leftList[_leftIndex].value = v;
+      _syncBoxQuantity(_leftList[_leftIndex]);
       final item = _itemCopyWith(_leftList[_leftIndex], arrivedValue);
-      final i = _rightList.indexWhere((e) => e.productId == item.productId);
+      final i = _rightList.indexWhere((e) => _sameRow(e, item));
       if (i >= 0) {
         double v = _rightList[i].value.toDouble();
         v += arrivedValue;
         _rightList[i].value = v;
+        _syncBoxQuantity(_rightList[i]);
       } else {
         _rightList.add(item);
       }
@@ -111,11 +129,12 @@ class ReturnPageProviderr extends ChangeNotifier {
   void pressRightProductDialog2(double arrivedValue) {
     if (_rightList[_rightIndex].value <= arrivedValue) {
       final item = _rightList.removeAt(_rightIndex);
-      final i = _leftList.indexWhere((e) => e.productId == item.productId);
+      final i = _leftList.indexWhere((e) => _sameRow(e, item));
       if (i >= 0) {
         double v = _leftList[i].value.toDouble();
         v += arrivedValue;
         _leftList[i].value = v;
+        _syncBoxQuantity(_leftList[i]);
       } else {
         _leftList.add(item);
       }
@@ -123,12 +142,14 @@ class ReturnPageProviderr extends ChangeNotifier {
       double v = _rightList[_rightIndex].value.toDouble();
       v -= arrivedValue;
       _rightList[_rightIndex].value = v;
+      _syncBoxQuantity(_rightList[_rightIndex]);
       final item = _itemCopyWith(_rightList[_rightIndex], arrivedValue);
-      final i = _leftList.indexWhere((e) => e.productId == item.productId);
+      final i = _leftList.indexWhere((e) => _sameRow(e, item));
       if (i >= 0) {
         double v = _leftList[i].value.toDouble();
         v += arrivedValue;
         _leftList[i].value = v;
+        _syncBoxQuantity(_leftList[i]);
       } else {
         _leftList.add(item);
       }
@@ -168,6 +189,9 @@ ReceiptModelSoldItem4 _itemCopyWith(
     packageName: item.packageName,
     sellerId: item.sellerId,
     vatName: item.vatName,
+    saleType: item.saleType,
+    boxValue: item.boxValue,
+    boxQuantity: item.boxValue > 0 ? value ~/ item.boxValue : 0,
   );
 
   return receipt;

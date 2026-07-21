@@ -34,10 +34,21 @@ class ReUpdateBloc extends Bloc<ReUpdateEvent, ReUpdateState> {
 
       for (var element in getReceiptModel) {
         if (event.receiptModel4.orderId == element.id) {
+          // Blok bo'lib sotilgan mahsulotlar (lokal chekda saleType==2):
+          // API dagi value/refund_amount birliklari blok itemda ishonchsiz
+          // (token/dona aralash bo'lishi mumkin) — bu yerda filtrlamaymiz,
+          // qoldiq ReturnPage._copyWith da lokal DB hisobidan aniqlanadi.
+          final localBlockProductIds = event.receiptModel4.soldItemList
+              .where((it) => it.saleType == 2 && it.boxValue > 0)
+              .map((it) => it.productId)
+              .toSet();
           List<ItemsGTR> itemsGTRList = [];
           if (element.items != null) {
             for (ItemsGTR itemsGTR in element.items!) {
-              if (itemsGTR.value != null && itemsGTR.refundAmount != null) {
+              if (localBlockProductIds.contains(itemsGTR.productId)) {
+                itemsGTRList.add(itemsGTR);
+              } else if (itemsGTR.value != null &&
+                  itemsGTR.refundAmount != null) {
                 if (itemsGTR.value! - itemsGTR.refundAmount! > 0) {
                   itemsGTR.value = itemsGTR.value! - itemsGTR.refundAmount!;
                   itemsGTRList.add(itemsGTR);

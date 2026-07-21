@@ -14,7 +14,7 @@ class ReceiptList extends StatelessWidget {
     final paymentPageProvider = Provider.of<OrderingProvider4>(context);
     final orderedProducts =
         paymentPageProvider.getSixClientModel4.orderedProducts;
-    // Markirovkali itemlar 1 qatorga guruhlanadi (savatdagi kabi).
+    // Markirovkali va blok itemlar 1 qatorga guruhlanadi (savatdagi kabi).
     final rows = groupBasketRows(orderedProducts);
 
     return ListView.builder(
@@ -24,11 +24,14 @@ class ReceiptList extends StatelessWidget {
       itemBuilder: (context, index) {
         final row = rows[index];
         final item = row.representative;
-        // Guruh bo'lsa yig'ma (blended) qiymatlar, aks holda item maydonlari.
-        final displayValue = row.isMarkGroup ? row.totalValue : item.value;
-        final unitPrice = row.isMarkGroup ? row.unitPrice : item.price;
+        // Guruh (marka yoki blok) bo'lsa yig'ma (blended) qiymatlar, aks holda
+        // item maydonlari. Blok guruhida displayValue = blok soni, unitPrice =
+        // blok narxi.
+        final isGroup = row.isMarkGroup || row.isBoxGroup;
+        final displayValue = isGroup ? row.totalValue : item.value;
+        final unitPrice = isGroup ? row.unitPrice : item.price;
         final lineTotal =
-            row.isMarkGroup ? row.totalPrice : (displayValue * item.price);
+            isGroup ? row.totalPrice : (displayValue * item.price);
 
         return ListTile(
           contentPadding: EdgeInsets.only(

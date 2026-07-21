@@ -17,6 +17,23 @@ class CheckViewSoldItems extends StatelessWidget {
           itemCount: orderedProducts.length,
           itemBuilder: (context, index) {
             final item = orderedProducts[index];
+            // Blok sotuv (saleType==2): "N blok × blokNarx" ko'rinishida,
+            // blokdan tashqari dona qolgan bo'lsa " + M × donaNarx" qo'shiladi.
+            // value/price dona hisobida qolaveradi — bu faqat display.
+            final bool isBlock =
+                item.saleType == 2 && item.boxValue > 0 && item.boxQuantity > 0;
+            final double looseQty =
+                isBlock ? item.value - item.boxQuantity * item.boxValue : 0;
+            final String qtyPriceText;
+            if (isBlock) {
+              final blockPrice = item.price * item.boxValue;
+              qtyPriceText =
+                  '${item.boxQuantity} blok * ${MoneyFormatter.formatVat.format(blockPrice)}'
+                  '${looseQty > 0 ? ' + ${looseQty % 1 == 0 ? looseQty.toStringAsFixed(0) : looseQty.toString()} * ${MoneyFormatter.formatVat.format(item.price)}' : ''}';
+            } else {
+              qtyPriceText =
+                  '${item.value % 1 == 0 ? item.value.toStringAsFixed(0) : item.value.toString()} * ${MoneyFormatter.formatVat.format(item.price)}';
+            }
             double width = 80;
             if (item.onlyPrice.toStringAsFixed(0).length > 11) {
               width = 160;
@@ -55,7 +72,7 @@ class CheckViewSoldItems extends StatelessWidget {
               subtitle: Row(
                 children: [
                   Text(
-                    '${item.value % 1 == 0 ? item.value.toStringAsFixed(0) : item.value.toString()} * ${MoneyFormatter.formatVat.format(item.price)}',
+                    qtyPriceText,
                     style: MyThemes.txtStyle(
                       fontSize: 2.1,
                       fontWeight: FontWeight.normal,

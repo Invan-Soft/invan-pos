@@ -75,6 +75,7 @@ class CreatProductToInvanModel {
     data['sku'] = sku;
     data['tags'] = [];
     data['vat_id'] = vatId;
+    data['created_in_pos'] = true;
     return data;
   }
 }

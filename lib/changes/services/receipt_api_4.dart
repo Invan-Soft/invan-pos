@@ -129,12 +129,14 @@ class ReceiptApi4 {
     };
     String shopId = Pref.getString(PrefKeys.storeId, '');
     String posId = Pref.getString(PrefKeys.activatedPosId, '');
+    String userId = Pref.getString(PrefKeys.userId, '');
     var refundForPosBody = {
       "shop_id": shopId,
       "cashbox_id": posId,
       "comment": refundedRec.comment,
       "external_id": refundedRec.externalId,
-      "url": refundedRec.url
+      "url": refundedRec.url,
+      "user_id": userId,
     };
     HttpResult creatRefundCheck = await ApiProvider.postResponse(
       path: refundPath,
@@ -157,7 +159,7 @@ class ReceiptApi4 {
       return creatRefundCheck;
     }
   }
-
+  
   static ReceiptModel4 func(ReceiptModel4 r, {bool isServer = false}) {
     final Map<String, ReceiptModelPaymentType4> paymentMap = {};
     bool hasClick = false;
@@ -248,6 +250,10 @@ class ReceiptApi4 {
 
     receipt.soldItemList.addAll(r.soldItemList);
     receipt.payment.addAll(paymentMap.values);
+    // Savatda o'chirilgan mahsulotlar ro'yxati serverga ketadigan nusxada
+    // ham saqlanadi ("deleted_items" massivi).
+    receipt.deletedItemsJson =
+        r.deletedItemsJson.isEmpty ? "[]" : r.deletedItemsJson;
     return receipt;
   }
 
@@ -273,15 +279,25 @@ class ReceiptApi4 {
       }
     }
 
-    List<RefundedReceipt> refundedProducts = [];
+    // Bir xil refundItemId li qatorlarni jamlaymiz: blok vozvratda bitta item
+    // blok qatori + dona qatoriga bo'lingan bo'lishi mumkin — backend esa
+    // har item id uchun bitta yozuv kutadi. Quantity DONA hisobida ketadi
+    // (1 blok = boxValue dona) — backend sotuvni ham dona hisobida yuritadi.
+    final Map<String, RefundedReceipt> refundedById = {};
     for (var element in r.soldItemList) {
-      RefundedReceipt reseipt = RefundedReceipt(
-        id: element.refundItemId,
-        price: element.price,
-        quantity: element.value,
-      );
-      refundedProducts.add(reseipt);
+      final key = element.refundItemId ?? '';
+      final existing = refundedById[key];
+      if (existing != null) {
+        existing.quantity = (existing.quantity ?? 0) + element.value;
+      } else {
+        refundedById[key] = RefundedReceipt(
+          id: element.refundItemId,
+          price: element.price,
+          quantity: element.value,
+        );
+      }
     }
+    List<RefundedReceipt> refundedProducts = refundedById.values.toList();
 
     List<ItemsI2> i2 = refundedProducts
         .map((e) => ItemsI2(id: e.id, price: e.price, quantity: e.quantity))

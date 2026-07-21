@@ -105,8 +105,11 @@ Map<String, ReceiptModelSoldItem4> _getOriginalItemsFromLocalDB(String externalI
 }
 
 /// Shu checkga tegishli oldingi refundlarda qaytarilgan miqdorlarni hisoblaymiz
-/// productId → qaytarilgan jami qty
-Map<String, double> _getAlreadyRefundedQty(String originalExternalId) {
+/// productId → qaytarilgan jami qty (dona hisobida)
+Map<String, double> _getAlreadyRefundedQty(
+  String originalExternalId,
+  Map<String, ReceiptModelSoldItem4> originalItems,
+) {
   final Map<String, double> refundedQty = {};
   try {
     final box = MyObjectbox.saleStore.box<ReceiptModel4>();
@@ -114,8 +117,20 @@ Map<String, double> _getAlreadyRefundedQty(String originalExternalId) {
         r.isRefund && r.returnForCheck == originalExternalId).toList();
     for (final refund in allRefunds) {
       for (final item in refund.soldItemList) {
+        double dona = item.value;
+        // Self-heal: eski buzilgan yozuvlar (vozvrat cheki qayta konsolidatsiya
+        // bo'lib value boxValue marta oshib ketgan — 12 dona "12 blok"=144
+        // bo'lib saqlangan). Belgi: qaytarilgan blok soni sotilgandan ko'p.
+        final orig = originalItems[item.productId];
+        if (item.saleType == 2 &&
+            item.boxValue > 0 &&
+            orig != null &&
+            orig.boxQuantity > 0 &&
+            item.boxQuantity > orig.boxQuantity) {
+          dona = item.value / item.boxValue;
+        }
         refundedQty[item.productId] =
-            (refundedQty[item.productId] ?? 0) + item.value;
+            (refundedQty[item.productId] ?? 0) + dona;
       }
     }
   } catch (e) {
@@ -132,7 +147,7 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
       _getOriginalItemsFromLocalDB(receipt.externalId);
   // Allaqachon qaytarilgan miqdorlarni olamiz
   final Map<String, double> alreadyRefunded =
-      _getAlreadyRefundedQty(receipt.externalId);
+      _getAlreadyRefundedQty(receipt.externalId, originalItemsMap);
 
   final List<ReceiptModelSoldItem4> list = [];
   for (var e in receipt.soldItemList) {
@@ -141,10 +156,23 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
     // Topilmasa — e.value dan foydalanamiz (refund bo'lmagan holat).
     final double baseQty = local?.value ?? e.value;
     final double refundedSoFar = alreadyRefunded[e.productId] ?? 0;
+
+    // Blok sotuv maydonlari (lokal originaldan — API ularni qaytarmaydi)
+    final int boxValue = local?.boxValue ?? 0;
+    final int soldBoxQuantity = local?.boxQuantity ?? 0;
+    final bool hasBox =
+        local?.saleType == 2 && boxValue > 0 && soldBoxQuantity > 0;
+
     // min() — admin paneldan qilingan refundlarni ham hisobga olamiz:
     // e.value = API dan kelgan qoldiq (refundAmount ni chegirilgan),
     // baseQty - refundedSoFar = local DB dan hisoblab topilgan qoldiq.
-    final double remainingQty = min(baseQty - refundedSoFar, e.value);
+    //
+    // Blok mahsulotda esa API value birligi ishonchsiz (blok itemda token/dona
+    // aralash kelishi mumkin — 1 blok vozvratdan keyin item butunlay yo'qolib
+    // qolardi), shuning uchun faqat lokal hisob ishlatiladi: sotuvdagi dona
+    // soni minus shu kassada qilingan vozvratlar.
+    final double remainingQty =
+        hasBox ? (baseQty - refundedSoFar) : min(baseQty - refundedSoFar, e.value);
     if (remainingQty <= 0) continue; // Hammasi qaytarilgan — ro'yxatga qo'shmaymiz
 
     // Narxlarni local DB dan olamiz (free gift = 0, diskontli = effektiv narx).
@@ -154,38 +182,67 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
     final double itemOnlyPrice = local?.onlyPrice ?? e.price;
     final double itemSingleDiscount = local?.singleDiscount ?? e.singleDiscount;
 
-    final soldItem = ReceiptModelSoldItem4(
-      inBox: e.inBox,
-      // unnecessary
-      mark: e.mark,
-      onlyPrice: itemOnlyPrice,
-      realPrice: itemRealPrice,
-      ownerType: e.ownerType,
-      refundItemId: e.refundItemId,
-      marking: e.marking,
-      soldBy: e.soldBy,
-      cost: e.cost,
-      createdTime: e.createdTime,
-      price: itemPrice,
-      value: remainingQty,
-      productId: e.productId,
-      productName: e.productName,
-      // pricePosition: e.pricePosition,
-      barcode: e.barcode,
-      sku: e.sku,
-      vat: (itemPrice * e.vatPercent) / (100 + e.vatPercent),
-      mxik: e.mxik,
-      discountPercent: e.discountPercent,
-      vatPercent: e.vatPercent,
-      // tin: e.tin,
-      singleDiscount: itemSingleDiscount,
-      packageCode: e.packageCode,
-      packageName: e.packageName,
-      sellerId: e.sellerId,
-      tin: e.tin,
-      vatName: e.vatName,
-    );
-    list.add(soldItem);
+    ReceiptModelSoldItem4 makeItem(
+      double qty, {
+      int saleType = 1,
+      int boxValue = 0,
+      int boxQuantity = 0,
+    }) {
+      return ReceiptModelSoldItem4(
+        inBox: e.inBox,
+        // unnecessary
+        mark: e.mark,
+        onlyPrice: itemOnlyPrice,
+        realPrice: itemRealPrice,
+        ownerType: e.ownerType,
+        refundItemId: e.refundItemId,
+        marking: e.marking,
+        soldBy: e.soldBy,
+        cost: e.cost,
+        createdTime: e.createdTime,
+        price: itemPrice,
+        value: qty,
+        productId: e.productId,
+        productName: e.productName,
+        // pricePosition: e.pricePosition,
+        barcode: e.barcode,
+        sku: e.sku,
+        vat: (itemPrice * e.vatPercent) / (100 + e.vatPercent),
+        mxik: e.mxik,
+        discountPercent: e.discountPercent,
+        vatPercent: e.vatPercent,
+        // tin: e.tin,
+        singleDiscount: itemSingleDiscount,
+        packageCode: e.packageCode,
+        packageName: e.packageName,
+        sellerId: e.sellerId,
+        tin: e.tin,
+        vatName: e.vatName,
+        saleType: saleType,
+        boxValue: boxValue,
+        boxQuantity: boxQuantity,
+      );
+    }
+
+    // Blok sotuv (saleType==2): qoldiqni blok va dona qatorlariga ajratamiz.
+    // Blok qatori faqat butun blok qaytarish uchun — value baribir DONA hisobida
+    // turadi (refund API, fiskal va DB dona bilan ishlaydi), blok faqat UI qatlami.
+    final int blocksAvailable =
+        hasBox ? min(soldBoxQuantity, remainingQty ~/ boxValue) : 0;
+    final double blockUnits = (blocksAvailable * boxValue).toDouble();
+    final double looseUnits = remainingQty - blockUnits;
+
+    if (blocksAvailable > 0) {
+      list.add(makeItem(
+        blockUnits,
+        saleType: 2,
+        boxValue: boxValue,
+        boxQuantity: blocksAvailable,
+      ));
+    }
+    if (looseUnits > 0) {
+      list.add(makeItem(looseUnits));
+    }
   }
 
   final newReceiptModel4 = ReceiptModel4(

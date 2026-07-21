@@ -41,9 +41,15 @@ LogRepository {
     'broken pipe',
     'operation timed out',
     'превышен таймаут',
+    // TimeoutException.message matni — payment servislar faqat .message ni
+    // yuboradi ("TimeoutException" so'zi bo'lmaydi), shu pattern ushlaydi.
+    'future not completed',
   ];
 
-  static bool _isNetworkError(String message) {
+  /// Tarmoq xatosimi — bunday loglar Telegramga jo'natilmaydi.
+  /// Public: LogRepository'ni chetlab to'g'ridan-to'g'ri yuboruvchilar
+  /// (masalan uzum_pay_bloc) ham shu filtrdan foydalanadi.
+  static bool isNetworkError(String message) {
     final lower = message.toLowerCase();
     for (final pattern in _networkErrorPatterns) {
       if (lower.contains(pattern)) return true;
@@ -64,7 +70,7 @@ LogRepository {
     String? checkNo,
   }) async {
     successToTelegram = Pref.getBool(PrefKeys.successToTelegram, false);
-    if (_isNetworkError(message)) return;
+    if (isNetworkError(message)) return;
     LogModel log = LogModel(
       version: _version,
       userName: _currentEmployee?.user?.firstName ?? "null",
@@ -124,6 +130,14 @@ LogRepository {
       telegramLogInProgress = true;
       for (; box.isNotEmpty;) {
         LogModel log = box.values.cast<LogModel>().toList()[0];
+
+        // Navbatda qolib ketgan tarmoq-xato loglari (eski versiyalardan yoki
+        // filtr qo'shilishidan oldin yozilganlar) yuborilmasdan o'chiriladi.
+        if (isNetworkError(log.message ?? '')) {
+          await box.deleteAt(0);
+          continue;
+        }
+
         late ApiState state;
 
         state = await LogService.sendToTelegramm(
@@ -184,7 +198,7 @@ LogRepository {
     String? checkNo,
   }) async {
     successToTelegram = Pref.getBool(PrefKeys.successToTelegram, false);
-    if (_isNetworkError(message)) return;
+    if (isNetworkError(message)) return;
     LogModel log = LogModel(
         version: _version,
         userName: _currentEmployee?.user?.firstName ?? "null",

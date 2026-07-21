@@ -17,7 +17,9 @@
       "Bash(dart sim_full.dart)",
       "Bash(awk '/static void _enforce1021Balance/,/^  }$/' lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart)",
       "Bash(git commit -q -m 'release: 1.1.2+110 — mahsulot yaratish + skaner SKU-barcode fix *)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(git -C /Users/ayyubxon/Documents/pos-invan-2-ayyubxon diff lib/changes/services/api/api_provider.dart)"
     ]
   }
 }

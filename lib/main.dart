@@ -127,9 +127,6 @@ Future<void> main() async {
     win.show();
   });
 
-  // OFD manzillarini fon rejimida tekshirib/to'g'rilab qo'yamiz.
-  // Faqat eski manzil topilsa ishlaydi (bir martalik), startup'ni bloklamaydi.
-  // ignore: discarded_futures
   OfdConfigMigrator.migrateIfNeeded();
 }
 
@@ -137,14 +134,10 @@ Future<void> hiveClose() async {
   await Hive.close();
 }
 
-/// SELF-HEAL: startup'da printers.hive bo'sh bo'lsa (svet o'chib yozuv yo'qolgan,
-/// fayl buzilgan yoki tashqaridan o'chirilgan) — JSON backupdan tiklaydi.
-/// Box butun bo'lsa, backupni dolzarb ushlab turadi.
 Future<void> _healPrintersIfNeeded() async {
   try {
     final box = HiveBoxes.getPrinters();
     if (box.isNotEmpty) {
-      // Box joyida — backupni hozirgi holatga moslab qo'yamiz.
       await PrinterBackup.save(box.values.toList().cast<PrinterModel>());
       return;
     }

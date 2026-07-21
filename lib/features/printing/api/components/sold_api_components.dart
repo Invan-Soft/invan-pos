@@ -11,6 +11,12 @@ import 'package:pdf/pdf.dart';
 import 'package:invan2/utils/utils.dart';
 import '../printing_api_helper.dart';
 
+/// Bosilgan chekda blok itemini qanday qism sifatida chizish:
+///  - [full]      — butun item (oddiy mahsulot yoki sof blok).
+///  - [blockOnly] — aralash (blok+dona) itemning FAQAT blok qismi.
+///  - [looseOnly] — aralash itemning FAQAT qolgan dona qismi.
+enum ProductPortion { full, blockOnly, looseOnly }
+
 class SoldApiComponents {
   static pw.Widget buildDashes(pw.TextStyle myStyle) {
     return pw.Text(
@@ -274,14 +280,25 @@ class SoldApiComponents {
     pw.TextStyle crilic,
   ) {
     return pw.ListView(
-      children: soldItems.map((item) {
-        return buildProduct(
-          item,
-          itemInfo,
-          myBoldStyle,
-          myMiniStyle,
-          crilic,
-        );
+      children: soldItems.expand((item) {
+        // Aralash blok (blok + qolgan dona bitta itemga konsolidatsiyalangan):
+        // chekda blok qatori va dona qatori ALOHIDA chiqadi.
+        final bool isBlockRaw = item.saleType == 2 &&
+            item.boxValue > 0 &&
+            item.boxQuantity > 0;
+        final num looseQty =
+            isBlockRaw ? item.value - item.boxQuantity * item.boxValue : 0;
+        if (isBlockRaw && looseQty > 0) {
+          return [
+            buildProduct(item, itemInfo, myBoldStyle, myMiniStyle, crilic,
+                portion: ProductPortion.blockOnly),
+            buildProduct(item, itemInfo, myBoldStyle, myMiniStyle, crilic,
+                portion: ProductPortion.looseOnly),
+          ];
+        }
+        return [
+          buildProduct(item, itemInfo, myBoldStyle, myMiniStyle, crilic),
+        ];
       }).toList(),
     );
   }
@@ -291,8 +308,9 @@ class SoldApiComponents {
     List<ItemInfo>? itemInfo,
     pw.TextStyle myBoldStyle,
     pw.TextStyle myMiniStyle,
-    pw.TextStyle crilic,
-  ) {
+    pw.TextStyle crilic, {
+    ProductPortion portion = ProductPortion.full,
+  }) {
     String barcode = soldItem.barcode;
     String sku = soldItem.sku == 0 ? "" : soldItem.sku.toString();
     String mxik = soldItem.mxik;
@@ -313,12 +331,51 @@ class SoldApiComponents {
     if (mxik.isEmpty) {
       mxik = soldItem.mxik;
     }
-    String value = '';
-    if (soldItem.value % 1 == 0) {
-      value = soldItem.value.toStringAsFixed(0);
-    } else {
-      value = soldItem.value.toString();
+    // Blok sotuv (saleType==2): "blok" tovar nomi oxiriga qo'shiladi, o'ng
+    // tomonda faqat "blokSoni*blokNarx" (jamisiz); narx pastdagi "Narxi:"
+    // qatorida blok narxida. Aralash (blok+dona) item buildProductList da ikki
+    // qatorga bo'linadi: blok qismi (blockOnly) + dona qismi (looseOnly).
+    // value/price/boxQuantity/boxValue konsolidatsiyadan keyin dona hisobida
+    // saqlanadi — bularning o'zi O'ZGARMAYDI (faqat display).
+    final bool isBlockRaw = soldItem.saleType == 2 &&
+        soldItem.boxValue > 0 &&
+        soldItem.boxQuantity > 0;
+    final num looseQty = isBlockRaw
+        ? soldItem.value - soldItem.boxQuantity * soldItem.boxValue
+        : 0;
+
+    // Chizilayotgan qismning "amaldagi" dona soni va blok ko'rinishimi.
+    late final bool renderAsBlock;
+    late final num effectiveValue;
+    switch (portion) {
+      case ProductPortion.blockOnly:
+        renderAsBlock = true;
+        effectiveValue = soldItem.boxQuantity * soldItem.boxValue;
+        break;
+      case ProductPortion.looseOnly:
+        renderAsBlock = false;
+        effectiveValue = looseQty;
+        break;
+      case ProductPortion.full:
+        renderAsBlock = isBlockRaw;
+        effectiveValue = soldItem.value;
+        break;
     }
+
+    final String value = effectiveValue % 1 == 0
+        ? effectiveValue.toStringAsFixed(0)
+        : effectiveValue.toString();
+
+    final num blockPrice =
+        renderAsBlock ? soldItem.price * soldItem.boxValue : soldItem.price;
+    final num blockOldPrice =
+        renderAsBlock ? (oldPrice as num) * soldItem.boxValue : oldPrice;
+    final String displayName =
+        renderAsBlock ? '${soldItem.productName} blok' : soldItem.productName;
+    final String qtyPriceTotal = renderAsBlock
+        ? '${soldItem.boxQuantity}*${MoneyFormatter.formatter.format(blockPrice)}'
+        : '$value*${MoneyFormatter.formatter.format(soldItem.price)}'
+            ' = ${MoneyFormatter.formatter.format(effectiveValue * soldItem.price)}';
 
     return pw.Column(
       mainAxisSize: pw.MainAxisSize.min,
@@ -328,77 +385,34 @@ class SoldApiComponents {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            soldItem.productName.length > 20
+            displayName.length > 20
                 ? pw.Expanded(
                     flex: 3,
                     child: pw.Text(
-                      soldItem.productName,
+                      displayName,
                       style: myBoldStyle,
                     ),
                   )
                 : pw.Text(
-                    soldItem.productName,
+                    displayName,
                     style: myBoldStyle,
                   ),
-            soldItem.productName.length > 20
+            // Tovar nomi ro'parasida: blok bo'lsa "blokSoni*blokNarx" (jamisiz),
+            // aks holda "qty*narx = jami".
+            displayName.length > 20
                 ? pw.Expanded(
                     flex: 2,
-                    child: pw.Row(
-                      crossAxisAlignment: pw.CrossAxisAlignment.end,
-                      mainAxisAlignment: pw.MainAxisAlignment.end,
-                      children: [
-                        soldItem.price == oldPrice
-                            ? pw.Text(MoneyFormatter.formatVat.format(oldPrice),
-                                style: myMiniStyle,
-                                textAlign: pw.TextAlign.center)
-                            : pw.Column(children: [
-                                pw.Stack(
-                                  alignment: pw.Alignment.center,
-                                  children: [
-                                    pw.Text(
-                                        MoneyFormatter.formatVat
-                                            .format(oldPrice),
-                                        style: myMiniStyle,
-                                        textAlign: pw.TextAlign.center),
-                                    pw.Container(
-                                      height: 0.5,
-                                      width: oldPrice.toString().length * 4.5,
-                                      color: PdfColor.fromHex("#000"),
-                                    )
-                                  ],
-                                ),
-                                pw.SizedBox(width: 8),
-                                pw.Text(
-                                    MoneyFormatter.formatVat
-                                        .format(soldItem.price),
-                                    style: myMiniStyle,
-                                    textAlign: pw.TextAlign.center),
-                              ]),
-                      ],
+                    child: pw.Text(
+                      qtyPriceTotal,
+                      style: myMiniStyle,
+                      textAlign: pw.TextAlign.right,
                     ),
                   )
-                : soldItem.price.toStringAsFixed(2) ==
-                        oldPrice.toStringAsFixed(2)
-                    ? pw.Text(MoneyFormatter.formatVat.format(oldPrice),
-                        style: myMiniStyle, textAlign: pw.TextAlign.center)
-                    : pw.Row(children: [
-                        pw.Stack(
-                          alignment: pw.Alignment.center,
-                          children: [
-                            pw.Text(MoneyFormatter.formatVat.format(oldPrice),
-                                style: myMiniStyle,
-                                textAlign: pw.TextAlign.center),
-                            pw.Container(
-                              height: 0.5,
-                              width: oldPrice.toString().length * 4.5,
-                              color: PdfColor.fromHex("#000"),
-                            )
-                          ],
-                        ),
-                        pw.SizedBox(width: 6),
-                        pw.Text(MoneyFormatter.formatVat.format(soldItem.price),
-                            style: myMiniStyle, textAlign: pw.TextAlign.center)
-                      ]),
+                : pw.Text(
+                    qtyPriceTotal,
+                    style: myMiniStyle,
+                    textAlign: pw.TextAlign.right,
+                  ),
           ],
         ),
         pw.SizedBox(height: 2),
@@ -407,16 +421,32 @@ class SoldApiComponents {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(
-              "     Jami:",
+              "     Narxi:",
               style: myMiniStyle,
             ),
-            pw.Text(
-              "$value*${MoneyFormatter.formatter.format(soldItem.price)}"
-              " = "
-              "${MoneyFormatter.formatter.format(soldItem.value * soldItem.price)}",
-              style: myMiniStyle,
-              textAlign: pw.TextAlign.right,
-            ),
+            // Narx endi shu yerda (chegirmada eski narx ustidan chizilib chiqadi).
+            // Blok bo'lsa blok narxi (dona narx × boxValue) ko'rsatiladi.
+            blockPrice.toStringAsFixed(2) == blockOldPrice.toStringAsFixed(2)
+                ? pw.Text(MoneyFormatter.formatVat.format(blockOldPrice),
+                    style: myMiniStyle, textAlign: pw.TextAlign.right)
+                : pw.Row(children: [
+                    pw.Stack(
+                      alignment: pw.Alignment.center,
+                      children: [
+                        pw.Text(MoneyFormatter.formatVat.format(blockOldPrice),
+                            style: myMiniStyle,
+                            textAlign: pw.TextAlign.center),
+                        pw.Container(
+                          height: 0.5,
+                          width: blockOldPrice.toString().length * 4.5,
+                          color: PdfColor.fromHex("#000"),
+                        )
+                      ],
+                    ),
+                    pw.SizedBox(width: 6),
+                    pw.Text(MoneyFormatter.formatVat.format(blockPrice),
+                        style: myMiniStyle, textAlign: pw.TextAlign.right)
+                  ]),
           ],
         ),
         pw.SizedBox(height: 2),
@@ -430,7 +460,7 @@ class SoldApiComponents {
             ),
             pw.Text(
               MoneyFormatter.formatVat.format(
-                  ((soldItem.price * soldItem.value) * soldItem.vatPercent) /
+                  ((soldItem.price * effectiveValue) * soldItem.vatPercent) /
                       (100 + soldItem.vatPercent)),
               style: myMiniStyle,
             ),
@@ -450,7 +480,7 @@ class SoldApiComponents {
                   ),
                   pw.Text(
                     MoneyFormatter.formatVat
-                        .format(soldItem.value * (oldPrice - soldItem.price)),
+                        .format(effectiveValue * (oldPrice - soldItem.price)),
                     style: myMiniStyle,
                   ),
                 ],
@@ -536,27 +566,6 @@ class SoldApiComponents {
         //     )
         //   ],
         // ),
-        // soldItem.tin != null || soldItem.tin != ""
-        soldItem.tin != null
-            ? pw.Padding(
-                padding: const pw.EdgeInsets.only(left: 10),
-                child: pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      soldItem.tin?.length == 14
-                          ? "Komitent JSHSHIRi"
-                          : "Komitent STIRi",
-                      style: myMiniStyle,
-                    ),
-                    pw.Text(
-                      soldItem.tin ?? "",
-                      style: myMiniStyle,
-                    ),
-                  ],
-                ))
-            : pw.Text(''),
         (soldItem.marking) && (soldItem.mark != null)
             ? pw.Column(
                 children: [

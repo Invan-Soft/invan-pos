@@ -25,12 +25,30 @@ class OPDTop extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Flexible(
-            child: Text(
-              item.productName,
-              overflow: TextOverflow.ellipsis,
-              style: MyThemes.txtStyle(
-                color: Theme.of(context).canvasColor,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.productName,
+                  overflow: TextOverflow.ellipsis,
+                  style: MyThemes.txtStyle(
+                    color: Theme.of(context).canvasColor,
+                  ),
+                ),
+                // Blok tahriri: "N blokda M ta" — kassir blokdagi dona sonini
+                // ko'rsin (item.value = blok soni, boxValue = 1 blokdagi dona).
+                if (item.saleType == 2 && item.boxValue > 0)
+                  Text(
+                    '${item.value.toStringAsFixed(0)} blokda '
+                    '${(item.value * item.boxValue).toStringAsFixed(0)} ta',
+                    overflow: TextOverflow.ellipsis,
+                    style: MyThemes.txtStyle(
+                      fontSize: 1.8,
+                      color: Theme.of(context).canvasColor,
+                    ),
+                  ),
+              ],
             ),
           ),
           Flexible(

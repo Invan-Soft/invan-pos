@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/changes/models/log/log_model.dart';
 import 'package:invan2/changes/models/uzum_model.dart';
+import 'package:invan2/changes/repository/log_repository.dart';
 import '../../../../../changes/data/security.dart';
 import '../../../../../changes/services/app_constants.dart';
 import '../../../../../changes/services/log_service.dart';
@@ -48,6 +49,11 @@ class UzumPayBloc extends Bloc<UzumPayEvent, UzumPayState> {
     } else {
       emit(UzumPayFailureState(uzumResponse.errorMessage ?? ""));
     }
-    LogService.sendToTelegramm(log, SecureKeys.TELEGRAM_BOT_UZUM_ERROR_CHANEL);
+    // Tarmoq xatolari (timeout va h.k.) kanalga yuborilmaydi — bu yo'l
+    // LogRepository filtrini chetlab o'tadi, shuning uchun shu yerda tekshiramiz
+    if (!LogRepository.isNetworkError(uzumResponse.errorMessage ?? '')) {
+      LogService.sendToTelegramm(
+          log, SecureKeys.TELEGRAM_BOT_UZUM_ERROR_CHANEL);
+    }
   }
 }

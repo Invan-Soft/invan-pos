@@ -26,6 +26,9 @@ class BuildRightListState extends State<BuildRightList> {
       itemCount: rightList.length,
       itemBuilder: (context, index) {
         final item = rightList[index];
+        // Blok qatori: bekor qilish ham faqat butun blok hisobida
+        final bool isBlock = item.saleType == 2 && item.boxValue > 0;
+        final int blocks = isBlock ? item.value ~/ item.boxValue : 0;
 
         return Material(
           color:Theme.of(context).dialogBackgroundColor,
@@ -33,12 +36,27 @@ class BuildRightListState extends State<BuildRightList> {
             onTap: () async {
               returnPageProvider.pressRightIndex(index);
 
-              if (item.value != 1) {
-                double returnedValue = await showDialog(
+              if (isBlock) {
+                if (blocks <= 1) {
+                  returnPageProvider.pressRightProduct();
+                } else {
+                  double? returnedBlocks = await showDialog(
+                    context: context,
+                    builder: (_) => ReturnPageDialogg(
+                      value: blocks,
+                      wholeUnitsOnly: true,
+                    ),
+                  );
+                  if (returnedBlocks == null) return;
+                  returnPageProvider.pressRightProductDialog2(
+                      returnedBlocks * item.boxValue);
+                }
+              } else if (item.value != 1) {
+                double? returnedValue = await showDialog(
                   context: context,
                   builder: (_) => ReturnPageDialogg(value: item.value),
                 );
-
+                if (returnedValue == null) return;
                 returnPageProvider.pressRightProductDialog2(returnedValue);
               } else {
                 returnPageProvider.pressRightProduct();
@@ -46,7 +64,9 @@ class BuildRightListState extends State<BuildRightList> {
             },
             hoverColor: Theme.of(context).primaryColor,
             title: Text(
-              '${item.productName} x ${item.value % 1 == 0 ? item.value.toStringAsFixed(0) : item.value.toString()}',
+              isBlock
+                  ? '${item.productName} x $blocks blok'
+                  : '${item.productName} x ${item.value % 1 == 0 ? item.value.toStringAsFixed(0) : item.value.toString()}',
               style: MyThemes.txtStyle(
                 fontSize: 2.3,
                 color:Theme.of(context).canvasColor

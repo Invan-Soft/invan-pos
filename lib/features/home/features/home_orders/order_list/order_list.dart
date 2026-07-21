@@ -121,7 +121,7 @@ class OrderListState extends State<OrderList> {
                               index: (index - rows.length).abs(),
                               isLastAdded: lastAI == row.indices.first,
                               orderedProduct: row.representative,
-                              group: row.isMarkGroup ? row : null,
+                              group: (row.isMarkGroup || row.isBoxGroup) ? row : null,
                               onPressed: () async {
                                 if (!row.representative.isDeleted!) {
                                   blBloc.add(BlStatusChangedEvent(
@@ -178,7 +178,22 @@ class OrderListState extends State<OrderList> {
     OrderingProvider4 orderingProvider,
     BasketRow row,
   ) async {
-    if (row.isMarkGroup) {
+    if (row.isBoxGroup) {
+      // Blok guruhi: dialogda qty = blok soni (row.totalValue) ko'rsatiladi,
+      // save/delete butun blok guruhiga ta'sir qiladi.
+      orderingProvider.beginBoxGroupEdit(row.productId);
+      orderingProvider.tapIndexToEdit(row.indices.first);
+      try {
+        await OperationOnProduct.operationOnProductDialog(
+          context: context,
+          item: row.representative,
+          isClientMinimumPrice: false,
+          displayValue: row.totalValue,
+        );
+      } finally {
+        orderingProvider.endBoxGroupEdit();
+      }
+    } else if (row.isMarkGroup) {
       orderingProvider.beginMarkGroupEdit(row.productId);
       orderingProvider.tapIndexToEdit(row.indices.first);
       try {

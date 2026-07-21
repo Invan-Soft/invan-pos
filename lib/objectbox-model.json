@@ -83,7 +83,7 @@
     },
     {
       "id": "3:3601186149013975851",
-      "lastPropertyId": "46:5702815142943518960",
+      "lastPropertyId": "47:8279492712560109155",
       "name": "ReceiptModel4",
       "properties": [
         {
@@ -306,6 +306,11 @@
           "id": "46:5702815142943518960",
           "name": "cardType",
           "type": 6
+        },
+        {
+          "id": "47:8279492712560109155",
+          "name": "deletedItemsJson",
+          "type": 9
         }
       ],
       "relations": [

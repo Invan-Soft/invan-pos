@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:invan2/changes/models/product_discount_model.dart';
 import 'package:invan2/utils/constants/constants.dart';
 import 'package:objectbox/objectbox.dart';
@@ -54,6 +56,11 @@ class ReceiptModel4 {
   String? cardNumber;   // "4916********3620"
   String? pptId;        // RRN: "608610728951"
   int? cardType;
+
+  /// Savat sessiyasida o'chirilgan mahsulotlar (DeletedItemModel4 ro'yxati)
+  /// JSON string ko'rinishida — offline chek bilan birga saqlanib,
+  /// order_pos body'sida "deleted_items" bo'lib ketadi.
+  String deletedItemsJson = "[]";
 
   ReceiptModel4({
     required this.createdDate,
@@ -202,6 +209,7 @@ class ReceiptModel4 {
       cardType: orderJson['card_type'],
       pptId: orderJson['ppt_id'],
     )
+      ..deletedItemsJson = jsonEncode(orderJson['deleted_items'] ?? [])
       ..soldItemList.addAll(items)
       ..payment.addAll(pays);
   }
@@ -233,6 +241,8 @@ class ReceiptModel4 {
       "shop_id": shopId,
       "pos_version": Pref.getString(PrefKeys.version, ''),
       "items": soldItemJsonList,
+      "deleted_items":
+          deletedItemsJson.isEmpty ? [] : jsonDecode(deletedItemsJson),
       "created_date": createdDate,
       "order_discount": {
         "order_id": orderId,

@@ -18,10 +18,28 @@ class OperationOnProductProvider extends ChangeNotifier {
   OperationOnProductProvider({
     required ReceiptModelSoldItem4 item,
     required bool isClientMinimumPrice,
+    this.baseUnitsFromOtherRows = 0,
   })  : _isClientMinimumPrice = isClientMinimumPrice,
         target = item,
         _currentEmployee = HiveBoxes.getCurrentEmployee! {
     _oldValue = target.value.toDouble();
+  }
+
+  /// Shu mahsulotning savatdagi BOSHQA qatorlaridagi (tahrirlanayotgan qatordan
+  /// tashqari) umumiy dona soni. Tier narx savatdagi UMUMIY dona bo'yicha
+  /// tanlanadi (blok + dona), shuning uchun dialog narxni faqat lokal qty emas,
+  /// `baseUnitsFromOtherRows + shu qator donasi` bo'yicha hisoblashi kerak.
+  /// 0 bo'lsa (bitta qatorli mahsulot) — avvalgi xatti-harakat aynan saqlanadi.
+  final int baseUnitsFromOtherRows;
+
+  /// Tier tanlash uchun amaldagi umumiy dona: boshqa qatorlar + shu qator.
+  /// Blok qatorida shu qator donasi = value × boxValue.
+  int _tierUnits() {
+    final double thisUnits = (target.saleType == 2 && target.boxValue > 0)
+        ? target.value * target.boxValue
+        : target.value.toDouble();
+    final int u = (baseUnitsFromOtherRows + thisUnits).round();
+    return u < 1 ? 1 : u;
   }
 
   final Employee? _currentEmployee;
@@ -118,7 +136,7 @@ class OperationOnProductProvider extends ChangeNotifier {
     if (target.isPriceOnlyChanged) {
       price = target.onlyPrice;
     } else {
-      price = ItemsSingleton.finalPrice(item, target.value.toInt(), target.isKg)
+      price = ItemsSingleton.finalPrice(item, _tierUnits(), target.isKg)
           .toDouble();
     }
 
@@ -144,7 +162,7 @@ class OperationOnProductProvider extends ChangeNotifier {
         price = target.onlyPrice;
       } else {
         price =
-            ItemsSingleton.finalPrice(item, target.value.toInt(), target.isKg)
+            ItemsSingleton.finalPrice(item, _tierUnits(), target.isKg)
                 .toDouble();
       }
 
@@ -167,7 +185,7 @@ class OperationOnProductProvider extends ChangeNotifier {
     if (target.isPriceOnlyChanged) {
       price = target.onlyPrice;
     } else {
-      price = ItemsSingleton.finalPrice(item, target.value.toInt(), target.isKg)
+      price = ItemsSingleton.finalPrice(item, _tierUnits(), target.isKg)
           .toDouble();
     }
 
@@ -553,7 +571,7 @@ class OperationOnProductProvider extends ChangeNotifier {
           price = target.onlyPrice;
         } else {
           price =
-              ItemsSingleton.finalPrice(item, target.value.toInt(), target.isKg)
+              ItemsSingleton.finalPrice(item, _tierUnits(), target.isKg)
                   .toDouble();
         }
 
@@ -591,7 +609,7 @@ class OperationOnProductProvider extends ChangeNotifier {
         price = target.onlyPrice;
       } else {
         price =
-            ItemsSingleton.finalPrice(item, target.value.toInt(), target.isKg)
+            ItemsSingleton.finalPrice(item, _tierUnits(), target.isKg)
                 .toDouble();
       }
 

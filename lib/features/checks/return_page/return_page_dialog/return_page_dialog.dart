@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:invan2/app_navigation.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:invan2/widgets/widgets.dart';
@@ -10,9 +11,13 @@ class ReturnPageDialogg extends StatefulWidget {
   const ReturnPageDialogg({
     super.key,
     required this.value,
+    this.wholeUnitsOnly = false,
   });
 
   final num value;
+
+  /// true — faqat butun son kiritiladi (blok hisobida qaytarish uchun)
+  final bool wholeUnitsOnly;
 
   @override
   ReturnPageDialogState createState() => ReturnPageDialogState();
@@ -74,7 +79,12 @@ class ReturnPageDialogState extends State<ReturnPageDialogg> {
                       fontWeight: FontWeight.bold,
                     ),
                     controller: _textEditingController,
-                    inputFormatters: [DecimalTextInputFormatter()],
+                    inputFormatters: [
+                      if (widget.wholeUnitsOnly)
+                        FilteringTextInputFormatter.digitsOnly
+                      else
+                        DecimalTextInputFormatter(),
+                    ],
                     onChanged: (v) {
                       if (v == '' || v == '.') {
                         value = 0;
