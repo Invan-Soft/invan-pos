@@ -47,8 +47,9 @@ logikasi O'ZGARMAYDI — faqat UI guruhlaydi (markirovka naqshining aynan o'zi).
 - [x] opd_top.dart — saleType==2 && boxValue>0 bo'lsa "N blokda M ta" yorlig'i (nom ostida)
 - [x] receipt_list.dart — isGroup=isMarkGroup||isBoxGroup uchun guruh qiymatlari
 - [x] sold_api_components.dart — blok item: nom oxiriga " blok" qo'shiladi; o'ng
-  tomon FAQAT "blokSoni*blokNarx" (jamisiz, "= total" olib tashlandi); Narxi qatori
-  blok narxida. value/price O'ZGARMAYDI (faqat display).
+  tomon "blokSoni*blokNarx = jami" (2026-07-21: real chekda jamisiz noqulay
+  ko'rindi, User jamini qaytarishni so'radi); Narxi qatori blok narxida.
+  value/price O'ZGARMAYDI (faqat display).
 - [x] sold_api_components.dart — ARALASH (blok+dona) chekda IKKI qatorga bo'linadi:
   ProductPortion enum (full/blockOnly/looseOnly) + buildProductList.expand; blok qatori
   "N blok" + dona qatori alohida "M*donaNarx = jami". VAT/chegirma effectiveValue bo'yicha

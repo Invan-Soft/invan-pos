@@ -374,6 +374,7 @@ class SoldApiComponents {
         renderAsBlock ? '${soldItem.productName} blok' : soldItem.productName;
     final String qtyPriceTotal = renderAsBlock
         ? '${soldItem.boxQuantity}*${MoneyFormatter.formatter.format(blockPrice)}'
+            ' = ${MoneyFormatter.formatter.format(soldItem.boxQuantity * blockPrice)}'
         : '$value*${MoneyFormatter.formatter.format(soldItem.price)}'
             ' = ${MoneyFormatter.formatter.format(effectiveValue * soldItem.price)}';
 
