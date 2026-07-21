@@ -420,8 +420,11 @@ ${productLines.toString().trim()}
         await _handleRegularProduct(context, product, value, price, isKg);
       }
 
-      // Tier savatdagi umumiy son (dona + blok donalari) bo'yicha
-      _repriceProductRowsByTotalUnits(product.id);
+      // Mahsulotning qo'lda o'zgartirilgan narxi bo'lsa — yangi skan ham shu
+      // manual narxni oladi; aks holda tier savatdagi umumiy son bo'yicha.
+      if (!_applyExistingManualPrice(product.id)) {
+        _repriceProductRowsByTotalUnits(product.id);
+      }
 
       DiscountSingleton.productId(product.id ?? '');
 
@@ -2053,7 +2056,9 @@ String _markirovka(String rawMark) {
 
     // Umumiy son (dona + blok donalari) bo'yicha tier — barcha qatorlar
     // qayta narxlanadi va product/category chegirmalari qayta qo'llanadi
-    _repriceProductRowsByTotalUnits(freshProduct.id);
+    if (!_applyExistingManualPrice(freshProduct.id)) {
+      _repriceProductRowsByTotalUnits(freshProduct.id);
+    }
 
     // BuyXGetY, Free Gift, BuyXGetX chegirmalarini tekshiramiz
     DiscountSingleton.productId(freshProduct.id ?? '');
@@ -2242,6 +2247,33 @@ String _markirovka(String rawMark) {
     }
   }
 
+  /// Mahsulotning savatda qo'lda narxi o'zgartirilgan (isPriceOnlyChanged) aktiv
+  /// qatori bo'lsa — o'sha manual DONA narxini shu mahsulotning BARCHA aktiv
+  /// qatorlariga (yangi skan qilingan dona/marka/blok ham) tarqatadi va `true`
+  /// qaytaradi. Shunda yangi skan tier narxda emas, manual narxda qo'shiladi.
+  ///
+  /// Markirovkali mahsulotda har skan alohida marka qatori bo'ladi (merge yo'q),
+  /// shuning uchun manual narx yangi markaga "yuqmasdan" guruh o'rtacha (blend)
+  /// narx ko'rsatib qolardi; blok qatori ham tier narxda qolib ketardi. Bu helper
+  /// izchillikni ta'minlaydi (bir xil mahsulot = bir xil dona narx).
+  /// Manual narx yo'q bo'lsa `false` qaytaradi (odatdagi tier reprice ishlaydi).
+  bool _applyExistingManualPrice(String? productId) {
+    if (productId == null || productId.isEmpty) return false;
+    ReceiptModelSoldItem4? manualRow;
+    for (final e in _currentClient.orderedProducts) {
+      if (e.productId == productId &&
+          !(e.isDeleted ?? false) &&
+          !e.isFreeGift &&
+          e.isPriceOnlyChanged) {
+        manualRow = e;
+        break;
+      }
+    }
+    if (manualRow == null) return false;
+    _syncManualPriceAcrossProductRows(manualRow);
+    return true;
+  }
+
   Future<void> _addBoxProduct(ItemModel product, String rawMark) async {
     final freshProduct =
         ItemsSingleton.getProductById(product.id ?? '') ?? product;
@@ -2347,7 +2379,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
     // Umumiy son (dona + blok donalari) bo'yicha tier — shu productning barcha
     // qatorlari (avvalgi dona qatorlari ham) qayta narxlanadi
-    _repriceProductRowsByTotalUnits(freshProduct.id);
+    if (!_applyExistingManualPrice(freshProduct.id)) {
+      _repriceProductRowsByTotalUnits(freshProduct.id);
+    }
 
     _currentClient.lastAddedIndex = 0;
     isTpEdited = false;
@@ -2464,6 +2498,14 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         _currentClient.selectedClient = null;
         _newClientPersentageDiscount = 0;
       }
+    }
+
+    // Narx qo'lda o'zgartirilgan bo'lsa — mahsulotning BOSHQA qatorlariga
+    // (ayniqsa blok qatori) ham sinxronlaymiz. Aks holda marka guruhini
+    // tahrirlaganda blok tier narxda qolib ketardi (bir xil mahsulot, narxi
+    // bir xil bo'lishi kerak).
+    if (edited.isPriceOnlyChanged) {
+      _syncManualPriceAcrossProductRows(edited);
     }
 
     _repriceProductRowsByTotalUnits(pid);

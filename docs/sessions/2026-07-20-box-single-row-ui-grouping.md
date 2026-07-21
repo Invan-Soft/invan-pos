@@ -73,6 +73,20 @@ logikasi O'ZGARMAYDI — faqat UI guruhlaydi (markirovka naqshining aynan o'zi).
     baseUnits=0 bo'lsa (bitta qatorli mahsulot) avvalgi xatti-harakat aynan saqlanadi.
     Saqlash logikasi (allaqachon to'g'ri) tegilmadi — faqat preview to'g'rilandi.
 
+- [x] BUG FIX (markirovka + blok qo'lda narx, 2026-07-21): markirovkali mahsulotni
+  blok + dona urib, dona narxini qo'lda o'zgartirsa — (A) blok tier narxda qolardi,
+  (B) yangi marka skani manual narxni meros olmay guruh o'rtacha (blend) ko'rsatardi
+  (masalan 4000 → keyingi skanda (4000+2750)/2=3375). Ildiz: markirovka har skanda
+  alohida marka qatori (merge yo'q), _saveMarkGroup blokka sinxronlamasdi.
+  → Fix A: ordering_provider_4.dart _saveMarkGroup — edited.isPriceOnlyChanged bo'lsa
+    _syncManualPriceAcrossProductRows(edited) chaqiriladi (blok qatoriga sinxron)
+  → Fix B: _applyExistingManualPrice(productId) helper — mahsulotning manual narxli
+    qatori bo'lsa, uni BARCHA aktiv qatorlarga (yangi skan ham) tarqatadi. addProduct
+    (424, oddiy), _markingCheck (2056, marka — return sabab 424'ga yetmaydi), _addBoxProduct
+    (blok) uchdala reprice chaqiruvi `if(!_applyExistingManualPrice) reprice` ga o'raldi
+  → Test: mark_block_manual_price_test.dart (4 test) — blok sinxron, blend yo'q, qty-only
+    tegilmaydi. Barcha box/mark testlar (42) o'tadi.
+
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] Windows real test: 3 blok skan → 1 qator qty 3; dialog "3 blokda 36 ta";
   bosilgan chek "3 blok*21,600"; blok+dona aralash "4 blok + 3 dona"
