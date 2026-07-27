@@ -335,6 +335,10 @@
   "@taroziUchunPrefix": {
     "description": "Префикс весов || Tarozi uchun prefix"
   },
+  "taroziShtuchniyUchunPrefix": "Префикс для штучных товаров",
+  "@taroziShtuchniyUchunPrefix": {
+    "description": "Префикс для штучных товаров || Shtuchniy tovar uchun prefix"
+  },
   "taroziPorti": "Порт весов",
   "@taroziPorti": {
     "description": "Порт весов || Tarozi porti"
@@ -366,6 +370,10 @@
   "taroziUchunShtrixKodPrefixiniKiriting": "Введите префикс штрих-кода для весов",
   "@taroziUchunShtrixKodPrefixiniKiriting": {
     "description": "Введите префикс штрих-кода для весов || Tarozi uchun shtrix kod prefixini kiriting"
+  },
+  "taroziShtuchniyUchunShtrixKodPrefixiniKiriting": "Введите префикс штрих-кода для штучных товаров",
+  "@taroziShtuchniyUchunShtrixKodPrefixiniKiriting": {
+    "description": "Введите префикс штрих-кода для штучных товаров || Shtuchniy tovar uchun shtrix kod prefixini kiriting"
   },
   "taroziPortiniTanlang": "Выберите последовательный порт весов",
   "@taroziPortiniTanlang": {

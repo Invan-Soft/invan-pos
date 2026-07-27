@@ -263,6 +263,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get taroziUchunPrefix => 'Префикс весов';
 
   @override
+  String get taroziShtuchniyUchunPrefix => 'Префикс для штучных товаров';
+
+  @override
   String get taroziPorti => 'Порт весов';
 
   @override
@@ -286,6 +289,10 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get taroziUchunShtrixKodPrefixiniKiriting =>
       'Введите префикс штрих-кода для весов';
+
+  @override
+  String get taroziShtuchniyUchunShtrixKodPrefixiniKiriting =>
+      'Введите префикс штрих-кода для штучных товаров';
 
   @override
   String get taroziPortiniTanlang => 'Выберите последовательный порт весов';

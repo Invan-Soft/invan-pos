@@ -24,12 +24,23 @@ class ClientApi {
       cardId = cardId.substring(4);
     }
 
+    final path =
+        "api/v1/clients_by_pos?search=$cardId&limit=10&page=1&is_default=$isSpecialClient";
+    final fullUrl = "${ApiProvider.baseUrlINVAN2}$path";
+    final curlHeaders =
+        headers.entries.map((e) => "  -H '${e.key}: ${e.value}'").join(" \\\n");
+    print(
+        "[ClientApi.clientByCardIdd] so'rov (where: $where):\ncurl '$fullUrl' \\\n$curlHeaders");
+
     HttpResult response = await ApiProvider.getResponse(
       // path: "clients/search",
-      path:
-          "api/v1/clients_by_pos?search=$cardId&limit=10&page=1&is_default=$isSpecialClient",
+      path: path,
       headers: headers,
     );
+
+    print(
+        "[ClientApi.clientByCardIdd] javob: statusCode=${response.statusCode}, isSuccess=${response.isSuccess}, result=${response.result}");
+
     return response;
   }
 

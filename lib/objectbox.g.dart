@@ -106,7 +106,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
       id: const obx_int.IdUid(3, 3601186149013975851),
       name: 'ReceiptModel4',
-      lastPropertyId: const obx_int.IdUid(47, 8279492712560109155),
+      lastPropertyId: const obx_int.IdUid(50, 2389010119767467965),
       flags: 0,
       properties: <obx_int.ModelProperty>[
         obx_int.ModelProperty(
@@ -333,6 +333,21 @@ final _entities = <obx_int.ModelEntity>[
             id: const obx_int.IdUid(47, 8279492712560109155),
             name: 'deletedItemsJson',
             type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(48, 4633303871347165810),
+            name: 'serviceStartedTime',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(49, 1532432562776824658),
+            name: 'serviceClosedTime',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(50, 2389010119767467965),
+            name: 'serviceDurationSeconds',
+            type: 6,
             flags: 0)
       ],
       relations: <obx_int.ModelRelation>[
@@ -1016,7 +1031,11 @@ obx_int.ModelDefinition getObjectBoxModel() {
               object.pptId == null ? null : fbb.writeString(object.pptId!);
           final deletedItemsJsonOffset =
               fbb.writeString(object.deletedItemsJson);
-          fbb.startTable(48);
+          final serviceStartedTimeOffset =
+              fbb.writeString(object.serviceStartedTime);
+          final serviceClosedTimeOffset =
+              fbb.writeString(object.serviceClosedTime);
+          fbb.startTable(51);
           fbb.addInt64(0, object.id);
           fbb.addOffset(1, newidOffset);
           fbb.addOffset(2, cashierIdOffset);
@@ -1062,6 +1081,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fbb.addOffset(44, pptIdOffset);
           fbb.addInt64(45, object.cardType);
           fbb.addOffset(46, deletedItemsJsonOffset);
+          fbb.addOffset(47, serviceStartedTimeOffset);
+          fbb.addOffset(48, serviceClosedTimeOffset);
+          fbb.addInt64(49, object.serviceDurationSeconds);
           fbb.finish(fbb.endTable());
           return object.id;
         },
@@ -1158,6 +1180,14 @@ obx_int.ModelDefinition getObjectBoxModel() {
               const fb.Int64Reader().vTableGetNullable(buffer, rootOffset, 94);
           final pptIdParam = const fb.StringReader(asciiOptimization: true)
               .vTableGetNullable(buffer, rootOffset, 92);
+          final serviceStartedTimeParam =
+              const fb.StringReader(asciiOptimization: true)
+                  .vTableGet(buffer, rootOffset, 98, '');
+          final serviceClosedTimeParam =
+              const fb.StringReader(asciiOptimization: true)
+                  .vTableGet(buffer, rootOffset, 100, '');
+          final serviceDurationSecondsParam =
+              const fb.Int64Reader().vTableGet(buffer, rootOffset, 102, 0);
           final object = ReceiptModel4(
               createdDate: createdDateParam,
               orderId: orderIdParam,
@@ -1200,7 +1230,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
               isDonate: isDonateParam,
               cardNumber: cardNumberParam,
               cardType: cardTypeParam,
-              pptId: pptIdParam)
+              pptId: pptIdParam,
+              serviceStartedTime: serviceStartedTimeParam,
+              serviceClosedTime: serviceClosedTimeParam,
+              serviceDurationSeconds: serviceDurationSecondsParam)
             ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0)
             ..hasDept =
                 const fb.BoolReader().vTableGet(buffer, rootOffset, 80, false)
@@ -1961,6 +1994,18 @@ class ReceiptModel4_ {
   /// see [ReceiptModel4.deletedItemsJson]
   static final deletedItemsJson =
       obx.QueryStringProperty<ReceiptModel4>(_entities[2].properties[44]);
+
+  /// see [ReceiptModel4.serviceStartedTime]
+  static final serviceStartedTime =
+      obx.QueryStringProperty<ReceiptModel4>(_entities[2].properties[45]);
+
+  /// see [ReceiptModel4.serviceClosedTime]
+  static final serviceClosedTime =
+      obx.QueryStringProperty<ReceiptModel4>(_entities[2].properties[46]);
+
+  /// see [ReceiptModel4.serviceDurationSeconds]
+  static final serviceDurationSeconds =
+      obx.QueryIntegerProperty<ReceiptModel4>(_entities[2].properties[47]);
 
   /// see [ReceiptModel4.soldItemList]
   static final soldItemList =

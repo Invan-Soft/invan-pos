@@ -56,6 +56,7 @@ class PrefKeys {
   static const String checkId = 'check_id';
 
   static const String taroziPrefix = 'prefix_for_tarozi';
+  static const String taroziPiecePrefix = 'prefix_for_tarozi_piece';
   static const String homePageSwipeInt = 'home_page_swipe_int';
   static const String withOFD = 'with_ofd';
   static const String preCheck = 'pre_check';

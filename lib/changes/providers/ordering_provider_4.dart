@@ -3239,6 +3239,15 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         : xClient.discountId ?? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd";
     String? clientName = xClient?.firstName ?? "";
 
+    // Supplier tanlangan bo'lsa, uning nomi chekda "Klient" o'rnida
+    // ko'rsatiladi (faqat lokal — clientName API'ga yuborilmaydi,
+    // client_id o'zgarmaydi, shuning uchun order_pos xato bermaydi).
+    if (_selectedSupplier != null) {
+      clientName = _selectedSupplier!.supplierCompanyName.isNotEmpty
+          ? _selectedSupplier!.supplierCompanyName
+          : _selectedSupplier!.name;
+    }
+
     if (DiscountTypeStatus.disTypeStatus == TpStatus.summa) {
       double totalPrice =
           ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
@@ -3263,8 +3272,22 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     final donate = Pref.getDonate('donate', false);
     String supplierId = _selectedSupplier?.id ?? "";
     //-------------------------------------------------------
+    // Kassir xizmat vaqti: sotuv boshlanishi (savatga birinchi mahsulot
+    // qo'shilgan payt) shu yerda "olinadi" (slot tozalanadi) va yopilish
+    // vaqti hozir belgilanadi — order_pos body'siga "order_time" bo'lib ketadi.
+    final DateTime? serviceStartedAt = CashierServiceTimeService.instance
+        .takeStartedTime(_sixClientModel4.clientNumber);
+    final DateTime serviceClosedAt = DateTime.now();
+    final String serviceStartedTimeStr = serviceStartedAt != null
+        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceStartedAt)
+        : "";
+    final String serviceClosedTimeStr =
+        DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceClosedAt);
+    final int serviceDurationSecondsVal = serviceStartedAt != null
+        ? serviceClosedAt.difference(serviceStartedAt).inSeconds
+        : 0;
     final receiptModel4 = ReceiptModel4(
-      newid: xClient?.id ?? "",
+      newid: clientId,
       zdachiToCashback: _zdachaToCashBack,
       clientPhone: clientPhone,
       cashierId: cashierId,
@@ -3294,6 +3317,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       isShow: _showComments,
       shopId: Pref.getString(PrefKeys.storeId, ""),
       userId: Pref.getString(PrefKeys.userId, ""),
+      serviceStartedTime: serviceStartedTimeStr,
+      serviceClosedTime: serviceClosedTimeStr,
+      serviceDurationSeconds: serviceDurationSecondsVal,
     );
     receiptModel4.payment.addAll(paymentsMapAsList);
     receiptModel4.hasDept = paymentsMapAsList
@@ -3371,13 +3397,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         receiptModel4,
         clientBalance:
             _isInnClient ? null : getCurrentClient.selectedClient?.pointBalance,
-      );
-
-      // Xizmat vaqti: chek raqami (externalId) toOBJECTBOX ichida berildi —
-      // endi yozuvni yakunlab orqa fonda jo'natamiz.
-      CashierServiceTimeService.instance.onSaleCompleted(
-        clientNumber: _sixClientModel4.clientNumber,
-        receipt: receiptModel4,
       );
 
       /// Tekin maxsulotlarni tozalash ///
@@ -3503,6 +3522,15 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         : xClient.discountId ?? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd";
     String? clientName = xClient?.firstName ?? "";
 
+    // Supplier tanlangan bo'lsa, uning nomi chekda "Klient" o'rnida
+    // ko'rsatiladi (faqat lokal — clientName API'ga yuborilmaydi,
+    // client_id o'zgarmaydi, shuning uchun order_pos xato bermaydi).
+    if (_selectedSupplier != null) {
+      clientName = _selectedSupplier!.supplierCompanyName.isNotEmpty
+          ? _selectedSupplier!.supplierCompanyName
+          : _selectedSupplier!.name;
+    }
+
     if (DiscountTypeStatus.disTypeStatus == TpStatus.summa) {
       double totalPrice = ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
       clientDiscountID = "9fb3ada6-a73b-4b81-9295-5c1605e54552";
@@ -3523,11 +3551,26 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     final posName = Pref.getString(PrefKeys.posName, '');
     String supplierId = _selectedSupplier?.id ?? "";
 
+    // Kassir xizmat vaqti: sotuv boshlanishi (savatga birinchi mahsulot
+    // qo'shilgan payt) shu yerda "olinadi" (slot tozalanadi) va yopilish
+    // vaqti hozir belgilanadi — order_pos body'siga "order_time" bo'lib ketadi.
+    final DateTime? serviceStartedAt = CashierServiceTimeService.instance
+        .takeStartedTime(_sixClientModel4.clientNumber);
+    final DateTime serviceClosedAt = DateTime.now();
+    final String serviceStartedTimeStr = serviceStartedAt != null
+        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceStartedAt)
+        : "";
+    final String serviceClosedTimeStr =
+        DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceClosedAt);
+    final int serviceDurationSecondsVal = serviceStartedAt != null
+        ? serviceClosedAt.difference(serviceStartedAt).inSeconds
+        : 0;
+
     final receiptModel4 = ReceiptModel4(
       createdDate: DateFormat('yyyy-MM-dd HH:mm:ss').format(
         DateTime.now().subtract(const Duration(hours: 5)),
       ),
-      newid: xClient?.id ?? "",
+      newid: clientId,
       supplierId: supplierId,
       zdachiToCashback: _zdachaToCashBack,
       clientPhone: clientPhone,
@@ -3556,6 +3599,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       externalId: "",
       comment: _comments,
       isShow: _showComments,
+      serviceStartedTime: serviceStartedTimeStr,
+      serviceClosedTime: serviceClosedTimeStr,
+      serviceDurationSeconds: serviceDurationSecondsVal,
     );
 
     receiptModel4.cardType = _lastCardType;
@@ -3695,13 +3741,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     });
 
     if (paymentResult.success) {
-      // Xizmat vaqti: sotuv (fiskal + toOBJECTBOX) to'liq yakunlandi,
-      // chek raqami externalId'da — yozuv orqa fonda jo'natiladi.
-      CashierServiceTimeService.instance.onSaleCompleted(
-        clientNumber: _sixClientModel4.clientNumber,
-        receipt: receiptModel4,
-      );
-
       _returnedProducts = {};
       _giftProducts = {};
       _freeGiftDialogCount = 0;
@@ -4020,7 +4059,49 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
   BuildContext? con;
 
+  // Mijoz va supplier bir vaqtda tanlanmaydi — biri tanlangan bo'lsa,
+  // ikkinchisini qo'shishga urinishda ogohlantirish chiqadi va eskisini
+  // avval o'chirish talab qilinadi.
+  Future<void> _showClientSupplierConflictWarning(
+    BuildContext context, {
+    required bool clientAlreadySelected,
+  }) async {
+    final loc = AppLocalizations.of(context)!;
+    final bool isUz = loc.ha == 'Ha';
+    final String message = clientAlreadySelected
+        ? (isUz
+            ? "Mijoz allaqachon tanlangan. Supplier qo'shish uchun avval mijozni o'chiring."
+            : "Клиент уже выбран. Чтобы добавить поставщика, сначала удалите клиента.")
+        : (isUz
+            ? "Supplier allaqachon tanlangan. Mijoz qo'shish uchun avval supplierni o'chiring."
+            : "Поставщик уже выбран. Чтобы добавить клиента, сначала удалите поставщика.");
+
+    await showCupertinoDialog(
+      barrierDismissible: true,
+      context: context,
+      builder: (_) => Theme(
+        data: ThemeData.dark(),
+        child: CupertinoAlertDialog(
+          content: Text(message, style: const TextStyle(fontSize: 20)),
+          actions: [
+            CupertinoButton(
+              onPressed: () => AppNavigation.pop(),
+              child: const Text('OK', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   onClientSearchButtonPressed(BuildContext context, WherePath route) async {
+    if (_selectedSupplier != null) {
+      await _showClientSupplierConflictWarning(
+        context,
+        clientAlreadySelected: false,
+      );
+      return;
+    }
     ClientBloc clientBloc = BlocProvider.of(context, listen: false);
     clientBloc.add(ClientInitialEvent());
     con = context;
@@ -4068,6 +4149,13 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   BuildContext? supplierCon;
 
   onSupplierSearchButtonPressed(BuildContext context) async {
+    if (_currentClient.selectedClient != null) {
+      await _showClientSupplierConflictWarning(
+        context,
+        clientAlreadySelected: true,
+      );
+      return;
+    }
     SupplierBloc supplierBloc = BlocProvider.of(context, listen: false);
     supplierBloc.add(SupplierInitialEvent());
     supplierCon = context;
@@ -5159,6 +5247,12 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       return;
     }
 
+    int taroziPiecePrefix = Pref.getInt(PrefKeys.taroziPiecePrefix, 21);
+    if (barcode.startsWith('$taroziPiecePrefix') && barcode.length == 13) {
+      scanPieceItem(barcode, scaffoldKey);
+      return;
+    }
+
     String pattern = barcode;
     ItemModel? item;
 
@@ -5470,43 +5564,77 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         isTarozi: true,
       );
     } else {
-      if (!displayingNotFoundDialog) {
-        displayingNotFoundDialog = true;
-        await showDialog(
-          context: scaffoldKey.currentState!.context,
-          builder: (context) {
-            return Theme(
-              data: ThemeData.dark(),
-              child: CupertinoAlertDialog(
-                title: Text(
-                  'Нет продукта с этим штрих-кодом',
-                  style: MyThemes.txtStyle(
-                    color: Theme.of(context).canvasColor,
-                  ),
-                ),
-                actions: [
-                  CupertinoButton(
-                    onPressed: () {
-                      displayingNotFoundDialog = false;
-                      AppNavigation.pop();
-                    },
-                    child: const Text(
-                      'OK',
-                      style: TextStyle(
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
+      await _showBarcodeNotFoundDialog(scaffoldKey);
+    }
+  }
 
-        displayingNotFoundDialog = false;
-        notifyListeners();
+  /// Shtuchniy (dona) tovar: shtrix-kodda faqat prefiks(2)+SKU(5) muhim —
+  /// qolgan raqamlar (kiloli formatdagi gram qismi) e'tiborga olinmaydi,
+  /// miqdor doim 1 dona sifatida qo'shiladi. SKU aynan (exact) mos kelmasa
+  /// "topilmadi" ko'rsatiladi — yaqin/o'xshash boshqa mahsulot urilmaydi.
+  void scanPieceItem(
+    String barcode,
+    GlobalKey<ScaffoldState> scaffoldKey,
+  ) async {
+    final String sku = barcode.substring(2, 7);
+    var item = ItemsSingleton.getProductByBarcode(sku);
+    if (item == null) {
+      final noZeros = sku.replaceFirst(RegExp(r'^0+'), '');
+      if (noZeros.isNotEmpty && noZeros != sku) {
+        item = ItemsSingleton.getProductByBarcode(noZeros);
       }
     }
+    if (item != null) {
+      addProduct(
+        context: scaffoldKey.currentState!.context,
+        value: 1,
+        product: item,
+        where: "PRODUCTS GRID VIEW / scanPieceItem",
+        isTarozi: true,
+      );
+    } else {
+      await _showBarcodeNotFoundDialog(scaffoldKey);
+    }
+  }
+
+  Future<void> _showBarcodeNotFoundDialog(
+    GlobalKey<ScaffoldState> scaffoldKey,
+  ) async {
+    if (displayingNotFoundDialog) return;
+    displayingNotFoundDialog = true;
+    await showDialog(
+      context: scaffoldKey.currentState!.context,
+      builder: (context) {
+        return Theme(
+          data: ThemeData.dark(),
+          child: CupertinoAlertDialog(
+            title: Text(
+              'Нет продукта с этим штрих-кодом',
+              style: MyThemes.txtStyle(
+                color: Theme.of(context).canvasColor,
+              ),
+            ),
+            actions: [
+              CupertinoButton(
+                onPressed: () {
+                  displayingNotFoundDialog = false;
+                  AppNavigation.pop();
+                },
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    displayingNotFoundDialog = false;
+    notifyListeners();
   }
 
   void pressCategory(CategoryData categoryData) {

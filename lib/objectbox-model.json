@@ -83,7 +83,7 @@
     },
     {
       "id": "3:3601186149013975851",
-      "lastPropertyId": "47:8279492712560109155",
+      "lastPropertyId": "50:2389010119767467965",
       "name": "ReceiptModel4",
       "properties": [
         {
@@ -311,6 +311,21 @@
           "id": "47:8279492712560109155",
           "name": "deletedItemsJson",
           "type": 9
+        },
+        {
+          "id": "48:4633303871347165810",
+          "name": "serviceStartedTime",
+          "type": 9
+        },
+        {
+          "id": "49:1532432562776824658",
+          "name": "serviceClosedTime",
+          "type": 9
+        },
+        {
+          "id": "50:2389010119767467965",
+          "name": "serviceDurationSeconds",
+          "type": 6
         }
       ],
       "relations": [

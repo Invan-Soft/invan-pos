@@ -246,6 +246,9 @@ class ReceiptApi4 {
       cardNumber: r.cardNumber,
       cardType: r.cardType,
       pptId: r.pptId,
+      serviceStartedTime: r.serviceStartedTime,
+      serviceClosedTime: r.serviceClosedTime,
+      serviceDurationSeconds: r.serviceDurationSeconds,
     );
 
     receipt.soldItemList.addAll(r.soldItemList);

@@ -62,6 +62,12 @@ class ReceiptModel4 {
   /// order_pos body'sida "deleted_items" bo'lib ketadi.
   String deletedItemsJson = "[]";
 
+  /// Kassir xizmat vaqti — order_pos body'sida "order_time" bo'lib ketadi.
+  /// started_time/closed_time formati: "yyyy-MM-dd HH:mm:ss".
+  String serviceStartedTime = "";
+  String serviceClosedTime = "";
+  int serviceDurationSeconds = 0;
+
   ReceiptModel4({
     required this.createdDate,
     required this.orderId,
@@ -105,6 +111,9 @@ class ReceiptModel4 {
     this.cardNumber,
     this.cardType,
     this.pptId,
+    this.serviceStartedTime = "",
+    this.serviceClosedTime = "",
+    this.serviceDurationSeconds = 0,
   });
 
   thePayment() => payment;
@@ -248,6 +257,14 @@ class ReceiptModel4 {
         "order_id": orderId,
         "type": discountID,
         "value": discountVat,
+      },
+      "order_time": {
+        "cashier_id": cashierId,
+        "check_number": externalId,
+        "client_id": clientId,
+        "closed_time": serviceClosedTime,
+        "duration_seconds": serviceDurationSeconds,
+        "started_time": serviceStartedTime,
       },
       "pays": {
         "order_id": orderId,

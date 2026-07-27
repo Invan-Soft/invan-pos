@@ -263,6 +263,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get taroziUchunPrefix => 'Tarozi uchun prefix';
 
   @override
+  String get taroziShtuchniyUchunPrefix => 'Shtuchniy tovar uchun prefix';
+
+  @override
   String get taroziPorti => 'Tarozi porti';
 
   @override
@@ -286,6 +289,10 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get taroziUchunShtrixKodPrefixiniKiriting =>
       'Tarozi uchun shtrix kod prefixini kiriting';
+
+  @override
+  String get taroziShtuchniyUchunShtrixKodPrefixiniKiriting =>
+      'Shtuchniy tovar uchun shtrix kod prefixini kiriting';
 
   @override
   String get taroziPortiniTanlang => 'Tarozi portini tanlang';
@@ -408,7 +415,7 @@ class AppLocalizationsUz extends AppLocalizations {
   String get bonus_karta => 'Bonus karta';
 
   @override
-  String get yakunlash => 'Закрыть чек';
+  String get yakunlash => 'Chekni yopish';
 
   @override
   String get naqd => 'Naqd pul';
@@ -635,7 +642,7 @@ class AppLocalizationsUz extends AppLocalizations {
   String get employee_yuklanmoqda => 'Employee yuklanmoqda...';
 
   @override
-  String get employee_yuklash_yakunlanmadi => 'Не удалось загрузить сотрудника';
+  String get employee_yuklash_yakunlanmadi => 'Employee yuklash yakunlanmadi';
 
   @override
   String get kategoriyalar_yuklanmoqda => 'Kategoriyalar yuklanmoqda...';

@@ -233,8 +233,12 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
 
         if (id == debtId) {
           if (cardOnly) return const SizedBox.shrink();
-          return orderingProvider.getCurrentClientIsNotNULL &&
-                  orderingProvider.getCurrentClientIsAvailableForDebt
+          final bool clientAvailableForDebt =
+              orderingProvider.getCurrentClientIsNotNULL &&
+                  orderingProvider.getCurrentClientIsAvailableForDebt;
+          final bool supplierSelected =
+              orderingProvider.getSelectedSupplier != null;
+          return clientAvailableForDebt || supplierSelected
               ? _functionalButton(loc.qarz, () {
                   orderingProvider.allPaymentType(p);
                 })

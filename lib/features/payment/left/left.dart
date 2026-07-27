@@ -316,45 +316,72 @@ class Left extends StatelessWidget {
               ),
             ),
           ),
-          Provider.of<OrderingProvider4>(context, listen: false)
-                  .getCurrentClientIsNotNULL
-              ? Column(
-                  children: [
-                    Divider(
-                        color: Theme.of(context).canvasColor, thickness: .5),
-                    Padding(
-                      padding: EdgeInsets.only(
-                          bottom: SizeConfig.v,
-                          right: SizeConfig.h * 1.75,
-                          left: SizeConfig.h * 1.75),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _textInRow(
-                              text1: "${loc.mijoz}:    ",
-                              text2:
-                                  "${context.watch<OrderingProvider4>().getClientFirstname} ${context.watch<OrderingProvider4>().getClientLastName}",
-                              context: context),
-                          _textInRow(
-                              text1: "${loc.balans}:",
-                              text2: MoneyFormatter.inputMoneyFormatter.format(
-                                context
-                                    .watch<OrderingProvider4>()
-                                    .getClientPointBalance,
-                              ),
-                              context: context),
-                        ],
-                      ),
-                    ),
-                  ],
-                )
-              : const SizedBox(
-                  height: 1.0,
-                  width: 1.0,
-                ),
+          _clientOrSupplierInfo(context, loc),
         ],
       ),
     );
+  }
+
+  Widget _clientOrSupplierInfo(BuildContext context, AppLocalizations loc) {
+    final orderingProvider = context.watch<OrderingProvider4>();
+
+    if (orderingProvider.getCurrentClientIsNotNULL) {
+      return Column(
+        children: [
+          Divider(color: Theme.of(context).canvasColor, thickness: .5),
+          Padding(
+            padding: EdgeInsets.only(
+                bottom: SizeConfig.v,
+                right: SizeConfig.h * 1.75,
+                left: SizeConfig.h * 1.75),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _textInRow(
+                    text1: "${loc.mijoz}:    ",
+                    text2:
+                        "${orderingProvider.getClientFirstname} ${orderingProvider.getClientLastName}",
+                    context: context),
+                _textInRow(
+                    text1: "${loc.balans}:",
+                    text2: MoneyFormatter.inputMoneyFormatter
+                        .format(orderingProvider.getClientPointBalance),
+                    context: context),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    final supplier = orderingProvider.getSelectedSupplier;
+    if (supplier != null) {
+      final String supplierName = supplier.supplierCompanyName.isNotEmpty
+          ? supplier.supplierCompanyName
+          : supplier.name;
+      return Column(
+        children: [
+          Divider(color: Theme.of(context).canvasColor, thickness: .5),
+          Padding(
+            padding: EdgeInsets.only(
+                bottom: SizeConfig.v,
+                right: SizeConfig.h * 1.75,
+                left: SizeConfig.h * 1.75),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _textInRow(
+                    text1: "${loc.mijoz}:    ",
+                    text2: supplierName,
+                    context: context),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return const SizedBox(height: 1.0, width: 1.0);
   }
 
   _payment(

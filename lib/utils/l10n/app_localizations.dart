@@ -602,6 +602,12 @@ abstract class AppLocalizations {
   /// **'Префикс весов'**
   String get taroziUchunPrefix;
 
+  /// Префикс для штучных товаров || Shtuchniy tovar uchun prefix
+  ///
+  /// In ru, this message translates to:
+  /// **'Префикс для штучных товаров'**
+  String get taroziShtuchniyUchunPrefix;
+
   /// Порт весов || Tarozi porti
   ///
   /// In ru, this message translates to:
@@ -649,6 +655,12 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Введите префикс штрих-кода для весов'**
   String get taroziUchunShtrixKodPrefixiniKiriting;
+
+  /// Введите префикс штрих-кода для штучных товаров || Shtuchniy tovar uchun shtrix kod prefixini kiriting
+  ///
+  /// In ru, this message translates to:
+  /// **'Введите префикс штрих-кода для штучных товаров'**
+  String get taroziShtuchniyUchunShtrixKodPrefixiniKiriting;
 
   /// Выберите последовательный порт весов || Tarozi portini tanlang
   ///

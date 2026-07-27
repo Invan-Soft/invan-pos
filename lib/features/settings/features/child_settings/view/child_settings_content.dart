@@ -17,6 +17,7 @@ import '../../../../../utils/helpers/auth_backup.dart';
 import 'item_list_tile.dart';
 import '../dialogs/language_dialog.dart';
 import '../dialogs/tarozi_prefix_dialog.dart';
+import '../dialogs/tarozi_piece_prefix_dialog.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:invan2/features/dev_tools/upload_build_dialog.dart';
@@ -81,6 +82,15 @@ class _ChildSettingsContentState extends State<ChildSettingsContent> {
             showDialog(
               context: context,
               builder: (_) => const TaroziPrefixDialog(),
+            );
+          },
+        ),
+        ItemListTile(
+          text: loc.taroziShtuchniyUchunPrefix,
+          onPress: () {
+            showDialog(
+              context: context,
+              builder: (_) => const TaroziPiecePrefixDialog(),
             );
           },
         ),
