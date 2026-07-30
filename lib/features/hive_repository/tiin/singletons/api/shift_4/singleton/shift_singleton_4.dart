@@ -85389,8 +85389,27 @@ class ShiftSingleton4 {
       }
 
       for (var item in e.soldItemList) {
-        for (var d in item.discount) {
-          discountAmount += (d.total * item.value);
+        // Chegirma = (asl narx - sotilgan narx) × miqdor. Bu fiskal OFD
+        // chekida ishlatiladigan _countDiscountOFD formulasi bilan AYNAN bir
+        // xil, shu sababli smena hisoboti chek/adminka bilan mos keladi.
+        //
+        // Nega item.discount daftaridan EMAS: consolidateSoldItems blok
+        // qatorini dona hisobiga yoyganda item.value ni boxValue marta
+        // oshiradi (1 blok -> 12 dona), lekin item.discount[].total ni
+        // yoymaydi — u butun-blok qiymati bo'lib qoladi. Natijada
+        // d.total × value blok chegirmasini boxValue marta ko'p ko'rsatardi
+        // (masalan 36,000 × 24 = 864,000, aslida 36,000). realPrice va price
+        // esa konsolidatsiyada dona hisobiga to'g'ri bo'linadi, shuning uchun
+        // realPrice - price har doim to'g'ri.
+        //
+        // Bu formula barcha chegirma turini qamraydi: OPD %, "Chegirmali
+        // narxi", utsenka QR, admin/kategoriya, mijoz %, "tepa" chegirma,
+        // BuyXGetX/Y, Free Gift. Narx qo'lda tuzatilganda va blok/optom narxda
+        // realPrice = price bo'lgani uchun farq 0 — chegirma sifatida
+        // sanalmaydi (to'g'ri).
+        final double perUnitDiscount = item.realPrice - item.price;
+        if (perUnitDiscount > 0) {
+          discountAmount += perUnitDiscount * item.value;
         }
       }
     }

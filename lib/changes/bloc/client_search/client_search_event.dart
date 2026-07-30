@@ -7,7 +7,12 @@ class ClientInitialEvent extends ClientEvent {}
 class ClientSearchEvent extends ClientEvent {
   bool isSpecialClient;
 
-  ClientSearchEvent(this.isSpecialClient);
+  // true bo'lsa, clients_by_pos'da topilmasa, xuddi shu INN bo'yicha
+  // supplier (postavshik) API'siga ham so'rov yuboriladi (Perechisleniya/
+  // Didox oynasi uchun — mijoz yoki supplier, qaysinisi javob qaytarsa).
+  final bool alsoCheckSupplier;
+
+  ClientSearchEvent(this.isSpecialClient, {this.alsoCheckSupplier = false});
 }
 
 class ClientFoundEvent extends ClientEvent {

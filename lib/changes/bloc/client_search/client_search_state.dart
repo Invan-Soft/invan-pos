@@ -11,6 +11,13 @@ class ClientFoundState extends SearchClientState {
 
 class ClientNotFoundState extends SearchClientState {}
 
+// clients_by_pos'da topilmadi, lekin xuddi shu INN bo'yicha supplier
+// (postavshik) API'sida topildi.
+class ClientSearchSupplierFoundState extends SearchClientState {
+  final SupplierModel supplier;
+  ClientSearchSupplierFoundState({required this.supplier});
+}
+
 class ClientErrorState extends SearchClientState {
   final String error;
   ClientErrorState(this.error);

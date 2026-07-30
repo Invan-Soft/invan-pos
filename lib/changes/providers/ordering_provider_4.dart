@@ -1,4 +1,3 @@
-﻿
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' show min;
@@ -133,8 +132,8 @@ class OrderingProvider4 extends ChangeNotifier {
   final int _amountActions = 0;
   double _newClientPersentageDiscount = 0;
   bool _alcoholWarningShown = false;
-  bool _cashsaleWarningShown = false;   // cashsale==0 uchun
-  bool _bigTotalWarningShown = false;   // cashsale==1 + total > 25M uchun
+  bool _cashsaleWarningShown = false; // cashsale==0 uchun
+  bool _bigTotalWarningShown = false; // cashsale==1 + total > 25M uchun
 
   /* //////////////////////// PROVIDER GETTERS //////////////////////// */
 
@@ -284,7 +283,8 @@ class OrderingProvider4 extends ChangeNotifier {
 
 <b>Mahsulotlar:</b>
 ${productLines.toString().trim()}
-    """.trim();
+    """
+        .trim();
 
     final Uri url = Uri.parse(
       'https://api.telegram.org/bot$botToken/sendMessage?'
@@ -753,7 +753,6 @@ ${productLines.toString().trim()}
     return unit == 'кг' || unit == 'kg';
   }
 
-
   Future<void> _handleMarkingProduct(
       BuildContext context, ItemModel product, double price) async {
     final isPriceZero = price <= 0;
@@ -799,7 +798,8 @@ ${productLines.toString().trim()}
           ItemsSingleton.finalPrice(product, 1, false).toDouble();
       final discount =
           (originalPrice - utsenkaPrice).clamp(0.0, double.infinity);
-      final percent = originalPrice > 0 ? (discount / originalPrice) * 100 : 0.0;
+      final percent =
+          originalPrice > 0 ? (discount / originalPrice) * 100 : 0.0;
 
       final item = _createSoldItem(product, utsenkaPrice, 1, false);
       item.realPrice = originalPrice;
@@ -833,7 +833,6 @@ ${productLines.toString().trim()}
     }
   }
 
- 
   Future<void> _updateExistingProduct(
       BuildContext context, ItemModel product, double value, int index) async {
     ReceiptModelSoldItem4 soldItem =
@@ -881,11 +880,9 @@ ${productLines.toString().trim()}
 
     if (await _checkAndShowDialogsIfNeeded(context, soldItem)) return;
 
-
     _currentClient.orderedProducts.insert(0, soldItem);
   }
 
-  
   void _applyDiscounts(ItemModel product, ReceiptModelSoldItem4 soldItem) {
     // Agar narx qo'lda o'zgartirilgan bo'lsa — discount qo'shma
     if (soldItem.isPriceOnlyChanged) return;
@@ -912,7 +909,6 @@ ${productLines.toString().trim()}
         Pref.getBool(PrefKeys.markCheckWithOfd, false);
     final isMxikOrPackageInvalid = markCheckEnabled &&
         (soldItem.mxik.isEmpty || soldItem.packageCode?.isEmpty != false);
-
 
     if (soldItem.value <= 0) {
       final loc = AppLocalizations.of(context)!;
@@ -1065,121 +1061,130 @@ ${productLines.toString().trim()}
     }
   }
 
- 
-void useFreeProducts() {
-  if (_returnedProducts.isEmpty) return;
+  void useFreeProducts() {
+    if (_returnedProducts.isEmpty) return;
 
-  final orderedProducts = _currentClient.orderedProducts;
+    final orderedProducts = _currentClient.orderedProducts;
 
-  for (final returnedProduct in _returnedProducts.values) {
-    final mustQty = returnedProduct.mustProductQuantity ?? 0;
-    final availableProducts = returnedProduct.availableProducts;
-    final returnedProductId = returnedProduct.returnedProductId;
-    final returnedProductQty = returnedProduct.returnedProductQuantity?.toDouble() ?? 0.0;
+    for (final returnedProduct in _returnedProducts.values) {
+      final mustQty = returnedProduct.mustProductQuantity ?? 0;
+      final availableProducts = returnedProduct.availableProducts;
+      final returnedProductId = returnedProduct.returnedProductId;
+      final returnedProductQty =
+          returnedProduct.returnedProductQuantity?.toDouble() ?? 0.0;
 
-    if (availableProducts == null || availableProducts.isEmpty || returnedProductId == null) {
-      continue;
-    }
-
-    final isSameProduct = availableProducts.any((p) => p.id == returnedProductId);
-
-    bool thresholdMet;
-    if (isSameProduct) {
-      final totalQtyOfProduct = orderedProducts
-          .where((p) => p.productId == returnedProductId && !p.isPriceOnlyChanged)
-          .fold<num>(0, (sum, p) => sum + (p.saleType == 2 ? p.value * p.boxValue : p.value));
-      thresholdMet = totalQtyOfProduct >= mustQty + returnedProductQty;
-    } else {
-      final nonGiftTotal = orderedProducts
-          .where((p) => p.productId != returnedProductId && !p.isPriceOnlyChanged)
-          .fold<num>(0, (sum, p) => sum + p.realPrice * p.value);
-      thresholdMet = nonGiftTotal >= mustQty;
-    }
-
-    if (!thresholdMet) {
-      for (final item in orderedProducts) {
-        if (item.productId == returnedProductId) {
-          _resetItemDiscount(item);
-        }
-      }
-      continue;
-    }
-
-    final prod = ItemsSingleton.getProductById(returnedProductId);
-    final firstTierPrice = (prod != null)
-        ? ItemsSingleton.onePrice(prod.shopPrices).toDouble()
-        : 0.0;
-
-    // Tegishli barcha qatorlar (to'lanadigan + tekin bo'ladigan)
-    final eligibleItems = orderedProducts
-        .where((item) =>
-            item.productId == returnedProductId &&
-            !item.isPriceOnlyChanged &&
-            !item.isPriceChanged)
-        .toList();
-
-    // Box itemlar (katta effectiveQty) avval ishlansin — individual itemlar keyinida
-    eligibleItems.sort((a, b) {
-      final aQty = a.saleType == 2 ? (a.value * a.boxValue) : a.value;
-      final bQty = b.saleType == 2 ? (b.value * b.boxValue) : b.value;
-      return bQty.compareTo(aQty);
-    });
-
-    num freeLeft = returnedProductQty;
-
-    for (final item in eligibleItems) {
-      // 1. Har bir qator uchun 6050 ni majburiy qo'yamiz
-      if (firstTierPrice > 0) {
-        final adjustedFirstTierPrice = item.saleType == 2
-            ? firstTierPrice * item.boxValue
-            : firstTierPrice;
-        item.realPrice = adjustedFirstTierPrice;
-        item.onlyPrice = adjustedFirstTierPrice;
-      }
-
-      if (freeLeft <= 0) {
-        // To'lanadigan qator — chegirmasiz qoladi
-        item.price = item.realPrice;
-        item.discountPercent = 0;
-        item.singleDiscount = 0;
-        _resetItemDiscount(item); // eski chegirmalarni tozalaydi
+      if (availableProducts == null ||
+          availableProducts.isEmpty ||
+          returnedProductId == null) {
         continue;
       }
 
-      final itemQty = item.saleType == 2
-          ? (item.value * item.boxValue).toDouble()
-          : item.value.toDouble();
-      final effectiveFree = freeLeft >= itemQty ? itemQty : freeLeft;
-      freeLeft -= effectiveFree;
+      final isSameProduct =
+          availableProducts.any((p) => p.id == returnedProductId);
 
-      final paidQty = itemQty - effectiveFree;
-      final ratio = paidQty / itemQty;
+      bool thresholdMet;
+      if (isSameProduct) {
+        final totalQtyOfProduct = orderedProducts
+            .where((p) =>
+                p.productId == returnedProductId && !p.isPriceOnlyChanged)
+            .fold<num>(
+                0,
+                (sum, p) =>
+                    sum + (p.saleType == 2 ? p.value * p.boxValue : p.value));
+        thresholdMet = totalQtyOfProduct >= mustQty + returnedProductQty;
+      } else {
+        final nonGiftTotal = orderedProducts
+            .where((p) =>
+                p.productId != returnedProductId && !p.isPriceOnlyChanged)
+            .fold<num>(0, (sum, p) => sum + p.realPrice * p.value);
+        thresholdMet = nonGiftTotal >= mustQty;
+      }
 
-      item
-        ..price = item.realPrice * ratio
-        ..discountPercent = 100 - (ratio * 100)
-        ..singleDiscount = (item.realPrice * effectiveFree) / itemQty;
+      if (!thresholdMet) {
+        for (final item in orderedProducts) {
+          if (item.productId == returnedProductId) {
+            _resetItemDiscount(item);
+          }
+        }
+        continue;
+      }
 
-      item.discount.clear();
+      final prod = ItemsSingleton.getProductById(returnedProductId);
+      final firstTierPrice = (prod != null)
+          ? ItemsSingleton.onePrice(prod.shopPrices).toDouble()
+          : 0.0;
 
-      final discountModel = ProductDiscountModel(
-        idd: returnedProduct.discountId ?? '',
-        typeId: returnedProduct.discountGroupType ?? '',
-        typeName: 'Buy X Get Y',
-        name: returnedProduct.discountName ?? '',
-        value: item.discountPercent ?? 100,
-        total: item.singleDiscount * item.value,
-      );
+      // Tegishli barcha qatorlar (to'lanadigan + tekin bo'ladigan)
+      final eligibleItems = orderedProducts
+          .where((item) =>
+              item.productId == returnedProductId &&
+              !item.isPriceOnlyChanged &&
+              !item.isPriceChanged)
+          .toList();
 
-      item.productDiscount.removeWhere((e) => e.idd == discountModel.idd);
-      item.productDiscount.add(discountModel);
-      DiscountSingleton.addDiscountForProduct(item);
+      // Box itemlar (katta effectiveQty) avval ishlansin — individual itemlar keyinida
+      eligibleItems.sort((a, b) {
+        final aQty = a.saleType == 2 ? (a.value * a.boxValue) : a.value;
+        final bQty = b.saleType == 2 ? (b.value * b.boxValue) : b.value;
+        return bQty.compareTo(aQty);
+      });
+
+      num freeLeft = returnedProductQty;
+
+      for (final item in eligibleItems) {
+        // 1. Har bir qator uchun 6050 ni majburiy qo'yamiz
+        if (firstTierPrice > 0) {
+          final adjustedFirstTierPrice = item.saleType == 2
+              ? firstTierPrice * item.boxValue
+              : firstTierPrice;
+          item.realPrice = adjustedFirstTierPrice;
+          item.onlyPrice = adjustedFirstTierPrice;
+        }
+
+        if (freeLeft <= 0) {
+          // To'lanadigan qator — chegirmasiz qoladi
+          item.price = item.realPrice;
+          item.discountPercent = 0;
+          item.singleDiscount = 0;
+          _resetItemDiscount(item); // eski chegirmalarni tozalaydi
+          continue;
+        }
+
+        final itemQty = item.saleType == 2
+            ? (item.value * item.boxValue).toDouble()
+            : item.value.toDouble();
+        final effectiveFree = freeLeft >= itemQty ? itemQty : freeLeft;
+        freeLeft -= effectiveFree;
+
+        final paidQty = itemQty - effectiveFree;
+        final ratio = paidQty / itemQty;
+
+        item
+          ..price = item.realPrice * ratio
+          ..discountPercent = 100 - (ratio * 100)
+          ..singleDiscount = (item.realPrice * effectiveFree) / itemQty;
+
+        item.discount.clear();
+
+        final discountModel = ProductDiscountModel(
+          idd: returnedProduct.discountId ?? '',
+          typeId: returnedProduct.discountGroupType ?? '',
+          typeName: 'Buy X Get Y',
+          name: returnedProduct.discountName ?? '',
+          value: item.discountPercent ?? 100,
+          total: item.singleDiscount * item.value,
+        );
+
+        item.productDiscount.removeWhere((e) => e.idd == discountModel.idd);
+        item.productDiscount.add(discountModel);
+        DiscountSingleton.addDiscountForProduct(item);
+      }
     }
+
+    _currentClient.orderedProducts = orderedProducts;
+    notifyListeners();
   }
 
-  _currentClient.orderedProducts = orderedProducts;
-  notifyListeners();
-}
   void useFreeGiftProducts() {
     final orderedProducts = _currentClient.orderedProducts;
 
@@ -1214,8 +1219,8 @@ void useFreeProducts() {
       // Sovg'a producti savatda bo'lsa, uning to'lanadigan qismi ham
       // threshold ga kiritiladi: (savatdagi sovg'a product summasi − tekin qism)
       // + boshqa productlar summasi >= buyAmount.
-      final giftProductInCartValue = giftItems.fold<num>(
-          0, (sum, p) => sum + p.realPrice * p.value);
+      final giftProductInCartValue =
+          giftItems.fold<num>(0, (sum, p) => sum + p.realPrice * p.value);
       final giftRealPrice =
           giftItems.isNotEmpty ? giftItems.first.realPrice : 0;
       final freeValue = giftRealPrice * gift.getProductAmount;
@@ -1264,129 +1269,72 @@ void useFreeProducts() {
     _currentClient.orderedProducts = orderedProducts;
   }
 
-void useBuyXGetXProducts() {
-  if (_returnedBuyXGetX.isEmpty) return;
+  void useBuyXGetXProducts() {
+    if (_returnedBuyXGetX.isEmpty) return;
 
-  final orderedProducts = _currentClient.orderedProducts;
+    final orderedProducts = _currentClient.orderedProducts;
 
-  for (ReturnedGiftX gift in _returnedBuyXGetX) {
-    final productId = gift.getProduct?.id;
-    if (productId == null) continue;
+    for (ReturnedGiftX gift in _returnedBuyXGetX) {
+      final productId = gift.getProduct?.id;
+      if (productId == null) continue;
 
-    // Shu productId ga tegishli barcha normal qatorlar
-    final items = orderedProducts
-        .where((item) =>
-            item.productId == productId &&
-            !item.isPriceOnlyChanged &&
-            !item.isPriceChanged)
-        .toList();
+      // Shu productId ga tegishli barcha normal qatorlar
+      final items = orderedProducts
+          .where((item) =>
+              item.productId == productId &&
+              !item.isPriceOnlyChanged &&
+              !item.isPriceChanged)
+          .toList();
 
-    if (items.isEmpty) continue;
+      if (items.isEmpty) continue;
 
+      num freeQtyLeft = gift.getProductAmount; // nechta tekin berish kerak
 
-    num freeQtyLeft = gift.getProductAmount;   // nechta tekin berish kerak
-
-    // ================== 1. BITTA QATOR (oddiy mahsulot) ==================
-    if (items.length == 1) {
-      final item = items.first;
-      final totalQty = item.saleType == 2
-          ? (item.value * item.boxValue).toDouble()
-          : item.value.toDouble();
-      final buy = gift.buyAmount.toDouble();
-      final get = gift.getProductAmount.toDouble();
-
-      // Discount bo'lsa - 3 talik narx emas, 1-chi (asosiy) narxdan hisoblansin
-      final prod = ItemsSingleton.getProductById(gift.getProduct?.id ?? '');
-      final firstTierPrice = prod != null ? ItemsSingleton.onePrice(prod.shopPrices).toDouble() : 0.0;
-      if (firstTierPrice > 0 && firstTierPrice > item.realPrice) {
-        item.realPrice = firstTierPrice;
-        item.onlyPrice = firstTierPrice;
-        item.price = firstTierPrice;
-      }
-
-      num freeQty = 0;
-      final setSize = buy + get;
-      if (gift.isRepeatable) {
-        // isRepeatable=true: nechta set bo'lsa shuncha tekin
-        if (totalQty >= setSize) {
-          freeQty = (totalQty / setSize).floor() * get;
-        }
-      } else {
-        // isRepeatable=false: faqat bitta set, qancha olmasin
-        if (totalQty >= setSize) {
-          freeQty = get;
-        }
-      }
-
-      final paidQty = totalQty - freeQty;
-
-      if (paidQty > 0) {
-        final ratio = paidQty / totalQty;
-        item.price = item.realPrice * ratio;
-        item.discountPercent = 100 - (ratio * 100);
-        item.singleDiscount = (item.realPrice * freeQty) / totalQty;
-      } else {
-        item.price = 0;
-        item.discountPercent = 100;
-        item.singleDiscount = item.realPrice;
-      }
-
-      // Discount model
-      item.discount.clear();
-      final discountModel = ProductDiscountModel(
-        idd: gift.discountId ?? '',
-        typeId: gift.discountGroupType ?? '',
-        typeName: 'Buy X Get X',
-        name: gift.discountName ?? '',
-        value: item.discountPercent ?? 100,
-        total: item.singleDiscount * item.value,
-      );
-
-      item.productDiscount.removeWhere((e) => e.idd == discountModel.idd);
-      item.productDiscount.add(discountModel);
-      DiscountSingleton.addDiscountForProduct(item);
-    }
-    else {
-      // BuyXGetX: perSetGet == perSetBuy (symmetric), perSet = buy + get = 2 × buyAmount
-      final perSetGet = gift.buyAmount.toDouble();
-      final perSetSize = perSetGet * 2;
-
-      for (final item in items.reversed) {
-        if (freeQtyLeft <= 0) {
-          _resetItemDiscount(item);
-          continue;
-        }
-
-        final itemQty = item.saleType == 2
+      // ================== 1. BITTA QATOR (oddiy mahsulot) ==================
+      if (items.length == 1) {
+        final item = items.first;
+        final totalQty = item.saleType == 2
             ? (item.value * item.boxValue).toDouble()
             : item.value.toDouble();
+        final buy = gift.buyAmount.toDouble();
+        final get = gift.getProductAmount.toDouble();
 
-        // Box: cap free at natural ratio so excess free slots pass to individual items.
-        // Individual: can absorb all remaining free slots (up to itemQty).
-        final naturalCap = item.saleType == 2
-            ? (itemQty / perSetSize).floor() * perSetGet
-            : itemQty;
-        final freeInThis = min(naturalCap, freeQtyLeft);
-
-        if (freeInThis <= 0) {
-          _resetItemDiscount(item);
-          continue;
+        // Discount bo'lsa - 3 talik narx emas, 1-chi (asosiy) narxdan hisoblansin
+        final prod = ItemsSingleton.getProductById(gift.getProduct?.id ?? '');
+        final firstTierPrice = prod != null
+            ? ItemsSingleton.onePrice(prod.shopPrices).toDouble()
+            : 0.0;
+        if (firstTierPrice > 0 && firstTierPrice > item.realPrice) {
+          item.realPrice = firstTierPrice;
+          item.onlyPrice = firstTierPrice;
+          item.price = firstTierPrice;
         }
 
-        if (freeInThis >= itemQty) {
-          // Butun qator tekin
+        num freeQty = 0;
+        final setSize = buy + get;
+        if (gift.isRepeatable) {
+          // isRepeatable=true: nechta set bo'lsa shuncha tekin
+          if (totalQty >= setSize) {
+            freeQty = (totalQty / setSize).floor() * get;
+          }
+        } else {
+          // isRepeatable=false: faqat bitta set, qancha olmasin
+          if (totalQty >= setSize) {
+            freeQty = get;
+          }
+        }
+
+        final paidQty = totalQty - freeQty;
+
+        if (paidQty > 0) {
+          final ratio = paidQty / totalQty;
+          item.price = item.realPrice * ratio;
+          item.discountPercent = 100 - (ratio * 100);
+          item.singleDiscount = (item.realPrice * freeQty) / totalQty;
+        } else {
           item.price = 0;
           item.discountPercent = 100;
           item.singleDiscount = item.realPrice;
-          freeQtyLeft -= itemQty;
-        } else {
-          // Qisman tekin
-          final paidQty = itemQty - freeInThis;
-          final ratio = paidQty / itemQty;
-          item.price = item.realPrice * ratio;
-          item.discountPercent = 100 - (ratio * 100);
-          item.singleDiscount = (item.realPrice * freeInThis) / itemQty;
-          freeQtyLeft -= freeInThis;
         }
 
         // Discount model
@@ -1403,12 +1351,70 @@ void useBuyXGetXProducts() {
         item.productDiscount.removeWhere((e) => e.idd == discountModel.idd);
         item.productDiscount.add(discountModel);
         DiscountSingleton.addDiscountForProduct(item);
+      } else {
+        // BuyXGetX: perSetGet == perSetBuy (symmetric), perSet = buy + get = 2 × buyAmount
+        final perSetGet = gift.buyAmount.toDouble();
+        final perSetSize = perSetGet * 2;
+
+        for (final item in items.reversed) {
+          if (freeQtyLeft <= 0) {
+            _resetItemDiscount(item);
+            continue;
+          }
+
+          final itemQty = item.saleType == 2
+              ? (item.value * item.boxValue).toDouble()
+              : item.value.toDouble();
+
+          // Box: cap free at natural ratio so excess free slots pass to individual items.
+          // Individual: can absorb all remaining free slots (up to itemQty).
+          final naturalCap = item.saleType == 2
+              ? (itemQty / perSetSize).floor() * perSetGet
+              : itemQty;
+          final freeInThis = min(naturalCap, freeQtyLeft);
+
+          if (freeInThis <= 0) {
+            _resetItemDiscount(item);
+            continue;
+          }
+
+          if (freeInThis >= itemQty) {
+            // Butun qator tekin
+            item.price = 0;
+            item.discountPercent = 100;
+            item.singleDiscount = item.realPrice;
+            freeQtyLeft -= itemQty;
+          } else {
+            // Qisman tekin
+            final paidQty = itemQty - freeInThis;
+            final ratio = paidQty / itemQty;
+            item.price = item.realPrice * ratio;
+            item.discountPercent = 100 - (ratio * 100);
+            item.singleDiscount = (item.realPrice * freeInThis) / itemQty;
+            freeQtyLeft -= freeInThis;
+          }
+
+          // Discount model
+          item.discount.clear();
+          final discountModel = ProductDiscountModel(
+            idd: gift.discountId ?? '',
+            typeId: gift.discountGroupType ?? '',
+            typeName: 'Buy X Get X',
+            name: gift.discountName ?? '',
+            value: item.discountPercent ?? 100,
+            total: item.singleDiscount * item.value,
+          );
+
+          item.productDiscount.removeWhere((e) => e.idd == discountModel.idd);
+          item.productDiscount.add(discountModel);
+          DiscountSingleton.addDiscountForProduct(item);
+        }
       }
     }
+
+    notifyListeners();
   }
 
-  notifyListeners();
-}
   void _resetItemDiscount(ReceiptModelSoldItem4 item) {
     item
       ..price = item.realPrice
@@ -1504,23 +1510,43 @@ void useBuyXGetXProducts() {
     }
   }
 
-  
-String _markirovka(String rawMark) {
-  if (rawMark.trim().isEmpty) return rawMark;
+  String _markirovka(String rawMark) {
+    if (rawMark.trim().isEmpty) return rawMark;
 
-  String clean = rawMark
-      // (01), (21) kabi AI qavslarini olib tashlash
-      .replaceAll(RegExp(r'\(\d{2}\)'), '')
-      // Barcha ASCII boshqaruv belgilari: GS(0x1D), FS, RS, US, NUL...DEL
-      // va C1 (0x80-0x9F). Skaner GS1 ajratuvchini turli kodda yuborishi mumkin,
-      // shuning uchun butun diapazonni tozalaymiz (aks holda chekda "▯" chiqadi).
-      .replaceAll(RegExp(r'[\x00-\x1F\x7F-\x9F]'), '')
-      // Unicode replacement / object-replacement belgilari
-      .replaceAll('￼', '')
-      .replaceAll('�', '');
+    // Kripto marker bormi? — (93) qavsli yoki <GS>93 ajratuvchili.
+    // Bu qaror faqat SHU YERDA (skan vaqti) to'g'ri: marker hali joyida.
+    final hasMarker = RegExp(r'\(93\)').hasMatch(rawMark) ||
+        RegExp(r'[\x1D\x1C\x1E\x1F]93').hasMatch(rawMark);
 
-  return clean;
-}
+    String clean = rawMark
+        // 1) Kripto qism — (93) va undan keyingi hamma narsa (yoki <GS>93...).
+        //    Bu qism sotuvga, soliqqa, OFD ga HECH QAYERGA yuborilmaydi.
+        //    Marker BORda: aniq marker bo'yicha kesamiz — serial ichidagi
+        //    tasodifiy "93" saqlanadi (u yalang'och, marker "kiyimi" yo'q).
+        .replaceAll(RegExp(r'\(93\).*$'), '')
+        .replaceAll(RegExp(r'[\x1D\x1C\x1E\x1F]93.*$'), '')
+        // 2) AI qavslarini olib tashlaymiz, LEKIN ichidagi raqamni SAQLAYMIZ:
+        //    (01)->01, (21)->21. Aks holda 01 GTIN bilan qo'shilib ketib, kod
+        //    04... (GTIN) dan boshlanib qolardi — buzuq KM. (Eski `\(\d{2}\)`
+        //    regexi qavs bilan birga 01/21 raqamini ham o'chirib yuborardi.)
+        .replaceAllMapped(RegExp(r'\((\d{2,3})\)'), (m) => m.group(1)!)
+        // 3) Qolgan barcha ASCII boshqaruv belgilari: GS(0x1D), FS, RS, US,
+        //    NUL...DEL va C1 (0x80-0x9F). Aks holda chekda "▯" chiqadi.
+        .replaceAll(RegExp(r'[\x00-\x1F\x7F-\x9F]'), '')
+        // Unicode replacement / object-replacement belgilari
+        .replaceAll('￼', '')
+        .replaceAll('�', '');
+
+    // Marker YO'Q (yalang'och kod) bo'lsa — ESKI logika: 01+GTIN(14)+21 dan
+    // keyin birinchi "93" gacha olamiz. Markersiz kodda chegarani boshqacha
+    // aniqlashning iloji yo'q, shuning uchun serialda 93 kelib qolsa ham kesiladi.
+    if (!hasMarker) {
+      final match = RegExp(r'(01\d{14}21.*?)(?=93)').firstMatch(clean);
+      if (match != null) return match.group(1)!;
+    }
+
+    return clean;
+  }
 
   bool isLoading = false;
 
@@ -1537,6 +1563,7 @@ String _markirovka(String rawMark) {
     dialogForDiscount = value;
     notifyListeners();
   }
+
   Future<void> _markingCheck(
       //ideal
       ItemModel item,
@@ -1580,8 +1607,7 @@ String _markirovka(String rawMark) {
       final gtinMatch = RegExp(r'(?:01|02)(\d{12,14})').firstMatch(v);
       if (gtinMatch != null) {
         gtinFromMark = gtinMatch.group(1)!.replaceFirst(RegExp(r'^0+'), '');
-      } 
-      else {
+      } else {
         final numbers = RegExp(r'\d{12,14}').firstMatch(v);
         if (numbers != null) {
           gtinFromMark = numbers.group(0)!.replaceFirst(RegExp(r'^0+'), '');
@@ -1691,11 +1717,12 @@ String _markirovka(String rawMark) {
 
       if (!Pref.getBool('validation_onkm', true)) {
         final existingWithMark = _currentClient.orderedProducts.indexWhere(
-  (e) => !(e.isDeleted ?? false) &&
-         e.mark != null &&
-         e.mark!.isNotEmpty &&
-         e.mark == v,
-);
+          (e) =>
+              !(e.isDeleted ?? false) &&
+              e.mark != null &&
+              e.mark!.isNotEmpty &&
+              e.mark == v,
+        );
 
         final existingNoMark = _currentClient.orderedProducts.indexWhere(
           (e) => e.productId == item.id && (e.mark == null || e.mark!.isEmpty),
@@ -1954,6 +1981,7 @@ String _markirovka(String rawMark) {
       }
     }
   }
+
   addSeperatedProduct(ItemModel product) async {
     final freshProduct =
         ItemsSingleton.getProductById(product.id ?? '') ?? product;
@@ -1961,19 +1989,16 @@ String _markirovka(String rawMark) {
     bool isKg = freshProduct.measurementUnit?.shortName == 'кг' ||
         freshProduct.measurementUnit?.shortName == 'kg';
     final markValue = product.mark;
-   
-    if (markValue != null && markValue.isNotEmpty) {
 
+    if (markValue != null && markValue.isNotEmpty) {
       final alreadyAdded = _currentClient.orderedProducts.any(
-  (e) => !(e.isDeleted ?? false) &&
-         e.mark != null &&
-         e.mark == markValue,   
-);
+        (e) => !(e.isDeleted ?? false) && e.mark != null && e.mark == markValue,
+      );
       if (alreadyAdded) {
         if (!dialogForMark) {
           dialogForMark = true;
-          final loc = AppLocalizations.of(
-              AppNavigation.navigatorKey.currentContext!)!;
+          final loc =
+              AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
           await showGeneralDialog(
             barrierDismissible: false,
             context: AppNavigation.navigatorKey.currentContext!,
@@ -2011,7 +2036,6 @@ String _markirovka(String rawMark) {
     if (price <= 0) {
       price = ItemsSingleton.finalPrice(freshProduct, 1, isKg).toDouble();
     }
-
 
     final soldItem = ReceiptModelSoldItem4(
       isDeleted: false,
@@ -2068,7 +2092,8 @@ String _markirovka(String rawMark) {
     isTpEdited = false;
     notifyListeners();
 
-    final loc = AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
+    final loc =
+        AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
 
     // Dialog 1: BuyXGetY — "X ta olsang Y ta tekin"
     bool isShowOld = false;
@@ -2306,11 +2331,11 @@ String _markirovka(String rawMark) {
     }
 
     final isKg = _isKg(freshProduct);
-    print('Box Product ${freshProduct.name} ${freshProduct.boxBarcodeQuantity}${freshProduct.hasBoxBarcode}');
- final rawBoxValue = freshProduct.boxBarcodeQuantity;
-final boxValue = (rawBoxValue == null || rawBoxValue == 0)
-    ? 1
-    : rawBoxValue.toInt();
+    print(
+        'Box Product ${freshProduct.name} ${freshProduct.boxBarcodeQuantity}${freshProduct.hasBoxBarcode}');
+    final rawBoxValue = freshProduct.boxBarcodeQuantity;
+    final boxValue =
+        (rawBoxValue == null || rawBoxValue == 0) ? 1 : rawBoxValue.toInt();
     // Tier narx blok ichidagi dona soni bo'yicha tanlanadi: 6 talik blok
     // "4+ dona" tier'iga tushsa, har bir dona o'sha tier narxida hisoblanadi.
     final unitPrice =
@@ -2432,9 +2457,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     final result = <int>[];
     for (var i = 0; i < _currentClient.orderedProducts.length; i++) {
       final e = _currentClient.orderedProducts[i];
-      if (e.productId == productId &&
-          e.marking &&
-          !(e.isDeleted ?? false)) {
+      if (e.productId == productId && e.marking && !(e.isDeleted ?? false)) {
         result.add(i);
       }
     }
@@ -2493,8 +2516,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     if (remaining.isEmpty) {
       _showCount.remove(pid);
       _showCountFreeGift.remove(pid);
-      if (_currentClient.orderedProducts
-          .every((e) => (e.isDeleted ?? false))) {
+      if (_currentClient.orderedProducts.every((e) => (e.isDeleted ?? false))) {
         _currentClient.selectedClient = null;
         _newClientPersentageDiscount = 0;
       }
@@ -2620,8 +2642,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     if (remaining.isEmpty) {
       _showCount.remove(pid);
       _showCountFreeGift.remove(pid);
-      if (_currentClient.orderedProducts
-          .every((e) => (e.isDeleted ?? false))) {
+      if (_currentClient.orderedProducts.every((e) => (e.isDeleted ?? false))) {
         _currentClient.selectedClient = null;
         _newClientPersentageDiscount = 0;
       }
@@ -2746,12 +2767,10 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     _currentClient.deletedItems.add(
       DeletedItemModel4(
         deletedBy: employeeId,
-        deletedTime:
-            DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+        deletedTime: DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
         productId: item.productId,
         quantity: qty,
-        totalPrice:
-            double.parse((item.price * qty).round().toStringAsFixed(1)),
+        totalPrice: double.parse((item.price * qty).round().toStringAsFixed(1)),
       ),
     );
   }
@@ -2803,7 +2822,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         _showCountFreeGift.remove(deletedProductId);
       }
     }
-
 
     if (_currentClient.orderedProducts.isEmpty) {
       _currentClient.selectedClient = null;
@@ -2872,7 +2890,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       }
     } catch (e) {}
   }
-
 
   Future<void> freeGiftDialog() async {
     if (_returnedFreeGiftProducts.isEmpty) return;
@@ -3322,8 +3339,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       serviceDurationSeconds: serviceDurationSecondsVal,
     );
     receiptModel4.payment.addAll(paymentsMapAsList);
-    receiptModel4.hasDept = paymentsMapAsList
-        .any((p) => p.name.toLowerCase() == 'debt');
+    receiptModel4.hasDept =
+        paymentsMapAsList.any((p) => p.name.toLowerCase() == 'debt');
     // Red-delete rejimida o'chirilgan (isDeleted=true) mahsulotlar listda qoladi,
     // lekin kassir totali (getTotalPrice) ularni hisobga olmaydi. Shuning uchun
     // ularni fiskal/server/qog'oz chekka ham yubormaymiz — aks holda OFD 10.2.1
@@ -3490,20 +3507,22 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       }).toList();
 
   static String cleanMarkForFiscal(String rawMark) {
-  if (rawMark.trim().isEmpty) return rawMark;
+    if (rawMark.trim().isEmpty) return rawMark;
 
-  String clean = rawMark
-      .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '')
-      .replaceAll(RegExp(r'\(\d{2,3}\)'), '');
+    // Kripto qism ((93) va keyin, yoki <GS>93...) — hech qayerga yuborilmaydi.
+    // Faqat ANIQ marker (qavs yoki boshqaruv-ajratuvchi) bo'yicha kesamiz.
+    // MUHIM: eski bare `(?=93)` fallback ishlatilmaydi — u serial ICHIDAGI
+    // tasodifiy "93" substringda serialni kesib yuborardi (masalan serial
+    // "93QWERTYuiop1" bo'lsa butunlay yo'qolardi). _markirovka allaqachon
+    // kriptoni marker bilan kesib bo'lgani uchun bu fallback keraksiz.
+    return rawMark
+        .replaceAll(RegExp(r'\(93\).*$'), '')
+        .replaceAll(RegExp(r'[\x1D\x1C\x1E\x1F]93.*$'), '')
+        .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '')
+        .replaceAllMapped(RegExp(r'\((\d{2,3})\)'), (m) => m.group(1)!);
+  }
 
-  // 01+14raqam+21 topamiz, keyin belgilarni 93 kelguncha olamiz
-  final match = RegExp(r'(01\d{14}21.*?)(?=93)').firstMatch(clean);
-  
-  if (match != null) return match.group(1)!;
-
-  return clean;
-}
-      Future<PaymentResult> pressPaymentButtonOnlyOFD(BuildContext context) async {
+  Future<PaymentResult> pressPaymentButtonOnlyOFD(BuildContext context) async {
     AppLocalizations loc = AppLocalizations.of(context)!;
 
     if (_isChangeToCashback && _sdachaa > 0) {
@@ -3532,11 +3551,13 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     }
 
     if (DiscountTypeStatus.disTypeStatus == TpStatus.summa) {
-      double totalPrice = ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
+      double totalPrice =
+          ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
       clientDiscountID = "9fb3ada6-a73b-4b81-9295-5c1605e54552";
       clientDiscountVat = DiscountTypeStatus.summa - totalPrice;
     } else if (DiscountTypeStatus.disTypeStatus == TpStatus.discount) {
-      if (_currentClient.discountPercent != null && _currentClient.discountPercent != 0) {
+      if (_currentClient.discountPercent != null &&
+          _currentClient.discountPercent != 0) {
         clientDiscountID = "1fe92aa8-2a61-4bf1-b907-182b497584ad";
         clientDiscountVat = _currentClient.discountPercent!;
       }
@@ -3609,8 +3630,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     receiptModel4.pptId = _lastRRN;
 
     receiptModel4.payment.addAll(paymentsMapAsList);
-    receiptModel4.hasDept = paymentsMapAsList
-        .any((p) => p.name.toLowerCase() == 'debt');
+    receiptModel4.hasDept =
+        paymentsMapAsList.any((p) => p.name.toLowerCase() == 'debt');
     // Red-delete rejimida o'chirilgan (isDeleted=true) mahsulotlar listda qoladi,
     // lekin kassir totali (getTotalPrice) ularni hisobga olmaydi. Shuning uchun
     // ularni fiskal/server/qog'oz chekka ham yubormaymiz — aks holda OFD 10.2.1
@@ -3648,18 +3669,22 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
     if (isChanged) {
       for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
-        if (receiptModel4.soldItemList[i].price == receiptModel4.soldItemList[i].onlyPrice) {
+        if (receiptModel4.soldItemList[i].price ==
+            receiptModel4.soldItemList[i].onlyPrice) {
           receiptModel4.soldItemList[i].discount.clear();
         } else {
-          double discountSingle = receiptModel4.soldItemList[i].discount.isNotEmpty
-              ? receiptModel4.soldItemList[i].discount.first.total
-              : 0;
+          double discountSingle =
+              receiptModel4.soldItemList[i].discount.isNotEmpty
+                  ? receiptModel4.soldItemList[i].discount.first.total
+                  : 0;
 
           if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
             if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
-              receiptModel4.soldItemList[i].singleDiscount = double.parse(discountSingle.round().toStringAsFixed(1));
+              receiptModel4.soldItemList[i].singleDiscount =
+                  double.parse(discountSingle.round().toStringAsFixed(1));
             } else {
-              receiptModel4.soldItemList[i].singleDiscount = double.parse(discountSingle.round().toStringAsFixed(1));
+              receiptModel4.soldItemList[i].singleDiscount =
+                  double.parse(discountSingle.round().toStringAsFixed(1));
             }
           }
         }
@@ -3667,23 +3692,27 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       receiptModel4.discountVat = 0;
     } else {
       for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
-        if (receiptModel4.soldItemList[i].price == receiptModel4.soldItemList[i].onlyPrice) {
+        if (receiptModel4.soldItemList[i].price ==
+            receiptModel4.soldItemList[i].onlyPrice) {
           receiptModel4.soldItemList[i].discount.clear();
         } else {
-          double discountSingle = receiptModel4.soldItemList[i].discount.isNotEmpty
-              ? receiptModel4.soldItemList[i].discount.first.total
-              : 0;
+          double discountSingle =
+              receiptModel4.soldItemList[i].discount.isNotEmpty
+                  ? receiptModel4.soldItemList[i].discount.first.total
+                  : 0;
 
           if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
             if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
-              receiptModel4.soldItemList[i].singleDiscount = double.parse(discountSingle.round().toStringAsFixed(1));
+              receiptModel4.soldItemList[i].singleDiscount =
+                  double.parse(discountSingle.round().toStringAsFixed(1));
             }
           }
         }
       }
     }
 
-    receiptModel4.discountVat = double.parse(receiptModel4.discountVat.round().toStringAsFixed(1));
+    receiptModel4.discountVat =
+        double.parse(receiptModel4.discountVat.round().toStringAsFixed(1));
 
     // GUARD: items bo'sh bo'lsa OFD'ga umuman yubormaymiz.
     // Double-trigger holatida birinchi muvaffaqiyatli sotuv orderedProducts'ni
@@ -3717,7 +3746,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
           receiptModel4.payment.addAll(paymentsMapAsList);
           receiptModel4.refundInfo = jsonEncode(response.info!.toJson());
 
-          if (receiptModel4.payment.isNotEmpty && receiptModel4.soldItemList.isNotEmpty) {
+          if (receiptModel4.payment.isNotEmpty &&
+              receiptModel4.soldItemList.isNotEmpty) {
             await ReceiptSingleton4.toOBJECTBOX(
               receiptModel4,
               communicatorRECEIPT: response,
@@ -3737,7 +3767,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         }
       },
     ).catchError((err) {
-      return PaymentResult(mxikError: err, success: false, errorMessage: err.toString());
+      return PaymentResult(
+          mxikError: err, success: false, errorMessage: err.toString());
     });
 
     if (paymentResult.success) {
@@ -3766,6 +3797,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     notifyListeners();
     return paymentResult;
   }
+
   initPaymentPageValues({
     required SixClientModel4 sixClientModel4,
     required double totalPrice,
@@ -3897,7 +3929,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
 
     return <bool>[clintIsNotNull, point > 0];
   }
-
 
   bool _isDidox = false;
 
@@ -4145,6 +4176,14 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   SupplierModel? _selectedSupplier;
 
   SupplierModel? get getSelectedSupplier => _selectedSupplier;
+
+  // Perechisleniya/Didox INN qidiruvida clients_by_pos'da topilmay,
+  // supplier API'sida topilgan natijani o'rnatish uchun (yoki tozalash
+  // uchun null bilan chaqiriladi).
+  void setSelectedSupplierFromInnSearch(SupplierModel? supplier) {
+    _selectedSupplier = supplier;
+    notifyListeners();
+  }
 
   BuildContext? supplierCon;
 
@@ -4466,8 +4505,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       barrierColor: Colors.black.withOpacity(0.55),
       builder: (ctx) {
         final bool isDark = Theme.of(ctx).brightness == Brightness.dark;
-        final Color surface =
-            isDark ? const Color(0xFF212D3B) : Colors.white;
+        final Color surface = isDark ? const Color(0xFF212D3B) : Colors.white;
         final Color onSurface =
             isDark ? const Color(0xFFECEFF3) : const Color(0xFF101920);
         final Color subtle = onSurface.withOpacity(0.62);
@@ -4574,8 +4612,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
                           children: [
                             Container(
                               width: double.infinity,
-                              constraints:
-                                  const BoxConstraints(maxHeight: 200),
+                              constraints: const BoxConstraints(maxHeight: 200),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: isDark
@@ -4681,10 +4718,10 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
           String asString2 = windows1251.decode(data2);
           ////////////
 
-
-          final bool isApproved = asString.contains("ОДО") && asString.contains("РЕНО") ||
-              asString.contains("ОДОБРЕНО") ||
-              asString.contains("TASDIQLANDI");
+          final bool isApproved =
+              asString.contains("ОДО") && asString.contains("РЕНО") ||
+                  asString.contains("ОДОБРЕНО") ||
+                  asString.contains("TASDIQLANDI");
 
           if (isApproved) {
             allPaymentType(payment);
@@ -4738,7 +4775,7 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     if (!(Pref.getBool(PrefKeys.isHumoEnabled, false))) {
       _lastCardType = Pref.getInt('card_type', 2);
       allPaymentType(Payment(
-        id: payment.id, 
+        id: payment.id,
         name: payment.name,
         title: payment.title,
         enable: payment.enable,
@@ -4777,10 +4814,10 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
           String asString2 = windows1251.decode(data2);
           ////////////
 
-
-          final bool isApprovedH = asString.contains("ОДО") && asString.contains("РЕНО") ||
-              asString.contains("ОДОБРЕНО") ||
-              asString.contains("TASDIQLANDI");
+          final bool isApprovedH =
+              asString.contains("ОДО") && asString.contains("РЕНО") ||
+                  asString.contains("ОДОБРЕНО") ||
+                  asString.contains("TASDIQLANDI");
 
           if (isApprovedH) {
             allPaymentType(Payment(
@@ -5041,7 +5078,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     double summa =
         parsed > 0 ? (available >= parsed ? parsed : available) : available;
 
-    Log.d('typePaynet() — summa: $summa, receipt: $receiptNumber', name: 'OrderingProvider4');
+    Log.d('typePaynet() — summa: $summa, receipt: $receiptNumber',
+        name: 'OrderingProvider4');
 
     if (summa > 0 && !_paynetPayIsWorking) {
       _paynetPayIsWorking = true;
@@ -5055,7 +5093,8 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
             receiptNumber: receiptNumber,
             pay: () {
               allPaymentType(payment);
-              Log.d('typePaynet() — to\'lov qabul qilindi', name: 'OrderingProvider4');
+              Log.d('typePaynet() — to\'lov qabul qilindi',
+                  name: 'OrderingProvider4');
             },
           );
         },
@@ -5211,7 +5250,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
     }
 
     // UUID formatdagi QR kodlar (masalan, PayNet OTP) product emas
-    if (RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(barcode)) {
+    if (RegExp(
+            r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+        .hasMatch(barcode)) {
       return;
     }
 
@@ -5308,12 +5349,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
         final ean13 = gtin14.substring(1);
         final gtin14NoLeadZero = gtin14.replaceFirst(RegExp(r'^0+'), '');
 
-
-        final boxProduct =
-            ItemsSingleton.getProductByBoxBarcodeOnly(ean13) ??
+        final boxProduct = ItemsSingleton.getProductByBoxBarcodeOnly(ean13) ??
             ItemsSingleton.getProductByBoxBarcodeOnly(gtin14NoLeadZero) ??
             ItemsSingleton.getProductByBoxBarcodeOnly(gtin14);
-
 
         if (boxProduct != null) {
           await _addBoxProduct(boxProduct, barcode);
@@ -5374,9 +5412,9 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
           Pref.getBool(PrefKeys.markCheckWithOfd, false);
       final bool sellWithMarkingEnabled =
           Pref.getBool(PrefKeys.sellProductsWithMarking, true);
-      final bool isMarkingByMxik = markCheckEnabled &&
-          sellWithMarkingEnabled && _isMxikMarking(mxikStr);
-    
+      final bool isMarkingByMxik =
+          markCheckEnabled && sellWithMarkingEnabled && _isMxikMarking(mxikStr);
+
       if (markCheckEnabled && _isAlcoholMxik(mxikStr)) {
         Pref.setBool(PrefKeys.isCashDisableForAlcohol, true);
       }
@@ -5502,18 +5540,19 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
   /// MXIK kodiga qarab product_type qaytaradi.
   /// Bo'sh string = bu mahsulot uchun type yo'q.
   String _getProductType(String mxik) {
-    if (mxik.startsWith('024')) return '1';           // Sigareta
-    if (mxik.startsWith('02203')) return '3';         // Pivo
+    if (mxik.startsWith('024')) return '1'; // Sigareta
+    if (mxik.startsWith('02203')) return '3'; // Pivo
     if (mxik.startsWith('02204') ||
         mxik.startsWith('02205') ||
         mxik.startsWith('02206') ||
         mxik.startsWith('02207') ||
-        mxik.startsWith('02208')) return '2';          // Alkogol (pivo emas)
+        mxik.startsWith('02208')) return '2'; // Alkogol (pivo emas)
     if (mxik.startsWith('02009') ||
         mxik.startsWith('02201') ||
-        mxik.startsWith('02202')) return '5';          // Sharbat, suv va sovutuvchi ichimliklar
-    if (mxik.startsWith('030')) return '4';           // MXIK 030 → type 4, package KIZ
-    if (mxik.startsWith('085')) return '6';           // MXIK 085 → type 6, package KIZ
+        mxik.startsWith('02202'))
+      return '5'; // Sharbat, suv va sovutuvchi ichimliklar
+    if (mxik.startsWith('030')) return '4'; // MXIK 030 → type 4, package KIZ
+    if (mxik.startsWith('085')) return '6'; // MXIK 085 → type 6, package KIZ
     return '';
   }
 
@@ -5530,7 +5569,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       return null;
     }
   }
-
 
   void scanWeightItem(
     String barcode,
@@ -5685,7 +5723,6 @@ final boxValue = (rawBoxValue == null || rawBoxValue == 0)
       pressAllPath();
     }
   }
-
 
   void _collectItemsByCategory(String categoryId) {
     _items = <dynamic>[];

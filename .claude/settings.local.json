@@ -110,7 +110,19 @@
       "Bash(python3 -c \"import json; json.load\\(open\\('lib/utils/l10n/app_uz.arb', encoding='utf-8'\\)\\); print\\('VALID JSON'\\)\")",
       "Bash(xargs -I{} sh -c 'echo \"=== {} ===\"; grep -m1 \"Holat:\" {}')",
       "Bash(git -C /Users/ayyubxon/Documents/pos-invan-2-ayyubxon status --short lib/objectbox.g.dart lib/objectbox-model.json)",
-      "Bash(python3 -c \"import json; json.load\\(open\\('lib/utils/l10n/app_uz.arb', encoding='utf-8'\\)\\); json.load\\(open\\('lib/utils/l10n/app_ru.arb', encoding='utf-8'\\)\\); print\\('VALID JSON'\\)\")"
+      "Bash(python3 -c \"import json; json.load\\(open\\('lib/utils/l10n/app_uz.arb', encoding='utf-8'\\)\\); json.load\\(open\\('lib/utils/l10n/app_ru.arb', encoding='utf-8'\\)\\); print\\('VALID JSON'\\)\")",
+      "Bash(curl -s -m 300 -w '\\\\n--- HTTP: %{http_code}, vaqt: %{time_total}s ---\\\\n' -X POST https://dev.api.7i.uz/upload/build -F version=1.1.2+113 -F 'changelog=Postavshik tanlanganda ham qarzga sotish; mijoz/postavshik bir vaqtda tanlanishi cheklandi; kassir xizmat vaqti hisoblanadi; tarozi orqali donalab tovar skanerlash; kichik til xatoliklari tuzatildi.' -F file=@/private/tmp/claude-501/-Users-ayyubxon-Documents-pos-invan-2-ayyubxon/1c959727-3dbc-4e79-99a7-ddb93f42c678/scratchpad/1.1.2+113.exe)",
+      "Bash(curl -s -m 20 \"https://dev.api.7i.uz/file\" -w \"\\\\n--- HTTP: %{http_code} ---\\\\n\")",
+      "Bash(curl -sI -m 20 \"https://dev.cdn.7i.uz/file/pos_1.1.2+113.exe\")",
+      "Bash(xargs -I{} echo {})",
+      "Bash(dart format *)",
+      "Bash(python3 /private/tmp/claude-501/-Users-ayyubxon-Documents-pos-invan-2-ayyubxon/28669c0a-369f-4ad6-8d9c-8c2f0dbf72f4/scratchpad/marks.py)",
+      "Bash(perl -i -pe \"s/const gs = '[^']*';/final gs = String.fromCharCode\\(0x1D\\);/\" pipeline.dart)",
+      "Bash(dart pipeline.dart)",
+      "Bash(dart full_test.dart)",
+      "Bash(dart \"/private/tmp/claude-501/-Users-ayyubxon-Documents-pos-invan-2-ayyubxon/28669c0a-369f-4ad6-8d9c-8c2f0dbf72f4/scratchpad/full_test.dart\")",
+      "Bash(dart \"/private/tmp/claude-501/-Users-ayyubxon-Documents-pos-invan-2-ayyubxon/28669c0a-369f-4ad6-8d9c-8c2f0dbf72f4/scratchpad/dual_test.dart\")",
+      "Bash(awk '/void scanWeightItem/,/^ }/')"
     ]
   }
 }

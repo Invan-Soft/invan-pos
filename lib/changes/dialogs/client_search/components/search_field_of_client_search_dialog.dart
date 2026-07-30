@@ -15,12 +15,14 @@ class SearchFieldOfClientSearchDialog extends StatefulWidget {
   final int? maxLen;
   final bool? isText;
   final bool? isHome;
+  final bool alsoCheckSupplier;
 
   const SearchFieldOfClientSearchDialog({
     super.key,
     this.maxLen,
     this.isText,
     this.isHome,
+    this.alsoCheckSupplier = false,
   });
 
   @override
@@ -88,7 +90,8 @@ class _SearchFieldOfClientSearchDialogState
               onUpPressed: () {},
               onBarcodeScannedClient: (v) {
                 clientBloc.controller.text = v;
-                clientBloc.add(ClientSearchEvent(widget.isText ?? false));
+                clientBloc.add(ClientSearchEvent(widget.isText ?? false,
+                    alsoCheckSupplier: widget.alsoCheckSupplier));
               },
               child: TextField(
                 focusNode: _focusNode,
@@ -97,7 +100,8 @@ class _SearchFieldOfClientSearchDialogState
                 readOnly: !(widget.isText ?? false),
                 autofocus: true,
                 onSubmitted: (v) {
-                  clientBloc.add(ClientSearchEvent(widget.isText ?? false));
+                  clientBloc.add(ClientSearchEvent(widget.isText ?? false,
+                      alsoCheckSupplier: widget.alsoCheckSupplier));
                 },
                 controller: clientBloc.controller,
                 style: TextStyle(
@@ -131,8 +135,9 @@ class _SearchFieldOfClientSearchDialogState
                               }
                             }
 
-                            return clientBloc
-                                .add(ClientSearchEvent(widget.isText ?? false));
+                            return clientBloc.add(ClientSearchEvent(
+                                widget.isText ?? false,
+                                alsoCheckSupplier: widget.alsoCheckSupplier));
                           },
                           icon: Icon(
                             Icons.search,
@@ -176,7 +181,8 @@ class _SearchFieldOfClientSearchDialogState
               autofocus: true,
               // enabled: !isOffline,
               onSubmitted: (v) {
-                clientBloc.add(ClientSearchEvent(widget.isText ?? false));
+                clientBloc.add(ClientSearchEvent(widget.isText ?? false,
+                    alsoCheckSupplier: widget.alsoCheckSupplier));
               },
               controller: clientBloc.controller,
               style: TextStyle(
@@ -210,8 +216,9 @@ class _SearchFieldOfClientSearchDialogState
                             }
                           }
 
-                          return clientBloc
-                              .add(ClientSearchEvent(widget.isText ?? false));
+                          return clientBloc.add(ClientSearchEvent(
+                              widget.isText ?? false,
+                              alsoCheckSupplier: widget.alsoCheckSupplier));
                         },
                         icon: Icon(
                           Icons.search,

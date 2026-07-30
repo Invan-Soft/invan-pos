@@ -172,23 +172,40 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                       ),
                     ],
                   ),
-                  
                   const SizedBox(
                     height: 15.0,
                   ),
                   BlocConsumer<ClientBloc, SearchClientState>(
                     listener: (context, state) async {
                       if (state is ClientFoundState) {
-                        Provider.of<OrderingProvider4>(context, listen: false)
-                            .initClientByBloc(state.client, isInnClient: true);
+                        final provider = Provider.of<OrderingProvider4>(context,
+                            listen: false);
+                        provider.initClientByBloc(state.client,
+                            isInnClient: true);
+                        // Shu INN bo'yicha oldin supplier tanlangan bo'lishi
+                        // mumkin edi — endi mijoz topilgani uchun tozalaymiz.
+                        provider.setSelectedSupplierFromInnSearch(null);
                         await Future.delayed(const Duration(seconds: 1));
                         clientBloc.add(ClientClearControllerEvent());
                         // AppNavigation.pop();
                       }
+                      if (state is ClientSearchSupplierFoundState) {
+                        final provider = Provider.of<OrderingProvider4>(context,
+                            listen: false);
+                        // clients_by_pos'da topilmadi, lekin shu INN
+                        // supplier sifatida topildi — o'shani ishlatamiz.
+                        provider.initClientByBloc(null);
+                        provider
+                            .setSelectedSupplierFromInnSearch(state.supplier);
+                        await Future.delayed(const Duration(seconds: 1));
+                        clientBloc.add(ClientClearControllerEvent());
+                      }
                       if (state is ClientNotFoundState) {
                         // ignore: use_build_context_synchronously
-                        Provider.of<OrderingProvider4>(context, listen: false)
-                            .initClientByBloc(null);
+                        final provider = Provider.of<OrderingProvider4>(context,
+                            listen: false);
+                        provider.initClientByBloc(null);
+                        provider.setSelectedSupplierFromInnSearch(null);
                         await Future.delayed(const Duration(seconds: 1));
                         clientBloc.add(ClientInitialEvent());
                       }
@@ -215,6 +232,7 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                                 maxLen: 9,
                                 isText: true,
                                 isHome: true,
+                                alsoCheckSupplier: true,
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -222,7 +240,8 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                               flex: 3,
                               child: SizedBox(
                                   height: SizeConfig.v * 7.1,
-                                  child: SearchButtonOfClientDialog()),
+                                  child: const SearchButtonOfClientDialog(
+                                      alsoCheckSupplier: true)),
                             ),
                           ],
                         );
@@ -247,6 +266,15 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           companyController.text =
                               "Название компании:   ${state.client.firstName}";
+                        });
+                      }
+                      if (state is ClientSearchSupplierFoundState) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          final name =
+                              state.supplier.supplierCompanyName.isNotEmpty
+                                  ? state.supplier.supplierCompanyName
+                                  : state.supplier.name;
+                          companyController.text = "Название компании:   $name";
                         });
                       }
                       if (state is ClientInvalidIdState) {
@@ -435,7 +463,8 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                     isButtonEnabled: true,
                     onPress: () async {
                       if (orderingProvider4.getCurrentClient.selectedClient ==
-                          null) {
+                              null &&
+                          orderingProvider4.getSelectedSupplier == null) {
                         ScaffoldMessenger.of(context).showSnackBar(mySnackBar(
                             context,
                             duration: 1500,

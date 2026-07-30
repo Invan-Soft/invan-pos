@@ -994,6 +994,12 @@ class OperationOnProductProvider extends ChangeNotifier {
       target.isPriceChanged = true;
       _usedDiscountInput = true;
     }
+    // Har raqamda UI'ni yangilaymiz. Aks holda faqat 1-raqamda
+    // (_switchSelectedAlls orqali) yangilanardi; 2-raqamdan boshlab qiymat
+    // ichkarida o'zgaradi-yu ekranga chiqmasdi — foydalanuvchiga "focus
+    // qochgandek" ko'rinardi. onPriceChanged/onlyPriceChanged ham oxirida
+    // notifyListeners() chaqiradi.
+    notifyListeners();
   }
 
   void onBoxChanged(num v) {

@@ -4,7 +4,10 @@ import 'package:invan2/changes/bloc/client_search/client_search_bloc.dart';
 import 'package:invan2/widgets/default_button.dart';
 
 class SearchButtonOfClientDialog extends StatelessWidget {
-  const SearchButtonOfClientDialog({Key? key}) : super(key: key);
+  final bool alsoCheckSupplier;
+
+  const SearchButtonOfClientDialog({Key? key, this.alsoCheckSupplier = false})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +16,7 @@ class SearchButtonOfClientDialog extends StatelessWidget {
       text: "SEARCH",
       isButtonEnabled: true,
       onPress: () => clientBloc.add(
-        ClientSearchEvent(true),
+        ClientSearchEvent(true, alsoCheckSupplier: alsoCheckSupplier),
       ),
     );
   }

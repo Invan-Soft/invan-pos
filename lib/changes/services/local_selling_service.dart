@@ -52,16 +52,14 @@ class LocalService {
 static String cleanMarkForFiscal(String rawMark) {
   if (rawMark.trim().isEmpty) return rawMark;
 
-  String clean = rawMark
+  // Kripto qism ((93) va keyin, yoki <GS>93...) — hech qayerga yuborilmaydi.
+  // Faqat ANIQ marker bo'yicha kesamiz. Eski bare `(?=93)` fallback OLIB TASHLANDI:
+  // u serial ichidagi tasodifiy "93" da serialni kesib yuborardi.
+  return rawMark
+      .replaceAll(RegExp(r'\(93\).*$'), '')
+      .replaceAll(RegExp(r'[\x1D\x1C\x1E\x1F]93.*$'), '')
       .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '')
-      .replaceAll(RegExp(r'\(\d{2,3}\)'), '');
-
-  // 01+14raqam+21 topamiz, keyin belgilarni 93 kelguncha olamiz
-  final match = RegExp(r'(01\d{14}21.*?)(?=93)').firstMatch(clean);
-  
-  if (match != null) return match.group(1)!;
-
-  return clean;
+      .replaceAllMapped(RegExp(r'\((\d{2,3})\)'), (m) => m.group(1)!);
 }
   static Future<CommunicatorRESPONSE> sell({
     required AppLocalizations loc,
