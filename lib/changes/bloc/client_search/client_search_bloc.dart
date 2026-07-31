@@ -61,27 +61,29 @@ class ClientBloc extends Bloc<ClientEvent, SearchClientState> {
         final HttpResult clientResult = results[0];
         final HttpResult supplierResult = results[1];
 
-        final bool clientFound = clientResult.isSuccess &&
-            clientResult.result['data'] != null &&
-            (clientResult.result['data'] as List).isNotEmpty;
-
-        if (clientFound) {
-          final client = ClientModel.fromJson(clientResult.result['data'][0]);
-          emit(ClientFoundState(client: client));
+        try {
+          // Client ustuvor: shu INN bo'yicha mijoz topilsa, o'shani ishlatamiz.
+          final clientItem = _firstDataItem(clientResult);
+          if (clientItem != null) {
+            emit(ClientFoundState(client: ClientModel.fromJson(clientItem)));
+            return;
+          }
+          // Mijoz topilmadi — shu INN'ni supplier (postavshik) bazasidan qidiramiz.
+          final supplierItem = _firstDataItem(supplierResult);
+          if (supplierItem != null) {
+            emit(ClientSearchSupplierFoundState(
+                supplier: SupplierModel.fromJson(supplierItem)));
+            return;
+          }
+        } catch (e) {
+          // Kutilmagan javob shakli yoki parse xatosi — UI SpinKit'da abadiy
+          // qotmasligi uchun har qanday holatda ham xato holatini emit qilamiz.
+          emit(ClientErrorState("Ma'lumotni o'qishda xato"));
           return;
         }
 
-        final bool supplierFound = supplierResult.isSuccess &&
-            supplierResult.result['data'] != null &&
-            (supplierResult.result['data'] as List).isNotEmpty;
-
-        if (supplierFound) {
-          final supplier =
-              SupplierModel.fromJson(supplierResult.result['data'][0]);
-          emit(ClientSearchSupplierFoundState(supplier: supplier));
-          return;
-        }
-
+        // Ikkalasida ham topilmadi. Ikkalasi ham xato bo'lsa — error ko'rsatamiz,
+        // aks holda (kamida bittasi muvaffaqiyatli, lekin bo'sh) — "topilmadi".
         if (!clientResult.isSuccess && !supplierResult.isSuccess) {
           emit(ClientErrorState(clientResult.getError));
           return;
@@ -108,6 +110,26 @@ class ClientBloc extends Bloc<ClientEvent, SearchClientState> {
     } else {
       emit(ClientInvalidIdState(controller.text));
     }
+  }
+
+  /// HttpResult javobidan birinchi ma'lumot elementini (Map) XAVFSIZ ajratadi.
+  /// Qo'llab-quvvatlanadigan shakllar: {data: [...]} yoki top-level [...].
+  /// Muvaffaqiyatsiz javob, kutilmagan shakl, bo'sh ro'yxat yoki Map bo'lmagan
+  /// element bo'lsa null qaytaradi — HECH QACHON exception tashlamaydi.
+  Map<String, dynamic>? _firstDataItem(HttpResult r) {
+    if (!r.isSuccess) return null;
+    final dynamic res = r.result;
+    List? list;
+    if (res is Map && res['data'] is List) {
+      list = res['data'] as List;
+    } else if (res is List) {
+      list = res;
+    }
+    if (list == null || list.isEmpty) return null;
+    final first = list.first;
+    if (first is Map<String, dynamic>) return first;
+    if (first is Map) return Map<String, dynamic>.from(first);
+    return null;
   }
 
   String _fixKeyboardLayout(String text) {

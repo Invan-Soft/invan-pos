@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:intl/intl.dart';
 import 'package:invan2/changes/providers/ordering_provider_4.dart';
 import 'package:invan2/changes/services/receipt_api_4.dart';
 import 'package:invan2/changes/models/log/log_model.dart';
@@ -594,6 +595,309 @@ void main() {
         p.getCurrentClient.deletedItems.map((e) => e.toJson()).toList(),
       );
       expect(receipt.toJson()['deleted_items'], isEmpty);
+    });
+  });
+
+  group('6. added_time va check_number (sotuvsiz orphan)', () {
+    test('added_time yoziladi (mahsulot qo\'shilgan vaqt)', () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts.add(makeRow(price: 5000, value: 1));
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(p.getCurrentClient.deletedItems.single.addedTime, isNotEmpty);
+    });
+
+    test('savat bo\'shamaydi (boshqa aktiv qoladi): check_number bo\'sh -> toJson externalId qo\'yadi',
+        () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts
+        ..add(makeRow(productId: 'cola', name: 'Cola', price: 7000, value: 1))
+        ..add(makeRow(price: 5000, value: 2)); // pepsi index 1
+      p.tapIndexToEdit(1); // pepsi o'chadi, cola aktiv qoladi
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      // Savat bo'shamadi -> orphan EMAS -> checkNumber bo'sh
+      expect(p.getCurrentClient.orderedProducts.length, 1);
+      expect(p.getCurrentClient.deletedItems.single.checkNumber, '');
+
+      final receipt = makeReceipt(); // externalId 'ext-1'
+      receipt.deletedItemsJson = jsonEncode(
+        p.getCurrentClient.deletedItems.map((e) => e.toJson()).toList(),
+      );
+      final di = receipt.toJson()['deleted_items'] as List;
+      expect(di.first['check_number'], 'ext-1'); // injection
+      expect(di.first['added_time'], isNotEmpty);
+    });
+
+    test('savat SOTUVSIZ bo\'shadi: check_number "-" bo\'ladi va toJson uni saqlaydi',
+        () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts.add(makeRow(price: 5000, value: 1));
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton(); // savat bo'shadi -> orphan
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(p.getCurrentClient.orderedProducts, isEmpty);
+      expect(p.getCurrentClient.deletedItems.single.checkNumber, '-');
+
+      final receipt = makeReceipt(); // externalId 'ext-1'
+      receipt.deletedItemsJson = jsonEncode(
+        p.getCurrentClient.deletedItems.map((e) => e.toJson()).toList(),
+      );
+      final di = receipt.toJson()['deleted_items'] as List;
+      // "-" saqlanadi, externalId qo'yilmaydi
+      expect(di.first['check_number'], '-');
+    });
+
+    test('foydalanuvchi senariysi: A(orphan "-") + keyingi run C(real chek)',
+        () async {
+      final p = freshProvider();
+      // Run 1: A qo'shildi, o'chirildi -> savat bo'sh -> orphan
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'aaa', name: 'A', price: 5000, value: 1));
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      // Run 2: B, C qo'shildi; C o'chirildi (B aktiv qoladi -> orphan EMAS); sotildi
+      p.getCurrentClient.orderedProducts
+        ..add(makeRow(productId: 'bbb', name: 'B', price: 6000, value: 1))
+        ..add(makeRow(productId: 'ccc', name: 'C', price: 7000, value: 1));
+      p.tapIndexToEdit(1); // ccc o'chadi, bbb qoladi
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final items = p.getCurrentClient.deletedItems;
+      expect(items.length, 2);
+      expect(items.firstWhere((d) => d.productId == 'aaa').checkNumber, '-');
+      expect(items.firstWhere((d) => d.productId == 'ccc').checkNumber, '');
+
+      final receipt = makeReceipt(); // externalId 'ext-1'
+      receipt.deletedItemsJson =
+          jsonEncode(items.map((e) => e.toJson()).toList());
+      final di = (receipt.toJson()['deleted_items'] as List).cast<Map>();
+      expect(
+          di.firstWhere((m) => m['product_id'] == 'aaa')['check_number'], '-');
+      expect(di.firstWhere((m) => m['product_id'] == 'ccc')['check_number'],
+          'ext-1');
+    });
+
+    test('butun savat scrap qilindi: ikkala o\'chirish ham "-" bo\'ladi',
+        () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts
+        ..add(makeRow(productId: 'aaa', name: 'A', price: 5000, value: 1))
+        ..add(makeRow(productId: 'bbb', name: 'B', price: 6000, value: 1));
+
+      // A o'chadi (B aktiv qoladi -> hali orphan emas)
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(p.getCurrentClient.deletedItems.firstWhere((d) => d.productId == 'aaa').checkNumber, '');
+
+      // B o'chadi (savat bo'shadi -> ikkalasi ham orphan)
+      p.tapIndexToEdit(0); // bbb endi 0-indeksda
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(p.getCurrentClient.orderedProducts, isEmpty);
+      for (final d in p.getCurrentClient.deletedItems) {
+        expect(d.checkNumber, '-');
+      }
+    });
+
+    test('removeLastAdded (X) bilan savat bo\'shasa ham "-" bo\'ladi', () {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts.add(makeRow(price: 5000, value: 1));
+      p.getCurrentClient.lastAddedIndex = 0;
+
+      p.removeLastAdded();
+
+      expect(p.getCurrentClient.orderedProducts, isEmpty);
+      expect(p.getCurrentClient.deletedItems.single.checkNumber, '-');
+    });
+  });
+
+  group('7. Qo\'shimcha chetki holatlar (orphan)', () {
+    test('red-delete rejimi: savat bo\'shasa "-" (item isDeleted=true qoladi)',
+        () async {
+      await Pref.setBool(PrefKeys.isRedDeleteActivated, true);
+      addTearDown(() => Pref.setBool(PrefKeys.isRedDeleteActivated, false));
+
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts.add(makeRow(price: 5000, value: 1));
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      // red-delete: qator listda qoladi (isDeleted=true), aktiv yo'q -> orphan
+      expect(p.getCurrentClient.orderedProducts.length, 1);
+      expect(p.getCurrentClient.orderedProducts.single.isDeleted, true);
+      expect(p.getCurrentClient.deletedItems.single.checkNumber, '-');
+    });
+
+    test('markirovka guruhini butunlay o\'chirish (savat bo\'sh): hammasi "-"',
+        () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts
+        ..add(makeRow(price: 5000, value: 1, marking: true, mark: 'M1'))
+        ..add(makeRow(price: 5000, value: 1, marking: true, mark: 'M2'));
+
+      p.beginMarkGroupEdit('pepsi-id');
+      p.pressDialogDeleteButton(); // -> _deleteMarkGroup, savat bo'shadi
+      p.endMarkGroupEdit();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(p.getCurrentClient.deletedItems.length, 2);
+      for (final d in p.getCurrentClient.deletedItems) {
+        expect(d.checkNumber, '-');
+      }
+    });
+
+    test('blok guruhini butunlay o\'chirish (savat bo\'sh): hammasi "-"',
+        () async {
+      final p = freshProvider();
+      final b1 = makeRow(productId: 'box-id', price: 5000, value: 12)
+        ..saleType = 2;
+      final b2 = makeRow(productId: 'box-id', price: 5000, value: 12)
+        ..saleType = 2;
+      p.getCurrentClient.orderedProducts
+        ..add(b1)
+        ..add(b2);
+
+      p.beginBoxGroupEdit('box-id');
+      p.pressDialogDeleteButton(); // -> _deleteBoxGroup, savat bo'shadi
+      p.endBoxGroupEdit();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(
+        p.getCurrentClient.orderedProducts
+            .where((e) => !(e.isDeleted ?? false)),
+        isEmpty,
+      );
+      expect(p.getCurrentClient.deletedItems.length, 2);
+      for (final d in p.getCurrentClient.deletedItems) {
+        expect(d.checkNumber, '-');
+      }
+    });
+
+    test('ketma-ket 2 orphan run + sotuv: A"-", B"-", D real chek', () async {
+      final p = freshProvider();
+      // Run 1: A -> o'chirildi -> savat bo'sh -> "-"
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'a', name: 'A', price: 1000, value: 1));
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+      // Run 2: B -> o'chirildi -> savat bo'sh -> "-"
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'b', name: 'B', price: 2000, value: 1));
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+      // Run 3: C (sotiladi), D o'chiriladi (C aktiv -> D orphan emas)
+      p.getCurrentClient.orderedProducts
+        ..add(makeRow(productId: 'c', name: 'C', price: 3000, value: 1))
+        ..add(makeRow(productId: 'd', name: 'D', price: 4000, value: 1));
+      p.tapIndexToEdit(1); // d o'chadi
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final items = p.getCurrentClient.deletedItems;
+      expect(items.firstWhere((x) => x.productId == 'a').checkNumber, '-');
+      expect(items.firstWhere((x) => x.productId == 'b').checkNumber, '-');
+      expect(items.firstWhere((x) => x.productId == 'd').checkNumber, '');
+
+      final receipt = makeReceipt(); // externalId 'ext-1'
+      receipt.deletedItemsJson =
+          jsonEncode(items.map((e) => e.toJson()).toList());
+      final di = (receipt.toJson()['deleted_items'] as List).cast<Map>();
+      expect(di.firstWhere((m) => m['product_id'] == 'a')['check_number'], '-');
+      expect(di.firstWhere((m) => m['product_id'] == 'b')['check_number'], '-');
+      expect(di.firstWhere((m) => m['product_id'] == 'd')['check_number'],
+          'ext-1');
+    });
+
+    test('qty-kamaytirish (yagona item 3->2): orphan EMAS, item qoladi',
+        () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts.add(makeRow(price: 5000, value: 3));
+      p.tapIndexToEdit(0);
+      await p.pressDialogSaveButton(makeRow(price: 5000, value: 2));
+
+      expect(p.getCurrentClient.orderedProducts.single.value, 2);
+      expect(p.getCurrentClient.deletedItems.single.checkNumber, '');
+    });
+
+    test('added_time = createdTime (UTC formatida)', () async {
+      final p = freshProvider();
+      final ts = DateTime(2026, 7, 31, 15, 7, 20).millisecondsSinceEpoch;
+      final row = makeRow(price: 5000, value: 1)..createdTime = ts;
+      p.getCurrentClient.orderedProducts.add(row);
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final expected = DateFormat('yyyy-MM-dd HH:mm:ss')
+          .format(DateTime.fromMillisecondsSinceEpoch(ts).toUtc());
+      expect(p.getCurrentClient.deletedItems.single.addedTime, expected);
+    });
+
+    test('offline func: "-" saqlanadi, bo\'sh esa externalId bilan to\'ldiriladi',
+        () {
+      final receipt = makeReceipt(); // externalId 'ext-1'
+      receipt.deletedItemsJson = jsonEncode([
+        {
+          'deleted_by': kCashierId,
+          'deleted_time': '2026-07-31 10:00:00',
+          'added_time': '2026-07-31 09:59:00',
+          'check_number': '-',
+          'product_id': 'x',
+          'quantity': 1,
+          'total_price': 1000,
+        },
+        {
+          'deleted_by': kCashierId,
+          'deleted_time': '2026-07-31 10:01:00',
+          'added_time': '2026-07-31 10:00:30',
+          'check_number': '',
+          'product_id': 'y',
+          'quantity': 1,
+          'total_price': 2000,
+        },
+      ]);
+
+      final serverCopy = ReceiptApi4.func(receipt, isServer: true);
+      final di = (serverCopy.toJson()['deleted_items'] as List).cast<Map>();
+      expect(di.firstWhere((m) => m['product_id'] == 'x')['check_number'], '-');
+      expect(di.firstWhere((m) => m['product_id'] == 'y')['check_number'],
+          'ext-1');
+    });
+
+    test('ko\'p-mijoz: bir mijoz orphani boshqasiga o\'tmaydi', () async {
+      final p = freshProvider();
+      // Mijoz 1: X (aktiv qoladi -> mijoz saqlanadi)
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'x', name: 'X', price: 5000, value: 1));
+      // Mijoz 2 yaratiladi va unga o'tiladi
+      p.addClient();
+      // Mijoz 2: Y, Z qo'shildi; Y o'chirildi (Z aktiv -> Y orphan emas, mijoz saqlanadi)
+      p.getCurrentClient.orderedProducts
+        ..add(makeRow(productId: 'y', name: 'Y', price: 6000, value: 1))
+        ..add(makeRow(productId: 'z', name: 'Z', price: 7000, value: 1));
+      p.tapIndexToEdit(0); // y o'chadi
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(p.getCurrentClient.deletedItems.single.productId, 'y');
+
+      // Mijoz 1 ga qaytamiz
+      p.selectClient(0);
+      expect(p.getCurrentClient.orderedProducts.single.productId, 'x');
+      expect(p.getCurrentClient.deletedItems, isEmpty); // izolyatsiya
     });
   });
 }

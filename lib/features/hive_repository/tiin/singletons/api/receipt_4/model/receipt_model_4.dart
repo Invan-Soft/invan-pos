@@ -250,8 +250,20 @@ class ReceiptModel4 {
       "shop_id": shopId,
       "pos_version": Pref.getString(PrefKeys.version, ''),
       "items": soldItemJsonList,
-      "deleted_items":
-          deletedItemsJson.isEmpty ? [] : jsonDecode(deletedItemsJson),
+      // Chek raqami: o'chirish paytida odatda bo'sh edi — shu yerda, body
+      // tuzilayotganda, har bir deleted_item'ga shu chekning externalId'si
+      // qo'yiladi (online va offline qayta yuklashda ham to'g'ri, chunki
+      // externalId modelda saqlangan). LEKIN savat sotuvsiz bo'shaganda
+      // check_number "-" bo'lib belgilangan bo'ladi — u holda "-" saqlanadi
+      // (backend "qo'shildi-o'chirildi, sotilmadi" holatni ajratadi).
+      "deleted_items": deletedItemsJson.isEmpty
+          ? []
+          : (jsonDecode(deletedItemsJson) as List).map<Map<String, dynamic>>((e) {
+              final m = Map<String, dynamic>.from(e as Map);
+              final existing = (m["check_number"] ?? "").toString();
+              m["check_number"] = existing.isEmpty ? externalId : existing;
+              return m;
+            }).toList(),
       "created_date": createdDate,
       "order_discount": {
         "order_id": orderId,

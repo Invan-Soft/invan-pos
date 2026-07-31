@@ -332,6 +332,7 @@ ${productLines.toString().trim()}
           }
         }
         _repriceProductRowsByTotalUnits(removedId);
+        _flagOrphanDeletedItemsIfCartEmpty();
         notifyListeners();
         return;
       }
@@ -352,6 +353,7 @@ ${productLines.toString().trim()}
           }
         }
         _repriceProductRowsByTotalUnits(removedId);
+        _flagOrphanDeletedItemsIfCartEmpty();
         notifyListeners();
       } catch (e) {
         return;
@@ -2557,6 +2559,8 @@ ${productLines.toString().trim()}
         _currentClient.orderedProducts.every((e) => (e.isDeleted ?? false))) {
       _currentClient.selectedClient = null;
       _newClientPersentageDiscount = 0;
+      // Savat sotuvsiz bo'shadi — yig'ilgan o'chirishlarni "sotuvsiz" (-) belgila.
+      _flagOrphanDeletedItemsIfCartEmpty();
     }
 
     _repriceProductRowsByTotalUnits(pid);
@@ -2674,6 +2678,8 @@ ${productLines.toString().trim()}
         _currentClient.orderedProducts.every((e) => (e.isDeleted ?? false))) {
       _currentClient.selectedClient = null;
       _newClientPersentageDiscount = 0;
+      // Savat sotuvsiz bo'shadi — yig'ilgan o'chirishlarni "sotuvsiz" (-) belgila.
+      _flagOrphanDeletedItemsIfCartEmpty();
     }
 
     _repriceProductRowsByTotalUnits(pid);
@@ -2767,12 +2773,35 @@ ${productLines.toString().trim()}
     _currentClient.deletedItems.add(
       DeletedItemModel4(
         deletedBy: employeeId,
-        deletedTime: DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
+        deletedTime:
+            DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()),
+        addedTime: item.createdTime > 0
+            ? DateFormat('yyyy-MM-dd HH:mm:ss').format(
+                DateTime.fromMillisecondsSinceEpoch(item.createdTime).toUtc())
+            : '',
         productId: item.productId,
         quantity: qty,
         totalPrice: double.parse((item.price * qty).round().toStringAsFixed(1)),
       ),
     );
+  }
+
+  /// Savat SOTUVSIZ bo'shaganda (barcha aktiv mahsulot o'chirilib, chek
+  /// yakunlanmasdan) — shu paytgacha yig'ilgan, hali biror chek raqami
+  /// olmagan o'chirishlarni "sotuvsiz" deb belgilaydi: checkNumber = "-".
+  /// Keyingi yakunlangan sotuv bilan shu "-" holatida yuklanadi, shunda
+  /// backend "mahsulot qo'shildi-o'chirildi, lekin sotuv bo'lmadi" holatni
+  /// ajrata oladi (masalan, kassir klientdan pul olib o'chirib tashladimi).
+  ///
+  /// Savatda aktiv mahsulot qolgan bo'lsa — hech narsa qilmaydi (no-op),
+  /// shuning uchun barcha to'liq-o'chirish metodlaridan xavfsiz chaqiriladi.
+  void _flagOrphanDeletedItemsIfCartEmpty() {
+    final hasActive =
+        _currentClient.orderedProducts.any((p) => !(p.isDeleted ?? false));
+    if (hasActive) return;
+    for (final d in _currentClient.deletedItems) {
+      if (d.checkNumber.isEmpty) d.checkNumber = '-';
+    }
   }
 
   void pressDialogDeleteButton() async {
@@ -2830,6 +2859,10 @@ ${productLines.toString().trim()}
 
     // Qator o'chgach umumiy son kamayadi — qolgan qatorlar tier'i qayta tanlanadi
     _repriceProductRowsByTotalUnits(deletedProductId);
+
+    // Savat sotuvsiz bo'shagan bo'lsa (red-delete'da ham) yig'ilgan
+    // o'chirishlarni "sotuvsiz" (-) belgila.
+    _flagOrphanDeletedItemsIfCartEmpty();
 
     useFreeProducts();
     useFreeGiftProducts();
@@ -3296,10 +3329,10 @@ ${productLines.toString().trim()}
         .takeStartedTime(_sixClientModel4.clientNumber);
     final DateTime serviceClosedAt = DateTime.now();
     final String serviceStartedTimeStr = serviceStartedAt != null
-        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceStartedAt)
+        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceStartedAt.toUtc())
         : "";
     final String serviceClosedTimeStr =
-        DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceClosedAt);
+        DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceClosedAt.toUtc());
     final int serviceDurationSecondsVal = serviceStartedAt != null
         ? serviceClosedAt.difference(serviceStartedAt).inSeconds
         : 0;
@@ -3579,10 +3612,10 @@ ${productLines.toString().trim()}
         .takeStartedTime(_sixClientModel4.clientNumber);
     final DateTime serviceClosedAt = DateTime.now();
     final String serviceStartedTimeStr = serviceStartedAt != null
-        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceStartedAt)
+        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceStartedAt.toUtc())
         : "";
     final String serviceClosedTimeStr =
-        DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceClosedAt);
+        DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceClosedAt.toUtc());
     final int serviceDurationSecondsVal = serviceStartedAt != null
         ? serviceClosedAt.difference(serviceStartedAt).inSeconds
         : 0;
@@ -4104,7 +4137,7 @@ ${productLines.toString().trim()}
             ? "Mijoz allaqachon tanlangan. Supplier qo'shish uchun avval mijozni o'chiring."
             : "Клиент уже выбран. Чтобы добавить поставщика, сначала удалите клиента.")
         : (isUz
-            ? "Supplier allaqachon tanlangan. Mijoz qo'shish uchun avval supplierni o'chiring."
+            ? "Allaqachon supplier tanlangan. Mijoz qo'shish uchun avval supplierni o'chiring."
             : "Поставщик уже выбран. Чтобы добавить клиента, сначала удалите поставщика.");
 
     await showCupertinoDialog(

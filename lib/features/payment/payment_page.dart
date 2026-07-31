@@ -228,30 +228,30 @@ class _PaymentPageState extends State<PaymentPage> {
         ),
       ),
 
-      // Supplier search
-      TextButton(
-        focusNode: FocusNode(skipTraversal: true),
-        onPressed: () {
-          if (paymentInProgress) return;
-          Provider.of<OrderingProvider4>(context, listen: false)
-              .onSupplierSearchButtonPressed(context);
-        },
-        style: TextButton.styleFrom(
-          fixedSize: Size(SizeConfig.h * 5, SizeConfig.v * 7.37),
-          elevation: 0,
-          foregroundColor: Theme.of(context).colorScheme.background,
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Icon(
-              Icons.manage_search_rounded,
-              size: SizeConfig.v * 4.2,
-              color: Theme.of(context).canvasColor,
-            ),
-          ],
-        ),
-      ),
+      // Supplier search — hozircha kerak emas, vaqtincha kommentga olindi (2026-07-31)
+      // TextButton(
+      //   focusNode: FocusNode(skipTraversal: true),
+      //   onPressed: () {
+      //     if (paymentInProgress) return;
+      //     Provider.of<OrderingProvider4>(context, listen: false)
+      //         .onSupplierSearchButtonPressed(context);
+      //   },
+      //   style: TextButton.styleFrom(
+      //     fixedSize: Size(SizeConfig.h * 5, SizeConfig.v * 7.37),
+      //     elevation: 0,
+      //     foregroundColor: Theme.of(context).colorScheme.background,
+      //   ),
+      //   child: Stack(
+      //     alignment: Alignment.center,
+      //     children: [
+      //       Icon(
+      //         Icons.manage_search_rounded,
+      //         size: SizeConfig.v * 4.2,
+      //         color: Theme.of(context).canvasColor,
+      //       ),
+      //     ],
+      //   ),
+      // ),
 
       SizedBox(width: SizeConfig.h * 0.1),
     ];

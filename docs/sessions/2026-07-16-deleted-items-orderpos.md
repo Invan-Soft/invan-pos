@@ -42,6 +42,43 @@ saqlanib, keyin yuboriladi.
 - [x] Qty kamaytirish ham yoziladi (3 pepsi → 2: farq 1 dona deleted bo'lib ketadi)
   → ordering_provider_4.dart pressDialogSaveButton — oldItem.value − item.value farqi, eski narx bilan
   → Sabab: foydalanuvchi testda qty kamaytirishni ham o'chirish deb kutdi (2026-07-16 feedback)
+- [x] (2026-07-31) `deleted_time` UTC ga o'tkazildi — oldin `DateTime.now()` (lokal +5),
+  endi `DateTime.now().toUtc()`
+  → ordering_provider_4.dart:2770 (_recordDeletedItem)
+  → Sabab: backend `created_date` bilan bir zonada (UTC) kutadi; oldin deleted_time
+    lokal (15:07), created_date UTC (10:07) bo'lib nomuvofiq edi. `order_time`ning
+    started_time/closed_time ham shu bilan birga UTC ga o'tkazildi (cashier_service_time
+    doc'iga qarang). duration_seconds farq bo'lgani uchun o'zgarmadi.
+  → ESLATMA: `created_date` O'ZGARTIRILMADI (foydalanuvchi 2026-07-31 da eski
+    holatida qoldirishni so'radi). `pressPaymentButtonOnlyOFD` da `.subtract(hours:5)`,
+    `pressPaymentButton` da `.toUtc()` — ikkalasi UZ mashinada bir xil natija.
+  → Butun loyiha auditi: backendga ketadigan boshqa vaqtlar allaqachon UTC
+    (smena, sync, ws). Fiskal vaqt (getTimeZoneTime) ataylab lokal UZ — tegilmadi.
+- [x] (2026-07-31) Har bir deleted_item'ga 2 yangi field qo'shildi:
+  → `added_time`: mahsulot savatga qo'shilgan vaqt. DeletedItemModel4 field,
+    _recordDeletedItem'da item.createdTime (epoch) dan UTC formatga → deleted_item_model.dart,
+    ordering_provider_4.dart:_recordDeletedItem
+  → `check_number`: chek raqami. O'chirish paytida hali yo'q (getCheckNo to'lovda beradi),
+    shuning uchun ReceiptModel4.toJson ichida har bir deleted_item'ga externalId qo'shiladi
+    → receipt_model_4.dart:253. Online (toJson) va offline (func externalId+deletedItemsJson
+    ni server nusxasiga ko'chiradi → toJson injection) ham to'g'ri.
+  → Yakuniy deleted_item obyekti: deleted_by, deleted_time, added_time, product_id,
+    quantity, total_price, check_number
+- [x] (2026-07-31) SOTUVSIZ orphan belgisi: savat sotuvsiz bo'shaganda (mahsulot
+  qo'shilib-o'chirilib, chek yakunlanmaganda) o'sha o'chirishlarga check_number = "-".
+  Maqsad: kassir nazorati (klientdan pul olib o'chirib tashladimi, sotdi-mi).
+  → DeletedItemModel4.checkNumber field (default "")
+  → _flagOrphanDeletedItemsIfCartEmpty() helper: savatda aktiv mahsulot qolmasa
+    (any !isDeleted == false) hali chek raqami olmagan o'chirishlarni "-" belgilaydi (no-op agar aktiv bor)
+  → Chaqiruv 5 joyda (savatni bo'shata oladigan to'liq-o'chirishlar): removeLastAdded
+    (2 branch:335,356), _deleteMarkGroup(2563), _deleteBoxGroup(2682), pressDialogDeleteButton(2865)
+    → qty-kamaytirish metodlari hook OLMAYDI (kamida 1 aktiv qoladi, savat bo'shamaydi)
+  → toJson injection: check_number bo'sh bo'lsa externalId, "-" bo'lsa "-" saqlanadi (receipt_model_4.dart:253)
+  → "-" itemlar keyingi yakunlangan sotuv bilan yuklanadi (ride-along)
+  → 6 yangi test qo'shildi (test/deleted_items_orderpos_test.dart group 6), 24/24 o'tdi
+  → CHEKLOV: sof "hech qachon sotmaslik" holati (qo'sh→o'chir→ilova yopiladi, keyin
+    sotuv yo'q) hali qamrab olinmaydi — deletedItems in-memory, sotuvsiz yo'qoladi.
+    Buni qamrash uchun deletedItems'ni alohida persist qilish kerak (kattaroq o'zgarish, OCHIQ)
 
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] Windows'da real test: (1) mahsulot qo'shib o'chirish → sotuv → order_pos body'sida deleted_items borligini curl-log orqali tekshirish (LogHelper 'order_pos CURL'); (2) offline sotuv → keyin flush → deleted_items ketganini tekshirish; (3) red-delete rejimida ham

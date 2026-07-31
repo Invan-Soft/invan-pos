@@ -350,7 +350,8 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                       SizedBox(
                         width: SizeConfig.v * 1,
                       ),
-                      widget.client != null
+                      (widget.client != null ||
+                              orderingProvider4.getSelectedSupplier != null)
                           ? Expanded(
                               flex: 3,
                               child: SizedBox(
@@ -359,7 +360,21 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                                   isErrorButton: true,
                                   text: "DELETE",
                                   isButtonEnabled: true,
-                                  onPress: widget.onDelClientPressed,
+                                  onPress: () {
+                                    // Didox INN qidiruvi orqali supplier tanlangan
+                                    // bo'lsa — xato tanlovni tozalab dialogni yopamiz
+                                    // (xuddi mijozni o'chirishdek). Aks holda — mijozni
+                                    // o'chirish (eski oqim: tozalab dialogni yopadi).
+                                    if (orderingProvider4.getSelectedSupplier !=
+                                        null) {
+                                      orderingProvider4
+                                          .setSelectedSupplierFromInnSearch(
+                                              null);
+                                      AppNavigation.pop();
+                                    } else {
+                                      widget.onDelClientPressed();
+                                    }
+                                  },
                                 ),
                               ),
                             )

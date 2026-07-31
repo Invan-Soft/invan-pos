@@ -39,6 +39,26 @@ qaytarsa, o'shani ishlatamiz (mijoz yoki supplier sifatida).
 - [x] `OrderingProvider4.setSelectedSupplierFromInnSearch(SupplierModel?)` metodi qo'shildi (`_selectedSupplier`ni o'rnatadi/tozalaydi)
   → lib/changes/providers/ordering_provider_4.dart (onSupplierSearchButtonPressed yonida)
 - [x] `flutter analyze` — yangi xato yo'q (faqat loyihada oldindan mavjud bo'lgan info/warning'lar)
+- [x] (2026-07-31) CHIDAMLILIK fix: dual-search javob parse'i himoyalandi
+  → `_firstDataItem(HttpResult)` helper: {data:[...]} yoki top-level [...] shakllarini
+    xavfsiz o'qiydi, kutilmagan shakl/bo'sh/Map-bo'lmagan → null (exception tashlamaydi)
+  → butun parse bloki try/catch ichida — parse xatosida ClientErrorState emit qilinadi
+  → Sabab: oldin `result['data'] as List` himoyasiz edi — API kutilmagan shakl qaytarsa
+    (yoki List<String>.from parse xatosi) bloc handler throw qilib, UI SpinKit'da abadiy
+    qotib qolardi. Endi har qanday holatda ham UI holatga o'tadi.
+  → client_search_bloc.dart:_firstDataItem + _clientSearch dual-search bloki
+  → dart analyze toza
+- [x] (2026-07-31) Supplier DELETE tugmasi qo'shildi (Didox oynasida)
+  → Oldin faqat client uchun DELETE bor edi; supplier xato tanlansa kassir tozalay
+    olmasdi (sotuv xato supplier bilan ketardi). Endi DELETE tugmasi supplier
+    tanlangan bo'lsa ham chiqadi.
+  → Supplier delete: setSelectedSupplierFromInnSearch(null) + AppNavigation.pop()
+    (client delete'dek — tozalab dialogni yopadi). Foydalanuvchi 2026-07-31 da
+    client'dek yopilishini so'radi.
+  → Shart: (widget.client != null || getSelectedSupplier != null). Dialog isDidox'ni
+    watch qilgani uchun supplier o'zgarganda qayta quriladi → tugma reaktiv chiqadi.
+  → client_search_with_inn_dialog.dart (DELETE tugmasi Row'i)
+  → dart analyze toza
 
 ## Keyingi qadamlar (prioritet bo'yicha)
 
