@@ -172,7 +172,24 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ),
                 TextButton(
                   focusNode: FocusNode(skipTraversal: true),
-                  onPressed: () => AppNavigation.push(const ChecksPage()),
+                  onPressed: () async {
+                    final employee = HiveBoxes.getCurrentEmployee;
+                    if (employee?.access?.receiptHistory ?? false) {
+                      AppNavigation.push(const ChecksPage());
+                    } else {
+                      await showDialog(
+                        context: context,
+                        builder: (_) => InputAlertDialog(
+                          accessCheck: (e) =>
+                              e.access?.receiptHistory ?? false,
+                          onValueEntered: (emp) {
+                            AppNavigation.pop();
+                            AppNavigation.push(const ChecksPage());
+                          },
+                        ),
+                      );
+                    }
+                  },
                   style: TextButton.styleFrom(
                     fixedSize: Size(SizeConfig.h * 2, SizeConfig.v * 2),
                     elevation: 0,

@@ -7,6 +7,8 @@ import 'package:invan2/app_navigation.dart';
 import 'package:invan2/changes/models/epay/e_pay_model.dart';
 import 'package:invan2/changes/singletons/organization_singleton.dart';
 import 'package:invan2/features/features.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/home/features/operation_on_product/delete_item/input_alert_dialog.dart';
 import 'package:invan2/features/payment/right/complete_button/complete_button.dart';
 import 'package:invan2/features/payment/right/number_button_of_payment_page.dart';
 import 'package:invan2/utils/helpers/e_pay_helper.dart';
@@ -240,7 +242,21 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
               orderingProvider.getSelectedSupplier != null;
           return clientAvailableForDebt || supplierSelected
               ? _functionalButton(loc.qarz, () {
-                  orderingProvider.allPaymentType(p);
+                  final employee = HiveBoxes.getCurrentEmployee;
+                  if (employee?.access?.saleAsDebt ?? false) {
+                    orderingProvider.allPaymentType(p);
+                  } else {
+                    showDialog(
+                      context: context,
+                      builder: (_) => InputAlertDialog(
+                        accessCheck: (e) => e.access?.saleAsDebt ?? false,
+                        onValueEntered: (emp) {
+                          AppNavigation.pop();
+                          orderingProvider.allPaymentType(p);
+                        },
+                      ),
+                    );
+                  }
                 })
               : const SizedBox.shrink();
         }

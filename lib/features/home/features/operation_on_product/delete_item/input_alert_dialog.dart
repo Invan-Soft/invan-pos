@@ -18,8 +18,15 @@ class InputAlertDialog extends StatefulWidget {
   final ValueChanged<Employee> onValueEntered;
   final VoidCallback? onUniversalPinEntered;
 
+  /// PIN kiritgan xodim shu amalni bajarishga haqli-yo'qligini tekshiradi.
+  /// null bo'lsa — eski xatti-harakat: `deletePrice` ruxsati talab qilinadi.
+  final bool Function(Employee)? accessCheck;
+
   const InputAlertDialog(
-      {super.key, required this.onValueEntered, this.onUniversalPinEntered});
+      {super.key,
+      required this.onValueEntered,
+      this.onUniversalPinEntered,
+      this.accessCheck});
 
   @override
   State<InputAlertDialog> createState() => _InputAlertDialogState();
@@ -90,7 +97,10 @@ class _InputAlertDialogState extends State<InputAlertDialog> {
                 }
 
                 if (employee != null) {
-                  if (employee.access?.deletePrice == true || value == '4615') {
+                  final bool allowed = widget.accessCheck != null
+                      ? widget.accessCheck!(employee)
+                      : (employee.access?.deletePrice == true);
+                  if (allowed || value == '4615') {
                     widget.onValueEntered(employee);
                   } else {}
                 } else {
@@ -211,7 +221,10 @@ class _InputAlertDialogState extends State<InputAlertDialog> {
                             }
 
                             if (employee != null) {
-                              if (employee.access?.deletePrice == true) {
+                              final bool allowed = widget.accessCheck != null
+                                  ? widget.accessCheck!(employee)
+                                  : (employee.access?.deletePrice == true);
+                              if (allowed) {
                                 widget.onValueEntered(employee);
                               } else {}
                             } else {

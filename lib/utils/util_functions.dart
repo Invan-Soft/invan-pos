@@ -81,25 +81,32 @@ class UtilFunctions {
     for (var employee in box.values) {
       final perms = rolePermissionMap[employee.role?.id] ?? {};
 
+      // Owner roli — backend'da checkbox unutilsa ham har doim to'liq ruxsat.
+      // (Owner'ni aniqlashning yagona belgisi — rol nomi; maxsus flag yo'q.)
+      final bool isOwner =
+          (employee.role?.name ?? '').trim().toLowerCase() == 'owner';
+
+      // Owner bo'lsa true, aks holda backend'dagi is_added qiymati.
+      bool has(String id) => isOwner || (perms[id] ?? false);
+
       final access = EmployeeAccess(
-        creatNewSale: perms["53c360f9-a10b-4f4b-8b52-670c3b8f87ca"] ?? false,
-        viewOnlyNewSale: perms["d45d234a-e2eb-4861-b825-37217f821142"] ?? false,
+        creatNewSale: has("53c360f9-a10b-4f4b-8b52-670c3b8f87ca"),
+        viewOnlyNewSale: has("d45d234a-e2eb-4861-b825-37217f821142"),
         applyManualDiscountsNewSale:
-            perms["888fde2d-812c-4e5e-9e51-601e367eecbf"] ?? false,
-        refund: perms["e84a7e7d-2c6e-441f-82b7-1eeaf3a361fe"] ?? false,
-        saleAsDebt: perms["f89ca40a-f2f9-4745-bebc-9cf293521c95"] ?? false,
-        stock: perms["49f674fc-efbf-42fc-bb7c-2904c9c15a07"] ?? false,
-        viewOnlyAllSale: perms["8f5f5316-becc-44b9-9c50-ed91ef430733"] ?? false,
-        printReports: perms["4d8c05a0-fa2b-468a-9c87-f5adc07cee23"] ?? false,
-        deleteS: perms["25ae23a7-d395-4f99-afb4-4fcec02ed1b6"] ?? false,
-        receiptHistory: perms["d24b0e6c-cc77-4e5b-935b-25a65a98f720"] ?? false,
-        creatNewCustomer:
-            perms["6f79f732-777c-4c76-98d9-d519ebf7ec78"] ?? false,
-        openShift: perms["1a9b575b-31f5-47b7-9056-8875889921cd"] ?? false,
-        xreport: perms["e7ffe144-757b-420e-b57d-4f04095b97e9"] ?? false,
-        zreport: perms["2b641aa6-26b1-4d5b-9fc4-f5538338aec2"] ?? false,
-        editPrice: perms["615e159d-4a69-489f-87d5-abb32489fdd5"] ?? false,
-        deletePrice: perms["02766f7d-49e9-4353-aef6-e5a5d53f3e88"] ?? false,
+            has("888fde2d-812c-4e5e-9e51-601e367eecbf"),
+        refund: has("e84a7e7d-2c6e-441f-82b7-1eeaf3a361fe"),
+        saleAsDebt: has("f89ca40a-f2f9-4745-bebc-9cf293521c95"),
+        stock: has("49f674fc-efbf-42fc-bb7c-2904c9c15a07"),
+        viewOnlyAllSale: has("8f5f5316-becc-44b9-9c50-ed91ef430733"),
+        printReports: has("4d8c05a0-fa2b-468a-9c87-f5adc07cee23"),
+        deleteS: has("25ae23a7-d395-4f99-afb4-4fcec02ed1b6"),
+        receiptHistory: has("d24b0e6c-cc77-4e5b-935b-25a65a98f720"),
+        creatNewCustomer: has("6f79f732-777c-4c76-98d9-d519ebf7ec78"),
+        openShift: has("1a9b575b-31f5-47b7-9056-8875889921cd"),
+        xreport: has("e7ffe144-757b-420e-b57d-4f04095b97e9"),
+        zreport: has("2b641aa6-26b1-4d5b-9fc4-f5538338aec2"),
+        editPrice: has("615e159d-4a69-489f-87d5-abb32489fdd5"),
+        deletePrice: has("02766f7d-49e9-4353-aef6-e5a5d53f3e88"),
       );
 
       await box.put(

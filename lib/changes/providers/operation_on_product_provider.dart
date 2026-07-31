@@ -225,7 +225,7 @@ class OperationOnProductProvider extends ChangeNotifier {
   Future<Employee?> _showInputAlertForDecrease(BuildContext context) async {
     final result = await showDialog<Employee?>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (dialogContext) {
         return InputAlertDialog(
           onValueEntered: (Employee employee) {

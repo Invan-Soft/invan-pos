@@ -266,6 +266,8 @@ class PincodeKeyboardWidgetState extends State<PincodeKeyboardWidget>
             "lib/features/lock/lock/view/lock_buttons_with_shortcuts.dart goHomepage"));
     AppLocalizations loc = AppLocalizations.of(context)!;
     await Pref.setString(PrefKeys.cashierName, employee.user!.firstName!);
+    await Pref.setString(
+        PrefKeys.cashierSurname, employee.user!.lastName ?? "");
     await Pref.setString(PrefKeys.cashierId, employee.user!.id!);
     Provider.of<PagingProvider>(context, listen: false)
         .setCurrentPageId(DrawerItemId.home);

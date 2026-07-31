@@ -7,6 +7,8 @@ import 'package:invan2/changes/dialogs/client_search/components/found_client_wid
 import 'package:invan2/changes/dialogs/client_search/components/search_field_of_client_search_dialog.dart';
 import 'package:invan2/changes/models/client_model.dart';
 import 'package:invan2/features/features.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/home/features/operation_on_product/delete_item/input_alert_dialog.dart';
 import 'package:invan2/utils/constants/constants.dart';
 import 'package:invan2/utils/helpers/helpers.dart';
 import 'package:invan2/utils/themes.dart';
@@ -135,23 +137,45 @@ class _ClientSearchDialogWithBlocState
                                   child: TextButton(
                                     focusNode: FocusNode(skipTraversal: true),
                                     onPressed: () async {
-                                      BlocProvider.of<AddClientBloc>(context)
-                                          .add(AddClientCallInitialEvent());
-                                      await showDialog(
-                                        context: context,
-                                        barrierDismissible: true,
-                                        barrierLabel:
-                                            MaterialLocalizations.of(context)
-                                                .modalBarrierDismissLabel,
-                                        barrierColor: Colors.transparent,
-                                        builder: (_) {
-                                          return const AlertDialog(
-                                              alignment: Alignment.topRight,
-                                              backgroundColor:
-                                                  Colors.transparent,
-                                              content: ClientCreateDialog());
-                                        },
-                                      );
+                                      Future<void> openCreate() async {
+                                        BlocProvider.of<AddClientBloc>(context)
+                                            .add(AddClientCallInitialEvent());
+                                        await showDialog(
+                                          context: context,
+                                          barrierDismissible: true,
+                                          barrierLabel:
+                                              MaterialLocalizations.of(context)
+                                                  .modalBarrierDismissLabel,
+                                          barrierColor: Colors.transparent,
+                                          builder: (_) {
+                                            return const AlertDialog(
+                                                alignment: Alignment.topRight,
+                                                backgroundColor:
+                                                    Colors.transparent,
+                                                content: ClientCreateDialog());
+                                          },
+                                        );
+                                      }
+
+                                      final employee =
+                                          HiveBoxes.getCurrentEmployee;
+                                      if (employee?.access?.creatNewCustomer ??
+                                          false) {
+                                        await openCreate();
+                                      } else {
+                                        await showDialog(
+                                          context: context,
+                                          builder: (_) => InputAlertDialog(
+                                            accessCheck: (e) =>
+                                                e.access?.creatNewCustomer ??
+                                                false,
+                                            onValueEntered: (emp) async {
+                                              AppNavigation.pop();
+                                              await openCreate();
+                                            },
+                                          ),
+                                        );
+                                      }
                                     },
                                     style: TextButton.styleFrom(
                                       fixedSize: Size(SizeConfig.h * 5,

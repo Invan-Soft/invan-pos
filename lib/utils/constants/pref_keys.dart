@@ -41,6 +41,7 @@ class PrefKeys {
   static const String storeId = 'current_store_id';
 
   static const String cashierName = 'current_cashier_name';
+  static const String cashierSurname = 'current_cashier_surname';
   static const String employeeCanApplyDiscounOnItemPrice =
       'employee_can_apply_discoun_on_item_price';
   static const String employeeCanApplyDiscountOnTotalPrice =

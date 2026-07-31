@@ -32,6 +32,26 @@ class _CheckViewContentState extends State<CheckViewContent> {
   Future<void> _handlePrint() async {
     if (_isPrinting) return;
 
+    final employee = HiveBoxes.getCurrentEmployee;
+    if (employee?.access?.printReports ?? false) {
+      await _doPrint();
+    } else {
+      await showDialog(
+        context: context,
+        builder: (_) => InputAlertDialog(
+          accessCheck: (e) => e.access?.printReports ?? false,
+          onValueEntered: (emp) async {
+            AppNavigation.pop();
+            await _doPrint();
+          },
+        ),
+      );
+    }
+  }
+
+  Future<void> _doPrint() async {
+    if (_isPrinting) return;
+
     setState(() => _isPrinting = true);
 
     try {

@@ -27,7 +27,10 @@ class _DrawerTopState extends State<DrawerTop> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            Pref.getString(PrefKeys.cashierName, "not initialized"),
+            [
+              Pref.getString(PrefKeys.cashierName, "not initialized"),
+              Pref.getString(PrefKeys.cashierSurname, ""),
+            ].where((e) => e.trim().isNotEmpty).join(" "),
             style: MyThemes.txtStyle(
               fontSize: 5,
               color: Theme.of(context).canvasColor,
