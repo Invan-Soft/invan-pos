@@ -128,7 +128,28 @@
       "Bash(awk -F: '{print $1\":\"$0}')",
       "Bash(awk -F: '$1<=703{a=$0} $1<=973{b=$0} $1<=2049{c=$0} $1<=2363{d=$0} END{print \"703 -> \"a; print \"973 -> \"b; print \"2049 -> \"c; print \"2363 -> \"d}')",
       "Bash(awk '/static HttpResult _result\\\\\\(/{f=1} f{print NR\": \"$0} f&&/^  }$/{c++; if\\(c>=1\\)exit}' lib/changes/services/api/api_provider.dart)",
-      "Bash(git commit -q -m 'release: 1.1.2+115 — deleted_items UTC+added_time+check_number+sotuvsiz orphan, Didox supplier delete, INN dual-search chidamlilik *)"
+      "Bash(git commit -q -m 'release: 1.1.2+115 — deleted_items UTC+added_time+check_number+sotuvsiz orphan, Didox supplier delete, INN dual-search chidamlilik *)",
+      "Bash(echo \"=== WATCH EXIT: $? ===\")",
+      "Bash(curl -s -m 300 -w '\\\\n--- HTTP: %{http_code}, vaqt: %{time_total}s ---\\\\n' -X POST https://dev.api.7i.uz/upload/build -F version=1.1.2+115 -F changelog=__TRACKED_VAR__ -F file=@__TRACKED_VAR__/1.1.2+115.exe)",
+      "Bash(grep -rln \"getEmployeesRoles\\\\|getRoleWithPermissions\\\\|role/\\\\$\\\\|isAdded\\\\|RolePermissions\\\\|SectionsModel\\\\|PermissionsModel\\\\|53c360f9\\\\|ca19a21a\" lib --include=\"*.dart\")",
+      "Bash(xargs -I{} sh -c 'grep -l \"current_token_for_headers\\\\|flutter.\" \"{}\" 2>/dev/null')",
+      "Bash(awk '/Widget _functionalButton|_functionalButton\\\\\\(String|InkWell|GestureDetector|onTap|onPressed/{print NR\": \"$0}' lib/features/payment/right/keyboard_of_payment_page.dart)",
+      "Bash(git commit -m 'release: 1.1.2+116 — kassir permission enforce \\(reprint/qarz/yangi mijoz/cheklar PIN override\\) + Owner full access + PIN dialog tashqaridan yopiladi + kassir familiya + PROD *)",
+      "Bash(curl -s --max-time 8 \"http://127.0.0.1:49573/F7WOuo7Cy_M=/getVM\")",
+      "Bash(curl -s --max-time 8 \"http://127.0.0.1:49573/F7WOuo7Cy_M=/getIsolate?isolateId=isolates/4850166748356363\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\)['result']; print\\('runnable:',d.get\\('runnable'\\)\\); print\\('pauseEvent:',json.dumps\\(d.get\\('pauseEvent'\\),indent=1\\)[:1500]\\); print\\('error:',json.dumps\\(d.get\\('error'\\)\\)[:800]\\)\")",
+      "Bash(curl -s --max-time 15 \"http://127.0.0.1:49573/F7WOuo7Cy_M=/ext.flutter.debugDumpApp?isolateId=isolates/4850166748356363\")",
+      "Bash(curl -s --max-time 20 \"http://127.0.0.1:49573/F7WOuo7Cy_M=/ext.flutter.debugDumpApp?isolateId=isolates/4850166748356363\")",
+      "Bash(screencapture -x -R 300,150,900,700 screen.png)",
+      "Bash(curl -s --max-time 25 \"http://127.0.0.1:49573/F7WOuo7Cy_M=/_flutter.screenshot\" -o shot.json)",
+      "Bash(python3 -c \"import sys,json;d=json.load\\(sys.stdin\\)['result'];print\\(d['rootLib']\\)\")",
+      "Bash(curl -s --max-time 10 -G \"http://127.0.0.1:49573/F7WOuo7Cy_M=/evaluate\" --data-urlencode \"isolateId=isolates/4850166748356363\" --data-urlencode \"targetId=libraries/@44469739\" --data-urlencode \"expression=appWindow.size.toString\\(\\) + ' | visible=' + appWindow.isVisible.toString\\(\\) + ' | maximized=' + appWindow.isMaximized.toString\\(\\)\")",
+      "Bash(timeout 500 flutter test test/deleted_items_orderpos_test.dart)",
+      "Bash(awk 'NR>=3290 && NR<=3545' lib/changes/providers/ordering_provider_4.dart)",
+      "Bash(awk 'NR>=3619 && NR<=3900' lib/changes/providers/ordering_provider_4.dart)",
+      "Bash(awk 'NR<3300' lib/changes/providers/ordering_provider_4.dart)",
+      "Bash(timeout 600 flutter test test/deleted_items_orderpos_test.dart)",
+      "Bash(git commit -q -m 'release: 1.1.2+117 — deleted_items: deleted_by = PIN tasdiqlagan xodim + slot tashlab ketilganda yozuv yo'\\\\''qolmasligi \\(orphan harvest\\) *)"
     ]
   }
 }

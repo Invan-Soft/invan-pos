@@ -43,9 +43,10 @@ class OPDBottom extends StatelessWidget {
                     context: context,
                     builder: (_) => InputAlertDialog(
                       onUniversalPinEntered: () {},
+                      // PIN kiritgan xodim deleted_by da ketadi (kassir emas)
                       onValueEntered: (employee) {
                         Provider.of<OrderingProvider4>(context, listen: false)
-                            .pressDialogDeleteButton();
+                            .pressDialogDeleteButton(approvedBy: employee);
                         AppNavigation.pop();
                         AppNavigation.pop();
                       },

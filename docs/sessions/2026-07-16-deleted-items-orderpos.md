@@ -79,9 +79,60 @@ saqlanib, keyin yuboriladi.
   → CHEKLOV: sof "hech qachon sotmaslik" holati (qo'sh→o'chir→ilova yopiladi, keyin
     sotuv yo'q) hali qamrab olinmaydi — deletedItems in-memory, sotuvsiz yo'qoladi.
     Buni qamrash uchun deletedItems'ni alohida persist qilish kerak (kattaroq o'zgarish, OCHIQ)
+- [x] (2026-08-01) **BUG FIX: slot o'chirilganda yozuvlar yo'qolardi** (1.1.2+116 auditida topildi)
+  → Muammo: `deletedItems` mijoz slotining (SixClientModel4) ichida yashaydi.
+    `_clearEmptyClients()` esa faqat `orderedProducts.isEmpty` ga qarab slotni
+    ro'yxatdan o'chiradi — savat aynan O'CHIRISHLAR tufayli bo'shagan bo'lsa ham.
+    Natija: ko'p-mijoz rejimida "mahsulot qo'shdi → o'chirdi → boshqa mijozga o'tdi"
+    holatida "-" belgili nazorat yozuvi serverga hech qachon ketmasdi. Ya'ni funksiya
+    aynan qaysi firibgarlik uchun yozilgan bo'lsa, o'sha holatni qamramasdi.
+  → Yechim: provider darajasida `_orphanDeletedItems` ro'yxati + `_harvestDeletedItems()`
+    helperi. Slot yo'q qilinishidan OLDIN uning yozuvlari shu ro'yxatga ko'chiriladi,
+    chek raqami olmaganlariga "-" qo'yiladi (savat bo'sh → hech qanday chekka tegishli
+    emas, demak keyingi chekning raqamini o'zlashtirib olmaydi).
+    → ordering_provider_4.dart: `_orphanDeletedItems` field + `getOrphanDeletedItems`
+      getter, `_harvestDeletedItems()`, `_clearEmptyClients()` ichida chaqiruv,
+      `_paymentOnClients()` boshida chaqiruv
+    → To'lovda biriktirish: `[..._orphanDeletedItems, ..._sixClientModel4.deletedItems]`
+      (ikkala yo'lda ham), muvaffaqiyatli saqlashdan keyin ikkalasi ham clear
+  → Sabab (nega global emas, "orphan" ro'yxat): per-slot izolyatsiya SAQLANADI —
+    aktiv savatdagi (hali chek raqami olmagan, "" belgili) yozuv boshqa mijozning
+    chekiga o'tib ketmaydi. Faqat egasiz qolganlar ("-") umumiy ro'yxatga tushadi.
+  → Yon foyda: `pressPaymentButton` da chek saqlanmagan holatda ham (`payment.isEmpty`
+    yoki `soldItemList.isEmpty` guardi) `_paymentOnClients()` slotni almashtirib
+    yozuvlarni yo'qotardi — endi ular ham harvest qilinadi
+  → 5 yangi test (group 8), 37/37 o'tdi; boshqa test fayllar 42/42; dart analyze
+    yangi ogohlantirish bermadi (50 → 50)
+  → QOLGAN CHEGARA: `clearSixClient4List()` (smena ochish/yopish) hali harvest
+    qilmaydi — smena chegarasida ataylab toza boshlanadi deb qoldirildi
+- [x] (2026-08-01) **deleted_by = PIN kiritgan xodim** (foydalanuvchi talabi)
+  → Oldin: `deleted_by` har doim tizimga kirgan kassir IDsi edi. Kassirda
+    `deletePrice` ruxsati bo'lmasa PIN dialogi ochilardi, lekin PIN egasi
+    hech qayerda ishlatilmasdi — nazorat uchun noto'g'ri odam yozilardi.
+  → Endi: `approvedBy` (Employee?) parametri butun zanjir bo'ylab uzatiladi,
+    `_recordDeletedItem` da `approvedBy?.user?.id ?? joriy kassir ?? Pref`.
+    PIN so'ralmagan holatda (kassirning o'zida ruxsat bor) — eski xatti-harakat.
+  → O'zgargan metodlar: `pressDialogDeleteButton({approvedBy})`,
+    `pressDialogSaveButton(item, {approvedBy})`, `_saveMarkGroup`, `_saveBoxGroup`,
+    `_deleteMarkGroup`, `_deleteBoxGroup`, `_recordDeletedItem`
+  → UI: opd_bottom.dart (O'chirish tugmasi PIN branchi), opd_value.dart
+    ("−" tugmasi, value<=1 → to'liq o'chirish), operation_on_product_provider.dart
+    (`_qtyDecreaseApprovedBy` — `attemptDecreaseQuantity` dagi PIN egasi eslab
+    qolinadi va Save da uzatiladi; dialog har ochilganda provider qayta
+    yaratilgani uchun o'zi tozalanadi)
+  → Universal PIN (4615/"4615@") → `HiveBoxes.getCurrentEmployee` qaytadi,
+    ya'ni joriy kassir yoziladi (avvalgidek)
+  → `cancelOrderingWithTelegram` (Del — butun savatni bekor qilish) tegilmadi:
+    u deleted_items ga umuman yozmaydi (avvaldan shunday)
+  → Telegram xabarida kassir ismi qolgan — ya'ni "kim ishlagan" ma'lumoti
+    yo'qolmadi, lekin order_pos'dagi deleted_by endi PIN egasini ko'rsatadi
+  → 6 yangi test (group 9), 43/43 o'tdi; boshqa test fayllar 42/42
 
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] Windows'da real test: (1) mahsulot qo'shib o'chirish → sotuv → order_pos body'sida deleted_items borligini curl-log orqali tekshirish (LogHelper 'order_pos CURL'); (2) offline sotuv → keyin flush → deleted_items ketganini tekshirish; (3) red-delete rejimida ham
+- [ ] (2026-08-01 fix uchun) Ko'p-mijoz testi Windows'da: mijoz 2 ga o'tib mahsulot
+      qo'shib-o'chirish → mijoz 1 ga qaytish → mijoz 1 chekini yopish → order_pos
+      body'sida o'sha yozuv `check_number: "-"` bilan ketganini CURL logda ko'rish
 - [ ] Backend deleted_items ni qabul qilishini tasdiqlash (schema allaqachon Swaggerda bor)
 
 ## Qabul qilingan qarorlar

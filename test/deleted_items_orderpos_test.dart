@@ -898,6 +898,240 @@ void main() {
       p.selectClient(0);
       expect(p.getCurrentClient.orderedProducts.single.productId, 'x');
       expect(p.getCurrentClient.deletedItems, isEmpty); // izolyatsiya
+      expect(p.getOrphanDeletedItems, isEmpty); // hech narsa "yetim" qolmadi
+    });
+  });
+
+  group('8. Slot o\'chirilganda yozuvlar saqlanadi', () {
+    test('bo\'shagan mijoz sloti tashlab ketilsa yozuv YO\'QOLMAYDI', () async {
+      final p = freshProvider();
+      // Mijoz 1: X aktiv qoladi
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'x', name: 'X', price: 5000, value: 1));
+      // Mijoz 2: Y qo'shildi va o'chirildi -> savat BO'SHADI -> "-"
+      p.addClient();
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'y', name: 'Y', price: 6000, value: 1));
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(p.getCurrentClient.deletedItems.single.checkNumber, '-');
+      expect(p.getSixClient4List.length, 2);
+
+      // Mijoz 1 ga qaytamiz -> bo'sh slot ro'yxatdan chiqadi
+      p.selectClient(0);
+
+      expect(p.getSixClient4List.length, 1);
+      expect(p.getOrphanDeletedItems.length, 1);
+      expect(p.getOrphanDeletedItems.single.productId, 'y');
+      expect(p.getOrphanDeletedItems.single.checkNumber, '-');
+    });
+
+    test('saqlangan yozuv keyingi chek bilan "-" holida ketadi', () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'x', name: 'X', price: 5000, value: 1));
+      p.addClient();
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'y', name: 'Y', price: 6000, value: 1));
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+      p.selectClient(0);
+
+      // Mijoz 1 da ham bitta o'chirish (aktiv qator qoladi -> chek raqami oladi)
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'z', name: 'Z', price: 7000, value: 1));
+      p.tapIndexToEdit(1); // z o'chadi, x aktiv qoladi
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      // To'lovdagi biriktirish: orphan + joriy slot
+      final receipt = makeReceipt(); // externalId 'ext-1'
+      receipt.deletedItemsJson = jsonEncode([
+        ...p.getOrphanDeletedItems,
+        ...p.getCurrentClient.deletedItems,
+      ].map((e) => e.toJson()).toList());
+
+      final di = (receipt.toJson()['deleted_items'] as List).cast<Map>();
+      expect(di.length, 2);
+      expect(di.firstWhere((m) => m['product_id'] == 'y')['check_number'], '-');
+      expect(di.firstWhere((m) => m['product_id'] == 'z')['check_number'],
+          'ext-1');
+    });
+
+    test('cancelOrdering bilan bo\'shatilgan slot: yozuv "-" bo\'lib saqlanadi',
+        () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'x', name: 'X', price: 5000, value: 1));
+      p.addClient();
+      // Mijoz 2: Y va Z; Y o'chirildi (Z aktiv -> hali chek raqami yo'q, "")
+      p.getCurrentClient.orderedProducts
+        ..add(makeRow(productId: 'y', name: 'Y', price: 6000, value: 1))
+        ..add(makeRow(productId: 'z', name: 'Z', price: 7000, value: 1));
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(p.getCurrentClient.deletedItems.single.checkNumber, '');
+
+      // Savat butunlay bekor qilindi (orphan hook yo'q yo'l)
+      p.cancelOrdering(true);
+      p.selectClient(0);
+
+      // Slot yo'q qilindi, lekin yozuv saqlandi va "-" bo'ldi —
+      // ya'ni keyingi chekning raqamini o'zlashtirib olmaydi
+      expect(p.getOrphanDeletedItems.single.productId, 'y');
+      expect(p.getOrphanDeletedItems.single.checkNumber, '-');
+    });
+
+    test('aktiv mahsulotli slot o\'chirilmaydi -> orphan ro\'yxat bo\'sh',
+        () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'x', name: 'X', price: 5000, value: 1));
+      p.addClient();
+      p.getCurrentClient.orderedProducts
+        ..add(makeRow(productId: 'y', name: 'Y', price: 6000, value: 1))
+        ..add(makeRow(productId: 'z', name: 'Z', price: 7000, value: 1));
+      p.tapIndexToEdit(0); // y o'chadi, z aktiv qoladi
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      p.selectClient(0);
+
+      expect(p.getSixClient4List.length, 2); // ikkala slot ham qoldi
+      expect(p.getOrphanDeletedItems, isEmpty);
+      expect(p.getSixClient4List[1].deletedItems.single.productId, 'y');
+    });
+
+    test('bir nechta slot ketma-ket bo\'shasa hammasi yig\'iladi', () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'x', name: 'X', price: 5000, value: 1));
+      // Mijoz 2: A qo'shildi-o'chirildi
+      p.addClient();
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'a', name: 'A', price: 1000, value: 1));
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+      p.selectClient(0);
+      // Mijoz 3: B qo'shildi-o'chirildi
+      p.addClient();
+      p.getCurrentClient.orderedProducts
+          .add(makeRow(productId: 'b', name: 'B', price: 2000, value: 1));
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+      p.selectClient(0);
+
+      expect(p.getOrphanDeletedItems.length, 2);
+      expect(
+        p.getOrphanDeletedItems.map((e) => e.productId).toList(),
+        ['a', 'b'],
+      );
+      for (final d in p.getOrphanDeletedItems) {
+        expect(d.checkNumber, '-');
+      }
+    });
+  });
+
+  group('9. deleted_by = PIN kiritgan xodim', () {
+    final approver = Employee(
+      user: EmployeeUser(id: 'admin-777', firstName: 'Admin'),
+    );
+
+    test('OPD o\'chirish: PIN egasi yoziladi, kassir emas', () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts.add(makeRow(price: 5000, value: 3));
+
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton(approvedBy: approver);
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(p.getCurrentClient.deletedItems.single.deletedBy, 'admin-777');
+    });
+
+    test('PIN so\'ralmasa (approvedBy null) — joriy kassir qoladi', () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts.add(makeRow(price: 5000, value: 3));
+
+      p.tapIndexToEdit(0);
+      p.pressDialogDeleteButton();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(p.getCurrentClient.deletedItems.single.deletedBy, kCashierId);
+    });
+
+    test('qty kamaytirish (3->2): PIN egasi yoziladi', () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts.add(makeRow(price: 5000, value: 3));
+
+      p.tapIndexToEdit(0);
+      await p.pressDialogSaveButton(
+        makeRow(price: 5000, value: 2),
+        approvedBy: approver,
+      );
+
+      final d = p.getCurrentClient.deletedItems.single;
+      expect(d.deletedBy, 'admin-777');
+      expect(d.quantity, 1);
+    });
+
+    test('markirovka guruhini o\'chirish: hamma qatorda PIN egasi', () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts
+        ..add(makeRow(price: 5000, value: 1, marking: true, mark: 'M1'))
+        ..add(makeRow(price: 5000, value: 1, marking: true, mark: 'M2'));
+
+      p.beginMarkGroupEdit('pepsi-id');
+      p.pressDialogDeleteButton(approvedBy: approver);
+      p.endMarkGroupEdit();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(p.getCurrentClient.deletedItems.length, 2);
+      for (final d in p.getCurrentClient.deletedItems) {
+        expect(d.deletedBy, 'admin-777');
+      }
+    });
+
+    test('blok guruhini o\'chirish: hamma qatorda PIN egasi', () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts
+        ..add(makeRow(productId: 'box-id', price: 5000, value: 12)
+          ..saleType = 2)
+        ..add(makeRow(productId: 'box-id', price: 5000, value: 12)
+          ..saleType = 2);
+
+      p.beginBoxGroupEdit('box-id');
+      p.pressDialogDeleteButton(approvedBy: approver);
+      p.endBoxGroupEdit();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(p.getCurrentClient.deletedItems.length, 2);
+      for (final d in p.getCurrentClient.deletedItems) {
+        expect(d.deletedBy, 'admin-777');
+      }
+    });
+
+    test('serverga ketadigan JSON da deleted_by = PIN egasi', () async {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts
+        ..add(makeRow(productId: 'x', name: 'X', price: 5000, value: 1))
+        ..add(makeRow(productId: 'y', name: 'Y', price: 6000, value: 1));
+
+      p.tapIndexToEdit(1); // y o'chadi, x aktiv qoladi
+      p.pressDialogDeleteButton(approvedBy: approver);
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final receipt = makeReceipt();
+      receipt.deletedItemsJson = jsonEncode(
+        p.getCurrentClient.deletedItems.map((e) => e.toJson()).toList(),
+      );
+      final di = (receipt.toJson()['deleted_items'] as List).cast<Map>();
+      expect(di.single['deleted_by'], 'admin-777');
+      expect(di.single['check_number'], 'ext-1');
     });
   });
 }

@@ -196,6 +196,14 @@ class OperationOnProductProvider extends ChangeNotifier {
     }
   }
 
+  /// Qty kamaytirishga PIN bilan ruxsat bergan xodim (kassirning o'zida
+  /// `deletePrice` ruxsati bo'lmagan holat). Save bosilganda deleted_items
+  /// yozuvining `deleted_by` maydoniga AYNAN SHU xodim ketadi.
+  /// Dialog har ochilganda provider qaytadan yaratiladi — ya'ni o'zi tozalanadi.
+  Employee? _qtyDecreaseApprovedBy;
+
+  Employee? get qtyDecreaseApprovedBy => _qtyDecreaseApprovedBy;
+
   Future<bool> attemptDecreaseQuantity(int amount, BuildContext context) async {
     if (_currentEmployee?.access?.deletePrice == true) {
       decreaseQuantity(amount);
@@ -208,6 +216,7 @@ class OperationOnProductProvider extends ChangeNotifier {
         await _showInputAlertForDecrease(context);
 
     if (authorizedEmployee != null) {
+      _qtyDecreaseApprovedBy = authorizedEmployee;
       decreaseQuantity(amount);
 
       await Future.delayed(Duration(milliseconds: 300));
@@ -305,7 +314,7 @@ class OperationOnProductProvider extends ChangeNotifier {
     }
 
     await Provider.of<OrderingProvider4>(context, listen: false)
-        .pressDialogSaveButton(target);
+        .pressDialogSaveButton(target, approvedBy: _qtyDecreaseApprovedBy);
     AppNavigation.pop();
     Provider.of<OrderingProvider4>(context, listen: false).freeGiftDialog();
   }

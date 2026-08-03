@@ -135,6 +135,16 @@ class OrderingProvider4 extends ChangeNotifier {
   bool _cashsaleWarningShown = false; // cashsale==0 uchun
   bool _bigTotalWarningShown = false; // cashsale==1 + total > 25M uchun
 
+  /// Egasiz qolgan deleted_items yozuvlari.
+  ///
+  /// `deletedItems` mijoz slotining (SixClientModel4) ichida yashaydi, lekin
+  /// savati bo'shab qolgan slot ro'yxatdan chiqarilishi mumkin
+  /// (`_clearEmptyClients`) — o'shanda yozuvlar slot bilan birga yo'qolardi.
+  /// Endi ular shu ro'yxatga ko'chiriladi va keyingi YAKUNLANGAN sotuv bilan
+  /// serverga ketadi (check_number = "-", ya'ni hech qaysi chekka tegishli
+  /// emas — "qo'shildi-o'chirildi, sotilmadi").
+  final List<DeletedItemModel4> _orphanDeletedItems = [];
+
   /* //////////////////////// PROVIDER GETTERS //////////////////////// */
 
   OrderingProvider4() {
@@ -168,6 +178,10 @@ class OrderingProvider4 extends ChangeNotifier {
   int get getSelectedIndex => _index;
 
   List<SixClientModel4> get getSixClient4List => _sixClient4List;
+
+  /// Slot o'chirilganda saqlab qolingan, hali chekka biriktirilmagan
+  /// deleted_items yozuvlari (test va diagnostika uchun).
+  List<DeletedItemModel4> get getOrphanDeletedItems => _orphanDeletedItems;
 
   int get getLastAddedIndex => _currentClient.lastAddedIndex;
 
@@ -2469,7 +2483,8 @@ ${productLines.toString().trim()}
   /// Markirovka guruhini saqlash: yangi qty ga qarab eng yangi markalarni
   /// o'chiradi (qty kamayganda) yoki narx/diskont o'zgarishini barcha markalarga
   /// qo'llaydi. Qty ni oshirib bo'lmaydi (yangi mark skanerlanishi kerak).
-  Future<void> _saveMarkGroup(ReceiptModelSoldItem4 edited) async {
+  Future<void> _saveMarkGroup(ReceiptModelSoldItem4 edited,
+      {Employee? approvedBy}) async {
     final pid = _markGroupEditProductId!;
     final indices = _activeMarkIndices(pid);
     if (indices.isEmpty) return;
@@ -2478,7 +2493,7 @@ ${productLines.toString().trim()}
     final newCount = edited.value.floor();
 
     if (newCount <= 0) {
-      _deleteMarkGroup(pid);
+      _deleteMarkGroup(pid, approvedBy: approvedBy);
       return;
     }
 
@@ -2490,7 +2505,8 @@ ${productLines.toString().trim()}
         ..sort((a, b) => b.compareTo(a)); // teskari tartib (xavfsiz o'chirish)
       final redDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
       for (final idx in toRemove) {
-        _recordDeletedItem(_currentClient.orderedProducts[idx]);
+        _recordDeletedItem(_currentClient.orderedProducts[idx],
+            approvedBy: approvedBy);
         if (redDelete) {
           _currentClient.orderedProducts[idx].isDeleted = true;
         } else {
@@ -2541,11 +2557,12 @@ ${productLines.toString().trim()}
   }
 
   /// Markirovka guruhidagi barcha aktiv markalarni o'chiradi (red-delete ni hisobga olib).
-  void _deleteMarkGroup(String pid) {
+  void _deleteMarkGroup(String pid, {Employee? approvedBy}) {
     final redDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
     final indices = _activeMarkIndices(pid)..sort((a, b) => b.compareTo(a));
     for (final idx in indices) {
-      _recordDeletedItem(_currentClient.orderedProducts[idx]);
+      _recordDeletedItem(_currentClient.orderedProducts[idx],
+          approvedBy: approvedBy);
       if (redDelete) {
         _currentClient.orderedProducts[idx].isDeleted = true;
       } else {
@@ -2591,7 +2608,8 @@ ${productLines.toString().trim()}
   /// o'chiradi (qty kamayganda) yoki narx o'zgarishini butun mahsulotga qo'llaydi.
   /// Qty ni oshirib bo'lmaydi (yangi blok skanerlanishi kerak — OPD'da "+" bloklangan).
   /// [edited.value] blok soni hisobida keladi (order_list displayValue = blok soni).
-  Future<void> _saveBoxGroup(ReceiptModelSoldItem4 edited) async {
+  Future<void> _saveBoxGroup(ReceiptModelSoldItem4 edited,
+      {Employee? approvedBy}) async {
     final pid = _boxGroupEditProductId!;
     final indices = _activeBoxIndices(pid);
     if (indices.isEmpty) return;
@@ -2600,7 +2618,7 @@ ${productLines.toString().trim()}
     final newCount = edited.value.floor();
 
     if (newCount <= 0) {
-      _deleteBoxGroup(pid);
+      _deleteBoxGroup(pid, approvedBy: approvedBy);
       return;
     }
 
@@ -2612,7 +2630,8 @@ ${productLines.toString().trim()}
         ..sort((a, b) => b.compareTo(a)); // teskari tartib (xavfsiz o'chirish)
       final redDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
       for (final idx in toRemove) {
-        _recordDeletedItem(_currentClient.orderedProducts[idx]);
+        _recordDeletedItem(_currentClient.orderedProducts[idx],
+            approvedBy: approvedBy);
         if (redDelete) {
           _currentClient.orderedProducts[idx].isDeleted = true;
         } else {
@@ -2660,11 +2679,12 @@ ${productLines.toString().trim()}
   }
 
   /// Blok guruhidagi barcha aktiv bloklarni o'chiradi (red-delete ni hisobga olib).
-  void _deleteBoxGroup(String pid) {
+  void _deleteBoxGroup(String pid, {Employee? approvedBy}) {
     final redDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
     final indices = _activeBoxIndices(pid)..sort((a, b) => b.compareTo(a));
     for (final idx in indices) {
-      _recordDeletedItem(_currentClient.orderedProducts[idx]);
+      _recordDeletedItem(_currentClient.orderedProducts[idx],
+          approvedBy: approvedBy);
       if (redDelete) {
         _currentClient.orderedProducts[idx].isDeleted = true;
       } else {
@@ -2690,17 +2710,20 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-  Future<void> pressDialogSaveButton(ReceiptModelSoldItem4 item) async {
+  /// [approvedBy] — qty kamaytirishga PIN bilan ruxsat bergan xodim
+  /// (OPD dialogida "−" bosilganda so'raladi). deleted_by da o'sha ketadi.
+  Future<void> pressDialogSaveButton(ReceiptModelSoldItem4 item,
+      {Employee? approvedBy}) async {
     // Blok guruhi tahriri: butun blok guruhiga qo'llaymiz (qty kamaytirish =
     // eng yangi bloklarni o'chirish, narx o'zgarishi = butun mahsulotga).
     if (_boxGroupEditProductId != null) {
-      await _saveBoxGroup(item);
+      await _saveBoxGroup(item, approvedBy: approvedBy);
       return;
     }
     // Markirovka guruhi tahriri: butun guruhga qo'llaymiz (qty kamaytirish =
     // eng yangi markalarni o'chirish, narx o'zgarishi = barcha markalarga).
     if (_markGroupEditProductId != null) {
-      await _saveMarkGroup(item);
+      await _saveMarkGroup(item, approvedBy: approvedBy);
       return;
     }
     if (item.value > 0) {
@@ -2708,7 +2731,8 @@ ${productLines.toString().trim()}
       // deleted_items ga eski narx bilan yoziladi.
       final oldItem = _currentClient.orderedProducts[_tappedIndexToEdit];
       if (item.value < oldItem.value) {
-        _recordDeletedItem(oldItem, quantity: oldItem.value - item.value);
+        _recordDeletedItem(oldItem,
+            quantity: oldItem.value - item.value, approvedBy: approvedBy);
       }
       _currentClient.orderedProducts[_tappedIndexToEdit] = item;
 
@@ -2722,7 +2746,7 @@ ${productLines.toString().trim()}
       // product/category discount qayta qo'llanadi (manual narx saqlanadi).
       _repriceProductRowsByTotalUnits(item.productId);
     } else {
-      pressDialogDeleteButton();
+      pressDialogDeleteButton(approvedBy: approvedBy);
     }
 
     findFreeProducts();
@@ -2759,7 +2783,13 @@ ${productLines.toString().trim()}
   /// O'chirilgan mahsulotni joriy savat sessiyasining deleted-items
   /// ro'yxatiga yozadi — sotuv yakunlanganda order_pos "deleted_items"
   /// massivida serverga ketadi (offline chekda ham saqlanadi).
-  void _recordDeletedItem(ReceiptModelSoldItem4 item, {double? quantity}) {
+  ///
+  /// [approvedBy] — o'chirishga PIN kodi bilan ruxsat bergan xodim. Kassirning
+  /// o'zida `deletePrice` ruxsati bo'lmasa, PIN dialogi ochiladi va o'sha PIN
+  /// egasi shu yerga keladi — `deleted_by` da AYNAN O'SHA xodim ketadi.
+  /// null bo'lsa (PIN so'ralmagan, kassirning o'zida ruxsat bor) — joriy kassir.
+  void _recordDeletedItem(ReceiptModelSoldItem4 item,
+      {double? quantity, Employee? approvedBy}) {
     // Auto-boshqariladigan qatorlar (free gift qayta hisoblash va h.k.) emas,
     // faqat kassir qo'li bilan o'chirgan qatorlar shu metod orqali yoziladi.
     // quantity berilsa qisman o'chirish (qty kamaytirish), aks holda butun qator.
@@ -2768,7 +2798,8 @@ ${productLines.toString().trim()}
     if (item.isDeleted ?? false) return;
     final qty = quantity ?? item.value;
     if (qty <= 0) return;
-    final employeeId = HiveBoxes.getCurrentEmployee?.user?.id ??
+    final employeeId = approvedBy?.user?.id ??
+        HiveBoxes.getCurrentEmployee?.user?.id ??
         Pref.getString(PrefKeys.cashierId, "");
     _currentClient.deletedItems.add(
       DeletedItemModel4(
@@ -2804,16 +2835,18 @@ ${productLines.toString().trim()}
     }
   }
 
-  void pressDialogDeleteButton() async {
+  /// [approvedBy] — PIN kodi bilan o'chirishga ruxsat bergan xodim (kassirda
+  /// `deletePrice` ruxsati bo'lmaganda so'raladi). deleted_by da o'sha ketadi.
+  void pressDialogDeleteButton({Employee? approvedBy}) async {
     LogHelper.activity('CART_DELETE_ITEM', {'editIndex': _tappedIndexToEdit});
     // Blok guruhi tahririda: butun blok guruhini o'chiramiz.
     if (_boxGroupEditProductId != null) {
-      _deleteBoxGroup(_boxGroupEditProductId!);
+      _deleteBoxGroup(_boxGroupEditProductId!, approvedBy: approvedBy);
       return;
     }
     // Markirovka guruhi tahririda: butun guruhni o'chiramiz.
     if (_markGroupEditProductId != null) {
-      _deleteMarkGroup(_markGroupEditProductId!);
+      _deleteMarkGroup(_markGroupEditProductId!, approvedBy: approvedBy);
       return;
     }
 
@@ -2833,7 +2866,7 @@ ${productLines.toString().trim()}
     final product_qunatity = deletedProduct.value ?? "0";
     final deletedProductId = deletedProduct.productId;
 
-    _recordDeletedItem(deletedProduct);
+    _recordDeletedItem(deletedProduct, approvedBy: approvedBy);
 
     if (isRedDeleteActivated) {
       _currentClient.orderedProducts[_tappedIndexToEdit].isDeleted = true;
@@ -3107,9 +3140,28 @@ ${productLines.toString().trim()}
     for (int i = 0; i < _sixClient4List.length; i++) {
       if (_sixClient4List[i].orderedProducts.isEmpty) {
         clientNumbers.add(_sixClient4List[i].clientNumber);
+        // Slot ro'yxatdan chiqib ketishidan OLDIN uning o'chirish yozuvlarini
+        // saqlab qolamiz — aks holda ular slot bilan birga yo'qolardi.
+        _harvestDeletedItems(_sixClient4List[i]);
       }
     }
     _sixClient4List.removeWhere((e) => e.orderedProducts.isEmpty);
+  }
+
+  /// Slot yo'q qilinishidan oldin undagi deleted_items yozuvlarini
+  /// `_orphanDeletedItems` ga ko'chiradi.
+  ///
+  /// Bu faqat savati BO'SH slotga nisbatan chaqiriladi — demak bu yozuvlar
+  /// hech qanday chekka tegishli emas. Shuning uchun hali chek raqami
+  /// olmaganlariga "-" qo'yiladi ("sotilmasdan o'chirilgan"): keyingi sotuv
+  /// bilan ketganda ular o'sha chekning raqamini o'zlashtirib olmaydi.
+  void _harvestDeletedItems(SixClientModel4 client) {
+    if (client.deletedItems.isEmpty) return;
+    for (final d in client.deletedItems) {
+      if (d.checkNumber.isEmpty) d.checkNumber = '-';
+      _orphanDeletedItems.add(d);
+    }
+    client.deletedItems.clear();
   }
 
   void _paymentOnClients() {
@@ -3117,6 +3169,11 @@ ${productLines.toString().trim()}
     _alcoholWarningShown = false;
     _cashsaleWarningShown = false;
     _bigTotalWarningShown = false;
+    // Joriy slot bu yerda har holatda bo'shatiladi yoki yangi obyektga
+    // almashtiriladi. Muvaffaqiyatli sotuvda uning deleted_items ro'yxati
+    // allaqachon tozalangan (chekka biriktirilgan) — bu chaqiruv no-op.
+    // Sotuv saqlanmagan holatda esa yozuvlar shu yerda saqlab qolinadi.
+    _harvestDeletedItems(_currentClient);
     if (_sixClient4List.isEmpty) {
       _clientNumber = 1;
       _currentClient = SixClientModel4(
@@ -3383,9 +3440,12 @@ ${productLines.toString().trim()}
     );
 
     // Savat sessiyasida o'chirilgan mahsulotlar chekka biriktiriladi —
-    // order_pos "deleted_items" massivida serverga ketadi.
+    // order_pos "deleted_items" massivida serverga ketadi. Slot o'chirilganda
+    // saqlab qolinganlar ("-" belgili, egasiz) ham shu chek bilan ketadi.
     receiptModel4.deletedItemsJson = jsonEncode(
-      _sixClientModel4.deletedItems.map((e) => e.toJson()).toList(),
+      [..._orphanDeletedItems, ..._sixClientModel4.deletedItems]
+          .map((e) => e.toJson())
+          .toList(),
     );
 
     for (var item in receiptModel4.soldItemList) {
@@ -3459,6 +3519,7 @@ ${productLines.toString().trim()}
 
       // O'chirilganlar chekka biriktirildi — keyingi sotuvga o'tmasligi uchun
       _sixClientModel4.deletedItems.clear();
+      _orphanDeletedItems.clear();
 
       DiscountSingleton.maxPrice();
     }
@@ -3674,9 +3735,12 @@ ${productLines.toString().trim()}
     );
 
     // Savat sessiyasida o'chirilgan mahsulotlar chekka biriktiriladi —
-    // order_pos "deleted_items" massivida serverga ketadi.
+    // order_pos "deleted_items" massivida serverga ketadi. Slot o'chirilganda
+    // saqlab qolinganlar ("-" belgili, egasiz) ham shu chek bilan ketadi.
     receiptModel4.deletedItemsJson = jsonEncode(
-      _sixClientModel4.deletedItems.map((e) => e.toJson()).toList(),
+      [..._orphanDeletedItems, ..._sixClientModel4.deletedItems]
+          .map((e) => e.toJson())
+          .toList(),
     );
 
     for (var item in receiptModel4.soldItemList) {
@@ -3813,6 +3877,7 @@ ${productLines.toString().trim()}
 
       // O'chirilganlar chekka biriktirildi — keyingi sotuvga o'tmasligi uchun
       _sixClientModel4.deletedItems.clear();
+      _orphanDeletedItems.clear();
 
       DiscountSingleton.maxPrice();
       _paymentOnClients();
