@@ -19,6 +19,10 @@ import 'package:invan2/changes/dialogs/contains_zero_price_item_dialog.dart';
 import 'package:invan2/changes/dialogs/markirovka_dialog.dart';
 import 'package:invan2/changes/dialogs/not_found_product_dialog.dart';
 import 'package:invan2/changes/dialogs/payme_dialog.dart';
+import 'package:invan2/changes/domain/marking/gs1.dart';
+import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
+import 'package:invan2/changes/domain/marking/mxik_rules.dart';
+import 'package:invan2/changes/domain/terminal/terminal_receipt_parser.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
 import 'package:invan2/changes/models/ofd/incom_response_model.dart';
 import 'package:invan2/changes/models/ofd/payment_result_model.dart';
@@ -1526,43 +1530,9 @@ ${productLines.toString().trim()}
     }
   }
 
-  String _markirovka(String rawMark) {
-    if (rawMark.trim().isEmpty) return rawMark;
-
-    // Kripto marker bormi? — (93) qavsli yoki <GS>93 ajratuvchili.
-    // Bu qaror faqat SHU YERDA (skan vaqti) to'g'ri: marker hali joyida.
-    final hasMarker = RegExp(r'\(93\)').hasMatch(rawMark) ||
-        RegExp(r'[\x1D\x1C\x1E\x1F]93').hasMatch(rawMark);
-
-    String clean = rawMark
-        // 1) Kripto qism — (93) va undan keyingi hamma narsa (yoki <GS>93...).
-        //    Bu qism sotuvga, soliqqa, OFD ga HECH QAYERGA yuborilmaydi.
-        //    Marker BORda: aniq marker bo'yicha kesamiz — serial ichidagi
-        //    tasodifiy "93" saqlanadi (u yalang'och, marker "kiyimi" yo'q).
-        .replaceAll(RegExp(r'\(93\).*$'), '')
-        .replaceAll(RegExp(r'[\x1D\x1C\x1E\x1F]93.*$'), '')
-        // 2) AI qavslarini olib tashlaymiz, LEKIN ichidagi raqamni SAQLAYMIZ:
-        //    (01)->01, (21)->21. Aks holda 01 GTIN bilan qo'shilib ketib, kod
-        //    04... (GTIN) dan boshlanib qolardi — buzuq KM. (Eski `\(\d{2}\)`
-        //    regexi qavs bilan birga 01/21 raqamini ham o'chirib yuborardi.)
-        .replaceAllMapped(RegExp(r'\((\d{2,3})\)'), (m) => m.group(1)!)
-        // 3) Qolgan barcha ASCII boshqaruv belgilari: GS(0x1D), FS, RS, US,
-        //    NUL...DEL va C1 (0x80-0x9F). Aks holda chekda "▯" chiqadi.
-        .replaceAll(RegExp(r'[\x00-\x1F\x7F-\x9F]'), '')
-        // Unicode replacement / object-replacement belgilari
-        .replaceAll('￼', '')
-        .replaceAll('�', '');
-
-    // Marker YO'Q (yalang'och kod) bo'lsa — ESKI logika: 01+GTIN(14)+21 dan
-    // keyin birinchi "93" gacha olamiz. Markersiz kodda chegarani boshqacha
-    // aniqlashning iloji yo'q, shuning uchun serialda 93 kelib qolsa ham kesiladi.
-    if (!hasMarker) {
-      final match = RegExp(r'(01\d{14}21.*?)(?=93)').firstMatch(clean);
-      if (match != null) return match.group(1)!;
-    }
-
-    return clean;
-  }
+  /// Skan vaqtidagi markirovka tozalash.
+  /// Mantiq `MarkCleaner.scanTime` ga ko'chirildi (2026-08-05).
+  String _markirovka(String rawMark) => MarkCleaner.scanTime(rawMark);
 
   bool isLoading = false;
 
@@ -3600,21 +3570,11 @@ ${productLines.toString().trim()}
         );
       }).toList();
 
-  static String cleanMarkForFiscal(String rawMark) {
-    if (rawMark.trim().isEmpty) return rawMark;
-
-    // Kripto qism ((93) va keyin, yoki <GS>93...) — hech qayerga yuborilmaydi.
-    // Faqat ANIQ marker (qavs yoki boshqaruv-ajratuvchi) bo'yicha kesamiz.
-    // MUHIM: eski bare `(?=93)` fallback ishlatilmaydi — u serial ICHIDAGI
-    // tasodifiy "93" substringda serialni kesib yuborardi (masalan serial
-    // "93QWERTYuiop1" bo'lsa butunlay yo'qolardi). _markirovka allaqachon
-    // kriptoni marker bilan kesib bo'lgani uchun bu fallback keraksiz.
-    return rawMark
-        .replaceAll(RegExp(r'\(93\).*$'), '')
-        .replaceAll(RegExp(r'[\x1D\x1C\x1E\x1F]93.*$'), '')
-        .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '')
-        .replaceAllMapped(RegExp(r'\((\d{2,3})\)'), (m) => m.group(1)!);
-  }
+  /// Fiskal chekka yuborishdan oldingi markirovka tozalash.
+  /// Mantiq `MarkCleaner.forFiscal` ga ko'chirildi (2026-08-05).
+  /// Imzo saqlanadi — `test/marking_paren_strip_test.dart` shu nomni chaqiradi.
+  static String cleanMarkForFiscal(String rawMark) =>
+      MarkCleaner.forFiscal(rawMark);
 
   Future<PaymentResult> pressPaymentButtonOnlyOFD(BuildContext context) async {
     AppLocalizations loc = AppLocalizations.of(context)!;
@@ -4448,126 +4408,15 @@ ${productLines.toString().trim()}
 
 //#####FOR DOUBLE UZCARD  COUNT ###########
   /// cheq.out yoki log matnidan RRN va karta raqamini ajratib olish
-  Map<String, String?> parseTerminalReceipt(String receiptText) {
-    String? rrn;
-    String? cardNumber;
-    String? authCode;
-    String? amount;
-    String? date;
-    String? cardType;
+  /// Terminal chek matnini tahlil qiladi.
+  /// Mantiq `TerminalReceiptParser` ga ko'chirildi (2026-08-05).
+  Map<String, String?> parseTerminalReceipt(String receiptText) =>
+      TerminalReceiptParser.parseTerminalReceipt(receiptText);
 
-    // Chek matnidagi har bir qatorni tekshiramiz
-    for (final line in receiptText.split('\n')) {
-      // RECV <- PRINT: prefiksini olib tashlaymiz (log formatida bo'lsa)
-      final content =
-          line.replaceFirst(RegExp(r'^.*RECV <- PRINT:'), '').trim();
-
-      // RRN: "RRN :608610728951" yoki "RRN:608610728951"
-      if (rrn == null) {
-        final m = RegExp(r'RRN\s*:?\s*(\d{6,20})').firstMatch(content);
-        if (m != null) rrn = m.group(1);
-      }
-
-      // Karta raqami: "4916********3620", "986017******4357", "9860 **** **** 1220"
-      if (cardNumber == null) {
-        final m = RegExp(r'(\d{4,8}[\*\s]{4,12}\d{4})').firstMatch(content);
-        if (m != null) cardNumber = m.group(1)?.replaceAll(RegExp(r'\s+'), '');
-      }
-
-      // Avtorizatsiya kodi
-      if (authCode == null) {
-        final m =
-            RegExp(r'[Aa]vtorizatsiya\s+kodi\s*:?\s*(\w+)').firstMatch(content);
-        if (m != null) authCode = m.group(1);
-      }
-
-      // Miqdor/Summa
-      if (amount == null) {
-        final m = RegExp(r'MIQDOR\s*:\s*([\d\s,.]+UZS?)').firstMatch(content);
-        if (m != null) amount = m.group(1)?.trim();
-      }
-
-      // Sana
-      if (date == null) {
-        final m = RegExp(r'Sana\s*:?\s*(.+)').firstMatch(content);
-        if (m != null) date = m.group(1)?.trim();
-      }
-
-      // Karta turi
-      if (cardType == null) {
-        if (content.contains('HUMO'))
-          cardType = 'HUMO';
-        else if (content.contains('UZCARD'))
-          cardType = 'UZCARD';
-        else if (content.contains('VISA')) cardType = 'VISA INT';
-      }
-    }
-
-    return {
-      'rrn': rrn,
-      'cardNumber': cardNumber,
-      'authCode': authCode,
-      'amount': amount,
-      'date': date,
-      'cardType': cardType,
-    };
-  }
-
-  /// Terminal (Arcus) javobidagi (log + chek) tanish xato sabablarini
-  /// tushunarli xabarga o'giradi. Topilmasa bo'sh string qaytaradi.
-  String _terminalErrorMessage(String log, String receipt, bool isUz) {
-    final text = '$log\n$receipt'.toUpperCase();
-
-    if (text.contains('НЕДОСТАТОЧНО') ||
-        text.contains('НЕ ДОСТАТОЧНО') ||
-        text.contains('INSUFFICIENT')) {
-      return isUz
-          ? "Kartada mablag' yetarli emas"
-          : "Недостаточно средств на карте";
-    }
-    if (text.contains('ЛИМИТ ПОПЫТОК PIN')) {
-      return isUz
-          ? "PIN kodni kiritish urinishlari tugadi"
-          : "Лимит попыток ввода PIN исчерпан";
-    }
-    if (text.contains('ВЕРНЫЙ PIN') ||
-        text.contains('ЕРНЫЙ PIN') ||
-        text.contains('WRONG PIN')) {
-      return isUz ? "Noto'g'ri PIN kod kiritildi" : "Неверный PIN-код";
-    }
-    if (text.contains('КАРТА НЕДЕЙСТ') ||
-        text.contains('НЕДЕЙСТВИТЕЛЬНА') ||
-        text.contains('EXPIRED')) {
-      return isUz
-          ? "Karta yaroqsiz yoki muddati o'tgan"
-          : "Карта недействительна или просрочена";
-    }
-    if (text.contains('ОТМЕН') ||
-        text.contains('ПРЕРВАН') ||
-        text.contains('CANCEL')) {
-      return isUz ? "Amaliyot bekor qilindi" : "Операция отменена";
-    }
-    if (text.contains('ПРЕВЫШЕН') || text.contains('ЛИМИТ')) {
-      return isUz ? "Limit oshib ketdi" : "Превышен лимит";
-    }
-    if (text.contains('СВЯЖИТЕСЬ') || text.contains('ОБРАТИТЕСЬ')) {
-      return isUz ? "Bank bilan bog'laning" : "Свяжитесь с банком";
-    }
-    if (text.contains('НЕТ СВЯЗИ') ||
-        text.contains('СОЕДИНЕН') ||
-        text.contains('TIMEOUT') ||
-        text.contains('ТАЙМАУТ')) {
-      return isUz
-          ? "Terminal yoki bank bilan aloqa yo'q. Qayta urinib ko'ring"
-          : "Нет связи с терминалом или банком. Повторите попытку";
-    }
-    if (text.contains('ОТКЛОНЕНА') ||
-        text.contains('ОТКАЗ') ||
-        text.contains('DECLINED')) {
-      return isUz ? "To'lov rad etildi" : "Платёж отклонён";
-    }
-    return '';
-  }
+  /// Terminal (Arcus) javobidagi tanish xato sabablarini tushunarli xabarga
+  /// o'giradi. Mantiq `TerminalReceiptParser` ga ko'chirildi (2026-08-05).
+  String _terminalErrorMessage(String log, String receipt, bool isUz) =>
+      TerminalReceiptParser.terminalErrorMessage(log, receipt, isUz);
 
   /// Terminaldan xato javob kelganda tushunarli showDialog ko'rsatadi.
   /// [log] — Arcus log fayli, [receipt] — cheq.out chek matni.
@@ -5592,81 +5441,24 @@ ${productLines.toString().trim()}
     }
   }
 
-  bool _isMxikMarking(String mxikStr) =>
-      mxikStr.startsWith('02009') ||
-      mxikStr.startsWith('02201') ||
-      mxikStr.startsWith('02202') ||
-      _isAlcoholMxik(mxikStr);
+  // MXIK va GS1 qoidalari `MxikRules` / `Gs1` ga ko'chirildi (2026-08-05).
+  bool _isMxikMarking(String mxikStr) => MxikRules.isMxikMarking(mxikStr);
 
-  bool _isAlcoholMxik(String mxikStr) =>
-      mxikStr.startsWith('02203') ||
-      mxikStr.startsWith('02204') ||
-      mxikStr.startsWith('02205') ||
-      mxikStr.startsWith('02206') ||
-      mxikStr.startsWith('02207') ||
-      mxikStr.startsWith('02208') ||
-      mxikStr.startsWith('024');
+  bool _isAlcoholMxik(String mxikStr) => MxikRules.isAlcoholMxik(mxikStr);
 
-  /// Mahsulot markirovkali deb hisoblanadimi.
-  /// Qoidalar:
-  ///   0) OFD marking check (`markCheckWithOfd`) o'chiq bo'lsa — hech narsa markirovkali emas
-  ///   1) `product.isMarking == true` → markirovkali (sozlamadan qat'iy nazar, OFD ON bo'lsa)
-  ///   2) Aks holda "Avto markirovkani aniqlash" sozlamasi yoqilgan bo'lsa
-  ///      va MXIK kod ro'yxatda bo'lsa (`_isMxikMarking`) → markirovkali
-  ///   3) "Avto markirovkani aniqlash" o'chirilgan bo'lsa MXIK umuman tekshirilmaydi
-  bool _isProductMarkable(ItemModel product) {
-    if (!Pref.getBool(PrefKeys.markCheckWithOfd, false)) return false;
-    if (product.isMarking ?? false) return true;
-    if (!Pref.getBool(PrefKeys.sellProductsWithMarking, true)) return false;
-    return _isMxikMarking((product.mxikCode ?? '').trim());
-  }
+  bool _isProductMarkable(ItemModel product) =>
+      MxikRules.isProductMarkable(product);
 
-  /// Mahsulot uchun product_type ni aniqlaydi.
-  /// Mahsulot markirovkali bo'lsagina type qaytaradi:
-  ///   1) MXIK ro'yxatda topilsa → MXIK type ni qaytaradi
-  ///   2) Aks holda default '5'
-  ///   3) Markirovkali bo'lmasa bo'sh
-  String _resolveProductType(ItemModel product) {
-    if (!_isProductMarkable(product)) return '';
-    final mxikType = _getProductType((product.mxikCode ?? '').trim());
-    return mxikType.isNotEmpty ? mxikType : '5';
-  }
+  String _resolveProductType(ItemModel product) =>
+      MxikRules.resolveProductType(product);
 
   String _resolveProductPackage(ItemModel product) =>
-      _resolveProductType(product).isNotEmpty ? 'KIZ' : '';
+      MxikRules.resolveProductPackage(product);
 
-  /// MXIK kodiga qarab product_type qaytaradi.
-  /// Bo'sh string = bu mahsulot uchun type yo'q.
-  String _getProductType(String mxik) {
-    if (mxik.startsWith('024')) return '1'; // Sigareta
-    if (mxik.startsWith('02203')) return '3'; // Pivo
-    if (mxik.startsWith('02204') ||
-        mxik.startsWith('02205') ||
-        mxik.startsWith('02206') ||
-        mxik.startsWith('02207') ||
-        mxik.startsWith('02208')) return '2'; // Alkogol (pivo emas)
-    if (mxik.startsWith('02009') ||
-        mxik.startsWith('02201') ||
-        mxik.startsWith('02202'))
-      return '5'; // Sharbat, suv va sovutuvchi ichimliklar
-    if (mxik.startsWith('030')) return '4'; // MXIK 030 → type 4, package KIZ
-    if (mxik.startsWith('085')) return '6'; // MXIK 085 → type 6, package KIZ
-    return '';
-  }
+  // `_getProductType` olib tashlandi: yagona chaqiruvchisi `_resolveProductType`
+  // edi, u endi to'g'ridan-to'g'ri MxikRules ga delegatsiya qiladi.
 
-  // ─── GS1 sana formati: YYMMDD → DateTime ─────────────────
-  DateTime? _parseGS1Date(String yymmdd) {
-    try {
-      int yy = int.parse(yymmdd.substring(0, 2));
-      int mm = int.parse(yymmdd.substring(2, 4));
-      int dd = int.parse(yymmdd.substring(4, 6));
-      int year = yy <= 49 ? 2000 + yy : 1900 + yy;
-      if (dd == 0) dd = DateTime(year, mm + 1, 0).day;
-      return DateTime(year, mm, dd);
-    } catch (_) {
-      return null;
-    }
-  }
+  DateTime? _parseGS1Date(String yymmdd) => Gs1.parseDate(yymmdd);
 
   void scanWeightItem(
     String barcode,

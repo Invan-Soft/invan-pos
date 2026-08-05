@@ -69,13 +69,43 @@ Bu bosqichda faqat **eng xavfsiz zonalar** qamraladi. Savat, diskont va to'lov i
 o'zgarish kiritilmagan. `flutter analyze`: 1018 → 1017 (widget_test'ning
 `unused_import` ogohlantirishi yo'qoldi).
 
+- [x] **FAZA 1 — sof funksiyalar `lib/changes/domain/` ga chiqarildi**
+  → `domain/terminal/terminal_receipt_parser.dart` — `parseTerminalReceipt`,
+    `terminalErrorMessage`
+  → `domain/marking/mark_cleaner.dart` — `scanTime` (eski `_markirovka`),
+    `forFiscal` (eski `cleanMarkForFiscal`)
+  → `domain/marking/mxik_rules.dart` — MXIK/markirovka qoidalari (6 funksiya)
+  → `domain/marking/gs1.dart` — `parseDate`
+  → Providerda bir qatorli delegatsiya qoldi; `cleanMarkForFiscal` imzosi
+    aynan saqlandi (test uni to'g'ridan-to'g'ri chaqiradi)
+  → `_getProductType` delegatsiyasi olib tashlandi — yagona chaqiruvchisi
+    `_resolveProductType` edi, u endi bevosita MxikRules ga boradi
+  → Yangi testlar: `mxik_rules_test` (24), `gs1_test` (13),
+    `mark_cleaner_scan_test` (12) — bular ilgari `private` bo'lgani uchun
+    umuman testlab bo'lmasdi; ajratishning bevosita foydasi shu
+
+**Faza 1 natijasi:** `ordering_provider_4.dart` 5868 → **5660 qator**
+(208 qator ko'chdi). Testlar 172 → **221**, hammasi yashil.
+`flutter analyze` 1017 → **1012**. `lib/features/` ga tegilmagan (fasad
+qoidasi isboti).
+
+**Bitta ataylab qilingan chetlanish (3-qoida):** `parseTerminalReceipt` dagi
+`cardType` uchun `if/else if` qavssiz shaklda edi — ko'chirishda qavsga
+olindi (`curly_braces_in_flow_control_structures` lintini yopadi).
+Xatti-harakat bir xil, HUMO/UZCARD/VISA va ustunlik tartibi testlar bilan
+qoplangan.
+
 ## Keyingi qadamlar (prioritet bo'yicha)
 
-- [ ] Faza 1 — sof funksiyalar → `lib/changes/domain/`
-      Boshlash nuqtasi: `ordering_provider_4.dart:4451` (`parseTerminalReceipt`)
-      va `:3603` (`cleanMarkForFiscal`) — ikkalasi ham testlar bilan qoplangan
-- [ ] Faza 2 — kategoriya navigatsiyasi → kontroller (`:5217-5218`, `:5776-5841`)
-- [ ] Faza 3 — to'lov arifmetikasi → kontroller (`:4350-4450`, `:4048`)
+- [ ] Faza 2 — kategoriya navigatsiyasi → `CatalogNavigationController`
+      Maydonlar: `ordering_provider_4.dart` dagi `_items`, `_pathList`
+      Metodlar: `getItems`, `getPathList`, `pressCategory`, `pressSubCategory`,
+      `pressPath`, `pressAllPath`, `clearPathList`, `changeGridviewItems`,
+      `_collectItemsByCategory`, `_collectItemsBySubCategory`
+      Fasadda qoladi: `pressProduct` (savatga ko'prik)
+      Himoya: `test/catalog_navigation_test.dart` (12 test)
+- [ ] Faza 3 — to'lov arifmetikasi → `PaymentTallyController`
+      Himoya: `test/payment_tally_test.dart` (19 test)
 
 ## Qabul qilingan qarorlar
 
