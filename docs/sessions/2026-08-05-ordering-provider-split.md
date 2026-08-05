@@ -114,15 +114,52 @@ qoplangan.
 Testlar 221 → **225**. `flutter analyze` 1012 (o'zgarmadi).
 `lib/features/` ga tegilmagan.
 
-## Keyingi qadamlar (prioritet bo'yicha)
+- [x] **FAZA 3 — to'lov arifmetikasi kontrollerga chiqarildi**
+  → `lib/changes/providers/ordering/payment_tally_controller.dart`
+  → Ko'chdi (holat): `paymentsMap`, `selectedPaymentType`,
+    `selectedPaymentIndex`, `totalPrice`, `mustPay`, `sdacha`,
+    `zdachaToCashBack`, `isButtonEnabled`
+  → Ko'chdi (metod): `checkButtonIsEnable`, `getAvailableSumma`,
+    `getSelectedPaymentSumma`, `payByAll`, `removeFromPaymentList`,
+    `selectPaymentIndex`, `changeTheSelectedPaymentIndex`
+  → **Muhim yondashuv:** providerdagi maydonlar o'chirilmadi, balki
+    **getter/setter juftligiga** aylantirildi
+    (`double get _mustPay => _tally.mustPay;` va h.k.). Shu sababli sinf
+    ichidagi ~100 murojaat va UI kodidagi `provider.paymentsMap` ning
+    barchasi **o'zgarishsiz** ishlayveradi
+  → `allPaymentType` fasadda qoldi va **tanasi umuman tegilmadi** — u
+    `controller.text` (TextEditingController) bilan ishlaydi; ichidagi
+    primitivlar delegatsiyaga aylangani uchun o'zi o'zgarishsiz ishlaydi
+  → `_checkButtonIsEnable` delegatsiyasi olib tashlandi — uni faqat
+    `_payByAll` va `removeFromPaymentList` chaqirardi, ikkalasi ham ko'chdi
+  → Yangi testlar: `notifyListeners` ulanishi uchun 4 ta (+4)
 
-- [ ] Faza 3 — to'lov arifmetikasi → `PaymentTallyController`
-      Ko'chadi: `_checkButtonIsEnable`, `getAvailableSumma`,
-      `getSelectedPaymentSumma`, `_payByAll`, `allPaymentType`,
-      `removeFromPaymentList` + `paymentsMap`, `_mustPay`, `_sdachaa`,
-      `_isButtonEnabled`, `_selectedPaymentType`, `_zdachaToCashBack`
-      Tegilmaydi: `pressPaymentButton`, `pressPaymentButtonOnlyOFD`, `type*`
-      Himoya: `test/payment_tally_test.dart` (19 test)
+**TEGILMADI (ataylab):** `pressPaymentButton`, `pressPaymentButtonOnlyOFD`,
+`typeUzcard`/`typeHumo`/`typeClick`/`typePayme`/`typeUzum`/`typePaynet` —
+tarmoq, fiskal modul va dialoglar bilan ishlaydi.
+
+**Faza 3 natijasi:** 5557 → **5485 qator**. Testlar 225 → **229**.
+`flutter analyze` 1012 (o'zgarmadi). `lib/features/` ga tegilmagan.
+
+---
+
+## FAZA 0-3 YAKUNIY NATIJA
+
+| | Boshlanish | Yakun |
+|---|---|---|
+| `ordering_provider_4.dart` | 5868 | **5485** (−383) |
+| Testlar | 85 (+1 yiqiladigan) | **229** |
+| `flutter analyze` | 1018 | **1012** |
+| `lib/features/` | — | **hech qachon tegilmagan** |
+
+Yangi fayllar: `domain/marking/` (3), `domain/terminal/` (1),
+`providers/ordering/` (2).
+
+## Keyingi qadamlar (bu rejadan TASHQARI — alohida reja kerak)
+
+- [ ] Faza 4 — diskont (~430 qator). Himoya: `discount_apply_test.dart` (14)
+- [ ] Faza 5 — markirovka/blok (~1100 qator)
+- [ ] Faza 6 — to'lov ijrosi (~1200 qator, eng xavfli)
 
 ## Qabul qilingan qarorlar
 

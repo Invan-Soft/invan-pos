@@ -287,6 +287,59 @@ void main() {
     });
   });
 
+  group('notifyListeners — UI qayta chizilishi (Faza 3 ning asosiy xavfi)', () {
+    // To'lov hisobi PaymentTallyController ga ko'chirildi. Kontroller
+    // ChangeNotifier EMAS — provider'ning notifyListeners ini callback
+    // sifatida oladi. Bu ulanish uzilsa, summa o'zgaradi-yu ekranda eski
+    // qiymat qolib ketardi — kassa uchun jiddiy xato.
+
+    test('allPaymentType listenerni uyg\'otadi', () {
+      final p = paymentPage(total: 50000);
+      var notified = 0;
+      p.addListener(() => notified++);
+
+      p.allPaymentType(payment(kCardId));
+
+      expect(notified, greaterThan(0));
+    });
+
+    test('removeFromPaymentList listenerni uyg\'otadi', () {
+      final p = paymentPage(total: 50000);
+      p.allPaymentType(payment(kCardId));
+
+      var notified = 0;
+      p.addListener(() => notified++);
+
+      p.removeFromPaymentList();
+
+      expect(notified, greaterThan(0));
+    });
+
+    test('selectPaymentIndex va changeTheSelectedPaymentIndex uyg\'otadi', () {
+      final p = paymentPage(total: 50000);
+      p.allPaymentType(payment(kCardId));
+
+      var notified = 0;
+      p.addListener(() => notified++);
+
+      p.selectPaymentIndex(0);
+      expect(notified, 1);
+
+      p.changeTheSelectedPaymentIndex(false);
+      expect(notified, 2);
+    });
+
+    test('onNumPressed uyg\'otadi (klaviatura fasadda qoldi)', () {
+      final p = paymentPage();
+      var notified = 0;
+      p.addListener(() => notified++);
+
+      p.onNumPressed(5);
+
+      expect(notified, greaterThan(0));
+    });
+  });
+
   group('paymentsMapAsList — chekka ketadigan ko\'rinish', () {
     test('har to\'lov nomi va qiymati bilan ro\'yxatga aylanadi', () {
       final p = paymentPage(total: 100000);

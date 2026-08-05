@@ -20,6 +20,7 @@ import 'package:invan2/changes/dialogs/markirovka_dialog.dart';
 import 'package:invan2/changes/dialogs/not_found_product_dialog.dart';
 import 'package:invan2/changes/dialogs/payme_dialog.dart';
 import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.dart';
+import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
 import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
 import 'package:invan2/changes/domain/marking/mxik_rules.dart';
@@ -3898,24 +3899,44 @@ ${productLines.toString().trim()}
 
   late bool _paymentInProgress;
 
-  int selectedPaymentIndex = -1;
+  /// To'lov hisobi `PaymentTallyController` ga ko'chirildi (2026-08-05).
+  /// Kontroller `ChangeNotifier` EMAS — `notifyListeners` ni callback
+  /// sifatida oladi (Faza 2 dagi kabi).
+  late final PaymentTallyController _tally =
+      PaymentTallyController(notifyListeners);
+
+  // Quyidagilar fasad: maydon o'rniga getter/setter, shuning uchun sinf
+  // ichidagi mavjud murojaatlar va UI kodi o'zgarishsiz ishlayveradi.
+  int get selectedPaymentIndex => _tally.selectedPaymentIndex;
+  set selectedPaymentIndex(int v) => _tally.selectedPaymentIndex = v;
+
   TextEditingController controller = TextEditingController(text: '0');
 
   late SixClientModel4 _sixClientModel4;
-  late num _totalPrice;
+
+  num get _totalPrice => _tally.totalPrice;
+  set _totalPrice(num v) => _tally.totalPrice = v;
+
   final focusNodeListener = FocusNode();
   late String _comments = "";
   late bool _showComments = true;
 
-  double _zdachaToCashBack = 0;
-  double _mustPay = 0;
+  double get _zdachaToCashBack => _tally.zdachaToCashBack;
+  set _zdachaToCashBack(double v) => _tally.zdachaToCashBack = v;
 
-  double _sdachaa = 0;
+  double get _mustPay => _tally.mustPay;
+  set _mustPay(double v) => _tally.mustPay = v;
+
+  double get _sdachaa => _tally.sdacha;
+  set _sdachaa(double v) => _tally.sdacha = v;
+
   double _fromPointBalance = 0;
   bool _gettingPointBalance = false;
 
   num _discountAmount = 0;
-  bool _isButtonEnabled = false;
+
+  bool get _isButtonEnabled => _tally.isButtonEnabled;
+  set _isButtonEnabled(bool v) => _tally.isButtonEnabled = v;
   bool _isOfdWithOfd = false;
   bool _isChangeToCashback = false;
 
@@ -4006,51 +4027,12 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-  void removeFromPaymentList() {
-    if (selectedPaymentIndex >= 0 && paymentsMap.isNotEmpty) {
-      final paymentKeyList = paymentsMap.keys.toList();
-      if (selectedPaymentIndex < paymentKeyList.length) {
-        final selectedPaymentKey = paymentKeyList[selectedPaymentIndex];
+  void removeFromPaymentList() => _tally.removeFromPaymentList();
 
-        if (selectedPaymentKey == Pref.getString(PrefKeys.debtId, '')) {
-          Pref.setBool(PrefKeys.debtClick, false);
-        }
+  selectPaymentIndex(int v) => _tally.selectPaymentIndex(v);
 
-        paymentsMap.remove(selectedPaymentKey);
-      }
-
-      selectedPaymentIndex = -1;
-    } else {
-      paymentsMap.clear();
-      selectedPaymentIndex = -1;
-      Pref.setBool(PrefKeys.debtClick, false);
-    }
-
-    _checkButtonIsEnable();
-    notifyListeners();
-  }
-
-  selectPaymentIndex(int v) {
-    selectedPaymentIndex = v;
-    notifyListeners();
-  }
-
-  changeTheSelectedPaymentIndex(bool up) {
-    if (!up) {
-      if (selectedPaymentIndex < paymentsMap.length - 1) {
-        selectedPaymentIndex++;
-      } else {
-        selectedPaymentIndex = 0;
-      }
-    } else {
-      if (selectedPaymentIndex <= 0) {
-        selectedPaymentIndex = paymentsMap.length - 1;
-      } else {
-        selectedPaymentIndex--;
-      }
-    }
-    notifyListeners();
-  }
+  changeTheSelectedPaymentIndex(bool up) =>
+      _tally.changeTheSelectedPaymentIndex(up);
 
 //////////////////////////////////////////////////////////
 
@@ -4295,7 +4277,10 @@ ${productLines.toString().trim()}
 
   /// OTHER ///
 
-  Map<String, Payment> paymentsMap = {};
+  /// UI to'g'ridan-to'g'ri o'qiydi (payment/left/left.dart,
+  /// keyboard_of_payment_page.dart) — imzo o'zgarmadi.
+  Map<String, Payment> get paymentsMap => _tally.paymentsMap;
+  set paymentsMap(Map<String, Payment> v) => _tally.paymentsMap = v;
 
   // Click Pass muvaffaqiyatli to'langan bo'lsa true
   bool _clickPassPaid = false;
@@ -4306,7 +4291,8 @@ ${productLines.toString().trim()}
   bool get paymePaid => _paymePaid;
   void setPaymePaid(bool v) => _paymePaid = v;
 
-  String? _selectedPaymentType;
+  String? get _selectedPaymentType => _tally.selectedPaymentType;
+  set _selectedPaymentType(String? v) => _tally.selectedPaymentType = v;
 
   void allPaymentType(Payment payment) {
     _selectedPaymentType =
@@ -4335,75 +4321,17 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-  void _payByAll(double v, Payment payment) {
-    final updatedPayment = Payment(
-      id: payment.id,
-      name: payment.name,
-      title: payment.title,
-      enable: payment.enable,
-      isAdded: payment.isAdded,
-      merchantId: payment.merchantId,
-      merchantUserId: payment.merchantUserId,
-      password: payment.password,
-      secretKey: payment.secretKey,
-      serviceId: payment.serviceId,
-      type: payment.type,
-      value: v,
-    );
+  // To'lov arifmetikasi `PaymentTallyController` ga ko'chirildi (2026-08-05).
+  // Quyidagilar fasad — imzolar o'zgarmadi.
 
-    String key = updatedPayment.type == 1
-        ? '@${updatedPayment.id}'
-        : updatedPayment.id ?? '';
+  void _payByAll(double v, Payment payment) => _tally.payByAll(v, payment);
 
-    paymentsMap = {
-      ...paymentsMap,
-      key: updatedPayment,
-    };
+  // `_checkButtonIsEnable` olib tashlandi: uni faqat `_payByAll` va
+  // `removeFromPaymentList` chaqirardi, ikkalasi ham kontrollerga ko'chdi.
 
-    _checkButtonIsEnable();
-    notifyListeners();
-  }
+  double getAvailableSumma() => _tally.getAvailableSumma();
 
-  void _checkButtonIsEnable() {
-    num currentMoney = 0;
-    paymentsMap.forEach(
-      (key, value) {
-        currentMoney += value.value ?? 0;
-      },
-    );
-    _mustPay = _totalPrice - currentMoney + _zdachaToCashBack;
-
-    _sdachaa = (currentMoney - _totalPrice).roundToDouble();
-
-    if (_mustPay > 0) {
-      _isButtonEnabled = false;
-    } else {
-      _isButtonEnabled = true;
-    }
-
-    notifyListeners();
-  }
-
-  double getAvailableSumma() {
-    double paid = 0;
-    paymentsMap.forEach((key, payment) {
-      if (key != _selectedPaymentType) {
-        paid += payment.value ?? 0;
-      }
-    });
-    double a = _totalPrice - paid;
-    return a;
-  }
-
-  double getSelectedPaymentSumma() {
-    double paid = 0;
-    paymentsMap.forEach((key, payment) {
-      if (key == _selectedPaymentType) {
-        paid += payment.value ?? 0;
-      }
-    });
-    return paid;
-  }
+  double getSelectedPaymentSumma() => _tally.getSelectedPaymentSumma();
 
   /// OTHER ///
 
