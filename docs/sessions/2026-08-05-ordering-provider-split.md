@@ -95,16 +95,33 @@ olindi (`curly_braces_in_flow_control_structures` lintini yopadi).
 Xatti-harakat bir xil, HUMO/UZCARD/VISA va ustunlik tartibi testlar bilan
 qoplangan.
 
+- [x] **FAZA 2 — kategoriya navigatsiyasi kontrollerga chiqarildi**
+  → `lib/changes/providers/ordering/catalog_navigation_controller.dart`
+  → Ko'chdi: `_items`, `_pathList` maydonlari; `getItems`, `getPathList`,
+    `pressCategory`, `pressSubCategory`, `pressPath`, `pressAllPath`,
+    `clearPathList`, `changeGridviewItems`, `_collectItemsByCategory`,
+    `_collectItemsBySubCategory`
+  → Fasadda qoldi: `pressProduct` — u `addProduct` ni chaqiradi, ya'ni savat
+    mantiqiga tegishli ko'prik
+  → **2-qoida amalda:** kontroller `ChangeNotifier` EMAS, konstruktorda
+    `notifyListeners` ni callback sifatida oladi
+    (`CatalogNavigationController(notifyListeners)`)
+  → Yangi testlar: `notifyListeners` ulanishini tekshiruvchi 4 ta test —
+    aynan shu zonaning asosiy xavfi (holat o'zgaradi-yu ekran qayta
+    chizilmaydi) endi test bilan qoplangan
+
+**Faza 2 natijasi:** 5660 → **5557 qator** (103 qator ko'chdi).
+Testlar 221 → **225**. `flutter analyze` 1012 (o'zgarmadi).
+`lib/features/` ga tegilmagan.
+
 ## Keyingi qadamlar (prioritet bo'yicha)
 
-- [ ] Faza 2 — kategoriya navigatsiyasi → `CatalogNavigationController`
-      Maydonlar: `ordering_provider_4.dart` dagi `_items`, `_pathList`
-      Metodlar: `getItems`, `getPathList`, `pressCategory`, `pressSubCategory`,
-      `pressPath`, `pressAllPath`, `clearPathList`, `changeGridviewItems`,
-      `_collectItemsByCategory`, `_collectItemsBySubCategory`
-      Fasadda qoladi: `pressProduct` (savatga ko'prik)
-      Himoya: `test/catalog_navigation_test.dart` (12 test)
 - [ ] Faza 3 — to'lov arifmetikasi → `PaymentTallyController`
+      Ko'chadi: `_checkButtonIsEnable`, `getAvailableSumma`,
+      `getSelectedPaymentSumma`, `_payByAll`, `allPaymentType`,
+      `removeFromPaymentList` + `paymentsMap`, `_mustPay`, `_sdachaa`,
+      `_isButtonEnabled`, `_selectedPaymentType`, `_zdachaToCashBack`
+      Tegilmaydi: `pressPaymentButton`, `pressPaymentButtonOnlyOFD`, `type*`
       Himoya: `test/payment_tally_test.dart` (19 test)
 
 ## Qabul qilingan qarorlar

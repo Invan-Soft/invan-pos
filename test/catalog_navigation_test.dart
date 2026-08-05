@@ -184,6 +184,65 @@ void main() {
     });
   });
 
+  group('notifyListeners — UI qayta chizilishi (Faza 2 ning asosiy xavfi)', () {
+    // Katalog navigatsiyasi CatalogNavigationController ga ko'chirildi.
+    // Kontroller ChangeNotifier EMAS — u provider'ning notifyListeners ini
+    // callback sifatida oladi. Agar bu ulanish uzilsa, holat o'zgaradi-yu
+    // ekran qayta chizilmaydi — jimgina, ko'rinmaydigan xato.
+    // Quyidagi testlar aynan shu ulanishni tekshiradi.
+
+    test('pressCategory listenerni uyg\'otadi', () {
+      final p = freshProvider();
+      var notified = 0;
+      p.addListener(() => notified++);
+
+      p.pressCategory(cat('ichimlik', 'Ichimliklar'));
+
+      expect(notified, greaterThan(0));
+    });
+
+    test('pressSubCategory listenerni uyg\'otadi', () {
+      final p = freshProvider();
+      var notified = 0;
+      p.addListener(() => notified++);
+
+      p.pressSubCategory(SubCategoryModel(id: 'gazli', name: 'Gazli'));
+
+      expect(notified, greaterThan(0));
+    });
+
+    test('pressPath / pressAllPath / clearPathList uyg\'otadi', () {
+      final p = freshProvider();
+      final ichimlik = cat('ichimlik', 'Ichimliklar');
+      p.pressCategory(ichimlik);
+
+      var notified = 0;
+      p.addListener(() => notified++);
+
+      p.pressPath(ichimlik);
+      expect(notified, 1);
+
+      p.pressAllPath();
+      expect(notified, 2);
+
+      p.clearPathList();
+      expect(notified, 3);
+    });
+
+    test('changeGridviewItems ikkala yo\'lda ham uyg\'otadi', () {
+      final p = freshProvider();
+      var notified = 0;
+      p.addListener(() => notified++);
+
+      p.changeGridviewItems([product('p9', 'Faqat shu')]);
+      expect(notified, 1);
+
+      // null -> pressAllPath yo'li
+      p.changeGridviewItems(null);
+      expect(notified, 2);
+    });
+  });
+
   group('Savatdan mustaqillik (Faza 2 uchun asosiy shart)', () {
     test('navigatsiya savatga va to\'lovga tegmaydi', () {
       final p = freshProvider();

@@ -19,6 +19,7 @@ import 'package:invan2/changes/dialogs/contains_zero_price_item_dialog.dart';
 import 'package:invan2/changes/dialogs/markirovka_dialog.dart';
 import 'package:invan2/changes/dialogs/not_found_product_dialog.dart';
 import 'package:invan2/changes/dialogs/payme_dialog.dart';
+import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
 import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
 import 'package:invan2/changes/domain/marking/mxik_rules.dart';
@@ -5063,82 +5064,20 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-  List<dynamic> _items = CategorySingleton.topCategories;
-  List<CategoryData> _pathList = [];
+  /// Katalog navigatsiyasi `CatalogNavigationController` ga ko'chirildi
+  /// (2026-08-05). Kontroller `ChangeNotifier` EMAS — `notifyListeners` ni
+  /// callback sifatida oladi, aks holda UI qayta chizilmay qolardi.
+  late final CatalogNavigationController _catalog =
+      CatalogNavigationController(notifyListeners);
 
   bool displayingNotFoundDialog = false;
   bool _invalidBarcodeDialogActive = false;
 
 /* //////////////////////// PROVIDER GETTERS //////////////////////// */
 
-  List<dynamic> get getItems {
-    List<CategoryData> categoryList =
-        HiveBoxes.getCategories().values.toList().cast<CategoryData>();
+  List<dynamic> get getItems => _catalog.getItems;
 
-    List<dynamic> list = [];
-
-    List<CategoryData> categoryListForLength = [];
-    for (var element in _items) {
-      if (element is CategoryData) {
-        categoryListForLength.add(element);
-      } else {
-        break;
-      }
-    }
-    for (var element in _items) {
-      if (element is LocalCategoryItemModel) {
-        if (element.isCategory) {
-          final category = CategorySingleton.getCategoryById(element.id);
-          list.add(category);
-        } else {
-          final product = ItemsSingleton.getProductById(element.id);
-          list.add(product);
-        }
-      } else if (element is CategoryData) {
-        if (element.parentId == null || element.parentId!.isEmpty) {
-          if (categoryListForLength.length == 1) {
-            if (element.id != null &&
-                element.id!.isEmpty &&
-                categoryList.length < 2 &&
-                _items.length == 1) {
-              list.add(element);
-            }
-            for (CategoryData c in categoryList) {
-              if (element.id != null &&
-                  element.id!.isNotEmpty &&
-                  element.id == c.parentId) {
-                list.add(c);
-              }
-            }
-          } else if (categoryListForLength.length > 1) {
-            for (CategoryData c in categoryList) {
-              if (c.id == element.id) {
-                list.add(c);
-              }
-            }
-          }
-        } else {
-          if (categoryListForLength.length == 1) {
-            for (CategoryData c in categoryList) {
-              if (element.id != null &&
-                  element.id!.isNotEmpty &&
-                  element.id == c.parentId) {
-                list.add(c);
-              }
-            }
-          }
-        }
-      } else if (element is ItemModel) {
-        list.add(element);
-      } else {
-        list.add(null);
-      }
-    }
-
-    return list;
-  }
-
-  List<CategoryData> get getPathList => _pathList;
+  List<CategoryData> get getPathList => _catalog.getPathList;
 
 /////////////////////////////////////////////////////////////////////
 
@@ -5565,72 +5504,30 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-  void pressCategory(CategoryData categoryData) {
-    _collectItemsByCategory(categoryData.id!);
-    _pathList.add(categoryData);
-    notifyListeners();
-  }
+  // Katalog navigatsiyasi `CatalogNavigationController` ga ko'chirildi
+  // (2026-08-05). Quyidagilar fasad — public imzolar o'zgarmadi.
 
-  void pressSubCategory(SubCategoryModel subModel) {
-    _collectItemsBySubCategory(subModel.id!);
-    CategoryData categoryData = CategoryData(
-      id: subModel.id,
-      children: [],
-      name: subModel.name,
-    );
-    _pathList.add(categoryData);
-    notifyListeners();
-  }
+  void pressCategory(CategoryData categoryData) =>
+      _catalog.pressCategory(categoryData);
 
+  void pressSubCategory(SubCategoryModel subModel) =>
+      _catalog.pressSubCategory(subModel);
+
+  /// Savatga ko'prik — kontrollerga KO'CHMAYDI, chunki `addProduct` savat
+  /// mantiqiga tegishli.
   void pressProduct(BuildContext context, ItemModel product, String where) {
     product.mark = null;
     addProduct(context: context, product: product, value: 1, where: where);
   }
 
-  void pressPath(CategoryData categoryData) {
-    _collectItemsByCategory(categoryData.id!);
-    _pathList = _pathList.sublist(0, _pathList.indexOf(categoryData) + 1);
-    notifyListeners();
-  }
+  void pressPath(CategoryData categoryData) => _catalog.pressPath(categoryData);
 
-  void pressAllPath() {
-    _items = <dynamic>[];
-    _items.addAll(CategorySingleton.topCategories);
-    _pathList = [];
-    notifyListeners();
-  }
+  void pressAllPath() => _catalog.pressAllPath();
 
-  void clearPathList() {
-    _pathList = [];
-    notifyListeners();
-  }
+  void clearPathList() => _catalog.clearPathList();
 
-  void changeGridviewItems(List<dynamic>? items) {
-    if (items != null) {
-      _items = items;
-      notifyListeners();
-    } else {
-      pressAllPath();
-    }
-  }
-
-  void _collectItemsByCategory(String categoryId) {
-    _items = <dynamic>[];
-
-    _items.addAll(
-      CategorySingleton.collectCategoryByParentCategory(categoryId),
-    );
-    _items.addAll(
-      ItemsSingleton.collectProductsByCategory(categoryId),
-    );
-  }
-
-  void _collectItemsBySubCategory(String subCategoryId) {
-    _items = <dynamic>[];
-    _items.addAll(
-      ItemsSingleton.collectProductsBySubategory(subCategoryId),
-    );
-  }
+  void changeGridviewItems(List<dynamic>? items) =>
+      _catalog.changeGridviewItems(items);
 
   onClientSearchButtonPressedWithInn(BuildContext context) async {
     ClientBloc clientBloc = BlocProvider.of(context, listen: false);
