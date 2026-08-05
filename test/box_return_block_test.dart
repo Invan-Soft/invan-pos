@@ -1,17 +1,13 @@
 // Blok vozvrat oqimi testi: UI blok hisobida ishlaydi, data esa dona (value)
 // hisobida qoladi. ReturnPageProviderr ko'chirish logikasi va funcToRefund
 // (refund_order_items body) jamlash tekshiriladi.
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:invan2/changes/providers/return_page_provider.dart';
 import 'package:invan2/changes/services/receipt_api_4.dart';
-import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart';
-import 'package:invan2/utils/constants/pref_keys.dart';
-import 'package:invan2/utils/helpers/prefs.dart';
+
+import 'support/provider_harness.dart';
 
 ReceiptModelSoldItem4 makeRow({
   String productId = 'pepsi-id',
@@ -86,19 +82,8 @@ ReceiptModel4 makeReceipt(List<ReceiptModelSoldItem4> items) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late Directory tempDir;
-
-  setUpAll(() async {
-    tempDir = await Directory.systemTemp.createTemp('box_return_test');
-    Hive.init(tempDir.path);
-    await Hive.openBox(HiveBoxNames.prefs);
-    await Pref.setString(PrefKeys.userId, 'user-1');
-  });
-
-  tearDownAll(() async {
-    await Hive.close();
-    await tempDir.delete(recursive: true);
-  });
+  setUpAll(() => setUpPosTestEnv('box_return_test'));
+  tearDownAll(tearDownPosTestEnv);
 
   group('ReturnPageProviderr — blok qatori ko\'chirish', () {
     test('1 blok (12 dona) butunlay o\'ngga o\'tadi', () {

@@ -6,20 +6,10 @@
 // Fix A: _saveMarkGroup manual narxda _syncManualPriceAcrossProductRows chaqiradi
 //        (blok qatoriga ham sinxronlanadi).
 // Fix B: yangi skan mavjud manual narxni oladi (_applyExistingManualPrice).
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
-import 'package:invan2/changes/providers/ordering_provider_4.dart';
-import 'package:invan2/changes/models/log/log_model.dart';
-import 'package:invan2/features/get_discounts/model/discounts_response.dart';
-import 'package:invan2/features/get_employees/model/employees_find_response.dart';
-import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
-import 'package:invan2/utils/constants/pref_keys.dart';
-import 'package:invan2/utils/helpers/prefs.dart';
 
-const kCashierId = 'kassir-001';
+import 'support/provider_harness.dart';
 
 ReceiptModelSoldItem4 makeRow({
   String productId = 'hydro-id',
@@ -94,39 +84,9 @@ ReceiptModelSoldItem4 editedBox(double newBlockPrice, int blockCount, int boxVal
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late Directory tempDir;
 
-  setUpAll(() async {
-    tempDir = await Directory.systemTemp.createTemp('mark_block_price_test');
-    Hive.init(tempDir.path);
-    Hive.registerAdapter(EmployeeAdapter());
-    Hive.registerAdapter(EmployeeUserAdapter());
-    Hive.registerAdapter(EmployeeRoleAdapter());
-    Hive.registerAdapter(EmployeeAccessAdapter());
-    Hive.registerAdapter(DiscountItemAdapter());
-    Hive.registerAdapter(LogModelAdapter());
-    await Hive.openBox(HiveBoxNames.prefs);
-    await Hive.openBox<DiscountItem>(HiveBoxNames.discounts);
-    await Hive.openBox<LogModel>(HiveBoxNames.logs);
-    await Hive.openBox<LogModel>(HiveBoxNames.tglogs);
-    final empBox = await Hive.openBox<Employee>(HiveBoxNames.employees);
-    await Pref.setString(PrefKeys.cashierId, kCashierId);
-    await empBox.add(
-      Employee(user: EmployeeUser(id: kCashierId, firstName: 'Test Kassir')),
-    );
-  });
-
-  tearDownAll(() async {
-    await Hive.close();
-    await tempDir.delete(recursive: true);
-  });
-
-  OrderingProvider4 freshProvider() {
-    final p = OrderingProvider4();
-    p.getCurrentClient.orderedProducts.clear();
-    p.getCurrentClient.deletedItems.clear();
-    return p;
-  }
+  setUpAll(() => setUpPosTestEnv('mark_block_price_test'));
+  tearDownAll(tearDownPosTestEnv);
 
   group('Markirovka guruhi + blok — qo\'lda narx sinxron', () {
     test('Fix A: marka narxini 2750->4000 qilsa blok 33000->48000 bo\'ladi',

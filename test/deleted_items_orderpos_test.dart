@@ -2,22 +2,17 @@
 // Real provider metodlari (pressDialogDeleteButton, pressDialogSaveButton,
 // removeLastAdded, mark-guruh) va serverga ketadigan JSON tekshiriladi.
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import 'package:invan2/changes/providers/ordering_provider_4.dart';
 import 'package:invan2/changes/services/receipt_api_4.dart';
-import 'package:invan2/changes/models/log/log_model.dart';
-import 'package:invan2/features/get_discounts/model/discounts_response.dart';
 import 'package:invan2/features/get_employees/model/employees_find_response.dart';
-import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 
-const kCashierId = 'kassir-001';
+import 'support/provider_harness.dart';
 
 ReceiptModelSoldItem4 makeRow({
   String productId = 'pepsi-id',
@@ -87,41 +82,9 @@ ReceiptModel4 makeReceipt() {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late Directory tempDir;
 
-  setUpAll(() async {
-    tempDir = await Directory.systemTemp.createTemp('deleted_items_test');
-    Hive.init(tempDir.path);
-    Hive.registerAdapter(EmployeeAdapter());
-    Hive.registerAdapter(EmployeeUserAdapter());
-    Hive.registerAdapter(EmployeeRoleAdapter());
-    Hive.registerAdapter(EmployeeAccessAdapter());
-    Hive.registerAdapter(DiscountItemAdapter());
-    Hive.registerAdapter(LogModelAdapter());
-    await Hive.openBox(HiveBoxNames.prefs);
-    await Hive.openBox<DiscountItem>(HiveBoxNames.discounts);
-    // Offline flush paytida ApiProvider xato loglari uchun
-    await Hive.openBox<LogModel>(HiveBoxNames.logs);
-    await Hive.openBox<LogModel>(HiveBoxNames.tglogs);
-    final empBox = await Hive.openBox<Employee>(HiveBoxNames.employees);
-
-    await Pref.setString(PrefKeys.cashierId, kCashierId);
-    await empBox.add(
-      Employee(user: EmployeeUser(id: kCashierId, firstName: 'Test Kassir')),
-    );
-  });
-
-  tearDownAll(() async {
-    await Hive.close();
-    await tempDir.delete(recursive: true);
-  });
-
-  OrderingProvider4 freshProvider() {
-    final p = OrderingProvider4();
-    p.getCurrentClient.orderedProducts.clear();
-    p.getCurrentClient.deletedItems.clear();
-    return p;
-  }
+  setUpAll(() => setUpPosTestEnv('deleted_items_test'));
+  tearDownAll(tearDownPosTestEnv);
 
   group("1. OPD dialog orqali to'liq o'chirish", () {
     test("3 ta pepsi qatorini o'chirish -> qty 3, total 15000", () async {

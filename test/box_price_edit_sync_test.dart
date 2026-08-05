@@ -2,20 +2,10 @@
 // Blok qatorining narxi o'zgartirilsa dona qatorlari (narx/boxValue) ga,
 // dona narxi o'zgartirilsa blok qatorlari (narx×boxValue) ga tushishi kerak —
 // bitta mahsulot, narxi bir xil. Orqa fon (value/price semantikasi) o'zgarmaydi.
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
-import 'package:invan2/changes/providers/ordering_provider_4.dart';
-import 'package:invan2/changes/models/log/log_model.dart';
-import 'package:invan2/features/get_discounts/model/discounts_response.dart';
-import 'package:invan2/features/get_employees/model/employees_find_response.dart';
-import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
-import 'package:invan2/utils/constants/pref_keys.dart';
-import 'package:invan2/utils/helpers/prefs.dart';
 
-const kCashierId = 'kassir-001';
+import 'support/provider_harness.dart';
 
 ReceiptModelSoldItem4 makeRow({
   String productId = 'montella-id',
@@ -75,40 +65,9 @@ ReceiptModelSoldItem4 editedCopy(ReceiptModelSoldItem4 src, double newPrice) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late Directory tempDir;
 
-  setUpAll(() async {
-    tempDir = await Directory.systemTemp.createTemp('box_price_sync_test');
-    Hive.init(tempDir.path);
-    Hive.registerAdapter(EmployeeAdapter());
-    Hive.registerAdapter(EmployeeUserAdapter());
-    Hive.registerAdapter(EmployeeRoleAdapter());
-    Hive.registerAdapter(EmployeeAccessAdapter());
-    Hive.registerAdapter(DiscountItemAdapter());
-    Hive.registerAdapter(LogModelAdapter());
-    await Hive.openBox(HiveBoxNames.prefs);
-    await Hive.openBox<DiscountItem>(HiveBoxNames.discounts);
-    await Hive.openBox<LogModel>(HiveBoxNames.logs);
-    await Hive.openBox<LogModel>(HiveBoxNames.tglogs);
-    final empBox = await Hive.openBox<Employee>(HiveBoxNames.employees);
-
-    await Pref.setString(PrefKeys.cashierId, kCashierId);
-    await empBox.add(
-      Employee(user: EmployeeUser(id: kCashierId, firstName: 'Test Kassir')),
-    );
-  });
-
-  tearDownAll(() async {
-    await Hive.close();
-    await tempDir.delete(recursive: true);
-  });
-
-  OrderingProvider4 freshProvider() {
-    final p = OrderingProvider4();
-    p.getCurrentClient.orderedProducts.clear();
-    p.getCurrentClient.deletedItems.clear();
-    return p;
-  }
+  setUpAll(() => setUpPosTestEnv('box_price_sync_test'));
+  tearDownAll(tearDownPosTestEnv);
 
   group('OPD narx tahriri — blok ⇄ dona sinxron', () {
     test('blok narxi 21600->18000: dona qatori 1800->1500 bo\'ladi', () async {
