@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' show min;
 import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -19,6 +18,7 @@ import 'package:invan2/changes/dialogs/contains_zero_price_item_dialog.dart';
 import 'package:invan2/changes/dialogs/markirovka_dialog.dart';
 import 'package:invan2/changes/dialogs/not_found_product_dialog.dart';
 import 'package:invan2/changes/dialogs/payme_dialog.dart';
+import 'package:invan2/changes/providers/ordering/discount_effects_controller.dart';
 import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.dart';
 import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
@@ -72,7 +72,6 @@ import '../dialogs/contains_discount_item_dialog_2.dart';
 import '../dialogs/creat_product/creat_product_dialog.dart';
 import '../dialogs/supplier_search/supplier_search_dialog.dart';
 import '../models/organization_model.dart';
-import '../models/product_discount_model.dart';
 import '../models/supplier_model.dart';
 import '../services/api/result_http_model.dart';
 import '../singletons/discounts/discount_singleton.dart';
@@ -1021,448 +1020,60 @@ ${productLines.toString().trim()}
     );
   }
 
-  Map<String, int> _showCount = {};
-  Map<String, int> _showCountFreeGift = {};
+  /// Diskont effektlari `DiscountEffectsController` ga ko'chirildi
+  /// (2026-08-05). Kontroller `ChangeNotifier` EMAS — `notifyListeners` ni
+  /// callback sifatida oladi.
+  late final DiscountEffectsController _discountFx =
+      DiscountEffectsController(notifyListeners);
 
-  Map<String, ReturnedProduct> _returnedProducts = {};
+  // Hisob-kitob holati: maydon o'rniga getter/setter, shuning uchun sinf
+  // ichidagi ~90 murojaat o'zgarishsiz ishlayveradi.
+  Map<String, int> get _showCount => _discountFx.showCount;
+  set _showCount(Map<String, int> v) => _discountFx.showCount = v;
 
-  List<ReturnedGift> _returnedFreeGiftProducts = [];
-  List<ReturnedGiftX> _returnedBuyXGetX = [];
-  Map<String, String> _giftProducts = {};
+  Map<String, int> get _showCountFreeGift => _discountFx.showCountFreeGift;
+  set _showCountFreeGift(Map<String, int> v) =>
+      _discountFx.showCountFreeGift = v;
 
-  int _freeGiftDialogCount = 0;
+  Map<String, ReturnedProduct> get _returnedProducts =>
+      _discountFx.returnedProducts;
+  set _returnedProducts(Map<String, ReturnedProduct> v) =>
+      _discountFx.returnedProducts = v;
 
-  void findFreeProducts() {
-    // Free Gift threshold har safar qayta hisoblansin
-    DiscountSingleton.maxPrice();
-    _findFreeGiftProducts();
-    _findBuyXGetXProducts();
+  List<ReturnedGift> get _returnedFreeGiftProducts =>
+      _discountFx.returnedFreeGiftProducts;
+  set _returnedFreeGiftProducts(List<ReturnedGift> v) =>
+      _discountFx.returnedFreeGiftProducts = v;
 
-    final returnedProducts = DiscountSingleton.buyXGetYOrFreeGifts(
-          _currentClient.orderedProducts,
-          getClientGroupId,
-          0,
-          false,
-        ) ??
-        [];
+  List<ReturnedGiftX> get _returnedBuyXGetX => _discountFx.returnedBuyXGetX;
+  set _returnedBuyXGetX(List<ReturnedGiftX> v) =>
+      _discountFx.returnedBuyXGetX = v;
 
-    if (returnedProducts == null || returnedProducts.isEmpty) return;
+  Map<String, String> get _giftProducts => _discountFx.giftProducts;
+  set _giftProducts(Map<String, String> v) => _discountFx.giftProducts = v;
 
-    for (final product in returnedProducts) {
-      final discountId = product.discountId;
-      if (discountId != null) {
-        _returnedProducts[discountId] = product;
-      }
-    }
-  }
+  // Faqat yoziladi (hisoblagichni nolga tushirish) — getter kerak emas.
+  set _freeGiftDialogCount(int v) => _discountFx.freeGiftDialogCount = v;
 
-  void _findFreeGiftProducts() {
-    List<ReturnedGift> returned = DiscountSingleton.buyXGetYOrFreeGifts(
-          _currentClient.orderedProducts,
-          getClientGroupId,
-          _totalPriceForAllProduct(),
-          true,
-        ) ??
-        [];
-    _returnedFreeGiftProducts = returned;
-  }
+  // Tekin mahsulot oqimlari — fasad, imzolar o'zgarmadi.
 
-  void _findBuyXGetXProducts() {
-    final buyXGetXList = DiscountSingleton.getBuyXGetXDiscounts(
-      _currentClient.orderedProducts,
-      getClientGroupId,
-    );
+  void findFreeProducts() => _discountFx.findFreeProducts(
+      _currentClient.orderedProducts, getClientGroupId);
 
-    if (buyXGetXList.isNotEmpty) {
-      _returnedBuyXGetX = buyXGetXList;
-      _returnedBuyXGetX.forEach(
-        (element) {},
-      );
-    } else {
-      _returnedBuyXGetX = [];
-    }
-  }
+  void useFreeProducts() =>
+      _discountFx.useFreeProducts(_currentClient.orderedProducts);
 
-  void useFreeProducts() {
-    if (_returnedProducts.isEmpty) return;
+  void useFreeGiftProducts() =>
+      _discountFx.useFreeGiftProducts(_currentClient.orderedProducts);
 
-    final orderedProducts = _currentClient.orderedProducts;
+  void useBuyXGetXProducts() =>
+      _discountFx.useBuyXGetXProducts(_currentClient.orderedProducts);
 
-    for (final returnedProduct in _returnedProducts.values) {
-      final mustQty = returnedProduct.mustProductQuantity ?? 0;
-      final availableProducts = returnedProduct.availableProducts;
-      final returnedProductId = returnedProduct.returnedProductId;
-      final returnedProductQty =
-          returnedProduct.returnedProductQuantity?.toDouble() ?? 0.0;
+  void _resetItemDiscount(ReceiptModelSoldItem4 item) =>
+      _discountFx.resetItemDiscount(item);
 
-      if (availableProducts == null ||
-          availableProducts.isEmpty ||
-          returnedProductId == null) {
-        continue;
-      }
-
-      final isSameProduct =
-          availableProducts.any((p) => p.id == returnedProductId);
-
-      bool thresholdMet;
-      if (isSameProduct) {
-        final totalQtyOfProduct = orderedProducts
-            .where((p) =>
-                p.productId == returnedProductId && !p.isPriceOnlyChanged)
-            .fold<num>(
-                0,
-                (sum, p) =>
-                    sum + (p.saleType == 2 ? p.value * p.boxValue : p.value));
-        thresholdMet = totalQtyOfProduct >= mustQty + returnedProductQty;
-      } else {
-        final nonGiftTotal = orderedProducts
-            .where((p) =>
-                p.productId != returnedProductId && !p.isPriceOnlyChanged)
-            .fold<num>(0, (sum, p) => sum + p.realPrice * p.value);
-        thresholdMet = nonGiftTotal >= mustQty;
-      }
-
-      if (!thresholdMet) {
-        for (final item in orderedProducts) {
-          if (item.productId == returnedProductId) {
-            _resetItemDiscount(item);
-          }
-        }
-        continue;
-      }
-
-      final prod = ItemsSingleton.getProductById(returnedProductId);
-      final firstTierPrice = (prod != null)
-          ? ItemsSingleton.onePrice(prod.shopPrices).toDouble()
-          : 0.0;
-
-      // Tegishli barcha qatorlar (to'lanadigan + tekin bo'ladigan)
-      final eligibleItems = orderedProducts
-          .where((item) =>
-              item.productId == returnedProductId &&
-              !item.isPriceOnlyChanged &&
-              !item.isPriceChanged)
-          .toList();
-
-      // Box itemlar (katta effectiveQty) avval ishlansin — individual itemlar keyinida
-      eligibleItems.sort((a, b) {
-        final aQty = a.saleType == 2 ? (a.value * a.boxValue) : a.value;
-        final bQty = b.saleType == 2 ? (b.value * b.boxValue) : b.value;
-        return bQty.compareTo(aQty);
-      });
-
-      num freeLeft = returnedProductQty;
-
-      for (final item in eligibleItems) {
-        // 1. Har bir qator uchun 6050 ni majburiy qo'yamiz
-        if (firstTierPrice > 0) {
-          final adjustedFirstTierPrice = item.saleType == 2
-              ? firstTierPrice * item.boxValue
-              : firstTierPrice;
-          item.realPrice = adjustedFirstTierPrice;
-          item.onlyPrice = adjustedFirstTierPrice;
-        }
-
-        if (freeLeft <= 0) {
-          // To'lanadigan qator — chegirmasiz qoladi
-          item.price = item.realPrice;
-          item.discountPercent = 0;
-          item.singleDiscount = 0;
-          _resetItemDiscount(item); // eski chegirmalarni tozalaydi
-          continue;
-        }
-
-        final itemQty = item.saleType == 2
-            ? (item.value * item.boxValue).toDouble()
-            : item.value.toDouble();
-        final effectiveFree = freeLeft >= itemQty ? itemQty : freeLeft;
-        freeLeft -= effectiveFree;
-
-        final paidQty = itemQty - effectiveFree;
-        final ratio = paidQty / itemQty;
-
-        item
-          ..price = item.realPrice * ratio
-          ..discountPercent = 100 - (ratio * 100)
-          ..singleDiscount = (item.realPrice * effectiveFree) / itemQty;
-
-        item.discount.clear();
-
-        final discountModel = ProductDiscountModel(
-          idd: returnedProduct.discountId ?? '',
-          typeId: returnedProduct.discountGroupType ?? '',
-          typeName: 'Buy X Get Y',
-          name: returnedProduct.discountName ?? '',
-          value: item.discountPercent ?? 100,
-          total: item.singleDiscount * item.value,
-        );
-
-        item.productDiscount.removeWhere((e) => e.idd == discountModel.idd);
-        item.productDiscount.add(discountModel);
-        DiscountSingleton.addDiscountForProduct(item);
-      }
-    }
-
-    _currentClient.orderedProducts = orderedProducts;
-    notifyListeners();
-  }
-
-  void useFreeGiftProducts() {
-    final orderedProducts = _currentClient.orderedProducts;
-
-    if (_returnedFreeGiftProducts.isEmpty) {
-      for (final item in orderedProducts) {
-        if (item.isPriceOnlyChanged) continue;
-        if (_giftProducts.containsKey(item.productId) &&
-            item.price != item.realPrice) {
-          _resetItemDiscount(item);
-        }
-      }
-      _giftProducts.clear();
-      _currentClient.orderedProducts = orderedProducts;
-      return;
-    }
-
-    for (final gift in _returnedFreeGiftProducts) {
-      final giftProductId = gift.getProduct?.id;
-      if (giftProductId == null) continue;
-
-      final nonGiftTotal = orderedProducts
-          .where((p) => p.productId != giftProductId && !p.isPriceOnlyChanged)
-          .fold<num>(0, (sum, p) => sum + p.realPrice * p.value);
-
-      final giftItems = orderedProducts
-          .where((item) =>
-              item.productId == giftProductId &&
-              !item.isPriceOnlyChanged &&
-              !item.isPriceChanged)
-          .toList();
-
-      // Sovg'a producti savatda bo'lsa, uning to'lanadigan qismi ham
-      // threshold ga kiritiladi: (savatdagi sovg'a product summasi − tekin qism)
-      // + boshqa productlar summasi >= buyAmount.
-      final giftProductInCartValue =
-          giftItems.fold<num>(0, (sum, p) => sum + p.realPrice * p.value);
-      final giftRealPrice =
-          giftItems.isNotEmpty ? giftItems.first.realPrice : 0;
-      final freeValue = giftRealPrice * gift.getProductAmount;
-      final effectivePaidTotal =
-          nonGiftTotal + giftProductInCartValue - freeValue;
-
-      if (effectivePaidTotal >= gift.buyAmount) {
-        // Threshold qondirildi — faqat gift.getProductAmount miqdorini tekin ber
-        _giftProducts[giftProductId] = gift.discountId ?? '';
-        num freeLeft = gift.getProductAmount.toDouble();
-
-        for (final item in giftItems) {
-          if (freeLeft <= 0) {
-            // Kvota tugadi — bu qatorni to'liq narxda qoldirish kerak
-            _resetItemDiscount(item);
-            continue;
-          }
-
-          final itemQty = item.saleType == 2
-              ? (item.value * item.boxValue).toDouble()
-              : item.value.toDouble();
-          final effectiveFree = freeLeft >= itemQty ? itemQty : freeLeft;
-          freeLeft -= effectiveFree;
-
-          final ratio = (itemQty - effectiveFree) / itemQty;
-          item
-            ..price = item.realPrice * ratio
-            ..discountPercent = 100 - (ratio * 100)
-            ..singleDiscount = (item.realPrice * effectiveFree) / itemQty;
-
-          item.discount.clear();
-          DiscountSingleton.addDiscountForProduct(item);
-          _addDiscountForReceipt(item, gift.discountName ?? '',
-              gift.discountId ?? '', gift.discountGroupType ?? '');
-        }
-      } else {
-        for (final item in giftItems) {
-          if (item.price != item.realPrice) {
-            _resetItemDiscount(item);
-          }
-        }
-        _giftProducts.remove(giftProductId);
-      }
-    }
-
-    _currentClient.orderedProducts = orderedProducts;
-  }
-
-  void useBuyXGetXProducts() {
-    if (_returnedBuyXGetX.isEmpty) return;
-
-    final orderedProducts = _currentClient.orderedProducts;
-
-    for (ReturnedGiftX gift in _returnedBuyXGetX) {
-      final productId = gift.getProduct?.id;
-      if (productId == null) continue;
-
-      // Shu productId ga tegishli barcha normal qatorlar
-      final items = orderedProducts
-          .where((item) =>
-              item.productId == productId &&
-              !item.isPriceOnlyChanged &&
-              !item.isPriceChanged)
-          .toList();
-
-      if (items.isEmpty) continue;
-
-      num freeQtyLeft = gift.getProductAmount; // nechta tekin berish kerak
-
-      // ================== 1. BITTA QATOR (oddiy mahsulot) ==================
-      if (items.length == 1) {
-        final item = items.first;
-        final totalQty = item.saleType == 2
-            ? (item.value * item.boxValue).toDouble()
-            : item.value.toDouble();
-        final buy = gift.buyAmount.toDouble();
-        final get = gift.getProductAmount.toDouble();
-
-        // Discount bo'lsa - 3 talik narx emas, 1-chi (asosiy) narxdan hisoblansin
-        final prod = ItemsSingleton.getProductById(gift.getProduct?.id ?? '');
-        final firstTierPrice = prod != null
-            ? ItemsSingleton.onePrice(prod.shopPrices).toDouble()
-            : 0.0;
-        if (firstTierPrice > 0 && firstTierPrice > item.realPrice) {
-          item.realPrice = firstTierPrice;
-          item.onlyPrice = firstTierPrice;
-          item.price = firstTierPrice;
-        }
-
-        num freeQty = 0;
-        final setSize = buy + get;
-        if (gift.isRepeatable) {
-          // isRepeatable=true: nechta set bo'lsa shuncha tekin
-          if (totalQty >= setSize) {
-            freeQty = (totalQty / setSize).floor() * get;
-          }
-        } else {
-          // isRepeatable=false: faqat bitta set, qancha olmasin
-          if (totalQty >= setSize) {
-            freeQty = get;
-          }
-        }
-
-        final paidQty = totalQty - freeQty;
-
-        if (paidQty > 0) {
-          final ratio = paidQty / totalQty;
-          item.price = item.realPrice * ratio;
-          item.discountPercent = 100 - (ratio * 100);
-          item.singleDiscount = (item.realPrice * freeQty) / totalQty;
-        } else {
-          item.price = 0;
-          item.discountPercent = 100;
-          item.singleDiscount = item.realPrice;
-        }
-
-        // Discount model
-        item.discount.clear();
-        final discountModel = ProductDiscountModel(
-          idd: gift.discountId ?? '',
-          typeId: gift.discountGroupType ?? '',
-          typeName: 'Buy X Get X',
-          name: gift.discountName ?? '',
-          value: item.discountPercent ?? 100,
-          total: item.singleDiscount * item.value,
-        );
-
-        item.productDiscount.removeWhere((e) => e.idd == discountModel.idd);
-        item.productDiscount.add(discountModel);
-        DiscountSingleton.addDiscountForProduct(item);
-      } else {
-        // BuyXGetX: perSetGet == perSetBuy (symmetric), perSet = buy + get = 2 × buyAmount
-        final perSetGet = gift.buyAmount.toDouble();
-        final perSetSize = perSetGet * 2;
-
-        for (final item in items.reversed) {
-          if (freeQtyLeft <= 0) {
-            _resetItemDiscount(item);
-            continue;
-          }
-
-          final itemQty = item.saleType == 2
-              ? (item.value * item.boxValue).toDouble()
-              : item.value.toDouble();
-
-          // Box: cap free at natural ratio so excess free slots pass to individual items.
-          // Individual: can absorb all remaining free slots (up to itemQty).
-          final naturalCap = item.saleType == 2
-              ? (itemQty / perSetSize).floor() * perSetGet
-              : itemQty;
-          final freeInThis = min(naturalCap, freeQtyLeft);
-
-          if (freeInThis <= 0) {
-            _resetItemDiscount(item);
-            continue;
-          }
-
-          if (freeInThis >= itemQty) {
-            // Butun qator tekin
-            item.price = 0;
-            item.discountPercent = 100;
-            item.singleDiscount = item.realPrice;
-            freeQtyLeft -= itemQty;
-          } else {
-            // Qisman tekin
-            final paidQty = itemQty - freeInThis;
-            final ratio = paidQty / itemQty;
-            item.price = item.realPrice * ratio;
-            item.discountPercent = 100 - (ratio * 100);
-            item.singleDiscount = (item.realPrice * freeInThis) / itemQty;
-            freeQtyLeft -= freeInThis;
-          }
-
-          // Discount model
-          item.discount.clear();
-          final discountModel = ProductDiscountModel(
-            idd: gift.discountId ?? '',
-            typeId: gift.discountGroupType ?? '',
-            typeName: 'Buy X Get X',
-            name: gift.discountName ?? '',
-            value: item.discountPercent ?? 100,
-            total: item.singleDiscount * item.value,
-          );
-
-          item.productDiscount.removeWhere((e) => e.idd == discountModel.idd);
-          item.productDiscount.add(discountModel);
-          DiscountSingleton.addDiscountForProduct(item);
-        }
-      }
-    }
-
-    notifyListeners();
-  }
-
-  void _resetItemDiscount(ReceiptModelSoldItem4 item) {
-    item
-      ..price = item.realPrice
-      ..discountPercent = 0
-      ..singleDiscount = 0
-      ..discount.clear()
-      ..productDiscount.clear();
-  }
-
-  ReceiptModelSoldItem4 _addDiscountForReceipt(ReceiptModelSoldItem4 item,
-      String discountName, String discountId, String discountGroupType) {
-    ProductDiscountModel productDiscountModel = ProductDiscountModel(
-      idd: discountId,
-      typeId: discountGroupType,
-      typeName: discountName,
-      name: discountName,
-      value: item.singleDiscount,
-      total: 0,
-    );
-    item.productDiscount.removeWhere((e) => e.idd == productDiscountModel.idd);
-    item.productDiscount.add(productDiscountModel);
-    return item;
-  }
-
-  num _totalPriceForAllProduct() => _currentClient.orderedProducts
-      .fold(0, (sum, p) => sum + p.price * p.value);
+  num _totalPriceForAllProduct() =>
+      DiscountEffectsController.totalPriceForAll(_currentClient.orderedProducts);
 
   bool isMarkingDialogDisplaying = false;
   bool isMarkingChecking = false;

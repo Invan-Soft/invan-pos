@@ -155,11 +155,58 @@ tarmoq, fiskal modul va dialoglar bilan ishlaydi.
 Yangi fayllar: `domain/marking/` (3), `domain/terminal/` (1),
 `providers/ordering/` (2).
 
-## Keyingi qadamlar (bu rejadan TASHQARI — alohida reja kerak)
+- [x] **FAZA 4 — diskont effektlari kontrollerga chiqarildi**
 
-- [ ] Faza 4 — diskont (~430 qator). Himoya: `discount_apply_test.dart` (14)
-- [ ] Faza 5 — markirovka/blok (~1100 qator)
-- [ ] Faza 6 — to'lov ijrosi (~1200 qator, eng xavfli)
+  **4.0 — avval test bo'shlig'i yopildi (+30 test)**
+  → Boshlashda aniqlandi: ko'chadigan metodlar UMUMAN qoplanmagan edi.
+    `discount_apply_test.dart` boshqa faylni (`discount_helpers.dart`)
+    tekshirar ekan, providerni emas.
+  → `discount_free_products_test.dart` (10) — Buy X Get Y
+  → `discount_free_gift_test.dart` (10) — Free Gift
+  → `discount_buy_x_get_x_test.dart` (10) — Buy X Get X
+
+  **4.1 — ko'chirish**
+  → `lib/changes/providers/ordering/discount_effects_controller.dart`
+  → Holat (7 maydon): `showCount`, `showCountFreeGift`, `returnedProducts`,
+    `returnedFreeGiftProducts`, `returnedBuyXGetX`, `giftProducts`,
+    `freeGiftDialogCount` — providerda getter/setter fasad
+  → Metodlar: `findFreeProducts`, `findFreeGiftProducts`,
+    `findBuyXGetXProducts`, `useFreeProducts`, `useFreeGiftProducts`,
+    `useBuyXGetXProducts`, `resetItemDiscount`, `addDiscountForReceipt`
+  → Savat ro'yxati va mijoz guruhi **parametr** sifatida uzatiladi
+
+  **FAZA 1-3 DAN FARQI:** bu kontroller savatga BOG'LIQ — u savat
+  qatorlarini o'zgartiradi (narx, chegirma). Toza "mustaqil modul" emas,
+  balki "savatga effekt qo'llovchi". Savat egaligi providerda qoladi.
+
+  **TESTLAR BITTA REAL XATONI USHLADI:** ko'chirishda `_returnedProducts`
+  → `returnedProducts` nomlash o'zgarishi metod ichidagi lokal ro'yxat
+  (`returnedProducts`) bilan to'qnashdi — map o'rniga ro'yxat String bilan
+  indekslandi (`type 'String' is not a subtype of type 'int'`). 8 ta test
+  yiqildi, lokal o'zgaruvchi `found` deb qayta nomlandi. Testlarsiz bu xato
+  do'konda, Buy X Get Y sotuvida chiqardi.
+
+**Faza 4 natijasi:** 5485 → **5096 qator** (389 qator ko'chdi).
+Testlar 229 → **259**. `flutter analyze` 1012 → **1011**.
+`lib/features/` ga tegilmagan.
+
+---
+
+## YAKUNIY NATIJA (Faza 0-4)
+
+| | Boshlanish | Yakun |
+|---|---|---|
+| `ordering_provider_4.dart` | 5868 | **5096** (−772, 13%) |
+| Testlar | 85 (+1 yiqiladigan) | **259** |
+| `flutter analyze` | 1018 | **1011** |
+| `lib/features/` | — | **hech qachon tegilmagan** |
+
+## Keyingi qadamlar (alohida reja kerak)
+
+- [ ] Faza 5 — markirovka/blok (~1100 qator). Qisman qoplangan
+      (`mark_block_manual_price_test`, `box_*_test`), lekin `_markingCheck`
+      va `_addBoxProduct` uchun qo'shimcha test kerak
+- [ ] Faza 6 — to'lov ijrosi (~1200 qator, eng xavfli: tarmoq + fiskal)
 
 ## Qabul qilingan qarorlar
 
