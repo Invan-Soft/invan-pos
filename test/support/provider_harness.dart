@@ -19,6 +19,7 @@ import 'dart:io';
 import 'package:hive/hive.dart';
 import 'package:invan2/changes/models/log/log_model.dart';
 import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/features/get_categories/model/category.dart';
 import 'package:invan2/features/get_discounts/model/discounts_response.dart';
 import 'package:invan2/features/get_employees/model/employees_find_response.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
@@ -57,6 +58,8 @@ Future<void> setUpPosTestEnv(
   // Offline flush paytida ApiProvider xato loglari shu boxlarga yoziladi.
   await Hive.openBox<LogModel>(HiveBoxNames.logs);
   await Hive.openBox<LogModel>(HiveBoxNames.tglogs);
+  // `OrderingProvider4.getItems` kategoriyalar box'ini o'qiydi.
+  await Hive.openBox<CategoryData>(HiveBoxNames.categories);
   final empBox = await Hive.openBox<Employee>(HiveBoxNames.employees);
 
   await Pref.setString(PrefKeys.cashierId, kCashierId);
@@ -87,6 +90,21 @@ void _registerAdapters() {
   reg(EmployeeAccessAdapter().typeId, EmployeeAccessAdapter());
   reg(DiscountItemAdapter().typeId, DiscountItemAdapter());
   reg(LogModelAdapter().typeId, LogModelAdapter());
+  reg(CategoryDataAdapter().typeId, CategoryDataAdapter());
+  reg(SubCategoryModelAdapter().typeId, SubCategoryModelAdapter());
+  // DiscountItem ichki obyektlari — ularsiz diskont Hive'ga yozilmaydi.
+  reg(DiscountTypeAdapter().typeId, DiscountTypeAdapter());
+  reg(DiscountGroupTypeAdapter().typeId, DiscountGroupTypeAdapter());
+  reg(DiscountSchedulesAdapter().typeId, DiscountSchedulesAdapter());
+  reg(ProductIdsAdapter().typeId, ProductIdsAdapter());
+  reg(CategoryIdsAdapter().typeId, CategoryIdsAdapter());
+  reg(CustomerGroupsAdapter().typeId, CustomerGroupsAdapter());
+  reg(ShopIdsAdapter().typeId, ShopIdsAdapter());
+  reg(BuyXGetYAdapter().typeId, BuyXGetYAdapter());
+  reg(BuyXGetXAdapter().typeId, BuyXGetXAdapter());
+  reg(ProductsToBuyAdapter().typeId, ProductsToBuyAdapter());
+  reg(ProductsToGetAdapter().typeId, ProductsToGetAdapter());
+  reg(GiftsAdapter().typeId, GiftsAdapter());
 }
 
 /// Toza savatli yangi provider.

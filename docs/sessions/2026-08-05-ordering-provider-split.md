@@ -44,14 +44,38 @@ Bu bosqichda faqat **eng xavfsiz zonalar** qamraladi. Savat, diskont va to'lov i
 
 - [x] Branch ochildi: `refactor/ordering-split`
 
+- [x] **0.1 — Yashil bazaviy holat**
+  → `test/widget_test.dart` o'chirildi
+  → Sabab: Flutter shabloni edi, `pumpWidget` ham izohga olingan — hech narsani
+    tekshirmasdan yiqilardi. 85/85 yashil bo'ldi.
+
+- [x] **0.2 — Umumiy test harness**
+  → `test/support/provider_harness.dart` (yangi)
+  → 4 ta testdagi takrorlangan Hive setup bitta joyga yig'ildi
+  → `makeSoldItem()` — yangi testlar uchun umumiy qator yasovchi
+  → Adapterlar guard bilan (`Hive.isAdapterRegistered`) ro'yxatdan o'tadi
+
+- [x] **0.3 — Xarakteristik testlar (+87 ta yangi test)**
+  → `test/payment_tally_test.dart` (19) — Faza 3 nishoni
+  → `test/catalog_navigation_test.dart` (12) — Faza 2 nishoni
+  → `test/terminal_receipt_test.dart` (20) — Faza 1 nishoni
+  → `test/discount_apply_test.dart` (14) — diskont matematikasi
+  → `test/cart_basic_test.dart` (12) — savat asoslari
+  → `test/multi_client_test.dart` (10) — 6-slot rejimi va orphan yozuvlar
+  → Sabab: ko'chirishdan OLDIN hozirgi xatti-harakat muzlatilishi shart;
+    aks holda ko'chirish to'g'riligini isbotlab bo'lmaydi
+
+**Faza 0 natijasi:** 85 → **172 test**, hammasi yashil. `lib/` ga bitta ham
+o'zgarish kiritilmagan. `flutter analyze`: 1018 → 1017 (widget_test'ning
+`unused_import` ogohlantirishi yo'qoldi).
+
 ## Keyingi qadamlar (prioritet bo'yicha)
 
-- [ ] 0.1 — `test/widget_test.dart` o'chirish → 85/85 yashil
-- [ ] 0.2 — `test/support/provider_harness.dart`; 4 ta mavjud test o'tkaziladi
-- [ ] 0.3 — 7 ta xarakteristik test fayli (marking, catalog, payment tally, cart, discount ×2, multi-client)
 - [ ] Faza 1 — sof funksiyalar → `lib/changes/domain/`
-- [ ] Faza 2 — kategoriya navigatsiyasi → kontroller
-- [ ] Faza 3 — to'lov arifmetikasi → kontroller
+      Boshlash nuqtasi: `ordering_provider_4.dart:4451` (`parseTerminalReceipt`)
+      va `:3603` (`cleanMarkForFiscal`) — ikkalasi ham testlar bilan qoplangan
+- [ ] Faza 2 — kategoriya navigatsiyasi → kontroller (`:5217-5218`, `:5776-5841`)
+- [ ] Faza 3 — to'lov arifmetikasi → kontroller (`:4350-4450`, `:4048`)
 
 ## Qabul qilingan qarorlar
 
@@ -62,7 +86,30 @@ Bu bosqichda faqat **eng xavfsiz zonalar** qamraladi. Savat, diskont va to'lov i
 
 ## Ochiq savollar
 
-- (hozircha yo'q)
+- **Sof funksiyalarning aksariyati `private`** (`_isMxikMarking`,
+  `_getProductType`, `_parseGS1Date`, `_markirovka`) — ularni bugun
+  to'g'ridan-to'g'ri testlab bo'lmaydi. Faza 1 da sinfdan chiqarilgach public
+  bo'ladi va o'sha zahoti test yoziladi. Ko'chirishning to'g'riligi esa
+  diff'ni ko'zdan kechirish bilan tasdiqlanadi (tana bayt-ma-bayt bir xil).
+
+- **`addProduct` `BuildContext` talab qiladi** → savat testlari mahsulotni
+  to'g'ridan-to'g'ri `orderedProducts` ga qo'shadi. Bu mavjud testlardagi
+  naqsh, o'zgartirilmadi.
+
+## Qayd etilgan xatti-harakatlar (4-qoida — tuzatilmadi)
+
+- `DiscountHelpers._productPercentage` / `_productNumeric`: `singleDiscount`
+  faqat `product.value == 1` bo'lganda to'ldiriladi. `value > 1` da narx
+  tushadi, lekin `singleDiscount` 0 qoladi
+  (`test/discount_apply_test.dart` — "Miqdor (value) ta'siri").
+  Bu hozirgi xatti-harakat sifatida muzlatildi; to'g'ri yoki noto'g'ri ekani
+  alohida ko'rib chiqilishi kerak.
+
+- `ShiftSingleton4._removeUploadedShiftReceipts({from, to})`: `from` va `to`
+  parametrlari tanada UMUMAN ishlatilmaydi — metod barcha `uploaded == true`
+  cheklarni o'chiradi. Chaqiruvda ham `to: DateTime.now().millisecond`
+  (millisekund, `millisecondsSinceEpoch` emas). Bu task doirasidan tashqari,
+  lekin qayd etib qo'yildi.
 
 ## Test / Verifikatsiya
 
