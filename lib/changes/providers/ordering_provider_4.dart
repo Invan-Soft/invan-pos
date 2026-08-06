@@ -41,7 +41,6 @@ import 'package:invan2/features/get_products/singletons/items_singleton.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 import 'package:invan2/features/home/bloc/invoice/invoice_bloc.dart';
-import 'package:invan2/features/home/features/home_orders/calculation_part/total_price_dialog/bloc/tp_bloc.dart';
 import 'package:invan2/features/home/features/home_orders/calculation_part/total_price_dialog/operation_on_total_price_dialog.dart';
 import 'package:invan2/features/payment/right/complete_button/uzum_pay_bloc/uzum_pay_bloc.dart';
 import 'package:invan2/features/payment/right/dilogs/click/bloc/click_bloc.dart';
@@ -61,7 +60,6 @@ import 'package:windows1251/windows1251.dart';
 import 'package:file/local.dart' as fl;
 import '../../alice_service.dart';
 import '../services/discount_service.dart';
-import '../../features/home/features/home_orders/calculation_part/total_price_dialog/discount_type_status.dart';
 import '../../features/home/features/operation_on_product/operation_on_product.dart';
 import '../../features/payment/right/complete_button/complete_bloc/comlete_bloc.dart';
 import '../../features/payment/right/complete_button/pre_complete_bloc/per_comlete_bloc.dart';
@@ -3053,190 +3051,26 @@ ${productLines.toString().trim()}
       _zdachaToCashBack = 0;
     }
 
-    ClientModel? xClient = _sixClientModel4.selectedClient;
-    String clientPhone = xClient == null ? "" : xClient.phoneNumber!;
-    String clientId = xClient == null ? "" : xClient.id!;
-    double clientDiscountVat = xClient == null ? 0 : xClient.discountValue!;
-    String clientDiscountID = xClient == null
-        ? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd"
-        : xClient.discountId ?? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd";
-    String? clientName = xClient?.firstName ?? "";
-
-    // Supplier tanlangan bo'lsa, uning nomi chekda "Klient" o'rnida
-    // ko'rsatiladi (faqat lokal — clientName API'ga yuborilmaydi,
-    // client_id o'zgarmaydi, shuning uchun order_pos xato bermaydi).
-    if (_selectedSupplier != null) {
-      clientName = _selectedSupplier!.supplierCompanyName.isNotEmpty
-          ? _selectedSupplier!.supplierCompanyName
-          : _selectedSupplier!.name;
-    }
-
-    if (DiscountTypeStatus.disTypeStatus == TpStatus.summa) {
-      double totalPrice =
-          ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
-      clientDiscountID = "9fb3ada6-a73b-4b81-9295-5c1605e54552";
-      clientDiscountVat = DiscountTypeStatus.summa - totalPrice;
-    } else if (DiscountTypeStatus.disTypeStatus == TpStatus.discount) {
-      if (_currentClient.discountPercent != null &&
-          _currentClient.discountPercent != 0) {
-        clientDiscountID = "1fe92aa8-2a61-4bf1-b907-182b497584ad";
-        clientDiscountVat = _currentClient.discountPercent!;
-      }
-    }
-    DiscountTypeStatus.disTypeStatus = TpStatus.discount;
-
-    double allDiscountVat = clientDiscountVat;
-    String allDiscountID = clientDiscountID;
-
-    final cashierId = Pref.getString(PrefKeys.cashierId, "");
-    final cashierName = Pref.getString(PrefKeys.cashierName, "");
-    final posName = Pref.getString(PrefKeys.posName, '');
-    String supplierId = _selectedSupplier?.id ?? "";
-
-    // Kassir xizmat vaqti: sotuv boshlanishi (savatga birinchi mahsulot
-    // qo'shilgan payt) shu yerda "olinadi" (slot tozalanadi) va yopilish
-    // vaqti hozir belgilanadi — order_pos body'siga "order_time" bo'lib ketadi.
-    final DateTime? serviceStartedAt = CashierServiceTimeService.instance
-        .takeStartedTime(_sixClientModel4.clientNumber);
-    final DateTime serviceClosedAt = DateTime.now();
-    final String serviceStartedTimeStr = serviceStartedAt != null
-        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceStartedAt.toUtc())
-        : "";
-    final String serviceClosedTimeStr =
-        DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceClosedAt.toUtc());
-    final int serviceDurationSecondsVal = serviceStartedAt != null
-        ? serviceClosedAt.difference(serviceStartedAt).inSeconds
-        : 0;
-
-    final receiptModel4 = ReceiptModel4(
-      createdDate: DateFormat('yyyy-MM-dd HH:mm:ss').format(
-        DateTime.now().subtract(const Duration(hours: 5)),
-      ),
-      newid: clientId,
-      supplierId: supplierId,
-      zdachiToCashback: _zdachaToCashBack,
-      clientPhone: clientPhone,
-      cashierId: cashierId,
-      cashierName: cashierName,
-      date: DateTime.now().millisecondsSinceEpoch,
-      isRefund: false,
-      discountVat: allDiscountVat,
-      discountID: allDiscountID,
-      totalPrice: _totalPrice + 0,
-      uploaded: false,
-      rejected: false,
-      clientName: clientName,
-      clientId: clientId,
-      cashback: _fromPointBalance.round(),
+    // Chek yig'ish `ReceiptBuilder.buildOnlyOfd` ga ko'chirildi (2026-08-06).
+    // OFD'ga yuborish va guard quyida, providerda qoladi.
+    final receiptModel4 = ReceiptBuilder.buildOnlyOfd(
+      sixClient: _sixClientModel4,
+      selectedSupplier: _selectedSupplier,
+      currentClientDiscountPercent: _currentClient.discountPercent,
+      currentCart: getCurrentClient.orderedProducts,
+      totalPrice: _totalPrice,
+      zdachaToCashBack: _zdachaToCashBack,
       sdacha: _sdachaa,
-      returnForCheck: "",
-      posName: posName,
-      commissionTIN: '',
-      isDonate: Pref.getBool('donate', false),
-      cashboxId: Pref.getString(PrefKeys.activatedPosId, ""),
-      orderType: "sale",
-      shopId: Pref.getString(PrefKeys.organization, ""),
-      userId: Pref.getString(PrefKeys.userId, ""),
-      orderId: "",
-      externalId: "",
-      comment: _comments,
-      isShow: _showComments,
-      serviceStartedTime: serviceStartedTimeStr,
-      serviceClosedTime: serviceClosedTimeStr,
-      serviceDurationSeconds: serviceDurationSecondsVal,
+      fromPointBalance: _fromPointBalance,
+      comments: _comments,
+      showComments: _showComments,
+      payments: paymentsMapAsList,
+      orphanDeletedItems: _orphanDeletedItems,
+      isTpEdited: isTpEdited,
+      lastCardType: _lastCardType,
+      lastCardNumber: _lastCardNumber,
+      lastRRN: _lastRRN,
     );
-
-    receiptModel4.cardType = _lastCardType;
-    receiptModel4.cardNumber = _lastCardNumber;
-    receiptModel4.pptId = _lastRRN;
-
-    receiptModel4.payment.addAll(paymentsMapAsList);
-    receiptModel4.hasDept =
-        paymentsMapAsList.any((p) => p.name.toLowerCase() == 'debt');
-    // Red-delete rejimida o'chirilgan (isDeleted=true) mahsulotlar listda qoladi,
-    // lekin kassir totali (getTotalPrice) ularni hisobga olmaydi. Shuning uchun
-    // ularni fiskal/server/qog'oz chekka ham yubormaymiz — aks holda OFD 10.2.1
-    // tenglamasi buziladi (items jami ≠ to'langan summa).
-    receiptModel4.soldItemList.addAll(
-      _sixClientModel4.orderedProducts.where((p) => !(p.isDeleted ?? false)),
-    );
-
-    // Savat sessiyasida o'chirilgan mahsulotlar chekka biriktiriladi —
-    // order_pos "deleted_items" massivida serverga ketadi. Slot o'chirilganda
-    // saqlab qolinganlar ("-" belgili, egasiz) ham shu chek bilan ketadi.
-    receiptModel4.deletedItemsJson = jsonEncode(
-      [..._orphanDeletedItems, ..._sixClientModel4.deletedItems]
-          .map((e) => e.toJson())
-          .toList(),
-    );
-
-    for (var item in receiptModel4.soldItemList) {
-      if (item.mark != null && item.mark!.isNotEmpty) {
-        final originalMark = item.mark!;
-
-        item.mark = cleanMarkForFiscal(originalMark);
-      }
-    }
-
-    bool isChanged = false;
-    if (!isTpEdited) {
-      isChanged = true;
-    } else {
-      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
-        if (receiptModel4.soldItemList[i].isPriceOnlyChanged ||
-            receiptModel4.soldItemList[i].isPriceChanged) {
-          isChanged = true;
-          break;
-        }
-      }
-    }
-
-    if (isChanged) {
-      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
-        if (receiptModel4.soldItemList[i].price ==
-            receiptModel4.soldItemList[i].onlyPrice) {
-          receiptModel4.soldItemList[i].discount.clear();
-        } else {
-          double discountSingle =
-              receiptModel4.soldItemList[i].discount.isNotEmpty
-                  ? receiptModel4.soldItemList[i].discount.first.total
-                  : 0;
-
-          if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
-            if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
-              receiptModel4.soldItemList[i].singleDiscount =
-                  double.parse(discountSingle.round().toStringAsFixed(1));
-            } else {
-              receiptModel4.soldItemList[i].singleDiscount =
-                  double.parse(discountSingle.round().toStringAsFixed(1));
-            }
-          }
-        }
-      }
-      receiptModel4.discountVat = 0;
-    } else {
-      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
-        if (receiptModel4.soldItemList[i].price ==
-            receiptModel4.soldItemList[i].onlyPrice) {
-          receiptModel4.soldItemList[i].discount.clear();
-        } else {
-          double discountSingle =
-              receiptModel4.soldItemList[i].discount.isNotEmpty
-                  ? receiptModel4.soldItemList[i].discount.first.total
-                  : 0;
-
-          if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
-            if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
-              receiptModel4.soldItemList[i].singleDiscount =
-                  double.parse(discountSingle.round().toStringAsFixed(1));
-            }
-          }
-        }
-      }
-    }
-
-    receiptModel4.discountVat =
-        double.parse(receiptModel4.discountVat.round().toStringAsFixed(1));
 
     // GUARD: items bo'sh bo'lsa OFD'ga umuman yubormaymiz.
     // Double-trigger holatida birinchi muvaffaqiyatli sotuv orderedProducts'ni

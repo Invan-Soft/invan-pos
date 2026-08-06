@@ -218,4 +218,219 @@ class ReceiptBuilder {
 
     return receiptModel4;
   }
+
+  /// OFD-only (fiskal) sotuv cheki.
+  ///
+  /// `pressPaymentButton` dagi [build] ga O'XSHASH, lekin AYNAN EMAS —
+  /// ataylab birlashtirilmadi:
+  ///   * terminal maydonlari qo'shiladi (cardType, cardNumber, pptId)
+  ///   * chegirma normalizatsiyasida `price == onlyPrice` bo'lsa discount
+  ///     tozalanadi (pressPaymentButton da bunday shart yo'q)
+  ///   * createdDate UTC emas, `now - 5 soat`
+  /// Ikkita pul yo'lini bitta funksiyaga qo'shish xato manbai bo'lardi.
+  static ReceiptModel4 buildOnlyOfd({
+    required SixClientModel4 sixClient,
+    required SupplierModel? selectedSupplier,
+    required double? currentClientDiscountPercent,
+    required List<ReceiptModelSoldItem4> currentCart,
+    required num totalPrice,
+    required double zdachaToCashBack,
+    required double sdacha,
+    required double fromPointBalance,
+    required String comments,
+    required bool showComments,
+    required List<ReceiptModelPaymentType4> payments,
+    required List<DeletedItemModel4> orphanDeletedItems,
+    required bool isTpEdited,
+    required int lastCardType,
+    required String lastCardNumber,
+    required String lastRRN,
+  }) {
+    ClientModel? xClient = sixClient.selectedClient;
+    String clientPhone = xClient == null ? "" : xClient.phoneNumber!;
+    String clientId = xClient == null ? "" : xClient.id!;
+    double clientDiscountVat = xClient == null ? 0 : xClient.discountValue!;
+    String clientDiscountID = xClient == null
+        ? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd"
+        : xClient.discountId ?? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd";
+    String? clientName = xClient?.firstName ?? "";
+
+    // Supplier tanlangan bo'lsa, uning nomi chekda "Klient" o'rnida
+    // ko'rsatiladi (faqat lokal — clientName API'ga yuborilmaydi,
+    // client_id o'zgarmaydi, shuning uchun order_pos xato bermaydi).
+    if (selectedSupplier != null) {
+      clientName = selectedSupplier.supplierCompanyName.isNotEmpty
+          ? selectedSupplier.supplierCompanyName
+          : selectedSupplier.name;
+    }
+
+    if (DiscountTypeStatus.disTypeStatus == TpStatus.summa) {
+      double totalPrice =
+          ItemsSingleton.getTotalPrice(currentCart);
+      clientDiscountID = "9fb3ada6-a73b-4b81-9295-5c1605e54552";
+      clientDiscountVat = DiscountTypeStatus.summa - totalPrice;
+    } else if (DiscountTypeStatus.disTypeStatus == TpStatus.discount) {
+      if (currentClientDiscountPercent != null &&
+          currentClientDiscountPercent != 0) {
+        clientDiscountID = "1fe92aa8-2a61-4bf1-b907-182b497584ad";
+        clientDiscountVat = currentClientDiscountPercent;
+      }
+    }
+    DiscountTypeStatus.disTypeStatus = TpStatus.discount;
+
+    double allDiscountVat = clientDiscountVat;
+    String allDiscountID = clientDiscountID;
+
+    final cashierId = Pref.getString(PrefKeys.cashierId, "");
+    final cashierName = Pref.getString(PrefKeys.cashierName, "");
+    final posName = Pref.getString(PrefKeys.posName, '');
+    String supplierId = selectedSupplier?.id ?? "";
+
+    // Kassir xizmat vaqti: sotuv boshlanishi (savatga birinchi mahsulot
+    // qo'shilgan payt) shu yerda "olinadi" (slot tozalanadi) va yopilish
+    // vaqti hozir belgilanadi — order_pos body'siga "order_time" bo'lib ketadi.
+    final DateTime? serviceStartedAt = CashierServiceTimeService.instance
+        .takeStartedTime(sixClient.clientNumber);
+    final DateTime serviceClosedAt = DateTime.now();
+    final String serviceStartedTimeStr = serviceStartedAt != null
+        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceStartedAt.toUtc())
+        : "";
+    final String serviceClosedTimeStr =
+        DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceClosedAt.toUtc());
+    final int serviceDurationSecondsVal = serviceStartedAt != null
+        ? serviceClosedAt.difference(serviceStartedAt).inSeconds
+        : 0;
+
+    final receiptModel4 = ReceiptModel4(
+      createdDate: DateFormat('yyyy-MM-dd HH:mm:ss').format(
+        DateTime.now().subtract(const Duration(hours: 5)),
+      ),
+      newid: clientId,
+      supplierId: supplierId,
+      zdachiToCashback: zdachaToCashBack,
+      clientPhone: clientPhone,
+      cashierId: cashierId,
+      cashierName: cashierName,
+      date: DateTime.now().millisecondsSinceEpoch,
+      isRefund: false,
+      discountVat: allDiscountVat,
+      discountID: allDiscountID,
+      totalPrice: totalPrice + 0,
+      uploaded: false,
+      rejected: false,
+      clientName: clientName,
+      clientId: clientId,
+      cashback: fromPointBalance.round(),
+      sdacha: sdacha,
+      returnForCheck: "",
+      posName: posName,
+      commissionTIN: '',
+      isDonate: Pref.getBool('donate', false),
+      cashboxId: Pref.getString(PrefKeys.activatedPosId, ""),
+      orderType: "sale",
+      shopId: Pref.getString(PrefKeys.organization, ""),
+      userId: Pref.getString(PrefKeys.userId, ""),
+      orderId: "",
+      externalId: "",
+      comment: comments,
+      isShow: showComments,
+      serviceStartedTime: serviceStartedTimeStr,
+      serviceClosedTime: serviceClosedTimeStr,
+      serviceDurationSeconds: serviceDurationSecondsVal,
+    );
+
+    receiptModel4.cardType = lastCardType;
+    receiptModel4.cardNumber = lastCardNumber;
+    receiptModel4.pptId = lastRRN;
+
+    receiptModel4.payment.addAll(payments);
+    receiptModel4.hasDept =
+        payments.any((p) => p.name.toLowerCase() == 'debt');
+    // Red-delete rejimida o'chirilgan (isDeleted=true) mahsulotlar listda qoladi,
+    // lekin kassir totali (getTotalPrice) ularni hisobga olmaydi. Shuning uchun
+    // ularni fiskal/server/qog'oz chekka ham yubormaymiz — aks holda OFD 10.2.1
+    // tenglamasi buziladi (items jami ≠ to'langan summa).
+    receiptModel4.soldItemList.addAll(
+      sixClient.orderedProducts.where((p) => !(p.isDeleted ?? false)),
+    );
+
+    // Savat sessiyasida o'chirilgan mahsulotlar chekka biriktiriladi —
+    // order_pos "deleted_items" massivida serverga ketadi. Slot o'chirilganda
+    // saqlab qolinganlar ("-" belgili, egasiz) ham shu chek bilan ketadi.
+    receiptModel4.deletedItemsJson = jsonEncode(
+      [...orphanDeletedItems, ...sixClient.deletedItems]
+          .map((e) => e.toJson())
+          .toList(),
+    );
+
+    for (var item in receiptModel4.soldItemList) {
+      if (item.mark != null && item.mark!.isNotEmpty) {
+        final originalMark = item.mark!;
+
+        item.mark = MarkCleaner.forFiscal(originalMark);
+      }
+    }
+
+    bool isChanged = false;
+    if (!isTpEdited) {
+      isChanged = true;
+    } else {
+      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
+        if (receiptModel4.soldItemList[i].isPriceOnlyChanged ||
+            receiptModel4.soldItemList[i].isPriceChanged) {
+          isChanged = true;
+          break;
+        }
+      }
+    }
+
+    if (isChanged) {
+      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
+        if (receiptModel4.soldItemList[i].price ==
+            receiptModel4.soldItemList[i].onlyPrice) {
+          receiptModel4.soldItemList[i].discount.clear();
+        } else {
+          double discountSingle =
+              receiptModel4.soldItemList[i].discount.isNotEmpty
+                  ? receiptModel4.soldItemList[i].discount.first.total
+                  : 0;
+
+          if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
+            if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
+              receiptModel4.soldItemList[i].singleDiscount =
+                  double.parse(discountSingle.round().toStringAsFixed(1));
+            } else {
+              receiptModel4.soldItemList[i].singleDiscount =
+                  double.parse(discountSingle.round().toStringAsFixed(1));
+            }
+          }
+        }
+      }
+      receiptModel4.discountVat = 0;
+    } else {
+      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
+        if (receiptModel4.soldItemList[i].price ==
+            receiptModel4.soldItemList[i].onlyPrice) {
+          receiptModel4.soldItemList[i].discount.clear();
+        } else {
+          double discountSingle =
+              receiptModel4.soldItemList[i].discount.isNotEmpty
+                  ? receiptModel4.soldItemList[i].discount.first.total
+                  : 0;
+
+          if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
+            if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
+              receiptModel4.soldItemList[i].singleDiscount =
+                  double.parse(discountSingle.round().toStringAsFixed(1));
+            }
+          }
+        }
+      }
+    }
+
+    receiptModel4.discountVat =
+        double.parse(receiptModel4.discountVat.round().toStringAsFixed(1));
+
+    return receiptModel4;
+  }
 }

@@ -412,4 +412,146 @@ void main() {
       expect(r.serviceClosedTime, isNotEmpty);
     });
   });
+
+  // ─────────────────────────────────────────────────────────────────
+  //  buildOnlyOfd — OFD (fiskal) cheki
+  //
+  //  `build` ga o'xshash, lekin AYNAN EMAS. Farqlari ataylab saqlangan:
+  //    * terminal maydonlari (cardType, cardNumber, pptId)
+  //    * createdDate UTC emas, `now - 5 soat`
+  //    * chegirma normalizatsiyasi: price == onlyPrice bo'lsa discount tozalanadi
+  //    * isDonate Pref dan olinadi (build da har doim true)
+  // ─────────────────────────────────────────────────────────────────
+
+  ReceiptModel4 buildOfd({
+    SixClientModel4? slot,
+    SupplierModel? supplier,
+    double? clientDiscountPercent,
+    num totalPrice = 100000,
+    double sdacha = 0,
+    List<ReceiptModelPaymentType4>? payments,
+    List<DeletedItemModel4> orphans = const [],
+    bool isTpEdited = true,
+    int lastCardType = 0,
+    String lastCardNumber = '',
+    String lastRRN = '',
+  }) {
+    final s = slot ?? clientSlot(items: [makeSoldItem()]);
+    return ReceiptBuilder.buildOnlyOfd(
+      sixClient: s,
+      selectedSupplier: supplier,
+      currentClientDiscountPercent: clientDiscountPercent,
+      currentCart: s.orderedProducts,
+      totalPrice: totalPrice,
+      zdachaToCashBack: 0,
+      sdacha: sdacha,
+      fromPointBalance: 0,
+      comments: '',
+      showComments: true,
+      payments: payments ??
+          [ReceiptModelPaymentType4(name: 'card', payId: 'k', value: 100000)],
+      orphanDeletedItems: orphans,
+      isTpEdited: isTpEdited,
+      lastCardType: lastCardType,
+      lastCardNumber: lastCardNumber,
+      lastRRN: lastRRN,
+    );
+  }
+
+  group('buildOnlyOfd — terminal maydonlari', () {
+    test('karta turi, raqami va RRN chekka yoziladi', () {
+      final r = buildOfd(
+        lastCardType: 2,
+        lastCardNumber: '8600********1234',
+        lastRRN: '608610728951',
+      );
+
+      expect(r.cardType, 2);
+      expect(r.cardNumber, '8600********1234');
+      expect(r.pptId, '608610728951');
+    });
+
+    test('terminal ma\'lumoti yo\'q bo\'lsa bo\'sh qoladi', () {
+      final r = buildOfd();
+
+      expect(r.cardType, 0);
+      expect(r.cardNumber, '');
+      expect(r.pptId, '');
+    });
+  });
+
+  group('buildOnlyOfd — build dan farqlari', () {
+    test('createdDate UTC EMAS (now - 5 soat)', () {
+      final r = buildOfd();
+      final parsed = DateTime.parse(r.createdDate);
+      final expected = DateTime.now().subtract(const Duration(hours: 5));
+
+      // Bir daqiqa oralig'ida bo'lishi kifoya
+      expect(parsed.difference(expected).inMinutes.abs(), lessThanOrEqualTo(1));
+    });
+
+    test('build dagi createdDate esa UTC', () {
+      final r = build();
+      // DateTime.parse timezone'siz satrni LOKAL deb o'qiydi, satr esa UTC
+      // devor-soatida yozilgan — shuning uchun ikkalasini ham "devor-soat"
+      // sifatida solishtiramiz.
+      final parsed = DateTime.parse(r.createdDate);
+      final u = DateTime.now().toUtc();
+      final utcWall = DateTime(u.year, u.month, u.day, u.hour, u.minute, u.second);
+
+      expect(parsed.difference(utcWall).inMinutes.abs(), lessThanOrEqualTo(1));
+    });
+  });
+
+  group('buildOnlyOfd — umumiy maydonlar build bilan bir xil', () {
+    test('mijoz maydonlari', () {
+      final r = buildOfd(
+        slot: clientSlot(items: [makeSoldItem()], client: testClient()),
+      );
+
+      expect(r.clientId, 'client-1');
+      expect(r.clientPhone, '998901234567');
+      expect(r.clientName, 'Ali');
+    });
+
+    test('isDeleted itemlar chekka tushmaydi', () {
+      final items = [
+        makeSoldItem(productId: 'a'),
+        makeSoldItem(productId: 'b', isDeleted: true),
+      ];
+
+      final r = buildOfd(slot: clientSlot(items: items));
+
+      expect(r.soldItemList.length, 1);
+      expect(r.soldItemList.first.productId, 'a');
+    });
+
+    test('markirovka KM dan kripto qismi kesiladi', () {
+      final items = [
+        makeSoldItem(
+            marking: true, mark: '0104780069000505217SERIAL(93)SECRET'),
+      ];
+
+      final r = buildOfd(slot: clientSlot(items: items));
+
+      expect(r.soldItemList.first.mark, isNot(contains('SECRET')));
+    });
+
+    test('qarz belgisi', () {
+      final r = buildOfd(payments: [
+        ReceiptModelPaymentType4(name: 'debt', payId: 'd', value: 100000),
+      ]);
+
+      expect(r.hasDept, isTrue);
+    });
+
+    test('deleted_items + orphan', () {
+      final r = buildOfd(
+        slot: clientSlot(items: [makeSoldItem()], deleted: [deletedItem('x')]),
+        orphans: [deletedItem('y', checkNumber: '-')],
+      );
+
+      expect((jsonDecode(r.deletedItemsJson) as List).length, 2);
+    });
+  });
 }
