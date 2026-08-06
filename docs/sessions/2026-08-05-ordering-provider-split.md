@@ -1,7 +1,8 @@
 # Task: OrderingProvider4 ni bosqichma-bosqich ajratish
 
 **Boshlangan:** 2026-08-05
-**Holat:** in-progress
+**Holat:** paused (to'xtatilgan — davom ettiriladi)
+**Oxirgi ish:** 2026-08-06, Faza 8
 **Branch:** refactor/ordering-split (ayyubxon'dan)
 
 ## Maqsad
@@ -249,15 +250,23 @@ Testlar 229 → **259**. `flutter analyze` 1012 → **1011**.
     tahlilini o'zgartirib 4 ta yangi ogohlantirish chiqargan edi
   → +41 test; 4585 → 4549
 
-## YAKUNIY NATIJA (Faza 0-7)
+- [x] **FAZA 8 — savat qatori yasovchi `SoldItemBuilder` ga** (commit b3aff03)
+  → `lib/changes/domain/cart/sold_item_builder.dart`
+  → `_createSoldItem` savatga mahsulot qo'shishning yuragi — har skan va
+    har bosishda chaqiriladi, lekin private bo'lgani uchun testlanmasdi
+  → MXIK qoidalariga `MxikRules` orqali bevosita murojaat qiladi
+  → +12 test; 4549 → 4514
+
+## HOZIRGI HOLAT (2026-08-06 holatiga)
 
 | | Boshlanish | Hozir |
 |---|---|---|
-| `ordering_provider_4.dart` | 5868 | **4549** (−1319, 22%) |
+| `ordering_provider_4.dart` | 5868 | **4514** (−1354, 23%) |
 | `shift_singleton_4.dart` | 85 478 | **500** |
-| Testlar | 85 (+1 yiqiladigan) | **344** |
+| Testlar | 85 (+1 yiqiladigan) | **356** |
 | `flutter analyze` | 1018 | **1010** |
 | `lib/features/` | — | **hech qachon tegilmagan** |
+| Commitlar | — | **15 ta** (`refactor/ordering-split`) |
 
 ### Yaratilgan modullar (7 ta)
 
@@ -276,18 +285,51 @@ lib/changes/providers/ordering/
 lib/changes/dialogs/terminal_error_dialog.dart
 ```
 
-## DO'KON SINOVI (2026-08-06)
+## DO'KON SINOVI
 
-Foydalanuvchi real kassada sinab, **ishlashini tasdiqladi**:
-mahsulot qo'shish, markirovka, blok, smena, diskontlar, **to'lov**
-(karta/terminal, naqd+sdacha, aralash to'lov, chekdagi mijoz nomi).
+### ✅ Sinalgan va tasdiqlangan (2026-08-06)
 
-Faza 7 (skaner tasnifi) sinovdan KEYIN qo'shilgan — u hali sinalmagan.
+Faza 0–6 ni qamraydi. Foydalanuvchi real kassada sinab, **ishlashini
+tasdiqladi**:
+- mahsulot qo'shish, markirovka, blok, smena, diskontlar
+- **to'lov**: karta/terminal, naqd + sdacha, aralash to'lov, chekdagi
+  mijoz nomi
+
+### ⚠️ HALI SINALMAGAN — DAVOM ETISHDAN OLDIN SHART
+
+**Faza 7 va Faza 8 sinovdan KEYIN qo'shilgan.** Ikkalasi ham POS'da eng
+ko'p ishlatiladigan yo'llarga tegadi: skaner va savatga qo'shish.
+
+**Skaner (Faza 7 — `BarcodeClassifier`):**
+- [ ] Oddiy shtrix-kod skani → mahsulot qo'shiladi
+- [ ] SKU qo'lda kiritish → mahsulot topiladi
+- [ ] Tarozi yorlig'i — **kilo** (28... bilan, 13 belgi) → og'irlik to'g'ri
+- [ ] Tarozi yorlig'i — **dona** (21...) → son to'g'ri
+- [ ] Utsenka QR (`{...}`) → chegirmali qator qo'shiladi
+- [ ] Noto'g'ri kod: `salom dunyo` yozib Enter → "format noto'g'ri" dialogi,
+      mahsulot QO'SHILMASLIGI kerak
+- [ ] **ENG MUHIMI:** markirovka dialogi OCHIQ turganda boshqa shtrix-kod
+      yoki tarozi yorlig'ini skanerlang → **hech narsa bo'lmasligi kerak**.
+      (Ko'chirishda shu tartib buzilayozgan edi, commitdan oldin tuzatildi —
+      shuning uchun aynan shu holat tekshirilishi shart.)
+
+**Savatga qo'shish (Faza 8 — `SoldItemBuilder`):**
+- [ ] Markirovkali tovar (sigareta/alkogol/suv) → sotib, **chekda soliq
+      turi** to'g'ri chiqishini tekshirish
+- [ ] Kiloli tovar (tarozidan) → kasr miqdor to'g'ri (masalan 1.256 kg)
+- [ ] Oddiy dona tovar → narx va son to'g'ri
+
+Agar biror muammo chiqsa: 15 ta commit alohida, `git revert <hash>` bilan
+faqat aybdor faza qaytariladi.
 
 ## Keyingi qadamlar
 
 **Maqsad: 4000 qator** (foydalanuvchi so'ragan), keyin yana sinov.
-Hozir 4549 → **−549 qator kerak**.
+Hozir 4514 → **−514 qator kerak**.
+
+**MUHIM:** oson qismlar TUGADI. Faza 7 va 8 birgalikda atigi 71 qator
+berdi, chunki qolgan toza (UI'siz) nomzodlar kichik. 514 qator uchun
+dialogli katta zonalarga kirish shart.
 
 Qolgan yirik zonalarning HAMMASI bir turdagi: dialog va mantiq o'ralashgan.
 
@@ -324,18 +366,34 @@ saqlangan "UI ga tegmaslik" qoidasi tugaydi.
 
 ## YANGI CHAT UCHUN: qayerdan davom etish
 
-1. Branch: `refactor/ordering-split` (ayyubxon'dan, hali merge qilinmagan)
-2. `flutter test` -> 344/344 yashil bo'lishi kerak (bazaviy holat)
-3. Shu hujjatning "Keyingi qadamlar" bo'limidan davom et
-4. **Xavfsizlik qoidalari (yuqorida)** hali ham kuchda — ayniqsa:
-   fasad, notify-callback, bitta commitda bitta narsa, bug topilsa
-   tuzatilmaydi (qayd etiladi)
-5. Har faza tartibi: **avval test yoz -> keyin ko'chir -> tekshir -> commit**
-   (Faza 4 va 6 shu tartibda ishladi; Faza 4 da testlar real crash ushladi)
+**Bu hujjatni o'qib, quyidagi tartibda davom et:**
+
+1. **Branch:** `refactor/ordering-split` (ayyubxon'dan, hali merge
+   qilinmagan). 15 commit, oxirgisi `b3aff03`.
+
+2. **Bazaviy holatni tekshir:** `flutter test` → **356/356 yashil**.
+   Agar yashil bo'lmasa — davom etma, avval sababini top.
+
+3. **FOYDALANUVCHIDAN SO'RA:** "Faza 7 (skaner) va Faza 8 (savatga
+   qo'shish) do'konda sinalganmi?" — "DO'KON SINOVI" bo'limidagi
+   ⚠️ ro'yxatga qara. Sinalmagan bo'lsa, **avval sinovni eslatib qo'y**:
+   davom etish tekshirilmagan o'zgarishlarni ko'paytiradi.
+
+4. **Ish tartibi (buzilmaydi):**
+   avval test yoz → keyin ko'chir → tekshir → commit.
+   Faza 4 va 6 shu tartibda ishladi; Faza 4 da testlar **real crash**
+   ushladi (nomlash to'qnashuvi, Buy X Get Y sotuvida).
+
+5. **Xavfsizlik qoidalari (yuqorida)** hali kuchda: fasad, notify-callback,
+   bitta commitda bitta narsa, bug topilsa tuzatilmaydi (qayd etiladi).
+
+6. **Foydalanuvchini ogohlantir:** ish davomida `ordering_provider_4.dart`
+   ni IDE'da ochiq tutmasin — ikki marta "content is newer" konflikti
+   bo'lgan. Faza tugagach faylni qayta ochsin (Revert File).
 
 Tekshirish buyruqlari:
 ```
-flutter test                              # 344/344
+flutter test                              # 356/356
 flutter analyze                           # 1010 dan oshmasin
 git status --porcelain -- lib/features/   # bo'sh bo'lishi shart
 wc -l lib/changes/providers/ordering_provider_4.dart
