@@ -5,7 +5,7 @@ import 'package:invan2/utils/themes.dart';
 import 'package:provider/provider.dart';
 
 class PaymentTablo extends StatelessWidget {
-  const PaymentTablo({Key? key}) : super(key: key);
+  const PaymentTablo({super.key});
 
   @override
   Widget build(BuildContext context) {

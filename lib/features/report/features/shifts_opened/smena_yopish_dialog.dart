@@ -8,9 +8,9 @@ import 'package:provider/provider.dart';
 
 class CloseShiftDialog extends StatefulWidget {
   const CloseShiftDialog({
-    Key? key,
+    super.key,
     required this.shiftt,
-  }) : super(key: key);
+  });
 
   final ShiftModelHive shiftt;
 

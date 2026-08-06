@@ -14,7 +14,7 @@ abstract class ApiState {
 }
 
 class Success extends ApiState {
-  Success(int code, Object response) : super(code, response);
+  Success(super.code, super.response);
 
   @override
   decodedData() {
@@ -25,7 +25,7 @@ class Success extends ApiState {
 }
 
 class SuccessItem extends ApiState {
-  SuccessItem(int code, List<ItemModel> response) : super(code, response);
+  SuccessItem(super.code, List<ItemModel> super.response);
 
   @override
   decodedData() {
@@ -36,7 +36,7 @@ class SuccessItem extends ApiState {
 }
 
 class Failure extends ApiState {
-  Failure(int code, Object response) : super(code, response);
+  Failure(super.code, super.response);
 
   @override
   String toString() {

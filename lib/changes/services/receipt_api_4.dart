@@ -94,7 +94,7 @@ class ReceiptApi4 {
 
     final baseUrl = ApiProvider.baseUrlINVAN2;
     Log.d(
-      '\n\ncurl -X POST \'${baseUrl}$uri\' \\\n'
+      '\n\ncurl -X POST \'$baseUrl$uri\' \\\n'
       '  -H \'Content-Type: application/json\' \\\n'
       '  -H \'Accept: application/json\' \\\n'
       '  -H \'Authorization: Bearer ${headers["Authorization"]}\' \\\n'
@@ -175,7 +175,7 @@ class ReceiptApi4 {
     final invoiceId = Pref.getString("invoice_id_for_order", "");
     if (invoiceId.isNotEmpty) {
       if (finalComment.isEmpty) {
-        finalComment = "$invoiceId";
+        finalComment = invoiceId;
       } else {
         finalComment = "$finalComment | $invoiceId";
       }

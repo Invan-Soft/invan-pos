@@ -6,7 +6,7 @@ import '../../../../../../../changes/providers/add_to_l_c_d_provider.dart';
 import 'search_part_item.dart';
 
 class SearchPart extends StatelessWidget {
-  const SearchPart({Key? key}) : super(key: key);
+  const SearchPart({super.key});
 
   @override
   Widget build(BuildContext context) {

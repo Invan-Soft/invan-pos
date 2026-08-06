@@ -12,7 +12,7 @@ class SearchProductButton extends StatefulWidget {
   final num price;
 
   const SearchProductButton({
-    Key? key,
+    super.key,
     required this.productLength,
     required this.onPressed,
     required this.selected,
@@ -20,7 +20,7 @@ class SearchProductButton extends StatefulWidget {
     required this.price,
     this.barcodes,
     this.sku,
-  }) : super(key: key);
+  });
 
   @override
   State<SearchProductButton> createState() => _SearchProductButtonState();

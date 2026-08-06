@@ -5,7 +5,7 @@ import 'package:invan2/features/hive_repository/tiin/singletons/api/shift_4/sing
 import 'package:invan2/utils/utils.dart';
 
 class ShiftContennt extends StatelessWidget {
-  ShiftContennt({Key? key}) : super(key: key);
+  ShiftContennt({super.key});
 
   @override
   Widget build(BuildContext context) {

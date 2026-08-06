@@ -9,7 +9,7 @@ import 'package:invan2/utils/themes.dart';
 import 'package:invan2/widgets/default_button.dart';
 
 class NoAccessDialogContent extends StatefulWidget {
-  const NoAccessDialogContent({Key? key}) : super(key: key);
+  const NoAccessDialogContent({super.key});
 
   @override
   State<NoAccessDialogContent> createState() => _NoAccessDialogContentState();

@@ -9,14 +9,14 @@ class MacbookKey extends StatefulWidget {
   final Color? color;
 
   const MacbookKey({
-    Key? key,
+    super.key,
     this.color,
     this.width,
     this.height,
     this.child,
     this.alignment,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   @override
   State<MacbookKey> createState() => _MacbookKeyState();

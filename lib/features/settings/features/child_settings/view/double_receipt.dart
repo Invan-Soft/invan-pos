@@ -9,8 +9,7 @@ class SettingSwitchListTile extends StatelessWidget {
   final Function(bool) onChanged;
 
   const SettingSwitchListTile(
-      {required this.activ,required this.title, required this.onChanged, Key? key})
-      : super(key: key);
+      {required this.activ,required this.title, required this.onChanged, super.key});
   @override
   Widget build(BuildContext context) {
     return Padding(

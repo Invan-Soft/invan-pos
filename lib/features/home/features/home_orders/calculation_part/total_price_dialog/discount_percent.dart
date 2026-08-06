@@ -9,7 +9,7 @@ import 'discount_type_status.dart';
 class DiscountPercent extends StatefulWidget {
   final InputBorder border;
 
-  const DiscountPercent({required this.border, Key? key}) : super(key: key);
+  const DiscountPercent({required this.border, super.key});
 
   @override
   DiscountPercentState createState() => DiscountPercentState();

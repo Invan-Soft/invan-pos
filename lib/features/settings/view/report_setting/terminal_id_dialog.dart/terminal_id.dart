@@ -10,7 +10,7 @@ import '../../../../../utils/helpers/size_config.dart';
 import '../../../../../utils/themes.dart';
 
 class TerminalIDDialog extends StatefulWidget {
-  const TerminalIDDialog({Key? key}) : super(key: key);
+  const TerminalIDDialog({super.key});
 
   @override
   State<TerminalIDDialog> createState() => _TerminalIDDialogState();

@@ -7,8 +7,8 @@ class PaymentTripleDotDialog extends StatelessWidget {
   final ValueChanged<int> onPressed;
   const PaymentTripleDotDialog({
     required this.onPressed,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
   final List<String> options = const ["Debt"];
   @override
   Widget build(BuildContext context) {

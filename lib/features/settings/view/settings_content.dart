@@ -10,7 +10,7 @@ import '../features/features.dart';
 import 'left_side.dart';
 
 class SettingsContent extends StatefulWidget {
-  const   SettingsContent({Key? key}) : super(key: key);
+  const   SettingsContent({super.key});
 
   @override
   State<SettingsContent> createState() => _SettingsContentState();

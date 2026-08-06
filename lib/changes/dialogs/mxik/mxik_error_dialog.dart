@@ -9,7 +9,6 @@ import 'package:invan2/utils/themes.dart';
 import 'package:invan2/widgets/default_button.dart';
 import 'package:provider/provider.dart';
 
-import '../../providers/ordering_provider_4.dart';
 
 class MxikErrorDialog extends StatefulWidget {
   final List<NoMxikItem> items;

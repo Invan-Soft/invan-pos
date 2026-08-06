@@ -3,7 +3,6 @@ import 'package:invan2/features/features.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:provider/provider.dart';
 
-import 'ordering_provider_4.dart';
 
 class LocalCategoryProvider extends ChangeNotifier {
   List<LocalCategoryModel> _localCategoryList =

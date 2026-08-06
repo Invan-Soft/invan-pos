@@ -8,7 +8,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../../utils/utils.dart';
 
 class LocationEditHandleDialog extends StatefulWidget {
-  const LocationEditHandleDialog({Key? key}) : super(key: key);
+  const LocationEditHandleDialog({super.key});
 
   @override
   State<LocationEditHandleDialog> createState() =>

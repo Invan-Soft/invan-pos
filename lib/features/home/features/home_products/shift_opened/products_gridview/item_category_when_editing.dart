@@ -4,10 +4,10 @@ import 'package:invan2/utils/utils.dart';
 
 class ItemCategoryWhenEditing extends StatelessWidget {
   const ItemCategoryWhenEditing({
-    Key? key,
+    super.key,
     required this.categoryData,
     required this.onDeletePressed,
-  }) : super(key: key);
+  });
 
   final CategoryData categoryData;
   final VoidCallback onDeletePressed;

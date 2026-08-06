@@ -8,7 +8,7 @@ import 'package:invan2/utils/utils.dart' show SizeConfig;
 import '../../../../lock/access_level/bloc/access/access_bloc.dart';
 
 class BackToButton extends StatelessWidget {
-  const BackToButton({Key? key}) : super(key: key);
+  const BackToButton({super.key});
 
   @override
   Widget build(BuildContext context) {

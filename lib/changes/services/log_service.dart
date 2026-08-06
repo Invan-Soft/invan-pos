@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:invan2/changes/models/log/log_model.dart';
 import 'package:invan2/changes/services/api_state.dart';
-import 'package:invan2/changes/services/app_constants.dart';
 import 'package:invan2/utils/constants/constants.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 import 'package:package_info_plus/package_info_plus.dart';

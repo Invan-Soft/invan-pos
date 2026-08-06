@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../changes/providers/rule_cash_provider.dart';
 
 class Left extends StatefulWidget {
-  const Left({Key? key}) : super(key: key);
+  const Left({super.key});
 
   @override
   LeftState createState() => LeftState();

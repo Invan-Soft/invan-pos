@@ -23,7 +23,7 @@ class CheckFLoadingState extends CheckFState {
 }
 
 class ChecksFNotFoundState extends CheckFState {
-  ChecksFNotFoundState(ReceiptModel4? selectedCheck) : super(selectedCheck);
+  ChecksFNotFoundState(super.selectedCheck);
 }
 
 class CheckFNoIternetState extends CheckFState {

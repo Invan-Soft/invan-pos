@@ -3,11 +3,11 @@ import 'package:invan2/utils/utils.dart';
 
 class SearchPartItem extends StatelessWidget {
   const SearchPartItem({
-    Key? key,
+    super.key,
     required this.isSelected,
     required this.text,
     required this.onPress,
-  }) : super(key: key);
+  });
 
   final bool isSelected;
   final String text;

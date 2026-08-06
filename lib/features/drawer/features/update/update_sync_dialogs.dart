@@ -5,7 +5,6 @@ import 'package:invan2/features/drawer/features/update/sync/bloc/sync_bloc.dart'
 import 'package:invan2/features/drawer/features/update/sync/components/sync_widgets.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/utils/utils.dart';
-import 'package:provider/provider.dart';
 
 import '../../../../utils/l10n/app_localizations.dart';
 

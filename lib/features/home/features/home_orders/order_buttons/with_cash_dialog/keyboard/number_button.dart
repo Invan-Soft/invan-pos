@@ -3,10 +3,10 @@ import 'package:invan2/utils/utils.dart';
 
 class DigitButton extends StatelessWidget {
   const DigitButton({
-    Key? key,
+    super.key,
     required this.number,
     required this.onPress,
-  }) : super(key: key);
+  });
 
   final int number;
   final VoidCallback onPress;

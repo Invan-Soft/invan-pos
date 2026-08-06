@@ -28,7 +28,7 @@ class InvoiceBloc extends Bloc<InvoiceEvent, InvoiceState> {
       } else {
         emit(GetInvoiceProductsField());
       }
-    } catch (e, stack) {
+    } catch (e) {
       emit(GetInvoiceProductsField());
     }
   }

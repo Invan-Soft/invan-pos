@@ -3,8 +3,7 @@ import 'package:invan2/utils/helpers/helpers.dart';
 
 class CreatProductButton extends StatelessWidget {
   final VoidCallback onPressed;
-  const CreatProductButton({required this.onPressed, Key? key})
-      : super(key: key);
+  const CreatProductButton({required this.onPressed, super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -3,9 +3,9 @@ import 'package:invan2/utils/utils.dart';
 
 class BuildPadding extends StatelessWidget {
   const BuildPadding({
-    Key? key,
+    super.key,
     required this.children,
-  }) : super(key: key);
+  });
 
   final List<Widget> children;
 

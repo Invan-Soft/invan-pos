@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../changes/providers/operation_on_product_provider.dart';
 
 class OPDTop extends StatelessWidget {
-  const OPDTop({Key? key}) : super(key: key);
+  const OPDTop({super.key});
   @override
   Widget build(BuildContext context) {
     final item = Provider.of<OperationOnProductProvider>(context).getItem;

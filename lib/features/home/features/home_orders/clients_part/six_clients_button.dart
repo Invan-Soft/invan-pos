@@ -4,11 +4,11 @@ import 'package:invan2/features/features.dart';
 
 class SixClientsButton extends StatelessWidget {
   const SixClientsButton({
-    Key? key,
+    super.key,
     required this.onPressed,
     required this.clientNumber,
     required this.isSelected,
-  }) : super(key: key);
+  });
 
   final VoidCallback onPressed;
   final int clientNumber;

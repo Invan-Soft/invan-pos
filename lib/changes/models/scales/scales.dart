@@ -12,19 +12,19 @@ class Scales {
     if (json['scales_templates'] != null) {
       scalesTemplates = <ScalesTemplates>[];
       json['scales_templates'].forEach((v) {
-        scalesTemplates!.add(new ScalesTemplates.fromJson(v));
+        scalesTemplates!.add(ScalesTemplates.fromJson(v));
       });
     }
     total = json['total'];
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    if (this.scalesTemplates != null) {
+    final Map<String, dynamic> data = <String, dynamic>{};
+    if (scalesTemplates != null) {
       data['scales_templates'] =
-          this.scalesTemplates!.map((v) => v.toJson()).toList();
+          scalesTemplates!.map((v) => v.toJson()).toList();
     }
-    data['total'] = this.total;
+    data['total'] = total;
     return data;
   }
 }
@@ -48,12 +48,12 @@ class ScalesTemplates {
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['name'] = this.name;
-    data['measurement_unit_id'] = this.measurementUnitId;
-    data['values'] = this.values;
-    data['url'] = this.url;
-    data['id'] = this.id;
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['name'] = name;
+    data['measurement_unit_id'] = measurementUnitId;
+    data['values'] = values;
+    data['url'] = url;
+    data['id'] = id;
     return data;
   }
 }

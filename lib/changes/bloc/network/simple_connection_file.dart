@@ -1,6 +1,6 @@
 // ignore_for_file: unnecessary_set_literal
 
-library simple_connection_checker;
+library;
 import 'dart:async';
 import 'dart:io';
 

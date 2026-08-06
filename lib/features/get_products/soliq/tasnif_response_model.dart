@@ -27,7 +27,7 @@ class TasnifResponseModel {
     if (json['data'] != null) {
       data = <MxikResponse>[];
       json['data'].forEach((v) {
-        data!.add(new MxikResponse.fromJson(v));
+        data!.add(MxikResponse.fromJson(v));
       });
     }
     recordTotal = json['recordTotal'];
@@ -36,16 +36,16 @@ class TasnifResponseModel {
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['success'] = this.success;
-    data['code'] = this.code;
-    data['reason'] = this.reason;
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['success'] = success;
+    data['code'] = code;
+    data['reason'] = reason;
     if (this.data != null) {
       data['data'] = this.data!.map((v) => v.toJson()).toList();
     }
-    data['recordTotal'] = this.recordTotal;
-    data['errors'] = this.errors;
-    data['permitted'] = this.permitted;
+    data['recordTotal'] = recordTotal;
+    data['errors'] = errors;
+    data['permitted'] = permitted;
     return data;
   }
 }
@@ -84,23 +84,23 @@ class MxikResponse {
     if (json['packages'] != null) {
       packages = <Packages>[];
       json['packages'].forEach((v) {
-        packages!.add(new Packages.fromJson(v));
+        packages!.add(Packages.fromJson(v));
       });
     }
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['mxik'] = this.mxik;
-    data['name'] = this.name;
-    data['description'] = this.description;
-    data['internalCode'] = this.internalCode;
-    data['label'] = this.label;
-    data['usePackage'] = this.usePackage;
-    data['createdAt'] = this.createdAt;
-    data['updateAt'] = this.updateAt;
-    if (this.packages != null) {
-      data['packages'] = this.packages!.map((v) => v.toJson()).toList();
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['mxik'] = mxik;
+    data['name'] = name;
+    data['description'] = description;
+    data['internalCode'] = internalCode;
+    data['label'] = label;
+    data['usePackage'] = usePackage;
+    data['createdAt'] = createdAt;
+    data['updateAt'] = updateAt;
+    if (packages != null) {
+      data['packages'] = packages!.map((v) => v.toJson()).toList();
     }
     return data;
   }
@@ -132,13 +132,13 @@ class Packages {
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['code'] = this.code;
-    data['mxikCode'] = this.mxikCode;
-    data['nameUz'] = this.nameUz;
-    data['packageType'] = this.packageType;
-    data['nameRu'] = this.nameRu;
-    data['nameLat'] = this.nameLat;
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['code'] = code;
+    data['mxikCode'] = mxikCode;
+    data['nameUz'] = nameUz;
+    data['packageType'] = packageType;
+    data['nameRu'] = nameRu;
+    data['nameLat'] = nameLat;
     return data;
   }
 }

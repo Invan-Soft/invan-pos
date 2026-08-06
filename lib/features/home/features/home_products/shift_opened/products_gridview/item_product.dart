@@ -4,7 +4,7 @@ import 'package:invan2/changes/models/product/item_model.dart';
 import 'package:invan2/utils/utils.dart';
 
 class ItemProduct extends StatelessWidget {
-  const ItemProduct({Key? key, required this.product}) : super(key: key);
+  const ItemProduct({super.key, required this.product});
 
   final ItemModel product;
 

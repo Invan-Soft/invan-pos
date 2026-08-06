@@ -5,11 +5,11 @@ import 'package:invan2/utils/themes.dart';
 
 class RuleCashbutton extends StatelessWidget {
   const RuleCashbutton({
-    Key? key,
+    super.key,
     required this.isEnabled,
     required this.onPressed,
     required this.title,
-  }) : super(key: key);
+  });
   final bool isEnabled;
   final String title;
   final VoidCallback onPressed;

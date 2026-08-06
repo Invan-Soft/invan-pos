@@ -2,8 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
-import 'package:invan2/features/home/features/operation_on_product/opd_center/components/opd_only_price.dart';
-import 'package:invan2/features/home/features/operation_on_product/opd_center/components/opd_stir.dart';
 import 'package:invan2/features/home/features/operation_on_product/opd_center/components/opd_box.dart';
 import 'package:invan2/features/home/features/operation_on_product/opd_center/components/opd_price.dart';
 import 'package:invan2/features/home/features/operation_on_product/opd_center/components/opd_summa.dart';

@@ -8,9 +8,7 @@ import 'package:invan2/features/home/home_page.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:provider/provider.dart';
 
-import '../../features/hive_repository/hive_boxes.dart';
 import '../../fiscal_service/fiscal.dart';
-import '../../utils/l10n/app_localizations.dart';
 import '../../widgets/my_snackbar.dart';
 import '../models/log/loc_res_model.dart';
 import '../services/shifting_service.dart';

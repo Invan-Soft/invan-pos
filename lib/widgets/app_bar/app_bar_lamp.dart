@@ -10,10 +10,10 @@ class AppBarLamp extends StatefulWidget {
   bool? isWebsocket;
 
   AppBarLamp({
-    Key? key,
+    super.key,
     this.min,
     this.isWebsocket,
-  }) : super(key: key);
+  });
 
   @override
   State<AppBarLamp> createState() => _AppBarLampState();

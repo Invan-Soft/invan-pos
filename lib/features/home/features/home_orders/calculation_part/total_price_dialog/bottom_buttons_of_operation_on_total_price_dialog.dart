@@ -8,7 +8,7 @@ import 'package:invan2/utils/utils.dart';
 import 'discount_type_status.dart';
 
 class SaveButtonOnTotalPriceOperation extends StatelessWidget {
-  const SaveButtonOnTotalPriceOperation({Key? key}) : super(key: key);
+  const SaveButtonOnTotalPriceOperation({super.key});
 
   @override
   Widget build(BuildContext context) {

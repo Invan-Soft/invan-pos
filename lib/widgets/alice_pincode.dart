@@ -8,7 +8,7 @@ import 'package:pin_code_fields/pin_code_fields.dart';
 import '../utils/l10n/app_localizations.dart';
 
 class AlicePincodePage extends StatefulWidget {
-  const AlicePincodePage({Key? key}) : super(key: key);
+  const AlicePincodePage({super.key});
   @override
   State<AlicePincodePage> createState() => _AlicePincodePageState();
 }

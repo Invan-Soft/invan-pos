@@ -10,9 +10,7 @@ import 'package:invan2/features/checks/features/checks_list/bloc/check_f_bloc.da
 import 'package:invan2/features/features.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/utils/utils.dart';
-import 'package:invan2/widgets/my_snackbar.dart';
 import '../../../../changes/bloc/network/network_bloc.dart';
-import '../../../../utils/l10n/app_localizations.dart';
 import '../../../home/features/operation_on_product/delete_item/input_alert_dialog.dart';
 import 'bloc/pre_ofd/preofd_bloc.dart';
 import 'check_view_inner_content.dart';

@@ -7,7 +7,6 @@ import 'package:invan2/changes/dialogs/upd/components/upd_text.dart';
 import 'package:invan2/features/features.dart';
 
 import '../../../../features/authentication/bloc/bloc_activate_pos/apd_bloc_bloc.dart';
-import '../../../../utils/utils.dart';
 
 class UpdSelectedWidget extends StatefulWidget {
   final List<UpdFailedRepo> repos;

@@ -4,9 +4,9 @@ import 'package:invan2/utils/utils.dart';
 
 class ItemCategory extends StatelessWidget {
   const ItemCategory({
-    Key? key,
+    super.key,
     required this.categoryData,
-  }) : super(key: key);
+  });
 
   final CategoryData categoryData;
 

@@ -9,7 +9,7 @@ import 'bottom_buttons/bottom_buttons.dart';
 import 'package:invan2/utils/utils.dart';
 
 class ShiftOpenedContent extends StatelessWidget {
-  const ShiftOpenedContent({Key? key}) : super(key: key);
+  const ShiftOpenedContent({super.key});
 
   @override
   Widget build(BuildContext context) {

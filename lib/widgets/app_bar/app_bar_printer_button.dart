@@ -3,9 +3,9 @@ import 'package:invan2/utils/utils.dart';
 
 class AppBarPrinterButton extends StatelessWidget {
   const AppBarPrinterButton({
-    Key? key,
+    super.key,
     required this.onPress,
-  }) : super(key: key);
+  });
 
   final VoidCallback onPress;
 

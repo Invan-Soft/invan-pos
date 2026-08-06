@@ -4,7 +4,7 @@ import 'package:shell/shell.dart';
 import 'package:file/local.dart';
 
 class ShellPage extends StatefulWidget {
-  const ShellPage({Key? key}) : super(key: key);
+  const ShellPage({super.key});
 
   @override
   State<ShellPage> createState() => _ShellPageState();

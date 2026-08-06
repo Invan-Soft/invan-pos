@@ -9,7 +9,7 @@ import 'package:invan2/features/features.dart';
 class LeftSide extends StatefulWidget {
   final int index;
 
-  const LeftSide({required this.index, Key? key}) : super(key: key);
+  const LeftSide({required this.index, super.key});
 
   @override
   State<LeftSide> createState() => _LeftSideState();

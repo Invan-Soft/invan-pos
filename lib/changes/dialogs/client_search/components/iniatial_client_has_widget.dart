@@ -9,8 +9,8 @@ class InitialHasClientButtons extends StatelessWidget {
 
   const InitialHasClientButtons(
     this.onDelPressed, {
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

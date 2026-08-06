@@ -7,7 +7,7 @@ import 'package:invan2/utils/themes.dart';
 class AccessBlocedWidget extends StatefulWidget {
   final int passwordLenth;
   final int remainingSeconds;
-  const AccessBlocedWidget(this.passwordLenth, {Key? key, this.remainingSeconds = 30}) : super(key: key);
+  const AccessBlocedWidget(this.passwordLenth, {super.key, this.remainingSeconds = 30});
 
   @override
   State<AccessBlocedWidget> createState() => _AccessBlocedWidgetState();

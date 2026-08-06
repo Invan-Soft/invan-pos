@@ -6,7 +6,7 @@ import '../../../../../../../changes/providers/add_to_l_c_d_provider.dart';
 import 'package:invan2/features/features.dart';
 
 class ListPart extends StatelessWidget {
-  const ListPart({Key? key}) : super(key: key);
+  const ListPart({super.key});
 
   @override
   Widget build(BuildContext context) {

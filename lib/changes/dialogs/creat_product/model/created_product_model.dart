@@ -147,7 +147,7 @@ class ShopPricesToInvan2Model {
     if (json['shop_price_tiers'] != null) {
       shopPriceTiers = <ShopPriceTiers>[];
       json['shop_price_tiers'].forEach((v) {
-        shopPriceTiers!.add(new ShopPriceTiers.fromJson(v));
+        shopPriceTiers!.add(ShopPriceTiers.fromJson(v));
       });
     }
   }
@@ -160,9 +160,9 @@ class ShopPricesToInvan2Model {
     data['shop_id'] = shopId;
     data['supply_price'] = supplyPrice;
     data['whole_sale_price'] = wholeSalePrice;
-    if (this.shopPriceTiers != null) {
+    if (shopPriceTiers != null) {
       data['shop_price_tiers'] =
-          this.shopPriceTiers!.map((v) => v.toJson()).toList();
+          shopPriceTiers!.map((v) => v.toJson()).toList();
     }
     return data;
   }

@@ -2,14 +2,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:invan2/app_navigation.dart';
 
-import '../../utils/constants/constants.dart';
-import '../../utils/helpers/helpers.dart';
 
 class PrinterNotSelectedDialog extends StatelessWidget {
   final String text;
 
-  const PrinterNotSelectedDialog({Key? key, required this.text})
-      : super(key: key);
+  const PrinterNotSelectedDialog({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {

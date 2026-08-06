@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/app_navigation.dart';
-import 'package:invan2/features/home/home_page.dart';
 import 'package:invan2/features/settings/bloc/settings_bloc.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +9,7 @@ import 'package:invan2/features/features.dart';
 import 'settings_content.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   static CupertinoPageRoute route() =>
       CupertinoPageRoute(builder: (_) => const SettingsPage());

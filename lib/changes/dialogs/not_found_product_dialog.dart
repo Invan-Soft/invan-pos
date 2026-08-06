@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:invan2/app_navigation.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/utils/themes.dart';
 

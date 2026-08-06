@@ -10,9 +10,9 @@ class EditRejectedReceiptsFieldsDialog extends StatefulWidget {
   final ReceiptModel4 receiptList;
 
   const EditRejectedReceiptsFieldsDialog({
-    Key? key,
+    super.key,
     required this.receiptList,
-  }) : super(key: key);
+  });
 
   @override
   State<EditRejectedReceiptsFieldsDialog> createState() =>
@@ -92,7 +92,7 @@ class _EditRejectedReceiptsFieldsDialogState
                           .map(
                             (e) => listtile("Product", e.productName),
                           )
-                          .toList(),
+                          ,
 
                       // listtile(widget.receiptList.payment),
                       // listtile(widget.receiptList.soldItemList),

@@ -6,7 +6,7 @@ import 'package:invan2/utils/themes.dart';
 
 class SdachaDialog extends StatelessWidget {
   final String sdacha;
-  const SdachaDialog(this.sdacha, {Key? key}) : super(key: key);
+  const SdachaDialog(this.sdacha, {super.key});
 
   @override
   Widget build(BuildContext context) {

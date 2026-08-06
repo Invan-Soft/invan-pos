@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 class SkuBySearchButton extends StatelessWidget {
   final VoidCallback onPressed;
-  const SkuBySearchButton({required this.onPressed, Key? key})
-      : super(key: key);
+  const SkuBySearchButton({required this.onPressed, super.key});
 
   @override
   Widget build(BuildContext context) {

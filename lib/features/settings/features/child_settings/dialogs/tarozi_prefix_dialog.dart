@@ -5,7 +5,7 @@ import 'package:invan2/utils/utils.dart';
 import 'package:invan2/features/features.dart';
 
 class TaroziPrefixDialog extends StatefulWidget {
-  const TaroziPrefixDialog({Key? key}) : super(key: key);
+  const TaroziPrefixDialog({super.key});
 
   @override
   TaroziPrefixDialogState createState() => TaroziPrefixDialogState();

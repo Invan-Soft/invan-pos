@@ -4,7 +4,7 @@ import '../features/hive_repository/tiin/singletons/api/receipt/model/receipt_mo
 
 // ignore: must_be_immutable
 class ReceiptsScreenMy18 extends StatelessWidget {
-   ReceiptsScreenMy18({Key? key}) : super(key: key);
+   ReceiptsScreenMy18({super.key});
   List<ReceiptModel8> v = MyObjectbox.saleStore.box<ReceiptModel8>().getAll();
 
   @override

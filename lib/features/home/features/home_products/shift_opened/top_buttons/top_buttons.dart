@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:invan2/features/features.dart';
 
 class TopButtons extends StatelessWidget {
-  const TopButtons({Key? key}) : super(key: key);
+  const TopButtons({super.key});
 
   @override
   Widget build(BuildContext context) {

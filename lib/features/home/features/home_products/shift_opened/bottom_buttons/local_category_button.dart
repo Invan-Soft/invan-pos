@@ -3,11 +3,11 @@ import 'package:invan2/utils/utils.dart';
 
 class LocalCategoryButton extends StatelessWidget {
   const LocalCategoryButton({
-    Key? key,
+    super.key,
     required this.onPress,
     required this.text,
     required this.isSelected,
-  }) : super(key: key);
+  });
 
   final VoidCallback onPress;
   final String text;

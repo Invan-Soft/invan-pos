@@ -11,7 +11,6 @@ import 'package:invan2/utils/helpers/prefs.dart';
 
 import '../../../../changes/services/company_app_service.dart';
 import '../../../../changes/services/get_available_pos_api.dart';
-import '../../../../utils/l10n/app_localizations.dart';
 
 part 'auth_event.dart';
 

@@ -1,6 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/changes/components/logo_widget.dart';
@@ -9,16 +8,9 @@ import 'package:invan2/features/lock/access_level/bloc/pin/pin_bloc.dart';
 import 'package:invan2/features/lock/access_level/view/access_blocked_widget.dart';
 import 'package:invan2/features/lock/access_level/view/access_widget.dart';
 import 'package:invan2/features/lock/lock/view/lock_buttons_with_shortcuts.dart';
-import '../../../../app_navigation.dart';
-import '../../../../changes/services/api/result_http_model.dart';
-import '../../../../changes/services/log_service.dart';
 import '../../../../changes/services/shift_api_4.dart';
-import '../../../../changes/services/web_socket_service/web_socket_options/ws_service.dart';
-import '../../../../utils/upgrade/update_checker.dart';
 import '../../../../utils/utils.dart';
 import '../../../../widgets/alice_pincode.dart';
-import '../../../authentication/view/phone_number_page.dart';
-import '../../../hive_repository/hive_boxes.dart';
 import '../../../../idle_service.dart';
 
 bool isWebSocketConnected = false;

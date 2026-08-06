@@ -10,14 +10,14 @@ class SwitchableKey extends StatelessWidget {
   final Function(String) onPressed;
 
   SwitchableKey({
-    Key? key,
+    super.key,
     this.value = false,
     this.alignment,
     this.width,
     this.height,
     required this.char,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

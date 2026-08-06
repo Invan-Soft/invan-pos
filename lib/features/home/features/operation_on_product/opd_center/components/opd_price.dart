@@ -5,7 +5,7 @@ import 'package:invan2/utils/utils.dart';
 import 'package:provider/provider.dart';
 
 class OPDprice extends StatefulWidget {
-  const OPDprice({Key? key}) : super(key: key);
+  const OPDprice({super.key});
 
   @override
   State<OPDprice> createState() => _OPDpriceState();

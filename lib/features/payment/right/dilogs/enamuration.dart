@@ -10,8 +10,8 @@ import 'package:invan2/widgets/default_button.dart';
 
 class Enamuration extends StatefulWidget {
   const Enamuration({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<Enamuration> createState() => _EnamurationState();

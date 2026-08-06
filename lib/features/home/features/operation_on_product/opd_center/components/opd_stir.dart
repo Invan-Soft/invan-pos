@@ -19,9 +19,8 @@ class OPDstir extends StatelessWidget {
       {required this.onChanged,
       required this.onChanged2,
       required this.value,
-      Key? key,
-      required this.item})
-      : super(key: key);
+      super.key,
+      required this.item});
   TextEditingController controller = TextEditingController();
   FocusNode focusNode = FocusNode();
 

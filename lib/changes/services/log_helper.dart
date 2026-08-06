@@ -71,7 +71,7 @@ class LogHelper {
 
   static String truncateWithPadding(String text, int maxLength) {
     if (text.length > maxLength) {
-      return text.substring(0, maxLength - 3) + '...';
+      return '${text.substring(0, maxLength - 3)}...';
     } else {
       return text.padRight(maxLength);
     }
@@ -119,32 +119,32 @@ class LogHelper {
             totalPrice += price;
             totalDiscount += discount;
 
-            final numberStr = (' ' + number.toString()).padRight(10);
-            final nameStr = (' ' + nameValue).padRight(42);
-            final barcodeStr = (' ' + barcodeValue).padRight(18);
-            final unitsStr = (' ' + unitsValue).padRight(9);
+            final numberStr = (' $number').padRight(10);
+            final nameStr = (' $nameValue').padRight(42);
+            final barcodeStr = (' $barcodeValue').padRight(18);
+            final unitsStr = (' $unitsValue').padRight(9);
             final priceStr = price.toStringAsFixed(2).padLeft(13) + ' ';
             final discountStr = discount.toStringAsFixed(2).padLeft(10) + ' ';
 
             rows +=
-                '|${numberStr}|${nameStr}|${barcodeStr}|${unitsStr}|${priceStr}|${discountStr}|\n';
+                '|$numberStr|$nameStr|$barcodeStr|$unitsStr|$priceStr|$discountStr|\n';
             number++;
           }
 
           rows +=
               '+----------+------------------------------------------+------------------+---------+--------------+-----------+\n';
 
-          final totalsNumberStr = (' ' + "").padRight(10);
-          final totalsNameStr = (' ' + "Totals").padRight(42);
-          final totalsBarcodeStr = (' ' + "").padRight(18);
-          final totalsUnitsStr = (' ' + "").padRight(9);
+          final totalsNumberStr = (' ' "").padRight(10);
+          final totalsNameStr = (' ' "Totals").padRight(42);
+          final totalsBarcodeStr = (' ' "").padRight(18);
+          final totalsUnitsStr = (' ' "").padRight(9);
           final totalsPriceStr =
-              totalPrice.toStringAsFixed(2).padLeft(13) + ' ';
+              '${totalPrice.toStringAsFixed(2).padLeft(13)} ';
           final totalsDiscountStr =
-              totalDiscount.toStringAsFixed(2).padLeft(10) + ' ';
+              '${totalDiscount.toStringAsFixed(2).padLeft(10)} ';
 
           rows +=
-              '|${totalsNumberStr}|${totalsNameStr}|${totalsBarcodeStr}|${totalsUnitsStr}|${totalsPriceStr}|${totalsDiscountStr}|\n';
+              '|$totalsNumberStr|$totalsNameStr|$totalsBarcodeStr|$totalsUnitsStr|$totalsPriceStr|$totalsDiscountStr|\n';
 
           rows +=
               '+----------+------------------------------------------+------------------+---------+--------------+-----------+\n';

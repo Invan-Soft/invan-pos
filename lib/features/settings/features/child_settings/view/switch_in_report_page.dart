@@ -16,8 +16,8 @@ class SwitchTileOfReportPage extends StatelessWidget {
     required this.title,
     required this.activ,
     this.subtitle,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

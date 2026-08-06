@@ -3,10 +3,10 @@ import 'package:invan2/utils/utils.dart';
 
 class ButtonOfVirtualKeyboardDialog extends StatelessWidget {
   const ButtonOfVirtualKeyboardDialog({
-    Key? key,
+    super.key,
     required this.number,
     required this.onPress,
-  }) : super(key: key);
+  });
 
   final String number;
   final VoidCallback onPress;

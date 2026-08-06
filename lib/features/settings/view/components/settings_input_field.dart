@@ -9,12 +9,12 @@ class SettingsInputField extends StatelessWidget {
   final bool onlyDigits;
 
   const SettingsInputField({
-    Key? key,
+    super.key,
     required this.controller,
     required this.label,
     required this.enabled,
     required this.onlyDigits,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

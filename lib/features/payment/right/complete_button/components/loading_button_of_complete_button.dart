@@ -6,8 +6,8 @@ import 'package:invan2/utils/themes.dart';
 
 class LoadingWidgetOfCompleteButton extends StatelessWidget {
   const LoadingWidgetOfCompleteButton({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

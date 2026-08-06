@@ -11,15 +11,15 @@ class MxikUpdates {
     if (json['mxik_codes'] != null) {
       mxikCodes = <MxikCodes>[];
       json['mxik_codes'].forEach((v) {
-        mxikCodes!.add(new MxikCodes.fromJson(v));
+        mxikCodes!.add(MxikCodes.fromJson(v));
       });
     }
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    if (this.mxikCodes != null) {
-      data['mxik_codes'] = this.mxikCodes!.map((v) => v.toJson()).toList();
+    final Map<String, dynamic> data = <String, dynamic>{};
+    if (mxikCodes != null) {
+      data['mxik_codes'] = mxikCodes!.map((v) => v.toJson()).toList();
     }
     return data;
   }
@@ -36,15 +36,15 @@ class MxikCodes {
     newMxik = json['new_mxik'];
     oldMxik = json['old_mxik'];
     package =
-        json['package'] != null ? new Package.fromJson(json['package']) : null;
+        json['package'] != null ? Package.fromJson(json['package']) : null;
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['new_mxik'] = this.newMxik;
-    data['old_mxik'] = this.oldMxik;
-    if (this.package != null) {
-      data['package'] = this.package!.toJson();
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['new_mxik'] = newMxik;
+    data['old_mxik'] = oldMxik;
+    if (package != null) {
+      data['package'] = package!.toJson();
     }
     return data;
   }
@@ -64,10 +64,10 @@ class Package {
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['package_code'] = this.packageCode;
-    data['package_name'] = this.packageName;
-    data['package_type'] = this.packageType;
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['package_code'] = packageCode;
+    data['package_name'] = packageName;
+    data['package_type'] = packageType;
     return data;
   }
 }

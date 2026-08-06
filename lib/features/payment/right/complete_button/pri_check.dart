@@ -17,7 +17,7 @@ import 'pre_complete_bloc/per_comlete_bloc.dart';
 class SimpleCheck extends StatelessWidget {
   final BuildContext homeContextt;
 
-  const SimpleCheck(this.homeContextt, {Key? key}) : super(key: key);
+  const SimpleCheck(this.homeContextt, {super.key});
 
   @override
   Widget build(BuildContext context) {

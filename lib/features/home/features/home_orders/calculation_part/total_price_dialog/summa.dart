@@ -9,8 +9,7 @@ import 'package:invan2/utils/themes.dart';
 class SummaInputOfOperationOnTotalPriceDialog extends StatefulWidget {
   final InputBorder border;
 
-  const SummaInputOfOperationOnTotalPriceDialog(this.border, {Key? key})
-      : super(key: key);
+  const SummaInputOfOperationOnTotalPriceDialog(this.border, {super.key});
 
   @override
   State<SummaInputOfOperationOnTotalPriceDialog> createState() =>

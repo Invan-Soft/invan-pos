@@ -8,7 +8,7 @@ import 'package:invan2/utils/helpers/helpers.dart';
 import 'package:invan2/utils/themes.dart';
 
 class DarkModeItem extends StatefulWidget {
-  const DarkModeItem({Key? key}) : super(key: key);
+  const DarkModeItem({super.key});
 
   @override
   State<DarkModeItem> createState() => _DarkModeItemState();

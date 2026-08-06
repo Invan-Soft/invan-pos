@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 class OPDsumma extends StatefulWidget {
   final String initialValue;
 
-  const OPDsumma(this.initialValue, {Key? key}) : super(key: key);
+  const OPDsumma(this.initialValue, {super.key});
 
   @override
   State<OPDsumma> createState() => _OPDsummaState();

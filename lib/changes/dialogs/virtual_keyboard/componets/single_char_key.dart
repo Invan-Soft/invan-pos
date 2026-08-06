@@ -10,14 +10,14 @@ class SingleCharKey extends StatelessWidget {
   final Function(String) onPressed;
 
   const SingleCharKey({
-    Key? key,
+    super.key,
     this.color,
     this.alignment,
     this.width,
     this.height,
     required this.char,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -9,7 +9,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 
-import '../../../utils/utils.dart';
 
 class ApdLoadingForProducts extends StatefulWidget {
   int length;

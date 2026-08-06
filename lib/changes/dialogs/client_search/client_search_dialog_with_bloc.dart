@@ -17,7 +17,6 @@ import '../../../features/home/features/home_orders/calculation_part/total_price
 import '../../../features/payment/right/dilogs/add_client/bloc/addclient_bloc.dart';
 import '../../../features/payment/right/dilogs/add_client/create_client_dialog.dart';
 import '../../models/six_client_model.dart';
-import '../../providers/ordering_provider_4.dart';
 
 class ClientSearchDialogWithBloc extends StatefulWidget {
   final BuildContext con;

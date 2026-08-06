@@ -3,9 +3,9 @@ import 'package:invan2/utils/utils.dart';
 
 class AppBarSyncButton extends StatelessWidget {
   const AppBarSyncButton({
-    Key? key,
+    super.key,
     required this.onPress,
-  }) : super(key: key);
+  });
 
   final VoidCallback onPress;
 

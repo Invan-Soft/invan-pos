@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:invan2/utils/utils.dart';
 class AppBarDrawerButton extends StatelessWidget {
   const AppBarDrawerButton({
-    Key? key,
+    super.key,
     required this.onPress,
     required this.color,
-  }) : super(key: key);
+  });
 
   final VoidCallback onPress;
   final Color color;

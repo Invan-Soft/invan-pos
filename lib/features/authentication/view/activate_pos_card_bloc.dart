@@ -5,17 +5,14 @@ import 'package:invan2/app_navigation.dart';
 import 'package:invan2/features/authentication/authentication.dart';
 import 'package:invan2/features/authentication/bloc/bloc_activate_pos/apd_bloc_bloc.dart';
 import 'package:invan2/features/authentication/bloc/bloc_activate_pos/components/initial_activate_pos_card_widget.dart';
-import 'package:invan2/features/authentication/view/apd_loading_for_products.dart';
 import 'package:invan2/features/drawer/my_drawer.dart';
 import 'package:invan2/features/lock/access_level/view/access_level_page.dart';
 import 'package:invan2/idle_service.dart';
 import 'package:invan2/widgets/apd_text_widget.dart';
 import 'package:invan2/widgets/widgets.dart';
-import 'package:percent_indicator/percent_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:invan2/utils/utils.dart';
 
-import '../../../changes/services/web_socket_service/web_socket_options/ws_service.dart';
 import '../../../utils/l10n/app_localizations.dart';
 
 // ignore: must_be_immutable
@@ -24,7 +21,7 @@ class ActivatePosCardBloc extends StatefulWidget {
   final String token;
   final String macAddress;
 
-  ActivatePosCardBloc({
+  const ActivatePosCardBloc({
     required this.acceptService,
     required this.macAddress,
     required this.token,

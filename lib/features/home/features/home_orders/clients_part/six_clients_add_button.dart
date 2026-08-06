@@ -3,10 +3,10 @@ import 'package:invan2/utils/utils.dart';
 
 class SixClientsAddButton extends StatelessWidget {
   const SixClientsAddButton({
-    Key? key,
+    super.key,
     required this.color,
     required this.onPressed,
-  }) : super(key: key);
+  });
   final Color color;
   final VoidCallback onPressed;
 

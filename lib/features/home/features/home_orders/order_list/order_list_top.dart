@@ -5,7 +5,7 @@ import 'package:invan2/utils/utils.dart';
 
 // ignore: must_be_immutable
 class OrderListTop extends StatelessWidget {
-  OrderListTop({Key? key}) : super(key: key);
+  OrderListTop({super.key});
   late TextStyle stl;
   late BuildContext con;
   @override

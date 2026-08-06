@@ -4,8 +4,7 @@ import 'lock_dot.dart';
 class LockDots extends StatelessWidget {
   final int typed;
   final int passwordLength;
-  const LockDots(this.typed, {required this.passwordLength, Key? key})
-      : super(key: key);
+  const LockDots(this.typed, {required this.passwordLength, super.key});
 
   @override
   Widget build(BuildContext context) {

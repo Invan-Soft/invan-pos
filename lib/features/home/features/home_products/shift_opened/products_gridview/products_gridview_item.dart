@@ -1,10 +1,8 @@
 // ignore_for_file: unnecessary_cast
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:invan2/changes/models/product/item_model.dart';
 import 'package:invan2/features/features.dart';
-import 'package:invan2/features/home/features/home_products/shift_opened/products_gridview/item_subcategory.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:provider/provider.dart';
 import 'item_category.dart';
@@ -15,12 +13,12 @@ import 'add_item_to_local_category_dialog/dialog_content.dart';
 
 class ProductsGridviewItem extends StatelessWidget {
   const ProductsGridviewItem({
-    Key? key,
+    super.key,
     required this.item,
     required this.isCategory,
     required this.onDeletePressed,
     required this.position,
-  }) : super(key: key);
+  });
 
   final dynamic item;
   final bool isCategory;

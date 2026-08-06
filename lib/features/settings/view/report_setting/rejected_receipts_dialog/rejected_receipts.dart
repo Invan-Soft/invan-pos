@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/app_navigation.dart';
@@ -10,7 +9,7 @@ import '../../../../checks/features/checks_app_bar/bloc/usr_bloc.dart';
 import '../../../../hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 
 class EditRejectedReceiptsDialog extends StatefulWidget {
-  const EditRejectedReceiptsDialog({Key? key}) : super(key: key);
+  const EditRejectedReceiptsDialog({super.key});
 
   @override
   State<EditRejectedReceiptsDialog> createState() =>
@@ -143,7 +142,7 @@ class _EditRejectedReceiptsDialogState
                           // ),
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
                 Row(

@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:invan2/utils/utils.dart';
 
 class KeyboardOnWithCashPaymentDialog extends StatefulWidget {
-  const KeyboardOnWithCashPaymentDialog({Key? key}) : super(key: key);
+  const KeyboardOnWithCashPaymentDialog({super.key});
 
   @override
   KeyboardOnWithCashPaymentDialogState createState() =>

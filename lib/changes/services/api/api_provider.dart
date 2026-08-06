@@ -20,61 +20,12 @@ class ApiProvider {
   static const imageUrlPro = 'https://cdn.7i.uz/file/';
   static const INVAN2DEV = 'https://dev.api.7i.uz/';
   static const INVAN2PRO = 'https://api.7i.uz/';
-  static const baseUrlINVAN2 = INVAN2PRO;
-  static const imageUrl = imageUrlPro;
-  // static const baseUrlINVAN2 = INVAN2DEV;
-  // static const imageUrl = imageUrlDev;
+  // static const baseUrlINVAN2 = INVAN2PRO;
+  // static const imageUrl = imageUrlPro;
+  static const baseUrlINVAN2 = INVAN2DEV;
+  static const imageUrl = imageUrlDev;
 
   static const Duration _duration = Duration(seconds: 30);
-
-  // static Future<HttpResult> postResponse({
-  //   required String path,
-  //   dynamic body,
-  //   required Map<String, String> headers,
-  // }) async {
-  //   try {
-  //     http.Response response = await http
-  //         .post(
-  //           _parsedUri(path),
-  //           body: body,
-  //           headers: headers,
-  //         )
-  //         .timeout(_duration);
-  //
-  //     await LogHelper.logRequest(
-  //         method: "POST",
-  //         path: path,
-  //         statusCode: response.statusCode,
-  //         body: body,
-  //         response: response.body);
-  //     alice.onHttpResponse(response);
-  //     ReceiptModel4? receiptModel4;
-  //     if (body != null) {
-  //       receiptModel4 = ReceiptModel4.fromJson(jsonDecode(body));
-  //     }
-  //     if (response.statusCode < 200 || response.statusCode > 300) {
-  //           body: body ?? '', receiptModel4: receiptModel4);
-  //     }else{
-  //       LogRepository.requestSend(response.toString(), where: "in api provider",body: body,file: "Api Provider");
-  //     }
-  //     return _result(
-  //         res: response, data: body, path: path, receiptModel4: receiptModel4);
-  //   } on TimeoutException catch (_) {
-  //     return HttpResult(
-  //       reBytes: "",
-  //       result: "Internet Error (TimeoutException)",
-  //       isSuccess: false,
-  //       statusCode: -1,
-  //     );
-  //   } on SocketException catch (_) {
-  //     return HttpResult(
-  //       reBytes: "",
-  //       result: "Internet Error",
-  //       isSuccess: false,
-  //       statusCode: -1,
-  //     );
-  //   }
-  // }
 
   static Future<HttpResult> postResponse({
     required String path,
@@ -99,7 +50,7 @@ class ApiProvider {
           response: response.body,
         );
       }
-      
+
       alice.onHttpResponse(response);
       ReceiptModel4? receiptModel4;
       if (body != null && body is String) {
@@ -125,10 +76,10 @@ class ApiProvider {
           );
         }
       }
-     
+
       return _result(
           res: response, data: body, path: path, receiptModel4: receiptModel4);
-    } on TimeoutException catch (e, stack) {
+    } on TimeoutException {
       LogRepository.addLog(
         "TimeoutException: $path",
         where: "ApiProvider.postResponse",
@@ -142,8 +93,8 @@ class ApiProvider {
         isSuccess: false,
         result: "Internet ulanmadi (Timeout)",
         statusCode: -1,
-      );      
-    }catch (e, stack) {
+      );
+    } catch (e, stack) {
       LogRepository.requestSend(
         "Kutilmagan xato: $e",
         where: "ApiProvider.postResponse",

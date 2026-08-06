@@ -8,7 +8,6 @@ import 'package:invan2/features/features.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 
-import '../../../../utils/l10n/app_localizations.dart';
 
 part 'ss_event.dart';
 

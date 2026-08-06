@@ -9,12 +9,12 @@ class SettingsSwitch extends StatelessWidget {
   final bool? isSubtitle;
 
   const SettingsSwitch({
-    Key? key,
+    super.key,
     required this.title,
     required this.value,
     required this.onChanged,
     this.isSubtitle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

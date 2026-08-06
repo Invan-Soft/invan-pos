@@ -12,7 +12,7 @@ class AppTextFormField extends StatelessWidget {
   List<TextInputFormatter>? formatters;
   FormFieldValidator<String>? validator;
   AppTextFormField({
-    Key? key,
+    super.key,
     required this.title,
     this.controller,
     this.hint,
@@ -21,7 +21,7 @@ class AppTextFormField extends StatelessWidget {
     this.formatters,
     this.validator,
     this.enabled,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

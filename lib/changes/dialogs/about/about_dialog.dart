@@ -6,8 +6,8 @@ import '../../services/app_constants.dart';
 // ignore: must_be_immutable
 class AboutAppDialog extends StatelessWidget {
   AboutAppDialog({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
   TextEditingController controller = TextEditingController();
   @override
   Widget build(BuildContext context) {

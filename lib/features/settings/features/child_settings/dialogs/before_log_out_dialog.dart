@@ -6,8 +6,7 @@ import 'package:invan2/widgets/widgets.dart';
 
 class BeforeLogOutDialog extends StatelessWidget {
   final bool isAboutShift;
-  const BeforeLogOutDialog({Key? key, required this.isAboutShift})
-      : super(key: key);
+  const BeforeLogOutDialog({super.key, required this.isAboutShift});
 
   @override
   Widget build(BuildContext context) {

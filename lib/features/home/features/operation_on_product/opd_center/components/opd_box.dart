@@ -6,9 +6,9 @@ import '../../../../../../changes/providers/operation_on_product_provider.dart';
 
 class OPDbox extends StatefulWidget {
   const OPDbox({
-    Key? key,
+    super.key,
     required this.value,
-  }) : super(key: key);
+  });
   final double value;
 
   @override

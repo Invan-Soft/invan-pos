@@ -9,7 +9,7 @@ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/mo
 import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 
 class ChecksListt extends StatefulWidget {
-  const ChecksListt({Key? key}) : super(key: key);
+  const ChecksListt({super.key});
 
   @override
   State<ChecksListt> createState() => _ChecksListtState();

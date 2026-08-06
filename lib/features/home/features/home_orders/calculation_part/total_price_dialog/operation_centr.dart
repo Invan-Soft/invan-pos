@@ -5,7 +5,7 @@ import 'package:invan2/features/home/features/home_orders/calculation_part/total
 import 'package:invan2/utils/helpers/size_config.dart';
 
 class OperationCentr extends StatefulWidget {
-  const OperationCentr({Key? key}) : super(key: key);
+  const OperationCentr({super.key});
 
   @override
   OperationCentrState createState() => OperationCentrState();

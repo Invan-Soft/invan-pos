@@ -1,14 +1,10 @@
-import 'dart:convert';
 
-import 'package:flutter/cupertino.dart';
-import 'package:hive/hive.dart';
 import 'package:invan2/features/features.dart';
 
 // ignore: depend_on_referenced_packages
 import 'package:collection/collection.dart';
 import 'package:invan2/features/get_categories/service/category_service.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
-import 'package:provider/provider.dart';
 
 class CategorySingleton {
   static List<CategoryData> categories = [];

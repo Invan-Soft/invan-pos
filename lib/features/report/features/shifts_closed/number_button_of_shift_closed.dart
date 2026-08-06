@@ -3,10 +3,10 @@ import 'package:invan2/utils/utils.dart';
 
 class NumberButtonOfShiftClosed extends StatelessWidget {
   const NumberButtonOfShiftClosed({
-    Key? key,
+    super.key,
     required this.number,
     required this.onPress,
-  }) : super(key: key);
+  });
 
   final String number;
   final VoidCallback onPress;

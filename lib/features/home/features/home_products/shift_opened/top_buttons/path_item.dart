@@ -5,10 +5,10 @@ import 'package:provider/provider.dart';
 
 class PathItem extends StatelessWidget {
   const PathItem({
-    Key? key,
+    super.key,
     required this.categoryData,
     required this.isLast,
-  }) : super(key: key);
+  });
 
   final CategoryData categoryData;
   final bool isLast;

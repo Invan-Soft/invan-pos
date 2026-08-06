@@ -8,7 +8,7 @@ import '../../../../../../changes/providers/product_search_provider.dart';
 import 'package:invan2/features/features.dart';
 
 class ProductSearch3 extends StatelessWidget {
-  const ProductSearch3({Key? key}) : super(key: key);
+  const ProductSearch3({super.key});
 
   @override
   Widget build(BuildContext context) {

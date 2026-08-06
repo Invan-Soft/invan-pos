@@ -10,7 +10,7 @@ import 'search_part.dart';
 
 // maybe not in use
 class AddItemToLocalCategoryDialog extends StatelessWidget {
-  const AddItemToLocalCategoryDialog({Key? key}) : super(key: key);
+  const AddItemToLocalCategoryDialog({super.key});
 
   @override
   Widget build(BuildContext context) {

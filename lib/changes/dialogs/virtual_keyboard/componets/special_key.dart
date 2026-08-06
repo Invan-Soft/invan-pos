@@ -10,14 +10,14 @@ class SpecialKey extends StatelessWidget {
   final Function(String) onPressed;
 
   const SpecialKey({
-    Key? key,
+    super.key,
     this.alignment,
     required this.label,
     this.symbol,
     this.height,
     this.width,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

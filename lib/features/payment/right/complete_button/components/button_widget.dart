@@ -9,10 +9,10 @@ class ButtonWidget extends StatelessWidget {
   final String title;
 
   const ButtonWidget({
-    Key? key,
+    super.key,
     required this.title,
     required this.onPredssed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -48,9 +48,9 @@ class ButtonWidgetWithWidget extends StatelessWidget {
   final VoidCallback onPredssed;
 
   const ButtonWidgetWithWidget({
-    Key? key,
+    super.key,
     required this.onPredssed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

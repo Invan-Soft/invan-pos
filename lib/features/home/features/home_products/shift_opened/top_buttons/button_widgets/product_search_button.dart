@@ -5,8 +5,7 @@ import 'package:invan2/utils/themes.dart';
 
 class ProductSearchButton extends StatelessWidget {
   final VoidCallback onPressed;
-  const ProductSearchButton({required this.onPressed, Key? key})
-      : super(key: key);
+  const ProductSearchButton({required this.onPressed, super.key});
 
   @override
   Widget build(BuildContext context) {

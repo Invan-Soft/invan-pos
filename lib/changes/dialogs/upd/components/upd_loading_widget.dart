@@ -1,4 +1,3 @@
-import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -6,7 +5,6 @@ import 'package:invan2/app_navigation.dart';
 import 'package:invan2/changes/dialogs/upd/bloc/upd_bloc.dart';
 import 'package:invan2/changes/dialogs/upd/components/upd_text.dart';
 import 'package:invan2/features/features.dart';
-import 'package:invan2/utils/helpers/helpers.dart';
 import 'package:invan2/utils/helpers/upper_case_string_extention.dart';
 
 class UpdLoadingWidget extends StatelessWidget {

@@ -5,8 +5,7 @@ class SelectSearchButton extends StatelessWidget {
   final String imageUrl;
 
   const SelectSearchButton(
-      {required this.bacColor, required this.imageUrl, Key? key})
-      : super(key: key);
+      {required this.bacColor, required this.imageUrl, super.key});
 
   @override
   Widget build(BuildContext context) {

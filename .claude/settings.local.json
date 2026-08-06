@@ -149,7 +149,15 @@
       "Bash(awk 'NR>=3619 && NR<=3900' lib/changes/providers/ordering_provider_4.dart)",
       "Bash(awk 'NR<3300' lib/changes/providers/ordering_provider_4.dart)",
       "Bash(timeout 600 flutter test test/deleted_items_orderpos_test.dart)",
-      "Bash(git commit -q -m 'release: 1.1.2+117 — deleted_items: deleted_by = PIN tasdiqlagan xodim + slot tashlab ketilganda yozuv yo'\\\\''qolmasligi \\(orphan harvest\\) *)"
+      "Bash(git commit -q -m 'release: 1.1.2+117 — deleted_items: deleted_by = PIN tasdiqlagan xodim + slot tashlab ketilganda yozuv yo'\\\\''qolmasligi \\(orphan harvest\\) *)",
+      "Bash(curl -s -m 300 -w \"\\\\n--- HTTP: %{http_code}, vaqt: %{time_total}s ---\\\\n\" -X POST \"https://api.7i.uz/upload/build\" -F \"version=1.1.2+117\" -F \"changelog=O'chirilgan mahsulotlar nazorati aniqlashtirildi: PIN bilan ruxsat berilganda o'chirishni kim tasdiqlagani qayd etiladi \\(kassir emas, PIN egasi\\). Ko'p mijozli rejimda mijoz sloti tashlab ketilsa ham o'chirish yozuvlari yo'qolmaydi.\" -F \"file=@1.1.2+117.exe\")",
+      "Bash(awk -F: '$2>0')",
+      "Bash(awk 'length > 200 {c++} END {print \"200+ belgili qatorlar:\", c}' lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart)",
+      "Bash(grep -oE \"• [a-z_]+$\")",
+      "Bash(awk 'match\\($0,/[^ ]/\\) && RSTART>16 {c++} END{print \"16+ indent:\",c}' lib/changes/providers/ordering_provider_4.dart)",
+      "Bash(awk '/^  [A-Za-z_<>\\\\[\\\\], ?]+ _?[a-zA-Z0-9_]+\\\\\\(.*/ {if\\(name!=\"\"\\) print len, name; name=$0; len=0} {len++} END{if\\(name!=\"\"\\)print len,name}' lib/changes/providers/ordering_provider_4.dart)",
+      "Bash(grep -vE \"^\\\\[ACTIVITY\\\\]|^-----|^ *$|✨\")",
+      "Bash(grep -vE \"^\\\\[ACTIVITY\\\\]|^----|✨|^ *$\")"
     ]
   }
 }

@@ -6,8 +6,7 @@ import 'package:invan2/widgets/default_button.dart';
 class SearchButtonOfClientDialog extends StatelessWidget {
   final bool alsoCheckSupplier;
 
-  const SearchButtonOfClientDialog({Key? key, this.alsoCheckSupplier = false})
-      : super(key: key);
+  const SearchButtonOfClientDialog({super.key, this.alsoCheckSupplier = false});
 
   @override
   Widget build(BuildContext context) {

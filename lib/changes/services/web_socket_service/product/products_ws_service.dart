@@ -21,7 +21,6 @@ import '../../../../utils/constants/constants.dart';
 import '../../../../utils/helpers/helpers.dart';
 import '../../../models/organization_model.dart';
 import '../../../models/product/item_model.dart';
-import '../../../providers/ordering_provider_4.dart';
 import '../../../singletons/organization_singleton.dart';
 import '../../api/result_http_model.dart';
 import '../../get_items_service.dart';

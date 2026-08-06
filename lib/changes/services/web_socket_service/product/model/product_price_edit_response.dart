@@ -25,22 +25,22 @@ class ProductPriceEdit {
     companyId = json['company_id'];
     shopId = json['shop_id'];
     type = json['type'];
-    data = json['data'] != null ? new Data.fromJson(json['data']) : null;
+    data = json['data'] != null ? Data.fromJson(json['data']) : null;
     isRead = json['is_read'];
     createdAt = json['created_at'];
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
-    data['id'] = this.id;
-    data['company_id'] = this.companyId;
-    data['shop_id'] = this.shopId;
-    data['type'] = this.type;
+    data['id'] = id;
+    data['company_id'] = companyId;
+    data['shop_id'] = shopId;
+    data['type'] = type;
     if (this.data != null) {
       data['data'] = this.data!.toJson();
     }
-    data['is_read'] = this.isRead;
-    data['created_at'] = this.createdAt;
+    data['is_read'] = isRead;
+    data['created_at'] = createdAt;
     return data;
   }
 }
@@ -53,23 +53,23 @@ class Data {
 
   Data.fromJson(Map<String, dynamic> json) {
     request =
-        json['request'] != null ? new Request.fromJson(json['request']) : null;
+        json['request'] != null ? Request.fromJson(json['request']) : null;
     if (json['product_values'] != null) {
       productsValues = <ProductsValues>[];
       json['product_values'].forEach((v) {
-        productsValues!.add(new ProductsValues.fromJson(v));
+        productsValues!.add(ProductsValues.fromJson(v));
       });
     }
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
-    if (this.request != null) {
-      data['request'] = this.request!.toJson();
+    if (request != null) {
+      data['request'] = request!.toJson();
     }
-    if (this.productsValues != null) {
+    if (productsValues != null) {
       data['product_values'] =
-          this.productsValues!.map((v) => v.toJson()).toList();
+          productsValues!.map((v) => v.toJson()).toList();
     }
     return data;
   }
@@ -92,10 +92,10 @@ class Request {
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
-    data['company_id'] = this.companyId;
-    data['user_id'] = this.userId;
-    data['user_type_id'] = this.userTypeId;
-    data['timezone'] = this.timezone;
+    data['company_id'] = companyId;
+    data['user_id'] = userId;
+    data['user_type_id'] = userTypeId;
+    data['timezone'] = timezone;
     return data;
   }
 }
@@ -113,10 +113,10 @@ class ProductsValues {
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
-    if (this.price != null) {
-      data['price'] = this.price!.toJson();
+    if (price != null) {
+      data['price'] = price!.toJson();
     }
-    data['product_id'] = this.productId;
+    data['product_id'] = productId;
     return data;
   }
 }
@@ -144,20 +144,20 @@ class Price {
     if (json['shop_price_tiers'] != null) {
       shopPriceTiers = <ShopPriceTiersSub>[];
       json['shop_price_tiers'].forEach((v) {
-        shopPriceTiers!.add(new ShopPriceTiersSub.fromJson(v));
+        shopPriceTiers!.add(ShopPriceTiersSub.fromJson(v));
       });
     }
   }
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = <String, dynamic>{};
-    data['shop_id'] = this.shopId;
-    data['retail_price'] = this.retailPrice;
-    data['supply_price'] = this.supplyPrice;
-    data['last_supply_price'] = this.lastSupplyPrice;
-    if (this.shopPriceTiers != null) {
+    data['shop_id'] = shopId;
+    data['retail_price'] = retailPrice;
+    data['supply_price'] = supplyPrice;
+    data['last_supply_price'] = lastSupplyPrice;
+    if (shopPriceTiers != null) {
       data['shop_price_tiers'] =
-          this.shopPriceTiers!.map((v) => v.toJson()).toList();
+          shopPriceTiers!.map((v) => v.toJson()).toList();
     }
     return data;
   }

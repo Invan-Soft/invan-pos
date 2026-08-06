@@ -6,9 +6,9 @@ import 'shift_opened/shift_opened_content.dart';
 
 class HomeProducts extends StatelessWidget {
   const HomeProducts({
-    Key? key,
+    super.key,
     required this.scaffoldKey,
-  }) : super(key: key);
+  });
 
   final GlobalKey<ScaffoldState> scaffoldKey;
 

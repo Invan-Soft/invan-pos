@@ -165,8 +165,7 @@ import 'complete_bloc/comlete_bloc.dart';
 class CompleteButtonOfPaymentPageOnBloc extends StatelessWidget {
   final BuildContext homeContextt;
 
-  const CompleteButtonOfPaymentPageOnBloc(this.homeContextt, {Key? key})
-      : super(key: key);
+  const CompleteButtonOfPaymentPageOnBloc(this.homeContextt, {super.key});
 
   @override
   Widget build(BuildContext context) {

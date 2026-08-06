@@ -3,13 +3,13 @@ import 'package:invan2/utils/utils.dart';
 
 class LockNumberButton extends StatelessWidget {
   LockNumberButton({
-    Key? key,
+    super.key,
     required this.number,
     required this.onPress,
     this.color,
     this.textColor,
     this.sizeEdited,
-  }) : super(key: key);
+  });
 
   final String number;
   final VoidCallback onPress;

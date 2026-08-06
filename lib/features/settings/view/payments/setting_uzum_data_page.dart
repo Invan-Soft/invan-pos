@@ -8,7 +8,7 @@ import '../components/settings_submit_button.dart';
 import '../components/settings_switch.dart';
 
 class UzumContent extends StatefulWidget {
-  const UzumContent({Key? key}) : super(key: key);
+  const UzumContent({super.key});
 
   @override
   State<UzumContent> createState() => _UzumContentState();

@@ -6,11 +6,10 @@ class PaginationButton extends StatelessWidget {
   final VoidCallback onPressed;
   final bool isActiv;
   const PaginationButton(
-      {Key? key,
+      {super.key,
       required this.child,
       required this.onPressed,
-      required this.isActiv})
-      : super(key: key);
+      required this.isActiv});
 
   @override
   Widget build(BuildContext context) {

@@ -13,8 +13,8 @@ class TextRowCalculation extends StatelessWidget {
     required this.title,
     required this.money,
     this.isBold = false,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

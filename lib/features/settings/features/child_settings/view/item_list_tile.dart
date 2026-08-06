@@ -3,10 +3,10 @@ import 'package:invan2/utils/utils.dart';
 
 class ItemListTile extends StatelessWidget {
   const ItemListTile({
-    Key? key,
+    super.key,
     required this.text,
     required this.onPress,
-  }) : super(key: key);
+  });
 
   final String text;
   final VoidCallback onPress;

@@ -7,9 +7,9 @@ import '../../providers/product_search_provider.dart';
 
 class AppVirtualKeyboardDialog extends StatefulWidget {
   const AppVirtualKeyboardDialog({
-    Key? key,
+    super.key,
     required this.searchTypeEnum,
-  }) : super(key: key);
+  });
 
   final SearchTypeEnum searchTypeEnum;
 

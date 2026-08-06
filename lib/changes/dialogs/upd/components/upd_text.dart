@@ -9,8 +9,7 @@ class UpdText extends StatelessWidget {
   UpdText(this.text,
       {this.textAlign = TextAlign.center,
       this.fw = FontWeight.normal,
-      Key? key})
-      : super(key: key);
+      super.key});
 
   @override
   Widget build(BuildContext context) {

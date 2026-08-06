@@ -5,7 +5,6 @@ import 'package:invan2/features/lock/access_level/view/button_access_level_page.
 import 'package:invan2/features/lock/access_level/view/oclock.dart';
 import 'package:invan2/utils/constants/constants.dart';
 import 'package:invan2/utils/helpers/helpers.dart';
-import 'package:invan2/utils/helpers/size_config.dart';
 import 'package:invan2/utils/themes.dart';
 
 class AccessWidget extends StatelessWidget {

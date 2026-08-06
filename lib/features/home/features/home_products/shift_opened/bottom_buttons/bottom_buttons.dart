@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
-import 'package:invan2/features/home/features/home_products/shift_opened/bottom_buttons/local_category/add_local_category_dialog/dialog_content.dart';
 import 'package:invan2/utils/utils.dart';
 import 'local_category_buttons.dart';
 

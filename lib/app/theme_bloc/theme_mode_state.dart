@@ -6,5 +6,5 @@ abstract class ThemeModeState {
 }
 
 class ThemeModeInitial extends ThemeModeState {
-  const ThemeModeInitial(bool isDark) : super(isDark);
+  const ThemeModeInitial(super.isDark);
 }

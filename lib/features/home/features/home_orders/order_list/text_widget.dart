@@ -10,12 +10,11 @@ class SoldItemWidget extends StatelessWidget {
   TextAlign textAlign;
 
   SoldItemWidget(
-      {Key? key,
+      {super.key,
       this.textAlign = TextAlign.center,
       required this.flex,
       required this.title,
-      this.isDeleted = false})
-      : super(key: key);
+      this.isDeleted = false});
 
   @override
   Widget build(BuildContext context) {
@@ -54,14 +53,13 @@ class SoldItemWidgetWithDiscount extends StatelessWidget {
   TextAlign textAlign;
 
   SoldItemWidgetWithDiscount(
-      {Key? key,
+      {super.key,
       this.textAlign = TextAlign.center,
       required this.flex,
       required this.price,
       required this.discountPercent,
       this.isDeleted = false,
-      required this.oldPrice})
-      : super(key: key);
+      required this.oldPrice});
 
   @override
   Widget build(BuildContext context) {

@@ -3,8 +3,8 @@ import 'package:invan2/utils/utils.dart';
 
 class DrawerTop extends StatefulWidget {
   const DrawerTop({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<DrawerTop> createState() => _DrawerTopState();

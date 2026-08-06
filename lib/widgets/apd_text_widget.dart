@@ -7,9 +7,9 @@ class ApdText extends StatelessWidget {
   TextAlign textAlign;
   ApdText(
     this.title, {
-    Key? key,
+    super.key,
     this.textAlign = TextAlign.center,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

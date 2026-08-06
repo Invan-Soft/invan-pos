@@ -3,7 +3,7 @@ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/mo
 import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 
 class ReceiptsScreenMyy extends StatelessWidget {
-  ReceiptsScreenMyy({Key? key}) : super(key: key);
+  ReceiptsScreenMyy({super.key});
   final List<ReceiptModel4> v =
       MyObjectbox.saleStore.box<ReceiptModel4>().getAll();
 

@@ -5,7 +5,7 @@ import '../../../../changes/providers/return_page_provider.dart';
 import '../return_page_dialog/return_page_dialog.dart';
 
 class BuildLeftList extends StatefulWidget {
-  const BuildLeftList({Key? key}) : super(key: key);
+  const BuildLeftList({super.key});
 
   @override
   BuildLeftListState createState() => BuildLeftListState();

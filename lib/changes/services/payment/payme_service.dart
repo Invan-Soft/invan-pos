@@ -13,7 +13,7 @@ import '../log_helper.dart';
 
 class PaymeGOService {
   static int _statusCode = 0;
-  static String _id = '';
+  static final String _id = '';
 
   static Future<ApiState> _post({
     required String api,

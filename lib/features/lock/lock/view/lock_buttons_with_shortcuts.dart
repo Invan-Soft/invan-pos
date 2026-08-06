@@ -1,7 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
@@ -18,12 +17,7 @@ import 'package:invan2/widgets/my_snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:visibility_detector/visibility_detector.dart';
-import 'package:windows1251/windows1251.dart';
 
-import '../../../../changes/models/log/loc_res_model.dart';
-import '../../../../changes/repository/log_repository.dart';
-import '../../../../changes/services/shifting_service.dart';
-import '../../../../fiscal_service/post_methods.dart';
 import '../../../settings_page.dart';
 
 class PincodeKeyboardWidget extends StatefulWidget {

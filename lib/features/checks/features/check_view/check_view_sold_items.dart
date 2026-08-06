@@ -4,7 +4,7 @@ import 'package:invan2/features/checks/features/checks_list/bloc/check_f_bloc.da
 import 'package:invan2/utils/utils.dart';
 
 class CheckViewSoldItems extends StatelessWidget {
-  const CheckViewSoldItems({Key? key}) : super(key: key);
+  const CheckViewSoldItems({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -8,7 +8,7 @@ import '../smena_yopish_dialog.dart';
 
 class Buttons extends StatelessWidget {
   final bool isZet;
-  const Buttons({required this.isZet, Key? key}) : super(key: key);
+  const Buttons({required this.isZet, super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -9,7 +9,7 @@ import '../../../../../utils/helpers/size_config.dart';
 import '../../../../../utils/themes.dart';
 
 class QRCodeDialog extends StatefulWidget {
-  const QRCodeDialog({Key? key}) : super(key: key);
+  const QRCodeDialog({super.key});
 
   @override
   State<QRCodeDialog> createState() => _QRCodeDialogState();

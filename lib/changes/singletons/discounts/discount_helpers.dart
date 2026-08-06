@@ -2,7 +2,6 @@
     @author Suxrob Sattorov, 1/29/2025, 11:59 AM
 */
 
-import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:invan2/changes/models/product_discount_model.dart';
 import 'package:invan2/utils/utils.dart';

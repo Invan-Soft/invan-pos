@@ -13,8 +13,7 @@ class ItemListTileSwitch extends StatelessWidget {
       required this.onTap,
       required this.title,
       required this.activ,
-      Key? key})
-      : super(key: key);
+      super.key});
 
   @override
   Widget build(BuildContext context) {

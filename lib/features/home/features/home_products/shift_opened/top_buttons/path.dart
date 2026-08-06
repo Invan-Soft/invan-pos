@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'path_item.dart';
 
 class Path extends StatelessWidget {
-  const Path({Key? key}) : super(key: key);
+  const Path({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -5,7 +5,7 @@ import 'package:invan2/utils/utils.dart';
 import 'package:invan2/features/features.dart';
 
 class AutoSyncDialog extends StatefulWidget {
-  const AutoSyncDialog({Key? key}) : super(key: key);
+  const AutoSyncDialog({super.key});
 
   @override
   AutoSyncDialogState createState() => AutoSyncDialogState();

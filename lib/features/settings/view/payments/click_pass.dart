@@ -12,7 +12,7 @@ import '../components/settings_submit_button.dart';
 import '../components/settings_switch.dart';
 
 class ClickContent extends StatefulWidget {
-  const ClickContent({Key? key}) : super(key: key);
+  const ClickContent({super.key});
 
   @override
   State<ClickContent> createState() => _ClickContentState();

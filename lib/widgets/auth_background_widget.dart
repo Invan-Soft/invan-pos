@@ -6,12 +6,12 @@ import 'package:invan2/widgets/alice_pincode.dart';
 
 class AuthBackgroundWidget extends StatelessWidget {
   const AuthBackgroundWidget({
-    Key? key,
+    super.key,
     required this.isWaiting,
     required this.child,
     required this.isBackButtoned,
     required this.onPres,
-  }) : super(key: key);
+  });
   final VoidCallback onPres;
   final Widget child;
   final bool isWaiting;

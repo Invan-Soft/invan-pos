@@ -5,11 +5,11 @@ class KeysRow extends StatelessWidget {
   final double separatorWidth;
 
   const KeysRow({
-    Key? key,
+    super.key,
     required this.height,
     required this.keys,
     required this.separatorWidth,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

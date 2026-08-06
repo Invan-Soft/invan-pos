@@ -9,8 +9,8 @@ class UpdFailedWidget extends StatelessWidget {
   final UpdFailedRepo repo;
   const UpdFailedWidget({
     required this.repo,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

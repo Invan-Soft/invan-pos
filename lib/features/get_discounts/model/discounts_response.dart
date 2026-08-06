@@ -185,7 +185,7 @@ class DiscountItem extends HiveObject {
     if (json['gifts'] != null) {
       gifts = <Gifts>[];
       json['gifts'].forEach((v) {
-        gifts!.add(new Gifts.fromJson(v));
+        gifts!.add(Gifts.fromJson(v));
       });
     }
     buyXGetX = json['buy_x_get_x'] != null ? BuyXGetX.fromJson(json['buy_x_get_x']) : null;
@@ -502,16 +502,16 @@ class Gifts extends HiveObject {
     getProductAmount = json['get_product_amount'];
     buyAmount = json['buy_amount'];
     getProduct = json['get_product'] != null
-        ? new ProductIds.fromJson(json['get_product'])
+        ? ProductIds.fromJson(json['get_product'])
         : null;
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = new Map<String, dynamic>();
-    data['get_product_amount'] = this.getProductAmount;
-    data['buy_amount'] = this.buyAmount;
-    if (this.getProduct != null) {
-      data['get_product'] = this.getProduct!.toJson();
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['get_product_amount'] = getProductAmount;
+    data['buy_amount'] = buyAmount;
+    if (getProduct != null) {
+      data['get_product'] = getProduct!.toJson();
     }
     return data;
   }

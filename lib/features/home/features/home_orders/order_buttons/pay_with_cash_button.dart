@@ -3,10 +3,10 @@ import 'package:invan2/utils/utils.dart';
 
 class PayWithCashButton extends StatelessWidget {
   const PayWithCashButton({
-    Key? key,
+    super.key,
     required this.isEnabled,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   final bool isEnabled;
   final VoidCallback onPressed;

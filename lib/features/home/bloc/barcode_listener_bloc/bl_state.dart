@@ -7,5 +7,5 @@ abstract class BlState {
 
 class BlInitial extends BlState {
   
-  BlInitial(BLStatus status):super(status);
+  BlInitial(super.status);
 }

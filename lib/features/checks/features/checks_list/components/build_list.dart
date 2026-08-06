@@ -10,8 +10,7 @@ import 'build_list_item.dart';
 class BuildList extends StatefulWidget {
   final List<ReceiptModel4> list;
   final int selectedIndex;
-  const BuildList({Key? key, required this.list, required this.selectedIndex})
-      : super(key: key);
+  const BuildList({super.key, required this.list, required this.selectedIndex});
 
   @override
   State<BuildList> createState() => _BuildListState();

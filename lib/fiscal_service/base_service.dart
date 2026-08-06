@@ -217,7 +217,6 @@ class BaseService {
   static void _addLog(
     String message, {
     String method = '',
-    String type = 'FAIL',
   }) {
     LogRepository.addLog(
       message,

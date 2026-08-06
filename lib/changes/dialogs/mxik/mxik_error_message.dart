@@ -12,8 +12,8 @@ class MxikErrorMessageDialog extends StatefulWidget {
   final List<NoMxikItem> items;
   const MxikErrorMessageDialog({
     required this.items,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<MxikErrorMessageDialog> createState() => _MxikErrorMessageDialogState();

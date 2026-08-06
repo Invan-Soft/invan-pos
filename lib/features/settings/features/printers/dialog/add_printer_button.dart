@@ -7,8 +7,8 @@ import 'package:invan2/features/features.dart';
 
 class AddPrinterButton extends StatelessWidget {
   const AddPrinterButton({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {

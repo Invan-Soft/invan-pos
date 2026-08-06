@@ -6,7 +6,7 @@ import 'package:invan2/utils/utils.dart';
 import 'package:provider/provider.dart';
 
 class KeyboardOfShiftClosed extends StatefulWidget {
-  const KeyboardOfShiftClosed({Key? key}) : super(key: key);
+  const KeyboardOfShiftClosed({super.key});
 
   @override
   KeyboardOfShiftClosedState createState() => KeyboardOfShiftClosedState();

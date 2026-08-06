@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:invan2/utils/utils.dart';
 
 class LockDot extends StatelessWidget {
-  const LockDot({Key? key, required this.isColored}) : super(key: key);
+  const LockDot({super.key, required this.isColored});
 
   final bool isColored;
 

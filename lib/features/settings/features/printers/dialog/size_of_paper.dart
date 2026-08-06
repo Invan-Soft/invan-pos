@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../../changes/providers/printer_select_dialog_provider.dart';
 
 class SizeOfPaper extends StatelessWidget {
-  const SizeOfPaper({Key? key}) : super(key: key);
+  const SizeOfPaper({super.key});
 
   @override
   Widget build(BuildContext context) {

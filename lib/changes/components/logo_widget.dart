@@ -11,7 +11,7 @@ class LogoInvanWidget extends StatelessWidget {
   double? width;
   Color? color;
 
-  LogoInvanWidget({this.width, this.color, Key? key}) : super(key: key);
+  LogoInvanWidget({this.width, this.color, super.key});
 
   @override
   Widget build(BuildContext context) {

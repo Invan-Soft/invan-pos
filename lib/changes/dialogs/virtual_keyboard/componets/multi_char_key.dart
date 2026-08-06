@@ -10,14 +10,14 @@ class MultiCharKey extends StatelessWidget {
   final Function(List<String>) onPressed;
 
   const MultiCharKey({
-    Key? key,
+    super.key,
     required this.upperChar,
     required this.lowerChar,
     this.alignment,
     this.width,
     this.height,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

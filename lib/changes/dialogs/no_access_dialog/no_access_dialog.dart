@@ -5,7 +5,7 @@ import 'package:invan2/changes/dialogs/no_access_dialog/no_access_dialog_content
 import 'package:invan2/utils/helpers/size_config.dart';
 
 class NoAccessDialog extends StatelessWidget {
-  const NoAccessDialog({Key? key}) : super(key: key);
+  const NoAccessDialog({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -4,8 +4,7 @@ import 'package:invan2/utils/utils.dart';
 
 class SettingsSubmitButtom extends StatelessWidget {
   final VoidCallback onSubmitted;
-  const SettingsSubmitButtom({Key? key, required this.onSubmitted})
-      : super(key: key);
+  const SettingsSubmitButtom({super.key, required this.onSubmitted});
 
   @override
   Widget build(BuildContext context) {

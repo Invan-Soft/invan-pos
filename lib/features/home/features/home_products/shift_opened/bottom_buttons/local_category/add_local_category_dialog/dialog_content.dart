@@ -5,7 +5,7 @@ import 'package:invan2/utils/utils.dart';
 import 'package:provider/provider.dart';
 
 class AddLocalCategoryDialog extends StatefulWidget {
-  const AddLocalCategoryDialog({Key? key}) : super(key: key);
+  const AddLocalCategoryDialog({super.key});
 
   @override
   AddLocalCategoryDialogState createState() => AddLocalCategoryDialogState();

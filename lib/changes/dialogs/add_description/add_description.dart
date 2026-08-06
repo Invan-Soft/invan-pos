@@ -8,7 +8,7 @@ import 'package:invan2/utils/themes.dart';
 class AddDescriptionDialog extends StatefulWidget {
   final BuildContext con;
 
-  const AddDescriptionDialog(this.con, {Key? key}) : super(key: key);
+  const AddDescriptionDialog(this.con, {super.key});
 
   @override
   State<AddDescriptionDialog> createState() =>

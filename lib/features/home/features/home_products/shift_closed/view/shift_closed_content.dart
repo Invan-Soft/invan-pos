@@ -8,9 +8,9 @@ import 'smena_ochish_dialog.dart';
 
 class ShiftClosedContent extends StatelessWidget {
   const ShiftClosedContent({
-    Key? key,
+    super.key,
     required this.scaffoldKey,
-  }) : super(key: key);
+  });
 
   final GlobalKey<ScaffoldState> scaffoldKey;
 

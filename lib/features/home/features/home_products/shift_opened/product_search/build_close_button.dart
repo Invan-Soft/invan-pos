@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../../../changes/providers/product_search_provider.dart';
 
 class BuildCloseButton extends StatelessWidget {
-  const BuildCloseButton({Key? key}) : super(key: key);
+  const BuildCloseButton({super.key});
 
   @override
   Widget build(BuildContext context) {

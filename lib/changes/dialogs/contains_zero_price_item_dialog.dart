@@ -5,7 +5,6 @@ import 'package:invan2/utils/helpers/helpers.dart';
 import 'package:invan2/utils/themes.dart';
 import 'package:invan2/widgets/default_button.dart';
 
-import '../providers/ordering_provider_4.dart';
 
 class ContainsZeroPriceItemDialog extends StatefulWidget {
   final OrderingProvider4 provider;

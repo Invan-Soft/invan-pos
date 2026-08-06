@@ -10,7 +10,7 @@ import '../components/settings_submit_button.dart';
 import '../components/settings_switch.dart';
 
 class PaymeContent extends StatefulWidget {
-  const PaymeContent({Key? key}) : super(key: key);
+  const PaymeContent({super.key});
 
   @override
   State<PaymeContent> createState() => _PaymeContentState();

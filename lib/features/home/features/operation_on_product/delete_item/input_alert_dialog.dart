@@ -2,17 +2,12 @@
     @author Suxrob Sattorov, 12/9/2024, 12:10 PM
 */
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:provider/provider.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
-import '../../../../../app_navigation.dart';
 import '../../../../../utils/utils.dart';
 import '../../../../features.dart';
 import '../../../../hive_repository/hive_boxes.dart';
-import '../../../bloc/barcode_listener_bloc/bl_bloc.dart';
 
 class InputAlertDialog extends StatefulWidget {
   final ValueChanged<Employee> onValueEntered;

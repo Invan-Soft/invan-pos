@@ -11,7 +11,6 @@ import '../../../features/hive_repository/hive_boxes.dart';
 import '../../../features/home/features/home_orders/calculation_part/total_price_dialog/bloc/tp_bloc.dart';
 import '../../../widgets/my_snackbar.dart';
 import '../../components/form_validator.dart';
-import '../../providers/ordering_provider_4.dart';
 import 'bloc/get_mxik_from_soliq_bloc.dart';
 import 'model/created_product_model.dart';
 import 'model/from_soliq_model.dart';
@@ -413,16 +412,6 @@ class _CreateProductDialogState extends State<CreateProductDialog> {
                       height: SizeConfig.v * 6,
                       textColor: Colors.white,
                       disabledTextColor: Colors.white.withOpacity(.8),
-                      child: state is CreatToInvan2ProccesState
-                          ? const CircularProgressIndicator(
-                              color: Colors.white,
-                            )
-                          : Text(
-                              loc.saqlash,
-                              style: MyThemes.txtStyle(
-                                  fontSize: 2.2, color: Colors.white),
-                              textAlign: TextAlign.center,
-                            ),
                       onPressed: state is CreatToInvan2ProccesState
                           ? null
                           : () {
@@ -506,6 +495,16 @@ class _CreateProductDialogState extends State<CreateProductDialog> {
                           ),
                         );
                       },
+                      child: state is CreatToInvan2ProccesState
+                          ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                          : Text(
+                              loc.saqlash,
+                              style: MyThemes.txtStyle(
+                                  fontSize: 2.2, color: Colors.white),
+                              textAlign: TextAlign.center,
+                            ),
                     )
                   ],
                 ),

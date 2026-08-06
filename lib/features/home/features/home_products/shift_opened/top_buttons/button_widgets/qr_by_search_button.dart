@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class QrBySearchButton extends StatelessWidget {
   final VoidCallback onPressed;
-  const QrBySearchButton({required this.onPressed, Key? key}) : super(key: key);
+  const QrBySearchButton({required this.onPressed, super.key});
 
   @override
   Widget build(BuildContext context) {

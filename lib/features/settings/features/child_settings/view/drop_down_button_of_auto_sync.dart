@@ -5,7 +5,7 @@ import 'package:invan2/utils/utils.dart';
 import 'package:provider/provider.dart';
 
 class DropdownOfAutoSync extends StatefulWidget {
-  const DropdownOfAutoSync({Key? key}) : super(key: key);
+  const DropdownOfAutoSync({super.key});
 
   @override
   State<DropdownOfAutoSync> createState() => _DropdownOfAutoSyncState();

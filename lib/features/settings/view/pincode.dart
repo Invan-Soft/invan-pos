@@ -10,8 +10,7 @@ import 'package:pin_code_fields/pin_code_fields.dart';
 class PincodeWidgetOfSettingss extends StatefulWidget {
   final PinStatus status;
 
-  const PincodeWidgetOfSettingss({Key? key, required this.status})
-      : super(key: key);
+  const PincodeWidgetOfSettingss({super.key, required this.status});
 
   @override
   State<PincodeWidgetOfSettingss> createState() =>

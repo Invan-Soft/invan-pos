@@ -5,7 +5,7 @@ import 'package:invan2/utils/utils.dart';
 
 class Right extends StatefulWidget {
   final BuildContext homeContext;
-  const Right(this.homeContext, {Key? key}) : super(key: key);
+  const Right(this.homeContext, {super.key});
   @override
   RightState createState() => RightState();
 }

@@ -7,7 +7,7 @@ import 'package:invan2/utils/themes.dart';
 import 'package:provider/provider.dart';
 
 class LanguageDialog extends StatelessWidget {
-  const LanguageDialog({Key? key}) : super(key: key);
+  const LanguageDialog({super.key});
 
   @override
   Widget build(BuildContext context) {

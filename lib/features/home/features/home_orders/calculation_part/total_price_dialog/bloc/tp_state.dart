@@ -8,8 +8,8 @@ abstract class TpState {
 }
 
 class TpInitial extends TpState {
-  TpInitial({required TpStatus inputStatus, required bool isAllSelected})
-      : super(isSelectedAll: isAllSelected, inputStatus: inputStatus);
+  TpInitial({required super.inputStatus, required bool isAllSelected})
+      : super(isSelectedAll: isAllSelected);
 }
 
 class TpComletedState extends TpState {

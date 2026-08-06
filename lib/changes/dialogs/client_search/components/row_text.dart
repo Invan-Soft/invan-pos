@@ -4,7 +4,7 @@ import 'package:invan2/utils/themes.dart';
 class RowTextClintSearch extends StatelessWidget {
  final String str1;
  final String str2;
-  const RowTextClintSearch(this.str1,this.str2,   {Key? key}) : super(key: key);
+  const RowTextClintSearch(this.str1,this.str2,   {super.key});
 
   @override
   Widget build(BuildContext context) {

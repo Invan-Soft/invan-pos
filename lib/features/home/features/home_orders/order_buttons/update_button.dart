@@ -3,10 +3,10 @@ import 'package:invan2/utils/utils.dart';
 
 class UpdateButton extends StatelessWidget {
   const UpdateButton({
-    Key? key,
+    super.key,
     required this.isEnabled,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   final bool isEnabled;
   final VoidCallback onPressed;

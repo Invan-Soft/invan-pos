@@ -12,7 +12,6 @@ import 'package:invan2/utils/utils.dart';
 import 'package:provider/provider.dart';
 
 import '../../features/home/features/operation_on_product/delete_item/input_alert_dialog.dart';
-import 'ordering_provider_4.dart';
 
 class OperationOnProductProvider extends ChangeNotifier {
   OperationOnProductProvider({

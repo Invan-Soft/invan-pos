@@ -9,12 +9,12 @@ import '../model/model.dart';
 
 class ActivatePosPage extends StatelessWidget {
   const ActivatePosPage({
-    Key? key,
+    super.key,
     required this.token,
     required this.availablePosList,
     required this.selectedStore,
     required this.macAddress,
-  }) : super(key: key);
+  });
 
   final String token;
   final List<GetAvailablePosResponseData> availablePosList;

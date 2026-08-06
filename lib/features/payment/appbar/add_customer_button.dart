@@ -4,9 +4,9 @@ import 'package:invan2/utils/utils.dart';
 
 class AddCustomerButton extends StatelessWidget {
   const AddCustomerButton({
-    Key? key,
+    super.key,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   final VoidCallback onPressed;
 

@@ -3,9 +3,9 @@ import 'package:invan2/utils/utils.dart';
 
 class ReturnPageCard extends StatelessWidget {
   const ReturnPageCard({
-    Key? key,
+    super.key,
     required this.child,
-  }) : super(key: key);
+  });
 
   final Widget child;
 

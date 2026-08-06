@@ -7,9 +7,6 @@ import 'package:invan2/features/features.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/settings/bloc/settings_bloc.dart';
 import 'package:invan2/features/settings/features/child_settings/dialogs/before_log_out_dialog.dart';
-import 'package:invan2/features/settings/features/child_settings/view/double_receipt.dart';
-import 'package:invan2/features/settings/features/child_settings/view/drop_down_button_of_auto_sync.dart';
-import 'package:invan2/widgets/my_snackbar.dart';
 import '../../../../../changes/services/api.dart';
 import '../../../../../changes/services/api/result_http_model.dart';
 import '../../../../../changes/services/log_service.dart';
@@ -23,7 +20,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:invan2/features/dev_tools/upload_build_dialog.dart';
 
 class ChildSettingsContent extends StatefulWidget {
-  const ChildSettingsContent({Key? key}) : super(key: key);
+  const ChildSettingsContent({super.key});
 
   @override
   State<ChildSettingsContent> createState() => _ChildSettingsContentState();

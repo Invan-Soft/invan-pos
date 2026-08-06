@@ -17,7 +17,7 @@ import 'group_type_bloc/group_type_bloc.dart';
 
 // ignore: must_be_immutable
 class ClientCreateDialog extends StatefulWidget {
-  const ClientCreateDialog({Key? key}) : super(key: key);
+  const ClientCreateDialog({super.key});
 
   @override
   State<ClientCreateDialog> createState() => _ClientCreateDialogState();

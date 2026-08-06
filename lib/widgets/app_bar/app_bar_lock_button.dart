@@ -3,10 +3,10 @@ import 'package:invan2/utils/utils.dart';
 
 class AppBarLockButton extends StatelessWidget {
   const AppBarLockButton({
-    Key? key,
+    super.key,
     required this.onPress,
     required this.color,
-  }) : super(key: key);
+  });
 
   final VoidCallback onPress;
   final Color color;

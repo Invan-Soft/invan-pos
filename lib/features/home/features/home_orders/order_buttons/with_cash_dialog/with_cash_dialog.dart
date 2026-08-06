@@ -9,9 +9,9 @@ import 'package:provider/provider.dart';
 
 class WithCashDialog extends StatefulWidget {
   const WithCashDialog({
-    Key? key,
+    super.key,
     required this.totalPrice,
-  }) : super(key: key);
+  });
 
   final double totalPrice;
 

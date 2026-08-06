@@ -5,10 +5,10 @@ import 'package:invan2/utils/utils.dart';
 
 class ItemProductWhenEditing extends StatelessWidget {
   const ItemProductWhenEditing({
-    Key? key,
+    super.key,
     required this.product,
     required this.onDeletePressed,
-  }) : super(key: key);
+  });
 
   final ItemModel product;
 

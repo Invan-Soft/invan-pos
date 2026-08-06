@@ -3,12 +3,12 @@ import 'package:invan2/utils/utils.dart';
 
 class LeftSideItem extends StatelessWidget {
   const LeftSideItem({
-    Key? key,
+    super.key,
     required this.icon,
     required this.text,
     required this.isSelected,
     this.onPress,
-  }) : super(key: key);
+  });
 
   final IconData icon;
   final String text;

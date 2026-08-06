@@ -5,7 +5,7 @@ import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_
 import 'package:invan2/utils/utils.dart';
 
 class Right extends StatefulWidget {
-  const Right({Key? key}) : super(key: key);
+  const Right({super.key});
 
   @override
   State<Right> createState() => _RightState();

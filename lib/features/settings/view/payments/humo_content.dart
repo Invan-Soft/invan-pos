@@ -13,7 +13,7 @@ import 'package:invan2/utils/helpers/helpers.dart';
 import 'package:file/local.dart' as fl;
 
 class HumoContent extends StatefulWidget {
-  const HumoContent({Key? key}) : super(key: key);
+  const HumoContent({super.key});
 
   @override
   State<HumoContent> createState() => _HumoContentState();

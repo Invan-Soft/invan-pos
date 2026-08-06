@@ -8,8 +8,8 @@ import 'package:invan2/features/home/features/home_products/shift_opened/product
 
 class ContentOfVirtualKeyboardDialog extends StatefulWidget {
   const ContentOfVirtualKeyboardDialog({
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   @override
   State<ContentOfVirtualKeyboardDialog> createState() =>
