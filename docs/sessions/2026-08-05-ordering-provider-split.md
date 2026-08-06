@@ -192,21 +192,116 @@ Testlar 229 → **259**. `flutter analyze` 1012 → **1011**.
 
 ---
 
-## YAKUNIY NATIJA (Faza 0-4)
+- [x] **Blok + diskont test bo'shlig'i yopildi** (+9 test, commit 581d247)
+  → `test/discount_box_test.dart`
+  → Bo'shliq: ko'chgan diskont kodida blok mantiqi 11 joyda, lekin diskont
+    testlari dona hisobida, blok testlari esa diskontsiz edi
+  → **QAYD:** aralash savatda (blok+dona) BuyXGetX `perSetSize = buy × 2`
+    deb hisoblaydi, ya'ni `get == buy` deb faraz qiladi. `get != buy` da
+    (masalan 10+2) blok qatoriga chegirma TEGMAYDI. Refaktoringdan oldin
+    ham shunday edi (ayyubxon bilan bayt-ma-bayt solishtirildi)
 
-| | Boshlanish | Yakun |
+- [x] **FAZA 5 — TAHLIL QILINDI, KO'CHIRILMADI**
+  → Dastlabki baho "~1100 qator ko'chadi" edi — tahlil buni RAD ETDI:
+    `_markingCheck` 417 qator / 59 UI nuqtasi (dialog orkestratori),
+    guruh save/delete metodlari esa diskont oqimiga, `Pref` ga va savat
+    holatiga ulanib ketgan (`findFreeProducts`, `_showCount` ...)
+  → Ko'chirishga urinildi, yarim ishlaydigan kod qoldirmaslik uchun bekor
+    qilindi. Faqat reprice/manual-narx klasteri (137 qator) toza edi
+
+- [x] **FAZA 6.1 — chek yig'ish `ReceiptBuilder` ga** (commit 46d27a4)
+  → `lib/changes/domain/receipt/receipt_builder.dart` — `build()`
+  → **Chok kodning o'zida bor edi:** `pressPaymentButton` ikkita ish
+    qilardi va chegara `if (receiptModel4.payment.isNotEmpty && ...)`
+    qatorida — undan oldingisi sof yig'ish, keyingisi ObjectBox saqlash
+  → **TOPILMA:** `pressPaymentButton(BuildContext context)` da `context`
+    UMUMAN ishlatilmaydi, faqat imzoda turadi
+  → +26 test (`test/receipt_builder_test.dart`) — ilgari bu kodni testlab
+    bo'lmasdi (BuildContext + ObjectBox)
+  → 5096 → 4950
+
+- [x] **FAZA 6.2 — OFD cheki ham** `buildOnlyOfd()` (commit 73f6ca9)
+  → `build` bilan ATAYLAB birlashtirilmadi. Farqlari: terminal maydonlari
+    (cardType/cardNumber/pptId), `createdDate` UTC emas `now−5soat`,
+    chegirma normalizatsiyasida `price == onlyPrice` sharti, `isDonate`
+    Pref dan. Ikki pul yo'lini qo'shish xato manbai bo'lardi
+  → +9 test; 4950 → 4784
+
+- [x] **FAZA 6.3 — terminal xato dialogi ajratildi** (commit a5f8713)
+  → `lib/changes/dialogs/terminal_error_dialog.dart` (199 qator)
+  → U provider holatiga UMUMAN tegmasdi — sof UI edi
+  → **`type*` KO'CHIRILMADI:** typeUzcard(80/9 UI), typeHumo(106/9),
+    typeClick(61/12), typePaynet(59/10), typeUzum(47/9),
+    typeFromCashbackBalance(43/10), typePayme(37/9) — ular dialog
+    orkestratorlari va BLoC dispatcherlari, biznes mantiq emas
+  → 4784 → 4585
+
+- [x] **FAZA 7 — skaner kodi tasnifi `BarcodeClassifier` ga** (commit ba4e334)
+  → `lib/changes/domain/barcode/barcode_classifier.dart`
+  → `sanitize()`, `classify()` → `ScannedCodeKind`, `parseExpiry()`, `isExpired()`
+  → **TARTIB MUHIM:** bo'sh → URL → `isMarkingDialogDisplaying` → UUID →
+    utsenka QR → erkin matn → raqamsiz → tarozi(kilo) → tarozi(dona) →
+    mahsulot. `isMarkingDialogDisplaying` klassifikatorga kirmadi (dialog
+    holati), lekin ASL JOYIDA qoldi — boshqa joyga qo'yilsa markirovka
+    dialogi ochiqligida tarozi kodi ishlanib ketardi (bu xato yo'l qo'yildi
+    va commitdan oldin tuzatildi)
+  → **`switch` emas `if`-zanjiri:** switch Dart'ning BuildContext oqim
+    tahlilini o'zgartirib 4 ta yangi ogohlantirish chiqargan edi
+  → +41 test; 4585 → 4549
+
+## YAKUNIY NATIJA (Faza 0-7)
+
+| | Boshlanish | Hozir |
 |---|---|---|
-| `ordering_provider_4.dart` | 5868 | **5096** (−772, 13%) |
-| Testlar | 85 (+1 yiqiladigan) | **259** |
-| `flutter analyze` | 1018 | **1011** |
+| `ordering_provider_4.dart` | 5868 | **4549** (−1319, 22%) |
+| `shift_singleton_4.dart` | 85 478 | **500** |
+| Testlar | 85 (+1 yiqiladigan) | **344** |
+| `flutter analyze` | 1018 | **1010** |
 | `lib/features/` | — | **hech qachon tegilmagan** |
 
-## Keyingi qadamlar (alohida reja kerak)
+### Yaratilgan modullar (7 ta)
 
-- [ ] Faza 5 — markirovka/blok (~1100 qator). Qisman qoplangan
-      (`mark_block_manual_price_test`, `box_*_test`), lekin `_markingCheck`
-      va `_addBoxProduct` uchun qo'shimcha test kerak
-- [ ] Faza 6 — to'lov ijrosi (~1200 qator, eng xavfli: tarmoq + fiskal)
+```
+lib/changes/domain/
+├── marking/mark_cleaner.dart        scanTime, forFiscal
+├── marking/mxik_rules.dart          MXIK → markirovka/product_type
+├── marking/gs1.dart                 parseDate
+├── terminal/terminal_receipt_parser.dart
+├── receipt/receipt_builder.dart     build, buildOnlyOfd
+└── barcode/barcode_classifier.dart  sanitize, classify, parseExpiry
+lib/changes/providers/ordering/
+├── catalog_navigation_controller.dart
+├── payment_tally_controller.dart
+└── discount_effects_controller.dart
+lib/changes/dialogs/terminal_error_dialog.dart
+```
+
+## DO'KON SINOVI (2026-08-06)
+
+Foydalanuvchi real kassada sinab, **ishlashini tasdiqladi**:
+mahsulot qo'shish, markirovka, blok, smena, diskontlar, **to'lov**
+(karta/terminal, naqd+sdacha, aralash to'lov, chekdagi mijoz nomi).
+
+Faza 7 (skaner tasnifi) sinovdan KEYIN qo'shilgan — u hali sinalmagan.
+
+## Keyingi qadamlar
+
+**Maqsad: 4000 qator** (foydalanuvchi so'ragan), keyin yana sinov.
+Hozir 4549 → **−549 qator kerak**.
+
+Qolgan yirik zonalarning HAMMASI bir turdagi: dialog va mantiq o'ralashgan.
+
+| Zona | Qator | UI nuqtalari |
+|---|---|---|
+| `type*` (7 metod) | 460 | 68 |
+| `_markingCheck` | 417 | 59 |
+| `addSeperatedProduct` | 231 | 22 |
+| `addProduct` | 196 | 15 |
+
+Ularni ajratish uchun har bir metodni ikkiga bo'lish kerak: "nima qilish
+kerakligini hal qiladi" (testlanadi) va "dialogni ko'rsatadi" (UI).
+Bu `lib/features/` ga tegishni talab qilishi mumkin — ya'ni hozirgacha
+saqlangan "UI ga tegmaslik" qoidasi tugaydi.
 
 ## Qabul qilingan qarorlar
 
@@ -227,6 +322,25 @@ Testlar 229 → **259**. `flutter analyze` 1012 → **1011**.
   to'g'ridan-to'g'ri `orderedProducts` ga qo'shadi. Bu mavjud testlardagi
   naqsh, o'zgartirilmadi.
 
+## YANGI CHAT UCHUN: qayerdan davom etish
+
+1. Branch: `refactor/ordering-split` (ayyubxon'dan, hali merge qilinmagan)
+2. `flutter test` -> 344/344 yashil bo'lishi kerak (bazaviy holat)
+3. Shu hujjatning "Keyingi qadamlar" bo'limidan davom et
+4. **Xavfsizlik qoidalari (yuqorida)** hali ham kuchda — ayniqsa:
+   fasad, notify-callback, bitta commitda bitta narsa, bug topilsa
+   tuzatilmaydi (qayd etiladi)
+5. Har faza tartibi: **avval test yoz -> keyin ko'chir -> tekshir -> commit**
+   (Faza 4 va 6 shu tartibda ishladi; Faza 4 da testlar real crash ushladi)
+
+Tekshirish buyruqlari:
+```
+flutter test                              # 344/344
+flutter analyze                           # 1010 dan oshmasin
+git status --porcelain -- lib/features/   # bo'sh bo'lishi shart
+wc -l lib/changes/providers/ordering_provider_4.dart
+```
+
 ## Qayd etilgan xatti-harakatlar (4-qoida — tuzatilmadi)
 
 - `DiscountHelpers._productPercentage` / `_productNumeric`: `singleDiscount`
@@ -241,6 +355,16 @@ Testlar 229 → **259**. `flutter analyze` 1012 → **1011**.
   cheklarni o'chiradi. Chaqiruvda ham `to: DateTime.now().millisecond`
   (millisekund, `millisecondsSinceEpoch` emas). Bu task doirasidan tashqari,
   lekin qayd etib qo'yildi.
+
+- **BuyXGetX aralash savatda (blok+dona):** `perSetSize = buyAmount × 2`,
+  ya'ni `get == buy` deb faraz qilinadi. `get != buy` bo'lsa (10 olsang 2
+  tekin) blok qatoriga chegirma tegmaydi.
+  `test/discount_box_test.dart` — "QAYD: get != buy ..."
+
+- **`Gs1.parseDate` oy/kun chegarasini tekshirmaydi:** `(17)999999` uchun
+  `DateTime(1999,99,99)` Dart tomonidan normallashadi -> 2007-06-07
+  (null emas). Amalda xavfsiz tomonga xato.
+  `test/barcode_classifier_test.dart` — "QAYD: chegaradan oshgan sana ..."
 
 ## Test / Verifikatsiya
 
