@@ -21,6 +21,7 @@ import 'package:invan2/changes/dialogs/payme_dialog.dart';
 import 'package:invan2/changes/providers/ordering/discount_effects_controller.dart';
 import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.dart';
 import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
+import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
 import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
 import 'package:invan2/changes/domain/marking/mxik_rules.dart';
@@ -2919,171 +2920,24 @@ ${productLines.toString().trim()}
       _zdachaToCashBack = 0;
     }
 
-    ClientModel? xClient = _sixClientModel4.selectedClient;
-    String clientPhone = xClient == null ? "" : xClient.phoneNumber!;
-    String clientId = xClient == null ? "" : xClient.id!;
-    //---------------------------------------------------------------------
-    double clientDiscountVat = xClient == null ? 0 : xClient.discountValue!;
-    String clientDiscountID = xClient == null
-        ? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd"
-        : xClient.discountId ?? "9a2aa8fe-806e-44d7-8c9d-575fa67ebefd";
-    String? clientName = xClient?.firstName ?? "";
-
-    // Supplier tanlangan bo'lsa, uning nomi chekda "Klient" o'rnida
-    // ko'rsatiladi (faqat lokal — clientName API'ga yuborilmaydi,
-    // client_id o'zgarmaydi, shuning uchun order_pos xato bermaydi).
-    if (_selectedSupplier != null) {
-      clientName = _selectedSupplier!.supplierCompanyName.isNotEmpty
-          ? _selectedSupplier!.supplierCompanyName
-          : _selectedSupplier!.name;
-    }
-
-    if (DiscountTypeStatus.disTypeStatus == TpStatus.summa) {
-      double totalPrice =
-          ItemsSingleton.getTotalPrice(getCurrentClient.orderedProducts);
-      clientDiscountID = "9fb3ada6-a73b-4b81-9295-5c1605e54552";
-      clientDiscountVat = DiscountTypeStatus.summa - totalPrice;
-    } else if (DiscountTypeStatus.disTypeStatus == TpStatus.discount) {
-      if (_currentClient.discountPercent != null &&
-          _currentClient.discountPercent != 0) {
-        clientDiscountID = "1fe92aa8-2a61-4bf1-b907-182b497584ad";
-        clientDiscountVat = _currentClient.discountPercent!;
-      }
-    }
-    DiscountTypeStatus.disTypeStatus = TpStatus.discount;
-
-    double allDiscountVat = clientDiscountVat;
-    String allDiscountID = clientDiscountID;
-    //-----------     PREFS -----------------------------------------------
-    final cashierId = Pref.getString(PrefKeys.cashierId, "not initialized");
-    final cashierName = Pref.getString(PrefKeys.cashierName, "not initialized");
-    final posName = Pref.getString(PrefKeys.posName, "not initialized");
-    // ignore: unused_local_variable
-    final donate = Pref.getDonate('donate', false);
-    String supplierId = _selectedSupplier?.id ?? "";
-    //-------------------------------------------------------
-    // Kassir xizmat vaqti: sotuv boshlanishi (savatga birinchi mahsulot
-    // qo'shilgan payt) shu yerda "olinadi" (slot tozalanadi) va yopilish
-    // vaqti hozir belgilanadi — order_pos body'siga "order_time" bo'lib ketadi.
-    final DateTime? serviceStartedAt = CashierServiceTimeService.instance
-        .takeStartedTime(_sixClientModel4.clientNumber);
-    final DateTime serviceClosedAt = DateTime.now();
-    final String serviceStartedTimeStr = serviceStartedAt != null
-        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceStartedAt.toUtc())
-        : "";
-    final String serviceClosedTimeStr =
-        DateFormat('yyyy-MM-dd HH:mm:ss').format(serviceClosedAt.toUtc());
-    final int serviceDurationSecondsVal = serviceStartedAt != null
-        ? serviceClosedAt.difference(serviceStartedAt).inSeconds
-        : 0;
-    final receiptModel4 = ReceiptModel4(
-      newid: clientId,
-      zdachiToCashback: _zdachaToCashBack,
-      clientPhone: clientPhone,
-      cashierId: cashierId,
-      supplierId: supplierId,
-      cashierName: cashierName,
-      date: DateTime.now().millisecondsSinceEpoch,
-      isRefund: false,
-      externalId: "",
-      createdDate:
-          DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()),
-      totalPrice: _totalPrice + 0,
-      discountVat: double.parse(allDiscountVat.round().toStringAsFixed(1)),
-      discountID: allDiscountID,
-      uploaded: false,
-      rejected: false,
-      clientName: clientName,
-      clientId: clientId,
-      cashback: _fromPointBalance.round(),
+    // Chek yig'ish `ReceiptBuilder` ga ko'chirildi (2026-08-06).
+    // Saqlash (toOBJECTBOX) va tozalash quyida, providerda qoladi —
+    // chegara asl kodda ham aynan shu joyda edi.
+    final receiptModel4 = ReceiptBuilder.build(
+      sixClient: _sixClientModel4,
+      selectedSupplier: _selectedSupplier,
+      currentClientDiscountPercent: _currentClient.discountPercent,
+      currentCart: getCurrentClient.orderedProducts,
+      totalPrice: _totalPrice,
+      zdachaToCashBack: _zdachaToCashBack,
       sdacha: _sdachaa,
-      returnForCheck: "",
-      posName: posName,
-      isDonate: true,
-      cashboxId: Pref.getString(PrefKeys.activatedPosId, ""),
-      orderId: "",
-      orderType: "sale",
-      comment: _comments,
-      isShow: _showComments,
-      shopId: Pref.getString(PrefKeys.storeId, ""),
-      userId: Pref.getString(PrefKeys.userId, ""),
-      serviceStartedTime: serviceStartedTimeStr,
-      serviceClosedTime: serviceClosedTimeStr,
-      serviceDurationSeconds: serviceDurationSecondsVal,
+      fromPointBalance: _fromPointBalance,
+      comments: _comments,
+      showComments: _showComments,
+      payments: paymentsMapAsList,
+      orphanDeletedItems: _orphanDeletedItems,
+      isTpEdited: isTpEdited,
     );
-    receiptModel4.payment.addAll(paymentsMapAsList);
-    receiptModel4.hasDept =
-        paymentsMapAsList.any((p) => p.name.toLowerCase() == 'debt');
-    // Red-delete rejimida o'chirilgan (isDeleted=true) mahsulotlar listda qoladi,
-    // lekin kassir totali (getTotalPrice) ularni hisobga olmaydi. Shuning uchun
-    // ularni fiskal/server/qog'oz chekka ham yubormaymiz — aks holda OFD 10.2.1
-    // tenglamasi buziladi (items jami ≠ to'langan summa).
-    receiptModel4.soldItemList.addAll(
-      _sixClientModel4.orderedProducts.where((p) => !(p.isDeleted ?? false)),
-    );
-
-    // Savat sessiyasida o'chirilgan mahsulotlar chekka biriktiriladi —
-    // order_pos "deleted_items" massivida serverga ketadi. Slot o'chirilganda
-    // saqlab qolinganlar ("-" belgili, egasiz) ham shu chek bilan ketadi.
-    receiptModel4.deletedItemsJson = jsonEncode(
-      [..._orphanDeletedItems, ..._sixClientModel4.deletedItems]
-          .map((e) => e.toJson())
-          .toList(),
-    );
-
-    for (var item in receiptModel4.soldItemList) {
-      if (item.mark != null && item.mark!.isNotEmpty) {
-        item.mark = cleanMarkForFiscal(item.mark!);
-      }
-    }
-    //-------------------------------------------------------------------------
-    bool isChanged = false;
-    if (!isTpEdited) {
-      isChanged = true;
-    } else {
-      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
-        if (receiptModel4.soldItemList[i].isPriceOnlyChanged ||
-            receiptModel4.soldItemList[i].isPriceChanged) {
-          isChanged = true;
-          break;
-        }
-      }
-    }
-    if (isChanged) {
-      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
-        double discountSingle =
-            receiptModel4.soldItemList[i].discount.isNotEmpty
-                ? receiptModel4.soldItemList[i].discount.first.total
-                : 0;
-
-        if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
-          if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
-            receiptModel4.soldItemList[i].singleDiscount =
-                double.parse(discountSingle.round().toStringAsFixed(1));
-          } else {
-            receiptModel4.soldItemList[i].singleDiscount =
-                double.parse(discountSingle.round().toStringAsFixed(1));
-          }
-        }
-      }
-      receiptModel4.discountVat = 0;
-    } else {
-      for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
-        double discountSingle =
-            receiptModel4.soldItemList[i].discount.isNotEmpty
-                ? receiptModel4.soldItemList[i].discount.first.total
-                : 0;
-
-        if (receiptModel4.soldItemList[i].discount.isNotEmpty) {
-          if (receiptModel4.soldItemList[i].discount.first.name == 'single') {
-            receiptModel4.soldItemList[i].singleDiscount =
-                double.parse(discountSingle.round().toStringAsFixed(1));
-          }
-        }
-      }
-    }
-    receiptModel4.discountVat =
-        double.parse(receiptModel4.discountVat.round().toStringAsFixed(1));
     if (receiptModel4.payment.isNotEmpty &&
         receiptModel4.soldItemList.isNotEmpty) {
       await ReceiptSingleton4.toOBJECTBOX(
