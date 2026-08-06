@@ -21,6 +21,7 @@ import 'package:invan2/changes/dialogs/payme_dialog.dart';
 import 'package:invan2/changes/providers/ordering/discount_effects_controller.dart';
 import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.dart';
 import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
+import 'package:invan2/changes/domain/barcode/barcode_classifier.dart';
 import 'package:invan2/changes/dialogs/terminal_error_dialog.dart';
 import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
@@ -4140,37 +4141,32 @@ ${productLines.toString().trim()}
     // 63233 = U+F701). Private-use (0xE000-0xF8FF) belgilarni olib
     // tashlaymiz — ular hech qachon haqiqiy barcode qismi emas. Aks holda
     // aniq/nol-farqli qidiruv mos kelmay mahsulot "topilmadi" bo'lardi.
-    barcode = String.fromCharCodes(
-      barcode.codeUnits.where((c) => c < 0xE000 || c > 0xF8FF),
-    ).trim();
-    if (barcode.isEmpty) {
-      return;
-    }
+    barcode = BarcodeClassifier.sanitize(barcode);
 
-    // URL'larni qat'iy rad qilish (http/https/ftp/www/tel/mailto, yoki :// borligi)
-    final lowerTrim = barcode.trim().toLowerCase();
-    if (lowerTrim.startsWith('http') ||
-        lowerTrim.startsWith('ftp') ||
-        lowerTrim.startsWith('www.') ||
-        lowerTrim.startsWith('tel:') ||
-        lowerTrim.startsWith('mailto:') ||
-        lowerTrim.contains('://')) {
+    // Skaner kodining turi `BarcodeClassifier` da aniqlanadi (2026-08-06).
+    // Tekshiruvlar tartibi asl koddagidek — u yerda tartib muhim edi.
+    final kind = BarcodeClassifier.classify(
+      barcode,
+      taroziPrefix: Pref.getInt(PrefKeys.taroziPrefix, 28),
+      taroziPiecePrefix: Pref.getInt(PrefKeys.taroziPiecePrefix, 21),
+    );
+
+    // ASL TARTIB SAQLANADI: bo'sh -> URL -> isMarkingDialogDisplaying ->
+    // UUID -> utsenka -> erkin matn -> raqamsiz -> tarozi -> mahsulot.
+    // `switch` emas, `if`-zanjiri — asl kod shakli (analizatorning
+    // BuildContext oqim tahlili ham o'zgarmasligi uchun).
+    if (kind == ScannedCodeKind.empty) return;
+
+    if (kind == ScannedCodeKind.url) {
       await _showInvalidFormatBarcodeDialog();
       return;
     }
 
-    if (isMarkingDialogDisplaying) {
-      return;
-    }
+    if (isMarkingDialogDisplaying) return;
 
-    // UUID formatdagi QR kodlar (masalan, PayNet OTP) product emas
-    if (RegExp(
-            r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
-        .hasMatch(barcode)) {
-      return;
-    }
+    if (kind == ScannedCodeKind.uuid) return;
 
-    if (barcode.trimLeft().startsWith('{')) {
+    if (kind == ScannedCodeKind.utsenkaQr) {
       final utsenkaItem = _parseUtsenkaQr(barcode);
       if (utsenkaItem != null) {
         _currentClient.orderedProducts.insert(0, utsenkaItem);
@@ -4181,29 +4177,18 @@ ${productLines.toString().trim()}
       return;
     }
 
-    // Erkin matn (kompaniya manzili, telefon, izoh va h.k.) — bo'sh joy yoki yangi qator
-    // bo'lsa, bu product barcode emas. Aks holda matndan tasodifan raqam ajratib olib,
-    // SKU bo'yicha noto'g'ri mahsulot topib qo'shilib qoladi.
-    if (RegExp(r'\s').hasMatch(barcode.trim())) {
+    if (kind == ScannedCodeKind.freeText ||
+        kind == ScannedCodeKind.noDigits) {
       await _showInvalidFormatBarcodeDialog();
       return;
     }
 
-    // Haqiqiy product barcode/SKU har doim kamida bitta raqam tutadi.
-    // Faqat harflar bo'lsa — bu matn yoki noto'g'ri input.
-    if (!RegExp(r'\d').hasMatch(barcode)) {
-      await _showInvalidFormatBarcodeDialog();
-      return;
-    }
-
-    int taroziPrefix = Pref.getInt(PrefKeys.taroziPrefix, 28);
-    if (barcode.startsWith('$taroziPrefix') && barcode.length == 13) {
+    if (kind == ScannedCodeKind.weightItem) {
       scanWeightItem(barcode, scaffoldKey);
       return;
     }
 
-    int taroziPiecePrefix = Pref.getInt(PrefKeys.taroziPiecePrefix, 21);
-    if (barcode.startsWith('$taroziPiecePrefix') && barcode.length == 13) {
+    if (kind == ScannedCodeKind.pieceItem) {
       scanPieceItem(barcode, scaffoldKey);
       return;
     }
@@ -4211,28 +4196,7 @@ ${productLines.toString().trim()}
     String pattern = barcode;
     ItemModel? item;
 
-    DateTime? expiryDate;
-
-    final ai17Match = RegExp(r'\(17\)(\d{6})').firstMatch(barcode);
-    if (ai17Match != null) expiryDate = _parseGS1Date(ai17Match.group(1)!);
-
-    // Qavsiz: 01(14 raqam) dan keyin kelgan AI larni parse qilish
-    if (expiryDate == null && barcode.startsWith('01') && barcode.length > 16) {
-      final rest = barcode.substring(16); // "1726032510BATCH123..."
-      final ai17 = RegExp(r'^17(\d{6})').firstMatch(rest);
-      if (ai17 != null) expiryDate = _parseGS1Date(ai17.group(1)!);
-
-      if (expiryDate == null) {
-        final ai15 = RegExp(r'^15(\d{6})').firstMatch(rest);
-        if (ai15 != null) expiryDate = _parseGS1Date(ai15.group(1)!);
-      }
-    }
-
-    // Qavsli AI 15
-    if (expiryDate == null) {
-      final ai15Match = RegExp(r'\(15\)(\d{6})').firstMatch(barcode);
-      if (ai15Match != null) expiryDate = _parseGS1Date(ai15Match.group(1)!);
-    }
+    final DateTime? expiryDate = BarcodeClassifier.parseExpiry(barcode);
 
     if (expiryDate != null) {
       final today = DateTime(
