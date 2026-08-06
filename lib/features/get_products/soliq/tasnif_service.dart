@@ -19,7 +19,7 @@ class TasnifService {
       http.Response response = await http.get(Uri.parse(url));
       await LogHelper.logRequest(method: "Get", path: url, statusCode: response.statusCode,response: response.body);
 
-      alice?.onHttpResponse(response);
+      alice.onHttpResponse(response);
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       }

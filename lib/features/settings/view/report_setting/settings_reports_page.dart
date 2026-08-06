@@ -76,7 +76,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
     SettingsBloc settingsBloc = BlocProvider.of(context);
     String? markingLastUpdated = Pref.getString('markingLastUpdated', '');
     final String? markingSubtitle =
-        (markingLastUpdated != null && markingLastUpdated.isNotEmpty)
+        (markingLastUpdated.isNotEmpty)
             ? (loc.ha.toLowerCase() == 'ha'
                 ? "Oxirgi yangilanish: $markingLastUpdated"
                 : "Последнее обновление: $markingLastUpdated")

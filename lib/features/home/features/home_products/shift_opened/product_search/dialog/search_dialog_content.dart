@@ -50,7 +50,7 @@ class SearchDialogContentState extends State<SearchDialogContent> {
   }
 
   List<ItemModel> _getCurrentResults() {
-    final text = sdBloc.state.controller?.text ?? '';
+    final text = sdBloc.state.controller.text ?? '';
     switch (sdBloc.searchTypeEnum) {
       case SearchTypeEnum.option:
         return ItemsSingleton.search(text);
