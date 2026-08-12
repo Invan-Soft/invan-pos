@@ -1,4 +1,9 @@
 {
+    // "Failed to save: The content of the file is newer" xatosining oldini
+    // oladi. Sabab: tab saqlanmagan holda kunlab ochiq qoladi, orada fayl
+    // diskda o'zgaradi (dart fix, git checkout, boshqa vosita) va bufer
+    // eskirib qoladi. Avto-saqlash bilan bufer diskdan uzoqlashmaydi.
+    "files.autoSave": "onFocusChange",
     "cmake.sourceDirectory": "${workspaceFolder}/windows/runner",
     "cSpell.words": [
         "Cupertino",

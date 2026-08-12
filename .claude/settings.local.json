@@ -157,7 +157,15 @@
       "Bash(awk 'match\\($0,/[^ ]/\\) && RSTART>16 {c++} END{print \"16+ indent:\",c}' lib/changes/providers/ordering_provider_4.dart)",
       "Bash(awk '/^  [A-Za-z_<>\\\\[\\\\], ?]+ _?[a-zA-Z0-9_]+\\\\\\(.*/ {if\\(name!=\"\"\\) print len, name; name=$0; len=0} {len++} END{if\\(name!=\"\"\\)print len,name}' lib/changes/providers/ordering_provider_4.dart)",
       "Bash(grep -vE \"^\\\\[ACTIVITY\\\\]|^-----|^ *$|✨\")",
-      "Bash(grep -vE \"^\\\\[ACTIVITY\\\\]|^----|✨|^ *$\")"
+      "Bash(grep -vE \"^\\\\[ACTIVITY\\\\]|^----|✨|^ *$\")",
+      "Bash(flutter create *)",
+      "Bash(cd ~/Documents/bluebook_example && mkdir -p docs/sessions lib/core/theme lib/core/router lib/features/auth lib/features/home lib/features/exam/widgets lib/features/exam/tools lib/data/models lib/data/mock assets/screenshots && ls lib)",
+      "Bash(cp lib/changes/providers/ordering_provider_4.dart \"/private/tmp/claude-501/-Users-ayyubxon-Documents-pos-invan-2-ayyubxon/ccc3e9b9-6169-4201-a466-95b860cd0c1f/scratchpad/ordering_provider_4.DISK-BACKUP.dart\" && ls -l \"/private/tmp/claude-501/-Users-ayyubxon-Documents-pos-invan-2-ayyubxon/ccc3e9b9-6169-4201-a466-95b860cd0c1f/scratchpad/ordering_provider_4.DISK-BACKUP.dart\")"
+    ],
+    "additionalDirectories": [
+      "/Users/ayyubxon/Documents/bluebook_example/docs/sessions",
+      "/Users/ayyubxon/Documents/bluebook_example",
+      "/Users/ayyubxon/Documents/pos-invan-2-ayyubxon/lib/changes/providers"
     ]
   }
 }
