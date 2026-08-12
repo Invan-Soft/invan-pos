@@ -123,7 +123,7 @@ class OperationOnProductProvider extends ChangeNotifier {
 
   void increaseQuantity(int n) {
     _cancelSelectedAll();
-    if (target.marking && Pref.getBool(PrefKeys.markCheckWithOfd, false)) return;
+    if (target.marking && OfdAdminSetting.isEnabled) return;
     // Blok qatori qty'sini oshirib bo'lmaydi — yangi blok skanerlanishi kerak
     if (target.saleType == 2) return;
 
@@ -462,7 +462,7 @@ class OperationOnProductProvider extends ChangeNotifier {
       return;
     }
 
-    if (target.marking && Pref.getBool(PrefKeys.markCheckWithOfd, false)) {
+    if (target.marking && OfdAdminSetting.isEnabled) {
       return;
     }
     // Blok qatori qty'si klaviaturadan o'zgartirilmaydi (narxi blok bo'yicha)

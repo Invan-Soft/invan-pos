@@ -63,13 +63,15 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
     switchClient = Pref.getBool('switchClients', true);
     switchProductName = Pref.getBool('switchProductName', true);
     validation_onkm = Pref.getBool('validation_onkm', true);
-    sellProductsWithMarking = Pref.getBool(PrefKeys.sellProductsWithMarking, true);
+    // Adminkada OFD o'chirilgan bo'lsa avto-aniqlash ham o'chiq va qulflangan
+    sellProductsWithMarking = MarkingSettingHelper.isAutoDetectEnabled;
     transfer = Pref.getBool(PrefKeys.transfer, false);
     preCheck = Pref.getBool(PrefKeys.preCheck, false);
     ofd = Pref.getBool(PrefKeys.withOFD, false);
 
     switchMarking = Pref.getBool('switchMarking', false);
-    checkProductByCashsale = Pref.getBool('checkProductByCashsale', true);
+    // Adminkada OFD o'chirilgan bo'lsa cheklov ham o'chiq va qulflangan bo'ladi
+    checkProductByCashsale = CashsaleSettingHelper.isEnabled;
     showInvoiceButton = Pref.getBool('showInvoiceButton', false);
 
     AppLocalizations loc = AppLocalizations.of(context)!;
@@ -173,6 +175,12 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                 onTap: () {},
                 title: loc.ha == 'Ha' ? "Avto markirovkani aniqlash" : "Автоматическое определение маркировки",
                 activ: sellProductsWithMarking,
+                enabled: MarkingSettingHelper.isEditable,
+                subtitle: MarkingSettingHelper.isEditable
+                    ? null
+                    : (loc.ha == 'Ha'
+                        ? "Adminkada OFD o'chirilgan — sozlamani faqat adminkadan yoqish mumkin"
+                        : "ОФД отключён в админке — включить можно только из админки"),
               ),
               // SwitchTileOfReportPage(
               //   subtitle: markingSubtitle,
@@ -232,7 +240,7 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
               ),
               SwitchTileOfReportPage(
                 onChanged: (v) {
-                  Pref.setBool('checkProductByCashsale', v);
+                  Pref.setBool(PrefKeys.checkProductByCashsale, v);
                   Provider.of<OrderingProvider4>(context, listen: false)
                       .resetCashRestrictionWarnings();
                   setState(() {});
@@ -240,6 +248,12 @@ class _SettingsReportPageState extends State<SettingsReportPage> {
                 onTap: () {},
                 title: loc.ha == 'Ha' ? "Mahsulotning naqd to'lov cheklovini tekshirish" : "Проверка ограничения наличной оплаты товара",
                 activ: checkProductByCashsale,
+                enabled: CashsaleSettingHelper.isEditable,
+                subtitle: CashsaleSettingHelper.isEditable
+                    ? null
+                    : (loc.ha == 'Ha'
+                        ? "Adminkada OFD o'chirilgan — sozlamani faqat adminkadan yoqish mumkin"
+                        : "ОФД отключён в админке — включить можно только из админки"),
               ),
 
               !Pref.getBool(PrefKeys.withOFD, false)

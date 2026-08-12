@@ -1,22 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:invan2/changes/components/logo_widget.dart';
 
 import '../../../app_navigation.dart';
-import '../../../changes/services/web_socket_service/category/categories_ws_service.dart';
-import '../../../changes/services/web_socket_service/discount/discount_ws_service.dart';
-import '../../../changes/services/web_socket_service/product/products_ws_service.dart';
+import '../../../changes/services/sync/catch_up_sync.dart';
 import '../../../utils/utils.dart';
 import '../../features.dart';
 import '../bloc/home_bloc/home_bloc.dart';
-
-DateTime previousDay = DateFormat('yyyy-MM-dd HH:mm:ss').parseUtc(
-    Pref.getString(PrefKeys.lastSyncDate, DateTime.now().toUtc().toString()));
-
-String lastTimeForDisAndCat =
-    DateFormat('yyyy-MM-dd HH:mm:ss').format(previousDay);
 
 class SyncButtonHome extends StatefulWidget {
   const SyncButtonHome({
@@ -61,26 +52,11 @@ class _SyncButtonHomeState extends State<SyncButtonHome> {
               onPressed: () async {
                 AppNavigation.pop();
                 _showLoadingDialog(loc);
-                String endTime = DateFormat('yyyy-MM-dd HH:mm:ss')
-                    .format(DateTime.now().toUtc());
                 if (mounted) {
-                  await CategoriesWsService.getReceivedWS(
-                      mounted, context, lastTimeForDisAndCat, endTime);
-                  await ProductsWsService.getReceivedWS(
-                      mounted, context, lastTimeForDisAndCat, endTime);
-                  await DiscountWsService.getReceivedWS(
-                      mounted, context, lastTimeForDisAndCat, endTime);
-
-                  DateTime endTimer =
-                      DateFormat('yyyy-MM-dd HH:mm:ss').parseUtc(endTime);
-
-                  lastTimeForDisAndCat =
-                      DateFormat('yyyy-MM-dd HH:mm:ss').format(endTimer);
-
-                  int endTimeMillis = endTimer.millisecondsSinceEpoch;
-                  await Pref.setInt(PrefKeys.lastSyncTime, endTimeMillis);
-                  await Pref.setString(
-                      PrefKeys.lastSyncDate, lastTimeForDisAndCat);
+                  // Oyna hisobi CatchUpSync ichida — kursordan hozirgacha
+                  // bo'lgan hamma narsa olinadi.
+                  await CatchUpSync.run(context, mounted,
+                      reason: 'manual', force: true);
 
                   AppNavigation.pop();
                   homeBloc.add(HomeSyncEvent());

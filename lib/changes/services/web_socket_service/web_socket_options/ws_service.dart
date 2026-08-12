@@ -11,7 +11,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/status.dart' as status;
 
@@ -21,8 +20,7 @@ import '../../../../features/get_products/singletons/items_singleton.dart';
 import '../../../../features/lock/access_level/view/access_level_page.dart';
 import '../../../../utils/utils.dart';
 import '../../../models/product/item_model.dart';
-import '../category/categories_ws_service.dart';
-import '../discount/discount_ws_service.dart';
+import '../../sync/catch_up_sync.dart';
 import '../product/model/product_price_edit_response.dart';
 import '../product/products_ws_service.dart';
 import '../urls/urls.dart';
@@ -36,10 +34,10 @@ class WsService {
   static StreamSubscription? _connectivitySubscription;
   static Timer? _pingTimer;
 
-  static String startTime =
-      DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc());
-  static String endTime =
-      DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc());
+  // Sinxron oynasi bu yerda hisoblanmaydi — u SyncCursor'da turadi
+  // (lib/changes/services/sync/sync_cursor.dart). Ilgari bu static
+  // maydonlar ilova ishga tushgan paytga initsializatsiya bo'lib qolar,
+  // natijada catch-up oynasi deyarli nolga teng bo'lardi.
 
   /// WebSocket ulanishini boshlash
   static Future<void> connectWebSocket(
@@ -110,21 +108,14 @@ class WsService {
         connectTimeout: const Duration(seconds: 10),
       );
       if (channel != null) {
-        endTime =
-            DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc());
-
         if (kDebugMode) {
           print("✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ - WebSocket Success - ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅");
-          print("Start time --> $startTime");
-          print("End time --> $endTime");
         }
 
-        await CategoriesWsService.getReceivedWS(
-            mounted, context, startTime, endTime);
-        await ProductsWsService.getReceivedWS(
-            mounted, context, startTime, endTime);
-        await DiscountWsService.getReceivedWS(
-            mounted, context, startTime, endTime);
+        // Ulanish uzilgan davrda o'tkazib yuborilgan xabarlar shu yerda
+        // yetib olinadi (kursor bo'yicha, ulanish vaqtidan emas).
+        await CatchUpSync.run(context, mounted,
+            reason: 'ws-connect', force: true);
 
         if (kDebugMode) {
           print("✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅ - WebSocket Success - ✅✅✅✅✅✅✅✅✅✅✅✅✅✅✅");
@@ -221,8 +212,6 @@ class WsService {
                   "🔴 WebSocket aloqa uzildi. Yopilish kodi: ${channel?.closeCode}, Sabab: ${channel?.closeReason}");
             }
             isConnected = false;
-            startTime = DateFormat('yyyy-MM-dd HH:mm:ss')
-                .format(DateTime.now().toUtc().subtract(Duration(minutes: 2)));
             await disconnect(context);
             if (kDebugMode) {
               print('isConnected --> $isConnected');

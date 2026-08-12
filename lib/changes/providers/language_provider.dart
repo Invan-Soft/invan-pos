@@ -1,14 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:invan2/utils/utils.dart';
 
-/// {@template change_language}
-/// Changes app language. Gets only ints which **0** and **1**.
-///
-/// **0** for Russian language.
-///
-/// **1** for Uzbek language.
-/// {@endtemplate}
-
 class LanguageProvider extends ChangeNotifier {
   LanguageProvider(int languageInt) : _language = languageInt;
 

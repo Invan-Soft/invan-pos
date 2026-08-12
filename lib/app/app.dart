@@ -7,10 +7,8 @@ import 'package:invan2/changes/services/log_navigator_observer.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:in_app_notification/in_app_notification.dart';
-import 'package:intl/intl.dart';
 import 'package:invan2/changes/bloc/supplier_search/supplier_search_bloc.dart';
-import 'package:invan2/changes/services/web_socket_service/category/categories_ws_service.dart';
-import 'package:invan2/changes/services/web_socket_service/discount/discount_ws_service.dart';
+import 'package:invan2/changes/services/sync/catch_up_sync.dart';
 import 'package:invan2/app/theme_bloc/theme_mode_bloc.dart';
 import 'package:invan2/app/wrapper/wrapper.dart';
 import 'package:invan2/changes/bloc/network/network_bloc.dart';
@@ -64,10 +62,8 @@ class App extends StatefulWidget {
 }
 
 class AppState extends State<App> {
-  String startTime = Pref.getString(PrefKeys.appClosedTime,
-      DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()));
-  String endTime =
-      DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc());
+  // Sinxron oynasi endi shu yerda emas, SyncCursor'da saqlanadi —
+  // qarang: lib/changes/services/sync/sync_cursor.dart
 
   @override
   void initState() {
@@ -93,10 +89,6 @@ class AppState extends State<App> {
       if (kDebugMode) {
         print("Foydalanuvchi ilk bor kirdi!");
       }
-      startTime = Pref.getString(PrefKeys.appClosedTime,
-          DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()));
-      endTime =
-          DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc());
       await Pref.setBool(PrefKeys.isFirstTime, false);
     }
   }
@@ -165,13 +157,9 @@ class AppState extends State<App> {
             child: BlocConsumer<NetworkBloc, NetworkState>(
               listener: (ctx, state) async {
                 if (state is NetworkFailure) {
-                  startTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(
-                      DateTime.now().toUtc().subtract(Duration(minutes: 2)));
                   await WsService.disconnect(context);
                 }
                 if (state is NetworkSuccess) {
-                  endTime = DateFormat('yyyy-MM-dd HH:mm:ss')
-                      .format(DateTime.now().toUtc());
                   FileService.logsToTxt();
                   FileService.receiptsToJson();
                   CustomerSupportService.sendUnsendMessages();
@@ -205,25 +193,23 @@ class AppState extends State<App> {
                   }
 
                   {
-                    /// Get Notifications ///
+                    /// Notification catch-up ///
                     ///
-                    await CategoriesWsService.getReceivedWS(
-                        mounted, context, startTime, endTime);
-                    await DiscountWsService.getReceivedWS(
-                        mounted, context, startTime, endTime);
+                    /// Kassa o'chiq yoki oflayn turgan davrdagi barcha
+                    /// o'zgarishlar (mahsulot narxi, kategoriya, diskont)
+                    /// shu yerda yetib olinadi. Qayerdan boshlash kerakligini
+                    /// SyncCursor biladi — u faqat muvaffaqiyatli
+                    /// sinxrondan keyin oldinga suriladi.
+                    // force: ilova ochilganda / tarmoq tiklanganda hamma
+                    // oqim so'raladi, 10 daqiqalik cheklovsiz.
+                    await CatchUpSync.run(context, mounted,
+                        reason: 'network-success', force: true);
 
                     /// Update every minute ///
                     ///
-                    {
-                      DateTime endTimer =
-                          DateFormat('yyyy-MM-dd HH:mm:ss').parseUtc(endTime);
-                      int endTimeMillis = endTimer.millisecondsSinceEpoch;
-                      await Pref.setInt(PrefKeys.lastSyncTime, endTimeMillis);
-
-                      if (autoSyncActiv && orgINITIALIZED) {
-                        Provider.of<UpdateProvider>(context, listen: false)
-                            .autoUpdate(context, mounted);
-                      }
+                    if (autoSyncActiv && orgINITIALIZED) {
+                      Provider.of<UpdateProvider>(context, listen: false)
+                          .autoUpdate(context, mounted);
                     }
                   }
                 }

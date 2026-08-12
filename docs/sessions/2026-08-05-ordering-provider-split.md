@@ -322,6 +322,150 @@ ko'p ishlatiladigan yo'llarga tegadi: skaner va savatga qo'shish.
 Agar biror muammo chiqsa: 15 ta commit alohida, `git revert <hash>` bilan
 faqat aybdor faza qaytariladi.
 
+---
+
+## TO'LIQ SINOV XARITASI (2026-08-10)
+
+Savol: *"qaysi modul POS'da qayerda ko'rinadi va nimani sinash kerak?"*
+Quyidagi jadval har ko'chgan modulni **ekran + harakat** ga bog'laydi.
+
+### 1. `BarcodeClassifier` — Faza 7 (`ba4e334`) 🔴 ENG YUQORI RISK
+
+**Qayerda:** Bosh ekran, skaner/klaviatura kiritish maydoni. Har skanda ishlaydi.
+**Nima qiladi:** kiritilgan kodni tasniflaydi (URL / UUID / utsenka QR / tarozi
+kilo / tarozi dona / mahsulot / erkin matn) + muddat (`(17)`) tekshiradi.
+
+- [ ] Oddiy shtrix-kod skani → mahsulot qo'shiladi
+- [ ] SKU qo'lda kiritib Enter → mahsulot topiladi
+- [ ] Tarozi **kilo** yorlig'i (`28...`, 13 belgi) → og'irlik to'g'ri (1.256 kg)
+- [ ] Tarozi **dona** yorlig'i (`21...`) → son to'g'ri
+- [ ] Utsenka QR (`{...}`) → chegirmali qator qo'shiladi
+- [ ] `salom dunyo` yozib Enter → "format noto'g'ri" dialogi, savat o'zgarmaydi
+- [ ] **ENG MUHIMI:** markirovka dialogi OCHIQ turganda boshqa kodni skanerlang →
+      **hech narsa bo'lmasligi kerak** (ko'chirishda shu tartib buzilayozgan edi)
+
+### 2. `SoldItemBuilder` — Faza 8 (`b3aff03`) 🔴 YUQORI RISK
+
+**Qayerda:** savatga har qanday mahsulot qo'shilganda (skan ham, bosish ham).
+**Nima qiladi:** `ReceiptModelSoldItem4` qatorini yasaydi — `product_type`,
+`package_code` (KIZ), `marking` bayrog'i, narx, miqdor.
+
+- [ ] Markirovkali tovar (sigareta/alkogol/suv) → sotilgach **chekda soliq turi**
+      to'g'ri
+- [ ] Kiloli tovar → kasr miqdor to'g'ri
+- [ ] Oddiy dona tovar → narx va son to'g'ri
+
+### 3. `ReceiptBuilder` — Faza 6.1/6.2 (`46d27a4`, `73f6ca9`) 🔴 YUQORI RISK
+
+**Qayerda:** To'lov ekrani → "Yakunlash" tugmasi.
+`build()` = odatiy sotuv, `buildOnlyOfd()` = faqat-OFD rejimi (ikki alohida yo'l).
+
+- [ ] Naqd to'lov → chek to'g'ri, sdacha to'g'ri
+- [ ] Karta to'lov → chek to'g'ri
+- [ ] Aralash to'lov (naqd + karta) → summalar taqsimoti to'g'ri
+- [ ] Diskontli sotuv → chekda chegirma satri
+- [ ] Mijoz tanlangan sotuv → chekda mijoz nomi/INN
+- [ ] Savatdan qator o'chirib sotish → `deleted_items` ketadi, 10.2.1 buzilmaydi
+- [ ] **Faqat-OFD rejimida** ham yuqoridagilarni takrorlash (`buildOnlyOfd`
+      alohida yo'l — sana `now−5soat`, terminal maydonlari boshqa)
+
+### 4. `TerminalReceiptParser` + `terminal_error_dialog` — Faza 1/6.3 (`bb878dc`, `a5f8713`)
+
+**Qayerda:** karta to'lovi, terminal orqali.
+
+- [ ] Muvaffaqiyatli karta to'lovi → chekda **karta turi** (HUMO/UZCARD/VISA),
+      karta raqami, avtorizatsiya kodi to'g'ri chiqadi
+- [ ] Muvaffaqiyatsiz to'lov (mablag' yetarli emas / bekor qilish) →
+      **xato dialogi** ochiladi, matn uz/ru to'g'ri
+
+### 5. `MarkCleaner` + `MxikRules` + `Gs1` — Faza 1 (`bb878dc`)
+
+**Qayerda:** markirovkali tovar skani va fiskal chekka KM yuborish.
+
+- [ ] Sigareta/alkogol KM skani → dialog qabul qiladi, ONKM tekshiruvi ishlaydi
+- [ ] KM ichida `93`/crypto qismi bo'lsa → skan vaqtida kesiladi
+- [ ] Sotilgach fiskal chekda `mark` to'g'ri formatda
+- [ ] `(17)` muddati o'tgan tovar → ogohlantirish chiqadi
+
+### 6. `CatalogNavigationController` — Faza 2 (`6776ca8`) 🟡
+
+**Qayerda:** Bosh ekran, kategoriya paneli.
+**Asosiy risk:** holat o'zgaradi-yu **ekran qayta chizilmaydi** (notify callback).
+
+- [ ] Kategoriya bosish → mahsulotlar ro'yxati **darhol** yangilanadi
+- [ ] Subkategoriya bosish → yangilanadi
+- [ ] Breadcrumb (path) dagi orqaga qaytish → ishlaydi
+- [ ] "Hammasi" → butun katalog qaytadi
+- [ ] Kategoriya ichida qidiruv/skan → path tozalanadi
+
+### 7. `PaymentTallyController` — Faza 3 (`67605e0`) 🟡
+
+**Qayerda:** To'lov ekrani (chapdagi to'lov turlari + klaviatura).
+
+- [ ] Summa kiritish → qolgan summa va sdacha jonli yangilanadi
+- [ ] "Hammasi" (payByAll) → butun summa tanlangan turga tushadi
+- [ ] To'lov turini ro'yxatdan o'chirish → summa qaytadi
+- [ ] ↑/↓ strelka bilan to'lov turini almashtirish
+- [ ] "Yakunlash" tugmasi to'g'ri paytda aktiv/noaktiv bo'ladi
+
+### 8. `DiscountEffectsController` — Faza 4 (`c919eaa`) 🟡
+
+**Qayerda:** savatga mahsulot qo'shish/o'chirish, mijoz tanlash.
+
+- [ ] Buy X Get Y (masalan 3 olsang 1 tekin) → tekin qator qo'shiladi
+- [ ] Free Gift → sovg'a dialogi chiqadi, tanlangani savatga tushadi
+- [ ] Buy X Get X → to'g'ri hisoblanadi
+- [ ] Mijoz tanlanganda → guruh diskonti qo'llanadi (dialog chiqadi)
+- [ ] Mijozni o'chirganda → diskont bekor bo'ladi
+- [ ] Savatdan qator o'chirilganda → diskont qayta hisoblanadi
+- [ ] **Blok + diskont** birga (aralash savat)
+
+### 9. Lint tozalash — `83c2c37`, `b3050c5` 🟢 PAST RISK
+
+222 fayl, `dart fix` (AST darajasida). Xatti-harakatga tegmaydi, lekin
+`sort_child_properties_last` UI daraxtiga tegadi:
+
+- [ ] Har asosiy ekranni bir marta ochib **vizual ko'rik** (bosh, to'lov,
+      cheklar, hisobot, sozlamalar, drawer)
+
+Qo'lda ko'rilgan 3 ta null-safety o'zgarishi — aynan shu joylar:
+- [ ] MXIK Soliq qidiruvi (`tasnif_service`) → MXIK topiladi
+- [ ] Mahsulot qidirish dialogi (`search_dialog_content`) → qidiruv ishlaydi
+- [ ] Sozlamalar → Hisobotlar → markirovka "Oxirgi yangilanish" satri ko'rinadi
+
+### 10. Commitlanmagan ish — OFD gating
+
+Ishchi papkada 14 fayl o'zgargan (`docs/sessions/2026-08-07-ofd-off-marking-cashsale-gating.md`).
+Uning sinov ro'yxati **o'sha hujjatda**, alohida bajariladi.
+
+---
+
+### Tavsiya etilgan tartib (~1 soatlik smoke)
+
+1. Kategoriya navigatsiyasi (6) → tez, rebuild bug'ini darhol ochadi
+2. Skaner varianta-varianta (1) → shu jumladan mark-dialog ochiqda skan
+3. Savatga qo'shish: dona / kilo / markirovkali / blok (2)
+4. Diskontlar: BuyXGetY, FreeGift, mijoz guruhi (8)
+5. To'lov arifmetikasi: kiritish, hammasi, o'chirish (7)
+6. Real sotuv: naqd → chek (3)
+7. Real sotuv: karta/terminal → chek + xato holati (3, 4)
+8. Aralash to'lov + qator o'chirib sotish (3)
+9. Faqat-OFD rejimida 1 ta sotuv (3)
+10. Ekranlar bo'ylab vizual ko'rik (9)
+
+### Buzilsa — qaysi commitni qaytarish
+
+| Simptom | Revert |
+|---|---|
+| Skan noto'g'ri ishlaydi | `ba4e334` |
+| Savat qatori/soliq turi noto'g'ri | `b3aff03` |
+| Chek noto'g'ri yig'ilgan | `46d27a4` / `73f6ca9` |
+| Terminal/karta ma'lumoti chekda yo'q | `bb878dc` / `a5f8713` |
+| Kategoriya bosilganda ekran yangilanmaydi | `6776ca8` |
+| To'lov summasi/sdacha noto'g'ri | `67605e0` |
+| Diskont qo'llanmaydi/ikki marta | `c919eaa` |
+| UI joylashuvi buzilgan | `83c2c37` |
+
 ## Keyingi qadamlar
 
 **Maqsad: 4000 qator** (foydalanuvchi so'ragan), keyin yana sinov.

@@ -12,7 +12,6 @@ class LocalCategoryProvider extends ChangeNotifier {
   String _mainPathName = '';
   bool _isLocalCategoryEditing = false;
 
-
   List<LocalCategoryModel> get getLocalCategoryList => _localCategoryList;
 
   int get getCurrentSelectedCategoryButton => _currentSelectedCategoryButton;
@@ -21,13 +20,11 @@ class LocalCategoryProvider extends ChangeNotifier {
 
   bool get getIsLocalCategoryEditing => _isLocalCategoryEditing;
 
-
   void pressBarchasiButton({required BuildContext context}) {
     _currentSelectedCategoryButton = -1;
 
     Provider.of<OrderingProvider4>(context, listen: false)
         .changeGridviewItems(null);
-
     notifyListeners();
   }
 
@@ -43,7 +40,7 @@ class LocalCategoryProvider extends ChangeNotifier {
     Provider.of<OrderingProvider4>(context, listen: false).clearPathList();
     notifyListeners();
   }
-
+  
   void pressBarchasiButtonWhenCategorySelected(BuildContext context) {
     Provider.of<OrderingProvider4>(context, listen: false).changeGridviewItems(
         _localCategoryList[_currentSelectedCategoryButton].list);
@@ -133,4 +130,5 @@ class LocalCategoryProvider extends ChangeNotifier {
     _tappedPositionToAddProduct = position;
     notifyListeners();
   }
+
 }

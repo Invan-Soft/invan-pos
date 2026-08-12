@@ -10,12 +10,16 @@ class SwitchTileOfReportPage extends StatelessWidget {
   final Function(bool) onChanged;
   final bool activ;
 
+  /// `false` bo'lsa switch qulflangan (masalan sozlama adminkadan boshqariladi).
+  final bool enabled;
+
   const SwitchTileOfReportPage({
     required this.onChanged,
     required this.onTap,
     required this.title,
     required this.activ,
     this.subtitle,
+    this.enabled = true,
     super.key,
   });
 
@@ -30,7 +34,7 @@ class SwitchTileOfReportPage extends StatelessWidget {
               horizontal: SizeConfig.h * .5,
               vertical: SizeConfig.v * 1.5,
             ),
-            onTap: onTap,
+            onTap: enabled ? onTap : null,
             title: Padding(
               padding: EdgeInsets.symmetric(horizontal: SizeConfig.v),
               child: Column(
@@ -40,7 +44,9 @@ class SwitchTileOfReportPage extends StatelessWidget {
                     title,
                     style: MyThemes.txtStyle(
                       fontSize: 2.7,
-                      color: Theme.of(context).canvasColor,
+                      color: enabled
+                          ? Theme.of(context).canvasColor
+                          : Theme.of(context).disabledColor,
                     ),
                   ),
                   if (subtitle != null && subtitle!.isNotEmpty) ...[
@@ -56,7 +62,10 @@ class SwitchTileOfReportPage extends StatelessWidget {
                 ],
               ),
             ),
-            trailing: CupertinoSwitch(value: activ, onChanged: onChanged),
+            trailing: CupertinoSwitch(
+              value: activ,
+              onChanged: enabled ? onChanged : null,
+            ),
           ),
           Container(
             width: double.infinity,

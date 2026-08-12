@@ -11,17 +11,32 @@ import '../../../../features/get_products/singletons/items_singleton.dart';
 import '../../../../utils/constants/constants.dart';
 import '../../../../utils/helpers/helpers.dart';
 import '../../log_helper.dart';
+import '../../sync/sync_cursor.dart';
 import '../urls/urls.dart';
 
 class CategoriesWsService {
   CategoriesWsService._();
 
-  static Future<void> getReceivedWS(bool mounted, BuildContext context,
+  static const int limit = 1000;
+
+  static Future<SyncFetchResult> getReceivedWS(bool mounted,
+      BuildContext context, String startDate, String endDate) async {
+    try {
+      return await _fetch(startDate, endDate);
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Category notification xatosi: $e');
+      }
+      return const SyncFetchResult.failed();
+    }
+  }
+
+  static Future<SyncFetchResult> _fetch(
       String startDate, String endDate) async {
     final token = Pref.getString(PrefKeys.token, 'not initialized');
 
     if (token.isEmpty || token == 'not initialized') {
-      return;
+      return const SyncFetchResult.failed();
     }
 
     String comId = Pref.getString(PrefKeys.orgID, "");
@@ -33,20 +48,28 @@ class CategoriesWsService {
       "Access-Control-Allow-Origin": "*",
       "Authorization": "Bearer $token"
     };
+    final String path =
+        "${Urls.baseNotificationUrl}notifications?company_id=$comId&limit=$limit&offset=1&type=10,11,12&is_read=false&start_date=$startDate&end_date=$endDate";
     http.Response response = await http
         .get(
-          Uri.parse(
-              "${Urls.baseNotificationUrl}notifications?company_id=$comId&limit=1000&offset=1&type=10,11,12&is_read=false&start_date=$startDate&end_date=$endDate"),
+          Uri.parse(path),
           headers: headers,
         )
         .timeout(const Duration(seconds: 20));
-    await LogHelper.logRequest(method: "GET", path: "${Urls.baseNotificationUrl}notifications?company_id=$comId&limit=1000&offset=1&type=10,11,12&is_read=false&start_date=$startDate&end_date=$endDate" , statusCode: response.statusCode,response: response.body);
+    await LogHelper.logRequest(
+        method: "GET",
+        path: path,
+        statusCode: response.statusCode,
+        response: response.body);
 
     alice.onHttpResponse(response);
     if (kDebugMode) {
       print('☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️ - Category Get - ☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️');
     }
-    if (response.statusCode == 200) {
+    if (response.statusCode != 200) {
+      return const SyncFetchResult.failed();
+    }
+    {
       if (jsonDecode(utf8.decode(response.bodyBytes))['notifications'] !=
           null) {
         List<String> deleteIds = [];
@@ -81,7 +104,10 @@ class CategoriesWsService {
           // await sendReceivedWS(deleteIds);
           deleteIds = [];
         }
+        return SyncFetchResult.done(notification.length,
+            truncated: notification.length >= limit);
       }
     }
+    return const SyncFetchResult.done(0);
   }
 }

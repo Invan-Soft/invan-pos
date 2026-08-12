@@ -84,6 +84,13 @@ class PrefKeys {
   static const String appClosedTime = "app_closed_time";
   static const String isFirstTime = "is_first_time";
 
+  /// Notification catch-up kursorlari (UTC millis).
+  /// Faqat muvaffaqiyatli sinxrondan keyin oldinga suriladi — qarang:
+  /// lib/changes/services/sync/sync_cursor.dart
+  static const String syncCursorProducts = 'sync_cursor_products';
+  static const String syncCursorCategories = 'sync_cursor_categories';
+  static const String syncCursorDiscounts = 'sync_cursor_discounts';
+
   ////////// DEBT CLICK ////////////////////////
   static const String debtClick = "debt_click";
 
@@ -183,6 +190,10 @@ class PrefKeys {
   static const String companyAppsFetched = 'companyAppsFetched';
   static const String sellProductsWithMarking = 'sellProductsWithMarking';
   static const String isCashDisableForAlcohol = 'isCashDisableForAlcohol';
+
+  /// Mahsulotning naqd to'lov cheklovi (cash_sale) tekshirilsinmi.
+  /// Faqat adminkada OFD (apps_soliq_app) yoqilgan bo'lsa boshqarish mumkin.
+  static const String checkProductByCashsale = 'checkProductByCashsale';
 
 
 

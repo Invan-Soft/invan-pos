@@ -37,20 +37,19 @@ class OrderListItem extends StatelessWidget {
 
   // Qat'iy taqiq: alkogol mxik yoki cashsale==0
   bool _isHardRestricted() {
-    if (!Pref.getBool(PrefKeys.markCheckWithOfd, true)) return false;
-    if (Pref.getBool(PrefKeys.sellProductsWithMarking, true) &&
+    if (!OfdAdminSetting.isEnabled) return false;
+    if (MarkingSettingHelper.isAutoDetectEnabled &&
         _isAlcoholMxik(orderedProduct.mxik.trim())) {
       return true;
     }
-    if (!Pref.getBool('checkProductByCashsale', true)) return false;
+    if (!CashsaleSettingHelper.isEnabled) return false;
     final product = ItemsSingleton.getProductById(orderedProduct.productId);
     return (product?.cashsale ?? 1) == 0;
   }
 
   // Shartli taqiq: cashsale==1 va umumiy narx 25mln dan oshgan
   bool _isBigTotalRestricted() {
-    if (!Pref.getBool(PrefKeys.markCheckWithOfd, true)) return false;
-    if (!Pref.getBool('checkProductByCashsale', true)) return false;
+    if (!CashsaleSettingHelper.isEnabled) return false;
     final product = ItemsSingleton.getProductById(orderedProduct.productId);
     if (product == null) return false;
     if ((product.cashsale ?? -1) != 1) return false;

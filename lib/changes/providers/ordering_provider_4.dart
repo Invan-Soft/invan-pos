@@ -21,7 +21,6 @@ import 'package:invan2/changes/dialogs/payme_dialog.dart';
 import 'package:invan2/changes/providers/ordering/discount_effects_controller.dart';
 import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.dart';
 import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
-import 'package:invan2/changes/domain/cart/sold_item_builder.dart';
 import 'package:invan2/changes/domain/barcode/barcode_classifier.dart';
 import 'package:invan2/changes/dialogs/terminal_error_dialog.dart';
 import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
@@ -58,8 +57,6 @@ import 'package:invan2/widgets/my_snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:shell/shell.dart';
 import 'package:windows1251/windows1251.dart';
-
-// ignore: depend_on_referenced_packages
 import 'package:file/local.dart' as fl;
 import '../../alice_service.dart';
 import '../services/discount_service.dart';
@@ -981,10 +978,46 @@ ${productLines.toString().trim()}
     );
   }
 
-  /// Savat qatori yasash `SoldItemBuilder` ga ko'chirildi (2026-08-06).
   ReceiptModelSoldItem4 _createSoldItem(
-          ItemModel product, double price, double value, bool isKg) =>
-      SoldItemBuilder.build(product, price, value, isKg);
+      ItemModel product, double price, double value, bool isKg) {
+    return ReceiptModelSoldItem4(
+      inBox: 0,
+      tin: product.commissionTin ?? '',
+      isDeleted: false,
+      marking: (product.isMarking ?? false) ||
+          _isMxikMarking((product.mxikCode ?? '').trim()),
+      soldBy: product.categories?.isNotEmpty == true
+          ? product.categories![0].id ?? ''
+          : '',
+      cost: product.shopPrices?.shID?.supplyPrice?.toDouble() ?? 0,
+      createdTime: DateTime.now().millisecondsSinceEpoch,
+      price: price,
+      realPrice: price,
+      singleDiscount: 0,
+      value: value,
+      ownerType: int.tryParse(product.ownerType ?? '1') ?? 1,
+      onlyPrice: price,
+      productId: product.id ?? '',
+      productName: product.name ?? '',
+      packageCode: product.packageCode ?? '',
+      packageName: product.packageName ?? '',
+      barcode:
+          product.barcode?.isNotEmpty == true ? product.barcode!.first : '',
+      sku: int.tryParse(product.sku ?? '0') ?? 0,
+      vat: price == 0
+          ? 0
+          : (price * (product.vat?.percentage ?? 12)) /
+              (100 + (product.vat?.percentage ?? 12)),
+      mxik: product.mxikCode ?? '',
+      sellerId: Pref.getString(PrefKeys.cashierId, ''),
+      vatName: product.vat?.name ?? '',
+      discountPercent: 0,
+      vatPercent: (product.vat?.percentage ?? 12).toDouble(),
+      isKg: isKg,
+      productType: _resolveProductType(product),
+      productPackage: _resolveProductPackage(product),
+    );
+  }
 
   /// Diskont effektlari `DiscountEffectsController` ga ko'chirildi
   /// (2026-08-05). Kontroller `ChangeNotifier` EMAS — `notifyListeners` ni
@@ -4116,46 +4149,42 @@ ${productLines.toString().trim()}
       taroziPiecePrefix: Pref.getInt(PrefKeys.taroziPiecePrefix, 21),
     );
 
-    // ASL TARTIB SAQLANADI: bo'sh -> URL -> isMarkingDialogDisplaying ->
-    // UUID -> utsenka -> erkin matn -> raqamsiz -> tarozi -> mahsulot.
-    // `switch` emas, `if`-zanjiri — asl kod shakli (analizatorning
-    // BuildContext oqim tahlili ham o'zgarmasligi uchun).
+    // ASL TARTIB SAQLANADI: bo'sh -> URL -> isMarkingDialogDisplaying -> qolgani.
+    // Markirovka dialogi ochiq bo'lsa, tarozi/utsenka/UUID kodlari ham
+    // e'tiborsiz qolishi kerak — shuning uchun bu tekshiruv switch'dan OLDIN.
     if (kind == ScannedCodeKind.empty) return;
-
     if (kind == ScannedCodeKind.url) {
       await _showInvalidFormatBarcodeDialog();
       return;
     }
-
     if (isMarkingDialogDisplaying) return;
 
-    if (kind == ScannedCodeKind.uuid) return;
-
-    if (kind == ScannedCodeKind.utsenkaQr) {
-      final utsenkaItem = _parseUtsenkaQr(barcode);
-      if (utsenkaItem != null) {
-        _currentClient.orderedProducts.insert(0, utsenkaItem);
-        notifyListeners();
+    switch (kind) {
+      case ScannedCodeKind.empty:
+      case ScannedCodeKind.url:
+      case ScannedCodeKind.uuid:
         return;
-      }
-      await _showInvalidFormatBarcodeDialog();
-      return;
-    }
-
-    if (kind == ScannedCodeKind.freeText ||
-        kind == ScannedCodeKind.noDigits) {
-      await _showInvalidFormatBarcodeDialog();
-      return;
-    }
-
-    if (kind == ScannedCodeKind.weightItem) {
-      scanWeightItem(barcode, scaffoldKey);
-      return;
-    }
-
-    if (kind == ScannedCodeKind.pieceItem) {
-      scanPieceItem(barcode, scaffoldKey);
-      return;
+      case ScannedCodeKind.freeText:
+      case ScannedCodeKind.noDigits:
+        await _showInvalidFormatBarcodeDialog();
+        return;
+      case ScannedCodeKind.utsenkaQr:
+        final utsenkaItem = _parseUtsenkaQr(barcode);
+        if (utsenkaItem != null) {
+          _currentClient.orderedProducts.insert(0, utsenkaItem);
+          notifyListeners();
+          return;
+        }
+        await _showInvalidFormatBarcodeDialog();
+        return;
+      case ScannedCodeKind.weightItem:
+        scanWeightItem(barcode, scaffoldKey);
+        return;
+      case ScannedCodeKind.pieceItem:
+        scanPieceItem(barcode, scaffoldKey);
+        return;
+      case ScannedCodeKind.product:
+        break;
     }
 
     String pattern = barcode;

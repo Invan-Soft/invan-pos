@@ -24,8 +24,10 @@ class SoldItemBuilder {
       inBox: 0,
       tin: product.commissionTin ?? '',
       isDeleted: false,
-      marking: (product.isMarking ?? false) ||
-          MxikRules.isMxikMarking((product.mxikCode ?? '').trim()),
+      // Qo'shish yo'lidagi qaror bilan bir xil bo'lishi shart: OFD o'chiq bo'lsa
+      // qator markirovka guruhi bo'lib qolmasligi kerak (aks holda savatda qty
+      // tahriri bloklanadi).
+      marking: MxikRules.isProductMarkable(product),
       soldBy: product.categories?.isNotEmpty == true
           ? product.categories![0].id ?? ''
           : '',

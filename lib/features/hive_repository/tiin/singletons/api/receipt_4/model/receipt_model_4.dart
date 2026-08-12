@@ -124,8 +124,7 @@ class ReceiptModel4 {
             ? (json['order'] as List<dynamic>).isNotEmpty
                 ? json['order'][0] as Map<String, dynamic>
                 : {}
-            : {};
-
+            : {};         
     // Items (soldItemList) ni olish
     final items =
         (orderJson['items'] as List<dynamic>?)?.map((item) {

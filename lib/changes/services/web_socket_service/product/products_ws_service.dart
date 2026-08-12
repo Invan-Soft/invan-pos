@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:invan2/changes/services/log_helper.dart';
+import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'package:invan2/changes/services/web_socket_service/product/model/mxik_updates.dart';
 import 'package:invan2/changes/services/web_socket_service/product/model/product_price_edit_response.dart';
 import 'package:invan2/changes/services/web_socket_service/urls/urls.dart';
@@ -59,13 +60,31 @@ class ProductsWsService {
     await Pref.setBool(PrefKeys.lastSyncTimeChanged, true);
   }*/
 
-  static Future<void> getReceivedWS(bool mounted, BuildContext context,
+  /// Bir marta chaqirilganda `limit` dan ortiq notification qaytmaydi —
+  /// shu songa yetilsa oyna to'liq qamralmagan deb hisoblanadi.
+  static const int limit = 1000;
+
+  static Future<SyncFetchResult> getReceivedWS(bool mounted,
+      BuildContext context, String startDate, String endDate) async {
+    try {
+      return await _fetch(mounted, context, startDate, endDate);
+    } catch (e) {
+      // Timeout / tarmoq / parse xatosi. Kursor surilmasligi uchun
+      // muvaffaqiyatsiz deb qaytaramiz — oyna keyingi urinishda
+      // qaytadan so'raladi.
+      if (kDebugMode) {
+        print('❌ Product notification xatosi: $e');
+      }
+      return const SyncFetchResult.failed();
+    }
+  }
+
+  static Future<SyncFetchResult> _fetch(bool mounted, BuildContext context,
       String startDate, String endDate) async {
-   
     final token = Pref.getString(PrefKeys.token, 'not initialized');
 
     if (token.isEmpty || token == 'not initialized') {
-      return;
+      return const SyncFetchResult.failed();
     }
 
     String comId = Pref.getString(PrefKeys.orgID, "");
@@ -77,17 +96,17 @@ class ProductsWsService {
       "Access-Control-Allow-Origin": "*",
       "Authorization": "Bearer $token"
     };
+    final String path =
+        "${Urls.baseNotificationUrl}notifications?company_id=$comId&limit=$limit&offset=1&type=1,2,3,0,6,13,20,21,40&is_read=false&start_date=$startDate&end_date=$endDate";
     http.Response response = await http
         .get(
-          Uri.parse(
-              "${Urls.baseNotificationUrl}notifications?company_id=$comId&limit=1000&offset=1&type=1,2,3,0,6,13,20,21,40&is_read=false&start_date=$startDate&end_date=$endDate"),
+          Uri.parse(path),
           headers: headers,
         )
         .timeout(const Duration(seconds: 20));
     await LogHelper.logRequest(
         method: "GET",
-        path:
-            "${Urls.baseNotificationUrl}notifications?company_id=$comId&limit=1000&offset=1&type=1,2,3,0,6,13,20,21,40&is_read=false&start_date=$startDate&end_date=$endDate",
+        path: path,
         statusCode: response.statusCode,
         response: response.body);
 
@@ -95,11 +114,13 @@ class ProductsWsService {
     if (kDebugMode) {
       print(
           '☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️ - Product  Get - ☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️');
+      print(
+          'Response: ${response.statusCode} - ${response.body} - Product Get - ${DateTime.now()}');
     }
-    print(
-        'Response: ${response.statusCode} - ${response.body} - Product Get - ${DateTime.now()}');
-    if (response.statusCode == 200) {
-
+    if (response.statusCode != 200) {
+      return const SyncFetchResult.failed();
+    }
+    {
       if (jsonDecode(utf8.decode(response.bodyBytes))['notifications'] !=
           null) {
         List<String> deleteIds = [];
@@ -211,8 +232,11 @@ class ProductsWsService {
           // await sendReceivedWS(deleteIds);
           deleteIds = [];
         }
+        return SyncFetchResult.done(notification.length,
+            truncated: notification.length >= limit);
       }
     }
+    return const SyncFetchResult.done(0);
   }
 
   static Future<bool> import(BuildContext context) async {

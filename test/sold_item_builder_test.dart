@@ -116,6 +116,53 @@ void main() {
     });
   });
 
+  // Regressiya: ilgari `marking` bayrog'i OFD holatini tekshirmasdi. Natijada
+  // adminkada OFD o'chiq bo'lsa ham markirovkali MXIK'li mahsulot savatda
+  // "markirovka guruhi" qatori bo'lib qolardi va qty ni na oshirib, na
+  // kamaytirib bo'lardi (faqat o'chirish ishlardi).
+  group('Adminkada OFD o\'chiq', () {
+    setUp(() async {
+      await Pref.setBool(PrefKeys.markCheckWithOfd, false);
+    });
+
+    test('markirovkali MXIK ham oddiy mahsulot kabi (marking false)', () {
+      final r = SoldItemBuilder.build(
+          product(mxik: '02201000000000000'), 5000, 1, false);
+
+      expect(r.marking, isFalse);
+      expect(r.productType, '');
+      expect(r.productPackage, '');
+    });
+
+    test('product.isMarking = true bo\'lsa ham marking false', () {
+      final r = SoldItemBuilder.build(
+          product(mxik: '02205000000000000', isMarking: true), 5000, 1, false);
+
+      expect(r.marking, isFalse);
+    });
+  });
+
+  group('OFD yoqiq, avto-aniqlash o\'chiq', () {
+    setUp(() async {
+      await Pref.setBool(PrefKeys.markCheckWithOfd, true);
+      await Pref.setBool(PrefKeys.sellProductsWithMarking, false);
+    });
+
+    test('MXIK bo\'yicha aniqlanmaydi (marking false)', () {
+      final r = SoldItemBuilder.build(
+          product(mxik: '02201000000000000'), 5000, 1, false);
+
+      expect(r.marking, isFalse);
+    });
+
+    test('product.isMarking = true bo\'lsa baribir marking true', () {
+      final r = SoldItemBuilder.build(
+          product(mxik: '99999999999999999', isMarking: true), 5000, 1, false);
+
+      expect(r.marking, isTrue);
+    });
+  });
+
   group('Chetki holatlar', () {
     test('mxikCode null bo\'lsa xato bermaydi', () {
       final r = SoldItemBuilder.build(product(mxik: null), 5000, 1, false);

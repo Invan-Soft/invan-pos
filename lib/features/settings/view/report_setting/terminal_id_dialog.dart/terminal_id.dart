@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:invan2/changes/components/form_validator.dart';
 import 'package:invan2/widgets/default_button.dart';
 import 'package:invan2/widgets/inputs/app_text_field.dart';
-
 import '../../../../../utils/constants/pref_keys.dart';
 import '../../../../../utils/helpers/prefs.dart';
 import '../../../../../utils/helpers/size_config.dart';

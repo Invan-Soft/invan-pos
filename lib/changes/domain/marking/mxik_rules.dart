@@ -7,8 +7,8 @@
 // Testlar: test/mxik_rules_test.dart
 
 import 'package:invan2/changes/models/product/item_model.dart';
-import 'package:invan2/utils/constants/pref_keys.dart';
-import 'package:invan2/utils/helpers/prefs.dart';
+import 'package:invan2/utils/helpers/marking_setting_helper.dart';
+import 'package:invan2/utils/helpers/ofd_admin_setting.dart';
 
 class MxikRules {
   const MxikRules._();
@@ -32,15 +32,19 @@ class MxikRules {
 
   /// Mahsulot markirovkali deb hisoblanadimi.
   /// Qoidalar:
-  ///   0) OFD marking check (`markCheckWithOfd`) o'chiq bo'lsa — hech narsa markirovkali emas
+  ///   0) Adminkada OFD o'chiq bo'lsa — hech narsa markirovkali emas
   ///   1) `product.isMarking == true` → markirovkali (sozlamadan qat'iy nazar, OFD ON bo'lsa)
   ///   2) Aks holda "Avto markirovkani aniqlash" sozlamasi yoqilgan bo'lsa
   ///      va MXIK kod ro'yxatda bo'lsa (`isMxikMarking`) → markirovkali
   ///   3) "Avto markirovkani aniqlash" o'chirilgan bo'lsa MXIK umuman tekshirilmaydi
+  ///
+  /// Savat qatorining `marking` bayrog'i ham shu qarorni ishlatadi
+  /// (`SoldItemBuilder`) — aks holda OFD o'chiq bo'lsa ham qator markirovka
+  /// guruhi bo'lib qolib, qty tahriri bloklanardi.
   static bool isProductMarkable(ItemModel product) {
-    if (!Pref.getBool(PrefKeys.markCheckWithOfd, false)) return false;
+    if (!OfdAdminSetting.isEnabled) return false;
     if (product.isMarking ?? false) return true;
-    if (!Pref.getBool(PrefKeys.sellProductsWithMarking, true)) return false;
+    if (!MarkingSettingHelper.isAutoDetectEnabled) return false;
     return isMxikMarking((product.mxikCode ?? '').trim());
   }
 

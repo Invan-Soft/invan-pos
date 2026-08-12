@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:invan2/changes/models/organization_model.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/services/get_items_service.dart';
+import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'package:invan2/changes/services/company_app_service.dart';
 import 'package:invan2/changes/services/organization_service.dart';
 import 'package:invan2/changes/singletons/organization_singleton.dart';
@@ -13,6 +14,7 @@ import 'package:invan2/features/authentication/bloc/bloc_activate_pos/apd_bloc_b
 import 'package:invan2/features/authentication/model/model.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/utils/constants/constants.dart';
+import 'package:invan2/utils/helpers/ofd_admin_setting.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 
 import '../../../../features/get_categories/service/category_service.dart';
@@ -249,6 +251,9 @@ class UpdBloc extends Bloc<UpdEvent, UpdState> {
       await Pref.setBool(PrefKeys.autoGenerate, autoGenerate);
       await Pref.setBool(PrefKeys.markCheckWithOfd, markCheck);
       await Pref.setBool(PrefKeys.withOFD, markCheck);
+      // OFD adminkadan o'chirilgan bo'lsa undan kelib chiqadigan sozlamalar
+      // (naqd to'lov cheklovi, avto markirovkani aniqlash) ham o'chadi
+      await OfdAdminSetting.syncDependentSettings(markCheck);
 
       HttpResult paymentRes = await OrganizationService.getPayments(
           Pref.getString(PrefKeys.activatedPosId, ""));
@@ -287,18 +292,45 @@ class UpdBloc extends Bloc<UpdEvent, UpdState> {
     return error;
   }
 
+  /// To'liq yuklashdan keyin sinxron kursorini surib qo'yadi.
+  ///
+  /// Bu dialog ma'lumotni to'liq qayta tortadi, ya'ni notification tarixiga
+  /// ehtiyoj qolmaydi. Kursor surilmasa, keyingi avto-sinxron allaqachon
+  /// qo'llangan eski notification'larni qayta o'qib chiqadi — bu bekorga ish
+  /// va (agar biror o'zgarish notification bermagan bo'lsa) eski qiymat
+  /// ustidan yozilib qolish xavfi.
+  ///
+  /// [startedAt] — yuklash **boshlangan** vaqt. Ataylab tugagan vaqt emas:
+  /// yuklash davomida bo'lgan o'zgarishlar notification orqali kelishi kerak.
+  Future<void> _advanceCursor(
+    SyncStream stream,
+    DateTime startedAt,
+    String? error,
+  ) async {
+    if (error != null) return;
+    await SyncCursor.commit(stream, startedAt);
+  }
+
   Future<String?> _category(Emitter<UpdState> emit) async {
-    return await CategoryService.category();
+    final DateTime startedAt = DateTime.now().toUtc();
+    final String? error = await CategoryService.category();
+    await _advanceCursor(SyncStream.categories, startedAt, error);
+    return error;
   }
 
   Future<String?> _discounts(Emitter<UpdState> emit) async {
-    return await DiscountService.discounts();
+    final DateTime startedAt = DateTime.now().toUtc();
+    final String? error = await DiscountService.discounts();
+    await _advanceCursor(SyncStream.discounts, startedAt, error);
+    return error;
   }
 
   Future<String?> _items(Emitter<UpdState> emit) async {
     String? error;
+    final DateTime startedAt = DateTime.now().toUtc();
 
     error = await UtilFunctions.fullUpdateProduct();
+    await _advanceCursor(SyncStream.products, startedAt, error);
 
     if (error == null) {
       final bool isMarkingSyncEnabled = Pref.getBool('switchMarking', false);

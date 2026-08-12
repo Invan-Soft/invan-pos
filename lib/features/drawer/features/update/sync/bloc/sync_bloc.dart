@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:invan2/changes/models/product/item_model.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/services/get_items_service.dart';
+import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'package:invan2/features/get_categories/get_categories.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
@@ -36,6 +37,9 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
 
   static _sync(SyncSyncEvent event, Emitter<SyncState> emit) async {
     DateTime time = DateTime.now();
+    // Kursor yuklash BOSHLANGAN vaqtga suriladi — yuklash davomida bo'lgan
+    // o'zgarishlar notification orqali kelishi kerak.
+    final DateTime startedAt = DateTime.now().toUtc();
     emit(SyncLoadingState());
     List<ItemModel> allProducts = [];
     String getError = '';
@@ -73,6 +77,11 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
     if (allProducts.isNotEmpty) {
       await toHive(allProducts);
       await Pref.setInt(PrefKeys.lastSyncTime, time.millisecondsSinceEpoch);
+      // Mahsulotlar to'liq qayta yuklandi — notification tarixiga ehtiyoj
+      // qolmadi. Kategoriya kursoriga tegilmaydi: `toHive` ichidagi
+      // `_category()` xatoni yutib yuboradi, ya'ni muvaffaqiyatiga
+      // ishonib bo'lmaydi.
+      await SyncCursor.commit(SyncStream.products, startedAt);
       emit(
         SyncDoneState(
             SyncResult(

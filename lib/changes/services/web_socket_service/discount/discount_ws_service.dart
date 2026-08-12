@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:invan2/changes/services/log_helper.dart';
+import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'package:invan2/changes/services/web_socket_service/urls/urls.dart';
 
 import '../../../../alice_service.dart';
@@ -15,11 +16,25 @@ import '../../../../utils/helpers/helpers.dart';
 class DiscountWsService {
   DiscountWsService._();
 
-  static Future<void> getReceivedWS(bool mounted, BuildContext context,
+  static const int limit = 1000;
+
+  static Future<SyncFetchResult> getReceivedWS(bool mounted,
+      BuildContext context, String startDate, String endDate) async {
+    try {
+      return await _fetch(startDate, endDate);
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Discount notification xatosi: $e');
+      }
+      return const SyncFetchResult.failed();
+    }
+  }
+
+  static Future<SyncFetchResult> _fetch(
       String startDate, String endDate) async {
     final token = Pref.getString(PrefKeys.token, 'not initialized');
     if (token.isEmpty || token == 'not initialized') {
-      return;
+      return const SyncFetchResult.failed();
     }
 
     String comId = Pref.getString(PrefKeys.orgID, "");
@@ -31,19 +46,27 @@ class DiscountWsService {
       "Access-Control-Allow-Origin": "*",
       "Authorization": "Bearer $token"
     };
+    final String path =
+        "${Urls.baseNotificationUrl}notifications?company_id=$comId&limit=$limit&offset=1&type=15,16,17&is_read=false&start_date=$startDate&end_date=$endDate";
     http.Response response = await http
         .get(
-          Uri.parse(
-              "${Urls.baseNotificationUrl}notifications?company_id=$comId&limit=1000&offset=1&type=15,16,17&is_read=false&start_date=$startDate&end_date=$endDate"),
+          Uri.parse(path),
           headers: headers,
         )
         .timeout(const Duration(seconds: 20));
-await LogHelper.logRequest(method: "GET", path: "${Urls.baseNotificationUrl}notifications?company_id=$comId&limit=1000&offset=1&type=15,16,17&is_read=false&start_date=$startDate&end_date=$endDate", statusCode: response.statusCode,response: response.body);
+    await LogHelper.logRequest(
+        method: "GET",
+        path: path,
+        statusCode: response.statusCode,
+        response: response.body);
     alice.onHttpResponse(response);
     if (kDebugMode) {
       print('☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️ - Discount Get - ☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️');
     }
-    if (response.statusCode == 200) {
+    if (response.statusCode != 200) {
+      return const SyncFetchResult.failed();
+    }
+    {
       if (jsonDecode(utf8.decode(response.bodyBytes))['notifications'] !=
           null) {
         List notification =
@@ -64,7 +87,10 @@ await LogHelper.logRequest(method: "GET", path: "${Urls.baseNotificationUrl}noti
             }
           }
         }
+        return SyncFetchResult.done(notification.length,
+            truncated: notification.length >= limit);
       }
     }
+    return const SyncFetchResult.done(0);
   }
 }

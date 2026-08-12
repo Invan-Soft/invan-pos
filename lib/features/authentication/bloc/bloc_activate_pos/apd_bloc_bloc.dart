@@ -100,6 +100,9 @@ class APDblocc extends Bloc<APDevent, APDstate> {
       await Pref.setBool(PrefKeys.autoGenerate, autoGenerate);
       await Pref.setBool(PrefKeys.markCheckWithOfd, markCheck);
       await Pref.setBool(PrefKeys.withOFD, markCheck);
+      // OFD adminkadan o'chirilgan bo'lsa undan kelib chiqadigan sozlamalar
+      // (naqd to'lov cheklovi, avto markirovkani aniqlash) ham o'chadi
+      await OfdAdminSetting.syncDependentSettings(markCheck);
 
       HttpResult paymentRes =
           await OrganizationService.getPayments(event.posId);
