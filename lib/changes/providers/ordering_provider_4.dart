@@ -3846,16 +3846,36 @@ ${productLines.toString().trim()}
       double available = getAvailableSumma();
       num balance = _sixClientModel4.selectedClient?.pointBalance ?? 0.0;
 
+      // Chekka ALLAQACHON kiritilgan cashback. `allPaymentType` yangi summani
+      // shuning USTIGA qo'shadi (`_payByAll(summa + currentPaymentValue)`),
+      // shuning uchun balans tekshiruvi ham YIG'INDI bo'yicha borishi shart.
+      // Avval faqat `parsed` tekshirilardi — tugmani bir necha marta bosib
+      // balansdan ko'p to'lash mumkin edi (78 000 balansdan 131 000 ketgan).
+      double used = getSelectedPaymentSumma();
+      double freeBalance = balance.toDouble() - used;
+      if (freeBalance < 0) freeBalance = 0;
+
       if (parsed > 0) {
-        if (balance > parsed) {
+        // `>=`: to'liq qoldiq balansni bitta bosishda ishlatishga ruxsat.
+        // Avvalgi qat'iy `>` balansning aynan o'zini kiritishga yo'l qo'ymay,
+        // kassirni summani bo'lib kiritishga majburlardi — aynan shu yo'l
+        // yuqoridagi bug'ni ochardi.
+        if (freeBalance >= parsed) {
           if (available >= parsed) {
             allPaymentType(payment);
           }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-              mySnackBar(context, msg: loc.client_cartasida_yetarli_emas));
+            mySnackBar(context,
+                msg: '${loc.client_cartasida_yetarli_emas} '
+                    '(${MoneyFormatter.inputMoneyFormatter.format(freeBalance)})'),
+          );
         }
       } else if (available > 0) {
+        // Summa kiritilmagan: butun qoldiq yopiladi, ya'ni yakuniy cashback
+        // aynan `available` bo'ladi (`summa + currentPaymentValue == available`).
+        // Shuning uchun bu yerda `available <= balance` allaqachon to'g'ri
+        // kumulyativ tekshiruv — o'zgartirilmadi.
         if (available <= balance) {
           allPaymentType(payment);
         } else {
