@@ -1,8 +1,14 @@
 # Task: Smena (ochish/yopish) diagnostikasi — tushunarli ogohlantirish va Telegram xabarlari
 
 **Boshlangan:** 2026-08-13
-**Holat:** in-progress
+**Holat:** in-progress — 1-bosqich (diagnostika) **relizga chiqdi**, 2-bosqich (sinxron) boshlanmagan
 **Branch:** ayyubxon
+**Reliz:** `1.1.2+120` (2026-08-17, commit `023ac8f`) — PROD backendga yuklandi
+
+> **Keyingi sessiyada shu yerdan boshlang:** pastdagi `## Ildiz sabab` bo'limini
+> o'qing (nima uchun bu muammolar chiqayotgani bir joyda tushuntirilgan), keyin
+> `## Keyingi qadamlar` dagi **1-qadam** dan davom eting. Undan oldin
+> `## Ochiq savollar` dagi qarorni foydalanuvchidan olish kerak.
 
 ## Maqsad
 Smena bilan bog'liq har bir muammo (ketmagan cheklar, internet yo'q, server smenani ochiq
@@ -171,37 +177,127 @@ Sabab zanjiri:
 
 - [x] `flutter analyze lib` → 0 error
 
+## Ildiz sabab (2026-08-17 tahlili — bularning HAMMASI bitta kasallik)
+
+**Smena holati ikki joyda saqlanadi va ikkalasi bir-biriga mos kelmaydi:**
+
+| Manba | Nima saqlaydi |
+|---|---|
+| Hive `ShiftModelHive` | `isClosed`, `isUploaded`, `openingTime`, `closingTime` — **haqiqiy holat** |
+| Pref (4 ta qiymat) | `openedDate`, `openedCount`, `closedDate`, `closedCount` — **navbat holati** |
+
+Ikkinchisi birinchisining qo'lda yuritiladigan nusxasi va **noto'g'ri paytda
+yoziladi**:
+
+```dart
+// shift_singleton_4.dart closeShift()
+closedDate = hozir;                   // ← natija MA'LUM BO'LMASDAN oldin
+...
+if (shart) { closedCount = 1; }       // ← faqat shart bajarilsa
+```
+
+Ya'ni "yopish navbatdami?" degan savolga javob beradigan yagona bayroq
+(`closedCount`) muvaffaqiyatsizlik yo'llarida **yozilmaydi**, yonidagi
+`closedDate` esa allaqachon yozilgan. **Yetim holat** shundan tug'iladi:
+`closedDate` bor, `closedCount = 0` → `ShiftSyncQueue.hasPendingClose` `false`
+qaytaradi → yopish so'rovi internet bo'lsa ham **hech qachon ketmaydi**.
+
+Uchta alomat — bitta kasallik:
+
+| Alomat | Sabab |
+|---|---|
+| "Smena yopildi" deyildi, yopilmadi | Hive `isClosed=true`, Pref `shiftsOpened=true` |
+| Internet yondi, request ketmadi | `closedDate` bor, `closedCount=0` → navbat "bo'sh" |
+| Oflayn 2-marta yopib bo'lmaydi | Hisoblagich `0/1` — bitta smena sig'adi, tarix emas |
+
+E'tibor: `ShiftModelHive` da **`isUploaded` bayrog'i allaqachon bor** — to'g'ri
+dizayn loyihada mavjud, lekin hech kim ishlatmaydi. Uning o'rniga Pref'da
+parallel hisoblagichlar yuritilgan.
+
+**Diagnostika bosqichi (relizga chiqqan) bu kasallikni davolamadi** — u faqat
+kassirga rost gapirishni ta'minladi. Davolash 2-bosqichda.
+
+---
+
 ## Keyingi qadamlar (prioritet bo'yicha)
-- [ ] Windows'da test (quyidagi "Test" bo'limi)
-- [ ] Sinxron tuzatishlari (foydalanuvchi tasdig'i kutilmoqda):
-  - [ ] **Onlayn yopish muvaffaqiyatsiz bo'lganda navbatga tushsin** —
-        shift_singleton_4.dart:256-263. Hozir server 200 qaytarmasa `closedDate`
-        yoziladi-yu, `closedCount` 0 bo'lib qoladi → `ShiftSyncQueue` uni
-        KO'RMAYDI. Qo'shimcha qaror kerak: bu holatda smena lokal ham yopilsinmi
-        (`shiftsOpened=false`, oflayn shox bilan bir xil)? Hozir yopilmaydi va
-        Hive yozuvi `isClosed=true` bo'lgani holda POS "ochiq" bo'lib qoladi —
-        ziddiyatli holat.
-  - [ ] Ochish POST'i muvaffaqiyatsiz bo'lganda `openedDate` tozalanmasin
-        (shift_singleton_4.dart:226-228 — hozir POST natijasi kutilmasdan
-        tozalanadi, ya'ni ochish ham yo'lda yo'qolishi mumkin)
-  - [ ] `openShift()` Hive smenasini serverdan javob olgandan keyin yaratsin
-  - [ ] `usr_bloc.dart:79` — `soldItemList` bo'sh cheklar navbatda mangu qoladi
-  - [ ] 409 javobi guruh so'rovida qanday talqin qilinishi (hozir `rejected`)
-- [ ] **Oflayn hisoblagichlar `0/1` — navbat emas** (asosiy qolgan kamchilik)
-      `openedCount` / `closedCount` bir vaqtda faqat BITTA yuborilmagan ochish va
-      BITTA yopishni saqlaydi. Oqibatlari:
-      - oflayn ochilgan smenani oflayn yopib bo'lmaydi (endi hech bo'lmasa
-        tushunarli xabar chiqadi, lekin cheklov o'z o'rnida qoladi);
-      - ikkinchi oflayn yopishda `closedDate` ustiga yoziladi — birinchi
-        yopish vaqti yo'qoladi.
-      To'liq yechim: smenalarni Hive'dan ro'yxat sifatida yuborish
-      (`ShiftModelHive.isUploaded` bayrog'i bor, lekin hech kim ishlatmaydi).
-- [ ] **Navbat tartibi kafolatlanmagan** — `ShiftSyncQueue.flush` uchta
-      trigger'dan chaqiriladi, faqat `receipts-uploaded` da cheklar smenadan
-      oldin ketishi kafolatlangan. `startup` (parallel) va `network-success`
-      (u yerda `order_pos` umuman yuborilmaydi) da yopish cheklardan oldin
-      yetib borishi mumkin. Backend'dan javob kerak: yopilgan smenaga kelgan
-      `order_pos` hisobotga tushadimi?
+
+- [ ] **0. Windows'da 1.1.2+120 ni sinash** (quyidagi "Test" bo'limi)
+      Bu qadamsiz keyingilariga o'tmaslik kerak — diagnostika xabarlari to'g'ri
+      chiqayotganiga ishonch kerak.
+
+### 1-qadam — arzon va xavfsiz (avval shu)
+
+- [ ] **`ShiftSyncQueue.flush` qarorini log qilsin**
+      Hozir `if (!hasPending) return;` — jimgina chiqadi, hech qayerda iz yo'q.
+      2026-08-17 da aynan shu sababli "nega request ketmadi?" degan savolga
+      taxmin qilib javob berishga to'g'ri keldi.
+      → `shift_sync_queue.dart:48`
+      → Yozilsin: `reason`, `closedDate/closedCount`, `openedDate/openedCount`,
+        va qaror ("navbat bo'sh", "yuborildi: 200", "saqlandi: -1")
+
+- [ ] **Startup self-heal — yetim `closedDate` ni tozalash/tiklash**
+      Hozir foydalanuvchining kassasida shunday yetim holat **turibdi** va u
+      `pendingCloseNotSynced` ogohlantirishini abadiy chiqaraveradi.
+      Hakam — **Hive** (Pref emas):
+      - Hive'dagi joriy smena `isClosed == true` → `closedCount = 1` qo'y
+        (navbatga qaytar)
+      - aks holda → `closedDate = ''` (yopish bo'lmagan, iz yolg'on)
+
+- [ ] **Onlayn yopish muvaffaqiyatsiz bo'lganda lokal yopilsin + navbatga tushsin**
+      → `shift_singleton_4.dart:256-263`
+      → Hozir: server 200 qaytarmasa `closedDate` yoziladi-yu `closedCount` 0
+        qoladi, `shiftsOpened` `true` qoladi → Hive'da yopiq, POS'da ochiq.
+      → **Tavsiya:** oflayn shox bilan bir xil qilinsin — `shiftsOpened=false`,
+        `closedCount=1`. Sabab: kassir yopdi, Z-hisobot chiqdi, Hive yopiq deydi.
+        Server tasdig'i yopishning **sharti bo'lmasligi kerak**, chunki oflayn
+        rejimda baribir shart emas.
+      → ⚠️ Bu **foydalanuvchi qarorini talab qiladi** — `## Ochiq savollar` ga qarang.
+      → Chastotasi yuqori (server 500 / timeout tez-tez bo'ladi), shuning uchun
+        1-qadamda.
+
+### 2-qadam — o'lchashdan keyin qaror qilinadi
+
+- [ ] **Hive-asosli navbat (katta refaktor) — HOZIRCHA QILINMAYDI**
+      `ShiftSyncQueue` Pref'ni emas, **smenalar ro'yxatini** o'qisin:
+      ```
+      Hive smenalarini vaqt bo'yicha tartibla
+        ochilishi yuborilmagan  → POST open  (opened_at = openingTime)
+        yopilgan-u yuborilmagan → POST close (closed_at = closingTime)
+        200 kelsa → isUploaded = true
+      ```
+      Bitta o'zgarish bilan 4 ta muammo yopiladi: yetim holat yo'q, cheksiz
+      oflayn sikl, tartib o'z-o'zidan to'g'ri, `openedCount == 0` sun'iy to'sig'i
+      keraksiz bo'ladi.
+
+      **Nega hozir emas:** eng ko'p uchraydigan holat (smena onlayn ochilgan,
+      yopishda internet uzuq) **allaqachon ishlaydi**. Refaktor faqat kam
+      uchraydigan holatlarni hal qiladi — to'lov yo'liga yaqin joyda katta
+      o'zgarish, xavf/foyda nisbati yomon.
+
+      **Qachon qilinadi — o'lchov bilan hal qilinadi.** Diagnostika endi har
+      holatni kod bilan Telegramga yozadi. 2-3 hafta ishlatilgach sanaladi:
+      - `offlineCloseBlockedByPendingOpen` **ko'p kelsa** → do'konlarda internet
+        uzoq uziladi, refaktor kerak → qilinadi
+      - **kelmasa yoki 1-2 marta kelsa** → refaktor kerak emas, yopiladi
+
+      **O'lchash sanasi:** 2026-09-07 dan keyin Telegram kanalidan sanash.
+
+### Alohida, kichikroq (istalgan vaqtda)
+
+- [ ] Ochish POST'i muvaffaqiyatsiz bo'lganda `openedDate` tozalanmasin
+      (`shift_singleton_4.dart:226-228` — POST natijasi kutilmasdan tozalanadi,
+      ya'ni ochish ham yo'lda yo'qolishi mumkin)
+- [ ] `openShift()` Hive smenasini serverdan javob olgandan keyin yaratsin
+- [ ] `usr_bloc.dart:79` — `soldItemList` bo'sh cheklar navbatda mangu qoladi
+      (`_find10()` ularni qaytaradi, `where` filtri chiqarib tashlaydi → sikl
+      hech qachon "hammasi ketdi" holatiga yetmaydi → `receipts-uploaded`
+      trigger'i ishlamaydi)
+- [ ] 409 javobi guruh so'rovida qanday talqin qilinishi (hozir `rejected`)
+- [ ] **Navbat tartibi kafolatlanmagan** — `flush` uchta trigger'dan chaqiriladi,
+      faqat `receipts-uploaded` da cheklar smenadan oldin ketishi kafolatlangan.
+      `startup` (`unawaited`, parallel) va `network-success` (u yerda `order_pos`
+      umuman yuborilmaydi) da yopish cheklardan **oldin** yetib borishi mumkin.
+      Backend'dan javob kerak — `## Ochiq savollar`.
 
 ## Qabul qilingan qarorlar
 - **Rad etilgan (server qabul qilmagan) cheklar smena yopishda ogohlantirilmaydi.**
@@ -227,9 +323,24 @@ Sabab zanjiri:
   ketadi va muammo keyinroq, tushuntirib bo'lmaydigan holatda chiqadi.
 
 ## Ochiq savollar
-- Scope'dan tashqaridagi 4 ta tuzatish qachon qilinadi — foydalanuvchi tasdig'i kutilmoqda.
-- Yopilgan smenaga kelgan `order_pos` server hisobotiga tushadimi? (navbat
-  tartibi masalasi — yuqoridagi "Keyingi qadamlar"ga qarang)
+
+1. **[FOYDALANUVCHI QARORI KERAK — 1-qadam shunga bog'liq]**
+   Onlayn yopishda server 200 qaytarmasa, smena **lokal yopilsinmi**?
+   - **Ha** (tavsiya): `shiftsOpened=false` + `closedCount=1` → Hive bilan mos,
+     navbatga tushadi, kassir ishini davom ettira oladi
+   - **Yo'q** (hozirgi holat): POS "ochiq" qoladi, Hive "yopiq" — ziddiyat,
+     kassir qayta urinishi kerak
+
+2. **[BACKEND JAVOBI KERAK]**
+   `POST shift_pos` (yopish) ketgandan keyin o'sha smenaga tegishli `order_pos`
+   chek kelsa — server uni qabul qiladimi va smena hisobotiga qo'shadimi?
+   - Qabul qilsa → navbat tartibi muammosi yo'q, hech narsa qilinmaydi
+   - Rad etsa → `flush` ichida chegaralangan tartib kerak (avval cheklar, N
+     urinishdan keyin baribir yopish — **cheksiz to'siq emas**)
+
+3. **[O'LCHOVDAN KEYIN]**
+   Hive-asosli navbat refaktori kerakmi? — 2026-09-07 dan keyin Telegram
+   kanalidagi `offlineCloseBlockedByPendingOpen` sonига qarab hal qilinadi.
 
 ## Test / Verifikatsiya
 - [ ] Internetni o'chirib smena yopish → ogohlantirish chiqishi
