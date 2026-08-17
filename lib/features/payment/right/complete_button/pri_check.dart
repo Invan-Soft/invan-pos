@@ -9,6 +9,7 @@ import 'package:invan2/changes/models/ofd/incom_response_model.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/features/payment/right/complete_button/components/button_widget.dart';
 import 'package:invan2/utils/helpers/helpers.dart';
+import 'package:invan2/widgets/my_snackbar.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../utils/constants/constants.dart';
@@ -76,7 +77,35 @@ class SimpleCheck extends StatelessWidget {
             if (context.read<OrderingProvider4>().getIsButtonEnabled &&
                 !context.read<OrderingProvider4>().getPaymentInProgress) {
               return ButtonWidgetWithWidget(
-                onPredssed: () => ctBloc.add(PreCtPrepareToPayEvent()),
+                onPredssed: () {
+                  // So'nggi to'siq: qarz tanlangan, lekin qarzdor (mijoz yoki
+                  // supplier) yo'q bo'lsa sotuvni boshlamaymiz — aks holda chek
+                  // "DEBT, mijozsiz" bo'lib ketardi.
+                  final ord = context.read<OrderingProvider4>();
+                  if (ord.isDebtSelectedWithoutDebtor) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      mySnackBar(
+                        context,
+                        duration: 2000,
+                        msg: loc.qarzga_sotishga_client_tanlangan_boloshi_lozim,
+                      ),
+                    );
+                    return;
+                  }
+                  // Cashback mijoz balansidan yechiladi — mijozsiz sotuvda
+                  // balans kamaymay, tovar ketib qolardi.
+                  if (ord.isCashbackSelectedWithoutClient) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      mySnackBar(
+                        context,
+                        duration: 2000,
+                        msg: loc.clint_tanlanmagan,
+                      ),
+                    );
+                    return;
+                  }
+                  ctBloc.add(PreCtPrepareToPayEvent());
+                },
               );
             }
           }

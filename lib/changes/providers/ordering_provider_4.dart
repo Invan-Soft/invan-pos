@@ -2705,6 +2705,9 @@ ${productLines.toString().trim()}
       _sixClient4List.add(sixClientModel);
       _currentClient = _sixClient4List.last;
       _index = _sixClient4List.length - 1;
+      // Yangi (bo'sh) savat — oldingi savatning kompaniya nomi qolib
+      // ketmasligi uchun Pref tozalanadi.
+      _syncReceiptCompanyPrefsFromCurrentClient();
       notifyListeners();
     }
   }
@@ -2714,7 +2717,44 @@ ${productLines.toString().trim()}
     _currentClient = _sixClient4List[i];
     _index = i;
     _clearEmptyClients();
+    _syncReceiptCompanyPrefsFromCurrentClient();
     notifyListeners();
+  }
+
+  /// Chekka bosiladigan kompaniya nomi va nusxa soni chop etishda GLOBAL
+  /// Pref'dan o'qiladi (`print_sold_api.dart`, `printing_methods.dart`).
+  /// Qiymatlarning o'zi esa har savatga alohida saqlanadi — shuning uchun
+  /// savat almashganda Pref'ni joriy savatnikiga moslaymiz.
+  ///
+  /// Aks holda 1-mijoz uchun "Перечисления"da kiritilgan kompaniya nomi
+  /// 2-mijozning chekiga bosilib ketardi.
+  void _syncReceiptCompanyPrefsFromCurrentClient() {
+    final String? name = _currentClient.receiptCompanyName;
+    final int? copies = _currentClient.receiptCopies;
+
+    if (name == null || name.isEmpty) {
+      Pref.removeWithKey(PrefKeys.companyNameDialog);
+    } else {
+      Pref.setString(PrefKeys.companyNameDialog, name);
+    }
+
+    if (copies == null) {
+      Pref.removeWithKey(PrefKeys.companyResipt);
+    } else {
+      Pref.setInt(PrefKeys.companyResipt, copies);
+    }
+  }
+
+  /// "Перечисления" oynasida "Ok" bosilganda chaqiriladi: qiymatlar joriy
+  /// savatga yoziladi va darhol Pref'ga ham (shu savat sotilsa chop etish
+  /// o'sha zahoti to'g'ri o'qishi uchun).
+  void setReceiptCompanyInfo({
+    required String companyName,
+    required int copies,
+  }) {
+    _currentClient.receiptCompanyName = companyName;
+    _currentClient.receiptCopies = copies;
+    _syncReceiptCompanyPrefsFromCurrentClient();
   }
 
   void _clearEmptyClients() {
@@ -2747,7 +2787,14 @@ ${productLines.toString().trim()}
   }
 
   void _paymentOnClients() {
+    // Faqat SOTILGAN slotning supplieri tozalanadi (`_selectedSupplier` =
+    // `_currentClient.selectedSupplier`). Boshqa mijozlarning slotlari
+    // o'z supplierini saqlab qoladi.
     _selectedSupplier = null;
+    // Chek allaqachon chop etilgan (toBOJECTBOX ichida) — endi bu savatning
+    // kompaniya nomi/nusxa soni ham keraksiz.
+    _currentClient.receiptCompanyName = null;
+    _currentClient.receiptCopies = null;
     _alcoholWarningShown = false;
     _cashsaleWarningShown = false;
     _bigTotalWarningShown = false;
@@ -2780,6 +2827,9 @@ ${productLines.toString().trim()}
       _index = 0;
       _currentClient = _sixClient4List.first;
     }
+    // Sotuvdan keyin joriy savat almashdi — Pref yangi savatnikiga moslanadi
+    // (yangi/bo'sh savatda kalitlar o'chadi).
+    _syncReceiptCompanyPrefsFromCurrentClient();
   }
 
   clearSixClient4List() {
@@ -2791,10 +2841,19 @@ ${productLines.toString().trim()}
         v.orderedProducts.clear();
         v.clientNumber = 0;
         v.lastAddedIndex = -1;
+        // Savat tozalanganda supplier ham qolmasin — aks holda bo'sh
+        // savatda "Allaqachon supplier tanlangan" bloki qolib ketardi.
+        v.selectedSupplier = null;
+        v.receiptCompanyName = null;
+        v.receiptCopies = null;
       }
     }
     _currentClient.orderedProducts.clear();
+    _currentClient.selectedSupplier = null;
+    _currentClient.receiptCompanyName = null;
+    _currentClient.receiptCopies = null;
     _sixClient4List = <SixClientModel4>[];
+    _syncReceiptCompanyPrefsFromCurrentClient();
 
     notifyListeners();
   }
@@ -2875,10 +2934,20 @@ ${productLines.toString().trim()}
     ClientModel? client, {
     bool isInnClient = false,
   }) {
+    final String? previousClientId = _currentClient.selectedClient?.id;
     _isInnClient = isInnClient;
     _currentClient.selectedClient = client;
     _currentClient.discountPercent = _currentClient.discountPercent ??
         0 + (client?.discountValue ?? 0).toDouble();
+    // Mijoz tozalanganda (null — masalan qidiruvda "mijoz topilmadi") qarz
+    // qatori ham chiqib ketsin.
+    dropDebtPaymentIfNoDebtor();
+    // Cashback esa AYNAN eski mijozning balansiga qarab tekshirilgan edi —
+    // mijoz o'zgargan bo'lsa (o'chirilgan yoki boshqasiga almashtirilgan)
+    // qator qolmasligi kerak.
+    if (previousClientId != client?.id) {
+      _tally.removeCashbackPayment();
+    }
     notifyListeners();
   }
 
@@ -3328,6 +3397,50 @@ ${productLines.toString().trim()}
 
   void removeFromPaymentList() => _tally.removeFromPaymentList();
 
+  /// Qarzga sotuv uchun YAROQLI qarzdor bormi. Sharti UI dagi "Qarz" tugmasi
+  /// ko'rinish sharti bilan aynan bir xil
+  /// (`keyboard_of_payment_page.dart` — `clientAvailableForDebt || supplierSelected`).
+  ///
+  /// Faqat "mijoz bormi" deb tekshirish yetarli emas: qarz qo'shilgandan keyin
+  /// mijoz qarz olishga ruxsati YO'Q mijozga almashtirilsa ham qarz qatori
+  /// qolib ketardi.
+  bool get _hasEligibleDebtor =>
+      getCurrentClientIsAvailableForDebt || _selectedSupplier != null;
+
+  /// `paymentsMap` da DEBT bor, lekin yaroqli qarzdor yo'q.
+  /// Bu holatda sotuv "mijozsiz qarz" bo'lib yozilib ketardi.
+  bool get isDebtSelectedWithoutDebtor {
+    if (_hasEligibleDebtor) return false;
+    final String debtId = Pref.getString(PrefKeys.debtId, '');
+    return paymentsMap.entries.any((e) =>
+        (debtId.isNotEmpty && e.key.replaceFirst('@', '') == debtId) ||
+        (e.value.name ?? '').toUpperCase().contains('DEBT'));
+  }
+
+  /// Mijoz/supplier olib tashlanganda (yoki qarz olishga ruxsati yo'q mijozga
+  /// almashtirilganda) `paymentsMap` da qolib ketgan DEBT qatorini tozalaydi.
+  /// Qarz tugmasi UI da faqat yaroqli qarzdor bor bo'lsa ko'rinadi, lekin qarz
+  /// QO'SHILGANDAN KEYIN qarzdor yo'qolsa (DELETE, "mijoz topilmadi" qidiruvi,
+  /// supplier o'chirilishi, mijoz almashtirilishi) qator qolib ketardi.
+  bool dropDebtPaymentIfNoDebtor() {
+    if (_hasEligibleDebtor) return false;
+    return _tally.removeDebtPayment();
+  }
+
+  /// `paymentsMap` da CASHBACK bor, lekin mijoz yo'q. Bunda chek "bonus bilan
+  /// to'landi" bo'lib yozilardi, lekin `pay_by_loyalty/{client_id}` bo'sh id
+  /// bilan ketib xato berardi — balansdan pul yechilmasdan tovar ketardi.
+  bool get isCashbackSelectedWithoutClient {
+    if (_currentClient.selectedClient != null) return false;
+    return _tally.hasCashbackPayment;
+  }
+
+  /// Mijoz olib tashlanganda cashback qatorini tozalaydi.
+  bool dropCashbackPaymentIfNoClient() {
+    if (_currentClient.selectedClient != null) return false;
+    return _tally.removeCashbackPayment();
+  }
+
   selectPaymentIndex(int v) => _tally.selectPaymentIndex(v);
 
   changeTheSelectedPaymentIndex(bool up) =>
@@ -3492,6 +3605,11 @@ ${productLines.toString().trim()}
               // Mijoz olib tashlandi — faqat o'sha mijoz uchun qo'llangan
               // customer-group diskontlarni (Free Gift va h.k.) bekor qilamiz.
               recalcDiscountsAfterClientRemoved();
+              // Qarzga sotuv tanlangan bo'lsa, qarzdor qolmagani uchun DEBT
+              // qatori ham ro'yxatdan chiqadi. Cashback ham xuddi shunday —
+              // u mijoz balansiga bog'liq.
+              dropDebtPaymentIfNoDebtor();
+              dropCashbackPaymentIfNoClient();
               AppNavigation.pop();
               notifyListeners();
             },
@@ -3513,7 +3631,14 @@ ${productLines.toString().trim()}
     return;
   }
 
-  SupplierModel? _selectedSupplier;
+  /// Tanlangan supplier HAR SAVAT (slot) uchun alohida saqlanadi —
+  /// `_currentClient.selectedSupplier`. Oldin bu provider darajasidagi bitta
+  /// maydon edi: 1-mijozda supplier tanlansa, 2-mijozga o'tib mijoz/cashback
+  /// tanlamoqchi bo'lganda "Allaqachon supplier tanlangan" chiqib qolardi.
+  SupplierModel? get _selectedSupplier => _currentClient.selectedSupplier;
+
+  set _selectedSupplier(SupplierModel? supplier) =>
+      _currentClient.selectedSupplier = supplier;
 
   SupplierModel? get getSelectedSupplier => _selectedSupplier;
 
@@ -3522,6 +3647,9 @@ ${productLines.toString().trim()}
   // uchun null bilan chaqiriladi).
   void setSelectedSupplierFromInnSearch(SupplierModel? supplier) {
     _selectedSupplier = supplier;
+    // Supplier o'chirilganda (null) qarz qatori ham ro'yxatdan chiqadi —
+    // aks holda qarzdorsiz DEBT sotuvi ketardi.
+    dropDebtPaymentIfNoDebtor();
     notifyListeners();
   }
 

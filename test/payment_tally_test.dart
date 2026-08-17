@@ -11,8 +11,10 @@
 // MUHIM: bu yerda "to'g'rimi?" emas, "hozir nima bo'lyapti?" yoziladi.
 // Shubhali xatti-harakat topilsa — izohda QAYD etiladi, tuzatilmaydi.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/models/client_model.dart';
 import 'package:invan2/changes/models/organization_model.dart';
 import 'package:invan2/changes/models/six_client_model.dart';
+import 'package:invan2/changes/models/supplier_model.dart';
 import 'package:invan2/changes/providers/ordering_provider_4.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
@@ -22,6 +24,7 @@ import 'support/provider_harness.dart';
 const kCashId = 'cash-id';
 const kCardId = 'card-id';
 const kDebtId = 'debt-id';
+const kCashbackId = 'cashback-id';
 
 /// `type: 1` bo'lgan to'lov turi paymentsMap'da '@id' kaliti bilan saqlanadi
 /// (masalan Click/Payme), qolganlari oddiy id bilan.
@@ -58,6 +61,7 @@ void main() {
     await setUpPosTestEnv('payment_tally_test');
     await Pref.setString(PrefKeys.cashId, kCashId);
     await Pref.setString(PrefKeys.debtId, kDebtId);
+    await Pref.setString(PrefKeys.cashbackId, kCashbackId);
   });
   tearDownAll(tearDownPosTestEnv);
 
@@ -352,6 +356,189 @@ void main() {
 
       expect(list.length, 2);
       expect(list.map((e) => e.value).reduce((a, b) => a + b), 100000);
+    });
+  });
+
+  // 2026-08-17: qarzdorsiz DEBT bug'i. Qarz tugmasi UI da faqat mijoz/supplier
+  // bor bo'lsa ko'rinadi, lekin qarz QO'SHILGANDAN KEYIN qarzdor olib
+  // tashlansa (Didox supplier DELETE, "mijoz topilmadi" qidiruvi) DEBT qatori
+  // ro'yxatda qolib ketardi va sotuv mijozsiz qarzga yozilardi.
+  group('Qarzdorsiz DEBT — qarzdor olib tashlanganda', () {
+    ClientModel debtClient() => ClientModel(
+          id: 'client-1',
+          firstName: 'Ali',
+          isAvailableForDebt: true,
+        );
+
+    SupplierModel innSupplier() => SupplierModel(
+          id: 'supplier-1',
+          supplierCompanyName: 'OOO Test',
+          agreementNumber: const [],
+          name: 'Test',
+          phoneNumber: const [],
+          externalId: '',
+          status: '',
+          contact: '',
+          inn: '123456789',
+          email: '',
+        );
+
+    test('supplier o\'chirilsa DEBT qatori ham ro\'yxatdan chiqadi', () {
+      final p = paymentPage(total: 100000);
+      p.setSelectedSupplierFromInnSearch(innSupplier());
+      p.allPaymentType(payment(kDebtId, name: 'DEBT'));
+      expect(p.paymentsMap.containsKey(kDebtId), isTrue);
+      expect(p.getIsButtonEnabled, isTrue);
+
+      p.setSelectedSupplierFromInnSearch(null);
+
+      expect(p.paymentsMap.containsKey(kDebtId), isFalse);
+      expect(p.getMustPay, 100000);
+      expect(p.getIsButtonEnabled, isFalse);
+      expect(p.isDebtSelectedWithoutDebtor, isFalse);
+    });
+
+    test('mijoz tozalansa (qidiruvda topilmadi) DEBT qatori chiqadi', () {
+      final p = paymentPage(total: 100000);
+      p.initClientByBloc(debtClient());
+      p.allPaymentType(payment(kDebtId, name: 'DEBT'));
+      expect(p.paymentsMap.containsKey(kDebtId), isTrue);
+
+      p.initClientByBloc(null);
+
+      expect(p.paymentsMap.containsKey(kDebtId), isFalse);
+    });
+
+    test('qarzdor qolgan bo\'lsa DEBT qatoriga tegilmaydi', () {
+      final p = paymentPage(total: 100000);
+      p.initClientByBloc(debtClient());
+      p.allPaymentType(payment(kDebtId, name: 'DEBT'));
+
+      // Supplier allaqachon yo'q edi — mijoz turibdi, qarz qolishi kerak.
+      p.setSelectedSupplierFromInnSearch(null);
+
+      expect(p.paymentsMap.containsKey(kDebtId), isTrue);
+      expect(p.isDebtSelectedWithoutDebtor, isFalse);
+    });
+
+    test('qarz olishga ruxsati yo\'q mijozga almashtirilsa DEBT chiqadi', () {
+      final p = paymentPage(total: 100000);
+      p.initClientByBloc(debtClient());
+      p.allPaymentType(payment(kDebtId, name: 'DEBT'));
+      expect(p.paymentsMap.containsKey(kDebtId), isTrue);
+
+      // Kassir mijozni almashtirdi — yangisiga qarz berish mumkin emas.
+      p.initClientByBloc(ClientModel(
+        id: 'client-2',
+        firstName: 'Vali',
+        isAvailableForDebt: false,
+      ));
+
+      expect(p.paymentsMap.containsKey(kDebtId), isFalse);
+      expect(p.getMustPay, 100000);
+    });
+
+    test('faqat DEBT o\'chadi — naqd qatori joyida qoladi', () {
+      final p = paymentPage(total: 100000);
+      p.initClientByBloc(debtClient());
+      typeAmount(p, '40000');
+      p.allPaymentType(payment(kCashId, name: 'CASH'));
+      p.allPaymentType(payment(kDebtId, name: 'DEBT'));
+      expect(p.paymentsMap.length, 2);
+
+      p.initClientByBloc(null);
+
+      expect(p.paymentsMap.containsKey(kCashId), isTrue);
+      expect(p.paymentsMap[kCashId]!.value, 40000);
+      expect(p.paymentsMap.containsKey(kDebtId), isFalse);
+      expect(p.getMustPay, 60000);
+    });
+
+    test('isDebtSelectedWithoutDebtor — qarzdorsiz qolgan DEBT ni aniqlaydi',
+        () {
+      final p = paymentPage(total: 100000);
+      // Qarzdorsiz DEBT holatini to'g'ridan-to'g'ri quramiz (so'nggi to'siq
+      // shu holatda sotuvni bloklaydi).
+      p.paymentsMap = {kDebtId: payment(kDebtId, name: 'DEBT')};
+      expect(p.isDebtSelectedWithoutDebtor, isTrue);
+
+      p.initClientByBloc(debtClient());
+      expect(p.isDebtSelectedWithoutDebtor, isFalse);
+    });
+  });
+
+  // 2026-08-17: qarz bug'i bilan bir xil sinf. Cashback summasi AYNAN tanlangan
+  // mijozning balansiga qarab tekshiriladi; mijoz o'zgarsa qator qolib ketardi
+  // va chek "bonus bilan to'landi" bo'lib ketardi-yu, balans kamaymasdi
+  // (`pay_by_loyalty/{client_id}` bo'sh id bilan xato beradi).
+  group('Mijozsiz CASHBACK — mijoz o\'zgarganda', () {
+    ClientModel clientA() => ClientModel(id: 'client-A', firstName: 'Ali');
+    ClientModel clientB() => ClientModel(id: 'client-B', firstName: 'Vali');
+
+    test('mijoz o\'chirilsa cashback qatori ham chiqadi', () {
+      final p = paymentPage(total: 100000);
+      p.initClientByBloc(clientA());
+      typeAmount(p, '30000');
+      p.allPaymentType(payment(kCashbackId, name: 'CASHBACK'));
+      expect(p.paymentsMap.containsKey(kCashbackId), isTrue);
+
+      p.initClientByBloc(null);
+
+      expect(p.paymentsMap.containsKey(kCashbackId), isFalse);
+      expect(p.getMustPay, 100000);
+      expect(p.isCashbackSelectedWithoutClient, isFalse);
+    });
+
+    test('boshqa mijozga almashtirilsa cashback qatori chiqadi', () {
+      final p = paymentPage(total: 100000);
+      p.initClientByBloc(clientA());
+      typeAmount(p, '30000');
+      p.allPaymentType(payment(kCashbackId, name: 'CASHBACK'));
+
+      // B ning balansi boshqa — A ning balansiga qarab tekshirilgan summa
+      // B ga o'tib ketmasligi kerak.
+      p.initClientByBloc(clientB());
+
+      expect(p.paymentsMap.containsKey(kCashbackId), isFalse);
+    });
+
+    test('o\'sha mijoz qayta o\'rnatilsa cashback qatoriga tegilmaydi', () {
+      final p = paymentPage(total: 100000);
+      p.initClientByBloc(clientA());
+      typeAmount(p, '30000');
+      p.allPaymentType(payment(kCashbackId, name: 'CASHBACK'));
+
+      p.initClientByBloc(clientA());
+
+      expect(p.paymentsMap.containsKey(kCashbackId), isTrue);
+      expect(p.paymentsMap[kCashbackId]!.value, 30000);
+    });
+
+    test('faqat CASHBACK o\'chadi — naqd qatori joyida qoladi', () {
+      final p = paymentPage(total: 100000);
+      p.initClientByBloc(clientA());
+      typeAmount(p, '40000');
+      p.allPaymentType(payment(kCashId, name: 'CASH'));
+      typeAmount(p, '30000');
+      p.allPaymentType(payment(kCashbackId, name: 'CASHBACK'));
+      expect(p.paymentsMap.length, 2);
+
+      p.initClientByBloc(null);
+
+      expect(p.paymentsMap.containsKey(kCashId), isTrue);
+      expect(p.paymentsMap[kCashId]!.value, 40000);
+      expect(p.paymentsMap.containsKey(kCashbackId), isFalse);
+      expect(p.getMustPay, 60000);
+    });
+
+    test('isCashbackSelectedWithoutClient — mijozsiz qolgan qatorni aniqlaydi',
+        () {
+      final p = paymentPage(total: 100000);
+      p.paymentsMap = {kCashbackId: payment(kCashbackId, name: 'CASHBACK')};
+      expect(p.isCashbackSelectedWithoutClient, isTrue);
+
+      p.initClientByBloc(clientA());
+      expect(p.isCashbackSelectedWithoutClient, isFalse);
     });
   });
 }

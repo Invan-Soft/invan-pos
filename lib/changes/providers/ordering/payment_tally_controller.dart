@@ -136,6 +136,56 @@ class PaymentTallyController {
     _notify();
   }
 
+  /// Faqat DEBT (qarz) qatorini ro'yxatdan olib tashlaydi — naqd/karta kabi
+  /// boshqa to'lovlarga tegmaydi. Qarzdor (mijoz yoki supplier) olib
+  /// tashlanganda chaqiriladi.
+  ///
+  /// `true` qaytarsa — qator haqiqatan o'chirildi (UI ogohlantirish uchun).
+  bool removeDebtPayment() {
+    final bool removed = _removePaymentsWhere(_isDebtEntry);
+    if (removed) Pref.setBool(PrefKeys.debtClick, false);
+    return removed;
+  }
+
+  /// Cashback (bonus balans) qatori ro'yxatda bormi.
+  bool get hasCashbackPayment => paymentsMap.entries.any(_isCashbackEntry);
+
+  /// Faqat CASHBACK qatorini olib tashlaydi. Cashback summasi AYNAN tanlangan
+  /// mijozning balansiga qarab tekshirilgan bo'ladi, shuning uchun mijoz
+  /// o'zgarganda (o'chirilsa yoki boshqasiga almashtirilsa) qator qolmasligi
+  /// kerak.
+  bool removeCashbackPayment() => _removePaymentsWhere(_isCashbackEntry);
+
+  bool _isDebtEntry(MapEntry<String, Payment> e) {
+    final String debtId = Pref.getString(PrefKeys.debtId, '');
+    return (debtId.isNotEmpty && e.key.replaceFirst('@', '') == debtId) ||
+        (e.value.name ?? '').toUpperCase().contains('DEBT');
+  }
+
+  bool _isCashbackEntry(MapEntry<String, Payment> e) {
+    final String cashbackId = Pref.getString(PrefKeys.cashbackId, '');
+    return (cashbackId.isNotEmpty &&
+            e.key.replaceFirst('@', '') == cashbackId) ||
+        (e.value.name ?? '').toUpperCase().contains('CASHBACK');
+  }
+
+  /// Shartga mos qatorlarni o'chiradi va hisobni yangilaydi.
+  /// Qolgan to'lovlarga (naqd, karta) tegmaydi.
+  bool _removePaymentsWhere(bool Function(MapEntry<String, Payment>) test) {
+    if (paymentsMap.isEmpty) return false;
+    final List<String> keys =
+        paymentsMap.entries.where(test).map((e) => e.key).toList();
+    if (keys.isEmpty) return false;
+
+    for (final key in keys) {
+      paymentsMap.remove(key);
+    }
+    selectedPaymentIndex = -1;
+    checkButtonIsEnable();
+    _notify();
+    return true;
+  }
+
   void selectPaymentIndex(int v) {
     selectedPaymentIndex = v;
     _notify();

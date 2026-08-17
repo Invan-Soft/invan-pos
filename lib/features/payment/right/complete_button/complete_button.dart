@@ -264,8 +264,27 @@ class CompleteButtonOfPaymentPageOnBloc extends StatelessWidget {
               return ButtonWidget(
                 title: loc.yakunlash,
                 onPredssed: () {
-                  if (context.read<OrderingProvider4>().getIsButtonEnabled &&
-                      !context.read<OrderingProvider4>().getPaymentInProgress) {
+                  final ord = context.read<OrderingProvider4>();
+                  // Cashback mijoz balansidan yechiladi. Mijoz to'lov
+                  // qo'shilgandan keyin olib tashlangan bo'lsa, chek "bonus
+                  // bilan to'landi" bo'lib ketardi-yu, balans kamaymasdi.
+                  if (ord.isCashbackSelectedWithoutClient) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      mySnackBar(context,
+                          duration: 2000, msg: loc.clint_tanlanmagan),
+                    );
+                    return;
+                  }
+                  if (ord.isDebtSelectedWithoutDebtor) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      mySnackBar(context,
+                          duration: 2000,
+                          msg: loc
+                              .qarzga_sotishga_client_tanlangan_boloshi_lozim),
+                    );
+                    return;
+                  }
+                  if (ord.getIsButtonEnabled && !ord.getPaymentInProgress) {
                     ctBloc.add(CtPrepareToPayEvent());
                   }
                 },
