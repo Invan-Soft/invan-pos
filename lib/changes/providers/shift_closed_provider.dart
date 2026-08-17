@@ -1,18 +1,21 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/app_navigation.dart';
-import 'package:invan2/changes/providers/open_shift_provider.dart';
 import 'package:invan2/changes/repository/log_repository.dart';
+import 'package:invan2/changes/services/shift/shift_diagnostics.dart';
+import 'package:invan2/features/checks/features/checks_app_bar/bloc/usr_bloc.dart';
+import 'package:invan2/features/features.dart';
 import 'package:invan2/features/home/home_page.dart';
 import 'package:invan2/utils/utils.dart';
+import 'package:invan2/widgets/shift_warning_dialog.dart';
 import 'package:provider/provider.dart';
 
 import '../../fiscal_service/fiscal.dart';
 import '../../widgets/my_snackbar.dart';
 import '../models/log/loc_res_model.dart';
 import '../services/shifting_service.dart';
-import 'ordering_provider_4.dart';
 
 class ShiftClosedProvider extends ChangeNotifier {
   TextEditingController startingCash = TextEditingController(text: "0");
@@ -105,22 +108,66 @@ class ShiftClosedProvider extends ChangeNotifier {
         .openShift(context, startingCash);
     Provider.of<OrderingProvider4>(context, listen: false).pressAllPath();
     cButtonPressed();
-    if (success == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          mySnackBar(context, msg: 'Pos is open on the web', duration: 2000));
-      LogRepository.addLog(
-        "OpenShiftProvider / openshift / funcsiyasi false qaytargan holat",
-        file: "ShiftClosedProvider / onOpenShiftButtonPresed",
-        method: "-",
-        path: '-',
-        where: "SHIFTCLOSEDPROVIDER / onOpenShiftButtonPresed ",
-        statusCode: -1,
-      );
-    } else if (success == true) {
+
+    if (success == true) {
       AppNavigation.pushAndRemoveUntil(const HomePage());
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(mySnackBar(context,
-          msg: 'Потолок открыть невозможно.', duration: 2000));
+      return;
+    }
+
+    // success == null → kassa serverda ochiq / ro'yxatda yo'q / aktivlashmagan
+    // success == false → server smena holatini bermadi
+    // Ilgari ikkalasi ham "Pos is open on the web" deb ko'rsatilardi.
+    await _showOpenFailure(context, serverUnavailable: success == false);
+  }
+
+  /// Smena ochilmagan sababni kassirga tushunarli qilib ko'rsatadi va
+  /// (imkoni bo'lsa) tuzatish tugmasini beradi.
+  Future<void> _showOpenFailure(
+    BuildContext context, {
+    required bool serverUnavailable,
+  }) async {
+    final loc = AppLocalizations.of(context);
+    final bool isUz = loc == null || loc.ha.toLowerCase() == 'ha';
+
+    // Dialog ochilishidan oldin spinnerni olib tashlaymiz.
+    _isWaiting = false;
+    notifyListeners();
+
+    final ShiftSnapshot snapshot = await ShiftDiagnostics.capture();
+    final ShiftIssue issue = ShiftDiagnostics.lastOpenIssue ??
+        (serverUnavailable
+            ? ShiftIssue.serverStatusUnavailable
+            : ShiftIssue.unknown);
+
+    final List<ShiftIssue> issues = [issue];
+    // Kassa serverda ochiq bo'lsa-yu, lokalda yuborilmagan yopish tursa —
+    // asl sabab aynan shu, uni ham ko'rsatamiz.
+    if (issue == ShiftIssue.cashboxOpenOnServer && snapshot.hasPendingClose) {
+      issues.add(ShiftIssue.pendingCloseNotSynced);
+    }
+
+    await ShiftDiagnostics.report(
+      issue: issue,
+      action: ShiftAction.open,
+      snapshot: snapshot,
+      detail: ShiftDiagnostics.lastOpenDetail,
+    );
+
+    final ShiftWarningAction choice = await showShiftWarningDialog(
+      context,
+      issues: issues,
+      snapshot: snapshot,
+      isUz: isUz,
+      action: ShiftAction.open,
+    );
+
+    if (choice == ShiftWarningAction.sendPendingClose) {
+      await Provider.of<OpenShiftProvider>(context, listen: false)
+          .sendPendingCloseToServer(context, isUz: isUz);
+    } else if (choice == ShiftWarningAction.sendReceipts) {
+      BlocProvider.of<UsrBloc>(context).add(
+        UsrSendEvent("Smena ochishdan oldin", snapshot.unsentReceipts),
+      );
     }
   }
 

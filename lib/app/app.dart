@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:in_app_notification/in_app_notification.dart';
 import 'package:invan2/changes/bloc/supplier_search/supplier_search_bloc.dart';
+import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
 import 'package:invan2/changes/services/sync/catch_up_sync.dart';
 import 'package:invan2/app/theme_bloc/theme_mode_bloc.dart';
 import 'package:invan2/app/wrapper/wrapper.dart';
@@ -34,7 +35,6 @@ import '../app_navigation.dart';
 import '../changes/bloc/client_search/client_search_bloc.dart';
 import '../changes/bloc/payme/payme_bloc.dart';
 import '../changes/dialogs/creat_product/bloc/get_mxik_from_soliq_bloc.dart';
-import '../changes/services/shift_api_4.dart';
 import '../changes/services/web_socket_service/web_socket_options/bloc/connect_bloc.dart';
 import '../changes/services/web_socket_service/web_socket_options/ws_service.dart';
 import '../features/checks/features/check_view/bloc/pre_ofd/preofd_bloc.dart';
@@ -49,7 +49,6 @@ import '../features/payment/right/dilogs/click/bloc/click_bloc.dart';
 import '../features/payment/right/dilogs/paynet/bloc/paynet_bloc.dart';
 import '../features/payment/right/dilogs/transfer/set_driver/set_driver_bloc.dart';
 import '../idle_service.dart';
-import '../objectbox.g.dart';
 import '../utils/constants/pref_keys.dart';
 import '../utils/helpers/prefs.dart';
 import '../utils/themes.dart';
@@ -167,30 +166,12 @@ class AppState extends State<App> {
 
                   /// Check the shift ///
                   ///
-                  {
-                    if (_isBoxEmpty()) {
-                      //////////////   CLOSE SHIFT   ///////////////
-                      if (Pref.getString(PrefKeys.closedDate, '').isNotEmpty &&
-                          Pref.getInt(PrefKeys.closedCount, 0) == 1) {
-                        if (kDebugMode) {
-                          print('CLOSE SHIFT');
-                        }
-                        await ShiftApi4.closeShift();
-                        await Pref.setInt(PrefKeys.closedCount, 0);
-                        await Pref.setString(PrefKeys.closedDate, '');
-                      }
-                      //////////////   OPEN SHIFT   ///////////////
-                      if (Pref.getString(PrefKeys.openedDate, '').isNotEmpty &&
-                          Pref.getInt(PrefKeys.openedCount, 0) == 1) {
-                        if (kDebugMode) {
-                          print('OPEN SHIFT');
-                        }
-                        await ShiftApi4.openShift();
-                        await Pref.setInt(PrefKeys.openedCount, 0);
-                        await Pref.setString(PrefKeys.openedDate, '');
-                      }
-                    }
-                  }
+                  /// Serverga yetmagan smena ochish/yopish navbati.
+                  /// Ilgari bu yerda `_isBoxEmpty()` sharti bor edi — ketmagan
+                  /// chek bo'lsa smena ham yuborilmasdi. 2026-08-13 da aynan
+                  /// shu sabab yopilish serverga ketmay qolgan. Smena
+                  /// yopilishining cheklar navbatiga hech qanday aloqasi yo'q.
+                  await ShiftSyncQueue.flush(reason: 'network-success');
 
                   {
                     /// Notification catch-up ///
@@ -250,17 +231,6 @@ class AppState extends State<App> {
   }
 
   Future<void> _hiveClose() async => await Hive.close();
-
-  static bool _isBoxEmpty() {
-    final box = MyObjectbox.saleStore.box<ReceiptModel4>();
-    final query = box
-        .query(ReceiptModel4_.uploaded.equals(false) &
-            ReceiptModel4_.rejected.equals(false))
-        .build();
-    final isEmpty = query.find().isEmpty;
-    query.close();
-    return isEmpty;
-  }
 }
 
 /*{

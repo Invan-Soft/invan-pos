@@ -7,6 +7,7 @@ import 'package:invan2/changes/bloc/network/network_bloc.dart';
 import 'package:invan2/changes/models/shift/shift_hive_model.dart';
 import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
+import 'package:invan2/changes/services/shift/shift_diagnostics.dart';
 import 'package:invan2/changes/services/shift_api_4.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
@@ -120,86 +121,111 @@ class ShiftSingleton4 {
     await Pref.setString(PrefKeys.openedDate,
         DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()));
     await Pref.setInt(PrefKeys.currentShiftKey, i);
+    // Har urinishdan oldin oldingi sababni tozalaymiz — UI faqat shu
+    // urinishning sababini ko'rsatishi kerak.
+    ShiftDiagnostics.resetOpenIssue();
+
     if (await InternetConnectionChecker().hasConnection) {
       await ShiftApi4.shiftStatusInvan2().then((HttpResult status) async {
-        if (status.statusCode >= 400) {
-          ;
+        // 1) Server holatni umuman bermadi.
+        if (status.statusCode >= 400 || !status.isSuccess) {
+          ShiftDiagnostics.lastOpenIssue = ShiftIssue.serverStatusUnavailable;
+          ShiftDiagnostics.lastOpenDetail =
+              'GET api/v1/shift_statuses → status ${status.statusCode}';
           isReturn = false;
-        } else {
-          List<dynamic> cashBoxes = status.result;
-          if (status.isSuccess) {
-            for (dynamic cashBox in cashBoxes) {
-              if (cashBox["opened_by_web"] == false &&
-                  cashBox["opened_by_pos"] == false &&
-                  cashBox["opened_by_user_id"] == '' &&
-                  (cashBox["status"] == 'closed' ||
-                      cashBox["status"] == 'close') &&
-                  Pref.getString(PrefKeys.activatedPosId, '') ==
-                      cashBox['cashbox_id']) {
-                ShiftApi4.openShift().then(
-                  (HttpResult value) async {
-                    if (value.isSuccess) {
-                      String localSUuid = const Uuid().v4();
-                      sh
-                        ..shiftId = localSUuid
-                        ..iV = i;
-                      await box.put(
-                        i,
-                        sh,
-                      );
-                    } else {
-                      await box.put(i, sh);
-                    }
-                  },
-                ).catchError(
-                  (err) {
-                    LogRepository.addLog(
-                      err.toString(),
-                      file: "ShiftSingleton_4 / openShift / catchError",
-                      method: "OPEN SHIFT",
-                      where: "SHIFT SINGLETON / CATCH ERROR",
-                      path: "ShiftSingleton_4.dart",
-                      statusCode: 0,
-                      url: '-',
-                    );
-                  },
-                );
-                isReturn = true;
-                await Pref.setInt(PrefKeys.openedCount, 0);
-                await Pref.setString(PrefKeys.openedDate, '');
-                break;
-              } else if (Pref.getString(PrefKeys.activatedPosId, '') ==
-                  cashBox['cashbox_id']) {
-                LogRepository.addLog(cashBoxes.toString(),
-                    where:
-                        "02319-023-0123",
-                    statusCode: -1,
-                    method: "Open SHIFT",
-                    file: "ShiftSingleton_4 / openShift");
-                LogRepository.addLog(
-                  "\ncashbox_name = ${cashBox["cashbox_name"]}\n"
-                  "opened_by_web = ${cashBox["opened_by_web"]}\n"
-                  "opened_by_pos = ${cashBox["opened_by_pos"]}\n"
-                  "opened_by_user_id = ${cashBox["opened_by_user_id"]}\n"
-                  "status = ${cashBox["status"]}\n"
-                  "cashbox_id = ${cashBox['cashbox_id']}\n"
-                  "activatedPosId = ${Pref.getString(PrefKeys.activatedPosId, '')}\n"
-                  "activatedPosId == cashbox_id = ${Pref.getString(PrefKeys.activatedPosId, '') == cashBox['cashbox_id']}",
-                  file: "ShiftSingleton_4 / openShift",
-                  method: "OPEN SHIFT",
-                  where: "",
-                  statusCode: 111111,
-                );
+          return;
+        }
 
-                isReturn = null;
-              } else {
-                isReturn = null;
-              }
-            }
-          } else {
-            isReturn = false;
+        final List<dynamic> cashBoxes = status.result;
+        final String posId = Pref.getString(PrefKeys.activatedPosId, '');
+
+        // 2) POS aktivlashtirilmagan.
+        if (posId.isEmpty) {
+          ShiftDiagnostics.lastOpenIssue = ShiftIssue.posNotActivated;
+          ShiftDiagnostics.lastOpenDetail = 'activatedPosId bo\'sh';
+          isReturn = null;
+          return;
+        }
+
+        // 3) Shu kassani server ro'yxatidan topamiz.
+        dynamic myCashBox;
+        for (final dynamic cashBox in cashBoxes) {
+          if (cashBox is Map && cashBox['cashbox_id'] == posId) {
+            myCashBox = cashBox;
+            break;
           }
         }
+
+        if (myCashBox == null) {
+          ShiftDiagnostics.lastOpenIssue = ShiftIssue.cashboxNotFoundOnServer;
+          ShiftDiagnostics.lastOpenDetail =
+              'activatedPosId = $posId\nServer ro\'yxatida ${cashBoxes.length} '
+              'ta kassa bor, lekin bu ID yo\'q.';
+          isReturn = null;
+          return;
+        }
+
+        // 4) Kassa serverda to'liq yopiqmi?
+        final bool isFullyClosed = myCashBox['opened_by_web'] == false &&
+            myCashBox['opened_by_pos'] == false &&
+            myCashBox['opened_by_user_id'] == '' &&
+            (myCashBox['status'] == 'closed' || myCashBox['status'] == 'close');
+
+        if (!isFullyClosed) {
+          ShiftDiagnostics.lastOpenIssue = myCashBox['opened_by_web'] == true
+              ? ShiftIssue.cashboxOpenOnWeb
+              : ShiftIssue.cashboxOpenOnServer;
+          ShiftDiagnostics.lastOpenDetail = 'Serverdagi holat:\n'
+              'cashbox_name = ${myCashBox["cashbox_name"]}\n'
+              'status = ${myCashBox["status"]}\n'
+              'opened_by_pos = ${myCashBox["opened_by_pos"]}\n'
+              'opened_by_web = ${myCashBox["opened_by_web"]}\n'
+              'opened_by_user_id = ${myCashBox["opened_by_user_id"]}\n'
+              'cashbox_id = ${myCashBox["cashbox_id"]}';
+          isReturn = null;
+          return;
+        }
+
+        // 5) Hammasi joyida — smenani serverda ochamiz.
+        ShiftApi4.openShift().then(
+          (HttpResult value) async {
+            if (value.isSuccess) {
+              String localSUuid = const Uuid().v4();
+              sh
+                ..shiftId = localSUuid
+                ..iV = i;
+              await box.put(
+                i,
+                sh,
+              );
+            } else {
+              await box.put(i, sh);
+              // Smena kassada ochildi, lekin server tasdiqlamadi — keyinchalik
+              // yopishda "kassa serverda ochiq emas" muammosi chiqadi.
+              await ShiftDiagnostics.report(
+                issue: ShiftIssue.pendingOpenNotSynced,
+                action: ShiftAction.open,
+                detail: 'POST api/v1/shift_pos (open) → '
+                    'status ${value.statusCode}',
+              );
+            }
+          },
+        ).catchError(
+          (err) {
+            LogRepository.addLog(
+              err.toString(),
+              file: "ShiftSingleton_4 / openShift / catchError",
+              method: "OPEN SHIFT",
+              where: "SHIFT SINGLETON / CATCH ERROR",
+              path: "ShiftSingleton_4.dart",
+              statusCode: 0,
+              url: '-',
+            );
+          },
+        );
+        isReturn = true;
+        await Pref.setInt(PrefKeys.openedCount, 0);
+        await Pref.setString(PrefKeys.openedDate, '');
       });
     } else {
       if (Pref.getInt(PrefKeys.openedCount, 0) == 0) {

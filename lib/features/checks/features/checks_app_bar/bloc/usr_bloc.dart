@@ -5,12 +5,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
+import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 import 'package:invan2/objectbox.g.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../../changes/services/api.dart';
-import '../../../../../utils/utils.dart';
 
 part 'usr_event.dart';
 
@@ -85,10 +85,28 @@ class UsrBloc extends Bloc<UsrEvent, UsrState> {
               emit(UsrErrorState(v.getError));
               _responseSuccess = false;
               uploadingWorkingg = false;
-              for (int i = 0; i < receiptList.length; i++) {
-                receiptList[i].rejected = true;
+
+              // Server javob berdimi (4xx/5xx) — bu haqiqiy rad etish:
+              // qayta yuborish foydasiz, chek `rejected` bo'lib qo'lda
+              // ko'rib chiqiladi.
+              //
+              // Tarmoq xatosi (timeout = -1, ulanish xatosi = -2) rad etish
+              // EMAS. Ilgari ular ham `rejected=true` bo'lardi va chek
+              // avtomatik navbatdan (`_find10` faqat rejected=false oladi)
+              // BUTUNLAY chiqib ketardi — internet tiklansa ham hech qachon
+              // o'zi yuborilmasdi. 2026-08-13 hodisasida 2 ta chek shunday
+              // yo'qolgan. Endi bunday chek navbatda qoladi.
+              //
+              // Tarmoq xatosi Telegramga yozilmaydi — bu loyihada tarmoq
+              // xatolari ataylab filtrlanadi (LogRepository.isNetworkError),
+              // aks holda har uzilishda o'nlab xabar ketardi.
+              final bool serverRejected = v.statusCode >= 400;
+              if (serverRejected) {
+                for (int i = 0; i < receiptList.length; i++) {
+                  receiptList[i].rejected = true;
+                }
+                _put10(receiptList);
               }
-              _put10(receiptList);
               return;
             } else {
               if (v.statusCode == 201) {
@@ -105,26 +123,9 @@ class UsrBloc extends Bloc<UsrEvent, UsrState> {
                   _responseSuccess = false;
                   uploadingWorkingg = false;
 
-                  //////////////   CLOSE SHIFT   ///////////////
-                  if (Pref.getString(PrefKeys.closedDate, '').isNotEmpty &&
-                      Pref.getInt(PrefKeys.closedCount, 0) == 1) {
-                    if (kDebugMode) {
-                      print('CLOSE SHIFT');
-                    }
-                    await ShiftApi4.closeShift();
-                    await Pref.setInt(PrefKeys.closedCount, 0);
-                    await Pref.setString(PrefKeys.closedDate, '');
-                  }
-                  //////////////   OPEN SHIFT   ///////////////
-                  if (Pref.getString(PrefKeys.openedDate, '').isNotEmpty &&
-                      Pref.getInt(PrefKeys.openedCount, 0) == 1) {
-                    if (kDebugMode) {
-                      print('OPEN SHIFT');
-                    }
-                    await ShiftApi4.openShift();
-                    await Pref.setInt(PrefKeys.openedCount, 0);
-                    await Pref.setString(PrefKeys.openedDate, '');
-                  }
+                  // Barcha cheklar ketdi — endi serverga yetmagan smena
+                  // ochish/yopish navbatini yuboramiz.
+                  await ShiftSyncQueue.flush(reason: 'receipts-uploaded');
 
                   emit(UsrFinishedState());
                   return;

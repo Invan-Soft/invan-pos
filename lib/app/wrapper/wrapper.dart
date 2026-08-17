@@ -19,6 +19,7 @@ import 'package:invan2/features/lock/access_level/view/access_level_page.dart';
 import 'package:invan2/utils/constants/constants.dart';
 import 'package:invan2/utils/helpers/auth_backup.dart';
 import 'package:invan2/changes/services/discount_auto_sync_service.dart';
+import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
 import 'package:invan2/utils/helpers/network_error_helper.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 import 'package:invan2/utils/helpers/size_config.dart';
@@ -95,6 +96,16 @@ class _WrapperState extends State<Wrapper> {
           /// yuborishni boshlaymiz. Internet tekshiruvi UsrBloc._send ichida
           /// bajariladi, shuning uchun internet bo'lmasa xavfsiz to'xtaydi.
           _flushUnsentReceiptsOnStartup();
+
+          /// Serverga yetmagan smena ochish/yopish navbati.
+          ///
+          /// Nima uchun aynan startup'da: `NetworkBloc` faqat internet holati
+          /// O'ZGARGANDA emit qiladi (`onStatusChange`). Ilova internet
+          /// allaqachon ulangan holda ochilsa hech qanday trigger bo'lmaydi va
+          /// navbat abadiy qolib ketadi. 2026-08-13 da smena yopilishi aynan
+          /// shu sabab serverga ketmagan: ilova 16:25:55 da internet bor holda
+          /// qayta ishga tushgan va navbatni tekshiradigan hech kim bo'lmagan.
+          unawaited(ShiftSyncQueue.flush(reason: 'startup'));
 
           if (!kDebugMode) {
             /// Full employees update ///
