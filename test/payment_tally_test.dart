@@ -421,21 +421,37 @@ void main() {
       expect(p.isDebtSelectedWithoutDebtor, isFalse);
     });
 
-    test('qarz olishga ruxsati yo\'q mijozga almashtirilsa DEBT chiqadi', () {
+    // Adminkadagi `is_available_for_debt` bayrog'i faqat "Qarz" TUGMASINI
+    // ko'rsatish uchun ishlatiladi (eskidan shunday). Sotuvni bloklash uchun
+    // ishlatilmaydi: `ClientModel` bir qancha joyda shu maydonsiz yaratiladi
+    // (internetsiz qidiruv, invoice mijozi) va `null` bo'lib qolganda ilgari
+    // muammosiz ishlagan qarz sotuvlari to'xtab qolardi.
+    test('boshqa mijozga almashtirilsa DEBT qatori qoladi (bayroqqa qaramaydi)',
+        () {
       final p = paymentPage(total: 100000);
       p.initClientByBloc(debtClient());
       p.allPaymentType(payment(kDebtId, name: 'DEBT'));
       expect(p.paymentsMap.containsKey(kDebtId), isTrue);
 
-      // Kassir mijozni almashtirdi — yangisiga qarz berish mumkin emas.
+      // Kassir mijozni almashtirdi — qarz egasi bor, qator saqlanadi.
       p.initClientByBloc(ClientModel(
         id: 'client-2',
         firstName: 'Vali',
         isAvailableForDebt: false,
       ));
 
-      expect(p.paymentsMap.containsKey(kDebtId), isFalse);
-      expect(p.getMustPay, 100000);
+      expect(p.paymentsMap.containsKey(kDebtId), isTrue);
+      expect(p.isDebtSelectedWithoutDebtor, isFalse);
+    });
+
+    test('bayrog\'i yo\'q (null) mijoz bilan qarz sotuvi bloklanmaydi', () {
+      final p = paymentPage(total: 100000);
+      // Internetsiz qidiruv / invoice mijozi — `isAvailableForDebt` berilmagan.
+      p.initClientByBloc(ClientModel(id: 'client-3', firstName: 'Hasan'));
+      p.allPaymentType(payment(kDebtId, name: 'DEBT'));
+
+      expect(p.paymentsMap.containsKey(kDebtId), isTrue);
+      expect(p.isDebtSelectedWithoutDebtor, isFalse);
     });
 
     test('faqat DEBT o\'chadi — naqd qatori joyida qoladi', () {

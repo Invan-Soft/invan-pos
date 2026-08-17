@@ -85,6 +85,23 @@ Bu 2026-07-28 dagi INN dual-search taskining tekshirilmay qolgan qadami:
   → So'nggi to'siq ikkala yakunlash tugmasida: `pri_check.dart` va `complete_button.dart:266`
     (cashbackda COMPLETE tugmasi ishlatiladi, SimpleCheck emas — shuning uchun ikkalasi ham)
 - [x] Testlar: 34/34 o'tdi (11 tasi yangi)
+- [x] **Regressiya tuzatildi (do'kon shikoyati):** "qarzga sotish uchun mijoz tanlangan
+      bo'lishi lozim" mijoz tanlangan holatda ham chiqib qolardi
+  → `lib/changes/providers/ordering_provider_4.dart:3400` — `_hasEligibleDebtor` endi
+    `selectedClient != null || selectedSupplier != null` (adminka
+    `is_available_for_debt` bayrog'iga QARAMAYDI)
+  → Sabab: git tarixi bo'yicha o'sha bayroq eskidan FAQAT "Qarz" tugmasini
+    ko'rsatish/yashirish uchun ishlatilgan (`fef26ae^` dan ham oldin). Bugungi
+    tuzatishda u sotuvni bloklashga ham qo'shilgani yangi xatti-harakat edi.
+    `ClientModel` bir qancha joyda bu maydonsiz yaratiladi →
+    `isAvailableForDebt == null`:
+      - internetsiz 36-belgili ID qidiruvi — `client_search_bloc.dart:41-49`
+      - invoice/nakladnoy mijozi — `ordering_provider_4.dart:671`
+    Bunday mijozlar bilan ilgari ishlab turgan qarz sotuvi bloklanib qolgan edi.
+  → Bug tuzatilgan holda qoladi: qarzdor BUTUNLAY yo'q (mijoz ham, supplier ham
+    `null`) bo'lsa DEBT qatori olib tashlanadi va yakunlash bloklanadi.
+  → Test: 2 ta test almashtirildi/qo'shildi (`payment_tally_test.dart:424-455`) →
+    35/35 o'tdi
 
 ## Audit: shu sinfdagi boshqa holatlar (2026-08-17)
 "UI da qulflangan, lekin qo'shilgandan keyin shart yo'qolsa qator qolib ketadi"
@@ -122,6 +139,10 @@ company-name preflari (chop etishdan keyin tozalanadi), Click/Payme/Uzum/Paynet
 - [ ] C va D (diskont/summa nomuvofiqligi) — keyinroq, alohida
 
 ## Qabul qilingan qarorlar
+- **Adminka `is_available_for_debt` bayrog'i sotuvni bloklamaydi** — u faqat "Qarz"
+  tugmasi ko'rinishini boshqaradi (eskidan shunday). Sabab: bayroq bir qancha
+  oqimda `null` bo'lib keladi (oflayn qidiruv, invoice mijozi) va ishlab turgan
+  sotuvlarni to'xtatib qo'yadi. Bloklash sharti faqat "qarz egasi bormi".
 - DEBT ni nuqtali o'chirish (butun `paymentsMap` ni tozalash emas) — kassir kiritgan
   qisman naqd/karta to'lovi yo'qolmasligi uchun
 - Tuzatish UI da emas, providerda — uchala yo'l bitta joydan o'tadi

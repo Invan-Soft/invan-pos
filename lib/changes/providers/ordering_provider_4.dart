@@ -3397,17 +3397,25 @@ ${productLines.toString().trim()}
 
   void removeFromPaymentList() => _tally.removeFromPaymentList();
 
-  /// Qarzga sotuv uchun YAROQLI qarzdor bormi. Sharti UI dagi "Qarz" tugmasi
-  /// ko'rinish sharti bilan aynan bir xil
-  /// (`keyboard_of_payment_page.dart` — `clientAvailableForDebt || supplierSelected`).
+  /// Qarz yozib qo'yish uchun EGA (qarzdor) bormi — mijoz yoki supplier.
   ///
-  /// Faqat "mijoz bormi" deb tekshirish yetarli emas: qarz qo'shilgandan keyin
-  /// mijoz qarz olishga ruxsati YO'Q mijozga almashtirilsa ham qarz qatori
-  /// qolib ketardi.
+  /// MUHIM: bu shart adminkadagi `is_available_for_debt` bayrog'iga QARAMAYDI.
+  /// O'sha bayroq faqat "Qarz" tugmasini ko'rsatish/yashirish uchun ishlatiladi
+  /// (`keyboard_of_payment_page.dart` — eskidan shunday) va sotuvni to'xtatish
+  /// uchun ishlatilmasligi kerak. Sababi: `ClientModel` bir necha joyda shu
+  /// maydonsiz yaratiladi (internetsiz 36-belgili ID qidiruvi —
+  /// `client_search_bloc.dart`, invoice/nakladnoy orqali kelgan mijoz —
+  /// `initOrderByInvoice`), o'sha holatda `isAvailableForDebt == null` bo'lib
+  /// ilgari muammosiz o'tib turgan qarz sotuvlari bloklanib qolardi.
+  ///
+  /// Tuzatilishi kerak bo'lgan haqiqiy holat esa boshqa: qarz qo'shilgandan
+  /// KEYIN qarzdor butunlay yo'qolsa (Didox supplier DELETE, "mijoz topilmadi"
+  /// qidiruvi) chek egasiz qarzga yozilardi — shuning uchun bu yerda faqat
+  /// "mijoz YOKI supplier bormi" tekshiriladi.
   bool get _hasEligibleDebtor =>
-      getCurrentClientIsAvailableForDebt || _selectedSupplier != null;
+      _currentClient.selectedClient != null || _selectedSupplier != null;
 
-  /// `paymentsMap` da DEBT bor, lekin yaroqli qarzdor yo'q.
+  /// `paymentsMap` da DEBT bor, lekin egasi (mijoz/supplier) yo'q.
   /// Bu holatda sotuv "mijozsiz qarz" bo'lib yozilib ketardi.
   bool get isDebtSelectedWithoutDebtor {
     if (_hasEligibleDebtor) return false;
@@ -3417,11 +3425,13 @@ ${productLines.toString().trim()}
         (e.value.name ?? '').toUpperCase().contains('DEBT'));
   }
 
-  /// Mijoz/supplier olib tashlanganda (yoki qarz olishga ruxsati yo'q mijozga
-  /// almashtirilganda) `paymentsMap` da qolib ketgan DEBT qatorini tozalaydi.
-  /// Qarz tugmasi UI da faqat yaroqli qarzdor bor bo'lsa ko'rinadi, lekin qarz
-  /// QO'SHILGANDAN KEYIN qarzdor yo'qolsa (DELETE, "mijoz topilmadi" qidiruvi,
-  /// supplier o'chirilishi, mijoz almashtirilishi) qator qolib ketardi.
+  /// Mijoz/supplier butunlay olib tashlanganda `paymentsMap` da qolib ketgan
+  /// DEBT qatorini tozalaydi. Qarz tugmasi UI da faqat qarzdor bor bo'lsa
+  /// ko'rinadi, lekin qarz QO'SHILGANDAN KEYIN qarzdor yo'qolsa (DELETE,
+  /// "mijoz topilmadi" qidiruvi, supplier o'chirilishi) qator qolib ketardi.
+  ///
+  /// Mijoz boshqa mijozga ALMASHTIRILSA qator tegilmaydi — qarz egasi bor,
+  /// adminka bayrog'i esa bu yerda tekshirilmaydi (`_hasEligibleDebtor` izohi).
   bool dropDebtPaymentIfNoDebtor() {
     if (_hasEligibleDebtor) return false;
     return _tally.removeDebtPayment();
