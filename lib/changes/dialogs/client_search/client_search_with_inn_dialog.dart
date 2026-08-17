@@ -46,6 +46,9 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
   void initState() {
     clientBloc = BlocProvider.of(context, listen: false);
     orderingProvider4 = Provider.of<OrderingProvider4>(context, listen: false);
+    // Nusxa soni ham shu savatga tegishli — qayta ochilganda avval
+    // tanlangani ko'rinib tursin.
+    a = orderingProvider4.getCurrentClient.receiptCopies ?? 1;
 
     super.initState();
     focusNode.requestFocus();
@@ -221,6 +224,19 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                       if (state is ClientInitialState) {
                         if (widget.client != null) {
                           companyController.text = widget.client!.firstName!;
+                        } else if (orderingProvider4.getSelectedSupplier !=
+                            null) {
+                          // Didox INN qidiruvi orqali supplier tanlangan bo'lsa,
+                          // dialog qayta ochilganda ham nomi ko'rinib tursin.
+                          // Aks holda maydon bo'sh qolib, "Ok" bosilganda
+                          // PrefKeys.companyNameDialog bo'sh matn bilan
+                          // ustiga yozilardi (chekdagi kompaniya nomi yo'qolardi).
+                          final supplier =
+                              orderingProvider4.getSelectedSupplier!;
+                          companyController.text =
+                              supplier.supplierCompanyName.isNotEmpty
+                                  ? supplier.supplierCompanyName
+                                  : supplier.name;
                         }
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,7 +464,7 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                                 ),
                                 child: StreamBuilder<int>(
                                     stream: counterController.stream,
-                                    initialData: 1,
+                                    initialData: a,
                                     builder: (context, snapshot) {
                                       return Text(
                                         snapshot.requireData.toString(),
@@ -502,9 +518,14 @@ class _TransferWithInnDialogState extends State<TransferWithInnDialog> {
                         }
                       }).toList();
 
-                      Pref.setInt(PrefKeys.companyResipt, a);
-                      Pref.setString(
-                          PrefKeys.companyNameDialog, companyController.text);
+                      // Kompaniya nomi va nusxa soni JORIY SAVATGA yoziladi
+                      // (provider ularni Pref bilan sinxronlaydi). Oldin
+                      // to'g'ridan-to'g'ri Pref'ga yozilardi — global bo'lgani
+                      // uchun 1-mijozning nomi 2-mijozning chekiga tushardi.
+                      orderingProvider4.setReceiptCompanyInfo(
+                        companyName: companyController.text,
+                        copies: a,
+                      );
                       AppNavigation.pop();
                     },
                   )

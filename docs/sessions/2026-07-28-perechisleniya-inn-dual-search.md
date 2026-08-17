@@ -60,11 +60,73 @@ qaytarsa, o'shani ishlatamiz (mijoz yoki supplier sifatida).
   → client_search_with_inn_dialog.dart (DELETE tugmasi Row'i)
   → dart analyze toza
 
+- [x] (2026-08-17) Supplier tanlangach dialog qayta ochilganda "Название компании" bo'sh qolardi — tuzatildi
+  → `ClientInitialState` blokida faqat `widget.client` tekshirilardi; endi client
+    yo'q bo'lsa `orderingProvider4.getSelectedSupplier` dan nom prefill qilinadi
+    (`supplierCompanyName`, bo'sh bo'lsa `name`)
+  → client_search_with_inn_dialog.dart:221-236 (ClientInitialState builder bloki)
+  → Sabab: supplier provider'da saqlanadi, lekin `companyController` har ochilishda
+    yangi/bo'sh yaratiladi va faqat qidiruv paytidagi
+    `ClientSearchSupplierFoundState` uni to'ldirardi. Natijada DELETE tugmasi
+    ko'rinib turardi (supplier bor), nomi esa yo'q edi.
+  → Yon ta'sir ham tuzaldi: bo'sh maydon holatida "Ok" bosilsa
+    `Pref.setString(PrefKeys.companyNameDialog, "")` ketib, chekdagi kompaniya nomi
+    o'chib qolardi (print_sold_api.dart:89, printing_methods.dart:442 shu Pref'ni o'qiydi)
+  → `flutter analyze` — yangi xato/warning yo'q (faqat oldindan mavjud deprecation info'lar)
+
+- [x] (2026-08-17) Supplier endi HAR SAVAT (slot) uchun alohida — ko'p-mijoz rejimida bir-biriga ta'sir qilmaydi
+  → `SixClientModel4` ga `selectedSupplier` maydoni qo'shildi (`selectedClient` yonida)
+  → six_client_model.dart:14-24
+  → `OrderingProvider4._selectedSupplier` maydon emas, endi
+    `_currentClient.selectedSupplier` ustidan getter/setter
+  → ordering_provider_4.dart:~3583 (`SupplierModel? get _selectedSupplier`)
+  → Sabab: 1-mijozda Didox orqali supplier tanlansa, 2-mijozga o'tib cashback
+    kartasi/mijoz tanlamoqchi bo'lganda `onClientSearchButtonPressed` guard'i
+    (ordering_provider_4.dart:3523) global `_selectedSupplier` ni ko'rib
+    "Allaqachon supplier tanlangan" deb bloklardi. "Mijoz YOKI supplier" qoidasi
+    BITTA sotuv doirasida bo'lishi kerak, savatlar orasida emas.
+  → `_paymentOnClients()` faqat sotilgan slotning supplierini tozalaydi;
+    `clearSixClient4List()` barcha slotlarda tozalaydi
+  → Tashqi iste'molchilar (`payment_page.dart:156`, `keyboard_of_payment_page.dart:242`,
+    `left.dart:357`, `client_search_with_inn_dialog.dart`) `getSelectedSupplier`
+    getter'idan o'qigani uchun o'z-o'zidan joriy slotga bog'landi
+  → `ReceiptBuilder` ga uzatiladigan `_sixClientModel4` — to'lov sahifasiga
+    kirishda aynan `getCurrentClient` obyekti (ordering_provider_4.dart:2845),
+    demak chek ham o'z slotining supplieri bilan yig'iladi
+  → `flutter analyze` — yangi xato yo'q
+
+- [x] (2026-08-17) Kompaniya nomi + chek nusxalari soni ham savatga bog'landi
+  → `SixClientModel4.receiptCompanyName` / `receiptCopies` qo'shildi
+  → `OrderingProvider4._syncReceiptCompanyPrefsFromCurrentClient()` — savat
+    almashganda (`selectClient`, `addClient`, `_paymentOnClients` oxiri,
+    `clearSixClient4List`) global Pref'ni joriy savatnikiga moslaydi
+    (qiymat yo'q bo'lsa `removeWithKey`)
+  → `OrderingProvider4.setReceiptCompanyInfo({companyName, copies})` — dialog
+    "Ok"da shu chaqiriladi, oldingi to'g'ridan-to'g'ri `Pref.setString/setInt`
+    o'rniga (client_search_with_inn_dialog.dart, "Ok" handleri)
+  → Nusxa soni dialog qayta ochilganda savatdan tiklanadi (`initState`da
+    `a = getCurrentClient.receiptCopies ?? 1`, `StreamBuilder.initialData: a`)
+  → Sabab: chop etish bu qiymatlarni GLOBAL Pref'dan o'qiydi
+    (print_sold_api.dart:89, printing_methods.dart:442) va ularni faqat chop
+    etilgandan keyin o'chiradi. Shuning uchun 1-mijoz uchun kiritilgan
+    kompaniya nomi 2-mijoz birinchi sotilsa uning chekiga bosilardi.
+  → Ketma-ketlik tekshirildi: chek `ReceiptSingleton4.toOBJECTBOX` ichida
+    chop etiladi va u `_paymentOnClients()` dan OLDIN chaqiriladi
+    (ordering_provider_4.dart:2958 → 2978) — demak Pref'ni tozalash chop
+    etishga ulgurmay qolmaydi.
+  → Eslatma: `lib/features/payment/right/dilogs/enamuration.dart` hamon Pref'ga
+    to'g'ridan-to'g'ri yozadi, lekin u hech qayerdan chaqirilmaydi (o'lik kod) —
+    shuning uchun tegilmadi.
+  → `flutter analyze` — yangi xato yo'q
+
 ## Keyingi qadamlar (prioritet bo'yicha)
 
 - [ ] Windows'da real test: Perechisleniya oynasida haqiqiy mijoz INN'i bilan qidirib, client topilishini tekshirish (eski xatti-harakat saqlanganini tasdiqlash)
 - [ ] Windows'da real test: faqat supplier bazasida mavjud INN bilan qidirib, "Название компании" maydoniga supplier nomi to'g'ri tushishini va "Ok" bosilganda supplier sifatida saqlanishini tekshirish
 - [ ] Ikkalasida ham topilmagan INN bilan qidirib, "mijoz topilmadi" holati to'g'ri ishlashini tekshirish
+- [ ] Windows'da tekshirish: supplier tanlab "Ok" → dialogni qayta ochish → "Название компании"da supplier nomi turibdimi (2026-08-17 fix)
+- [ ] Windows'da ko'p-mijoz testi: 1-mijozga supplier tanlash → 2-mijozga o'tib mahsulot qo'shish → to'lovda cashback kartasi urish "Allaqachon supplier tanlangan" bermasligi kerak; 1-mijozga qaytganda supplier joyida turishi kerak
+- [ ] Windows'da chek testi: 1-mijozga "Перечисления"da kompaniya nomi kiritib, 2-mijozni BIRINCHI sotish → 2-mijoz chekida kompaniya nomi CHIQMASLIGI kerak; keyin 1-mijozni sotganda esa chiqishi kerak (nusxa soni ham shunday)
 - [ ] Chek/order yozilganda supplier orqali tanlangan "Perechisleniya" to'g'ri saqlanayotganini (masalan supplierId order body'siga tushayotganini) tekshirish — bu qism o'zgartirilmadi, lekin oqim endi ikkita manbadan kelishi mumkin
 
 ## Qabul qilingan qarorlar
