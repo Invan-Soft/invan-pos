@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:invan2/changes/services/catalog_refresh_notice.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -82,6 +83,9 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
       // `_category()` xatoni yutib yuboradi, ya'ni muvaffaqiyatiga
       // ishonib bo'lmaydi.
       await SyncCursor.commit(SyncStream.products, startedAt);
+      // Katalog to'liq qayta yuklandi — "baza yangilanmagan" ogohlantirishi
+      // qaysi yo'l bilan yangilanganidan qat'i nazar to'xtashi kerak.
+      await CatalogRefreshNotice.markFresh();
       emit(
         SyncDoneState(
             SyncResult(

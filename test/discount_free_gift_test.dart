@@ -26,6 +26,7 @@ import 'support/provider_harness.dart';
 const kStoreId = 'shop-1';
 const kMainId = 'main-id'; // oddiy xarid
 const kGiftId = 'gift-id'; // sovg'a mahsulot
+const kGift2Id = 'gift2-id'; // pastki bosqich sovg'asi
 
 const gGroupFreeGift = 'e13e3ed0-2d03-42f2-8c5f-43bcb3b3c8e9';
 
@@ -46,9 +47,10 @@ DiscountItem freeGiftDiscount({
   required int buyAmount,
   required int getProductAmount,
   String giftId = kGiftId,
+  String id = 'fg-1',
 }) {
   return DiscountItem(
-    id: 'fg-1',
+    id: id,
     name: 'Free Gift',
     displayName: '100 mingdan oshsa sovg\'a',
     discountGroupType: DiscountGroupType(id: gGroupFreeGift),
@@ -85,6 +87,7 @@ void main() {
     ItemsSingleton.products = [
       productWithPrice(kMainId, 'Asosiy tovar', 50000),
       productWithPrice(kGiftId, 'Sovg\'a', 10000),
+      productWithPrice(kGift2Id, 'Sovg\'a 2', 6000),
     ];
   });
 
@@ -253,6 +256,100 @@ void main() {
       expect(gift.price, gift.realPrice);
       expect(gift.singleDiscount, 0);
       expect(gift.productDiscount, isEmpty);
+    });
+  });
+
+  // Regressiya: sovg'a bergan shart buzilgach sovg'a qatori to'liq narxga
+  // qaytishi kerak.
+  //
+  // Eng nozik holat — bir nechta Free Gift bosqichi: eski kodda bekor qilish
+  // faqat `returnedFreeGiftProducts` TO'LIQ bo'sh bo'lgandagina ishlardi.
+  // Pastki bosqich hali amal qilib turgan bo'lsa ro'yxat bo'sh bo'lmasdi va
+  // yuqori bosqichning sovg'asi tekinligicha qolib ketardi.
+  group('Shart buzilgach sovg\'a bekor bo\'ladi', () {
+    test('diskont bazadan o\'chirilsa sovg\'a pulli bo\'ladi', () async {
+      await seed([freeGiftDiscount(buyAmount: 100000, getProductAmount: 1)]);
+      final p = cart(mainQty: 3, giftQty: 1);
+      p.findFreeProducts();
+      p.useFreeGiftProducts();
+
+      final gift = p.getCurrentClient.orderedProducts
+          .firstWhere((e) => e.productId == kGiftId);
+      expect(gift.price, 0, reason: 'setup: sovg\'a tekin');
+
+      await seed([]);
+      p.findFreeProducts();
+      p.useFreeGiftProducts();
+
+      expect(gift.price, gift.realPrice);
+      expect(gift.singleDiscount, 0);
+    });
+
+    test('asosiy tovar savatdan chiqarilsa sovg\'a pulli bo\'ladi', () async {
+      await seed([freeGiftDiscount(buyAmount: 100000, getProductAmount: 1)]);
+      final p = cart(mainQty: 3, giftQty: 1);
+      p.findFreeProducts();
+      p.useFreeGiftProducts();
+
+      final rows = p.getCurrentClient.orderedProducts;
+      expect(rows.firstWhere((e) => e.productId == kGiftId).price, 0);
+
+      rows.removeWhere((e) => e.productId == kMainId);
+      p.findFreeProducts();
+      p.useFreeGiftProducts();
+
+      final gift = rows.firstWhere((e) => e.productId == kGiftId);
+      expect(gift.price, gift.realPrice);
+    });
+
+    test('red-delete: asosiy tovar o\'chirilsa sovg\'a pulli bo\'ladi',
+        () async {
+      await seed([freeGiftDiscount(buyAmount: 100000, getProductAmount: 1)]);
+      final p = cart(mainQty: 3, giftQty: 1);
+      p.findFreeProducts();
+      p.useFreeGiftProducts();
+
+      final rows = p.getCurrentClient.orderedProducts;
+      expect(rows.firstWhere((e) => e.productId == kGiftId).price, 0);
+
+      rows.firstWhere((e) => e.productId == kMainId).isDeleted = true;
+      p.findFreeProducts();
+      p.useFreeGiftProducts();
+
+      final gift = rows.firstWhere((e) => e.productId == kGiftId);
+      expect(gift.price, gift.realPrice);
+    });
+
+    test('ikki bosqich: yuqori bosqich tushib qolsa o\'sha sovg\'a pulli bo\'ladi',
+        () async {
+      await seed([
+        freeGiftDiscount(
+            id: 'fg-low', giftId: kGift2Id, buyAmount: 50000,
+            getProductAmount: 1),
+        freeGiftDiscount(
+            id: 'fg-high', giftId: kGiftId, buyAmount: 100000,
+            getProductAmount: 1),
+      ]);
+      final p = freshProvider();
+      final rows = p.getCurrentClient.orderedProducts;
+      rows.add(makeSoldItem(productId: kMainId, price: 50000, value: 3));
+      rows.add(makeSoldItem(productId: kGift2Id, price: 6000, value: 1));
+      rows.add(makeSoldItem(productId: kGiftId, price: 10000, value: 1));
+
+      p.findFreeProducts();
+      p.useFreeGiftProducts();
+      expect(rows.firstWhere((e) => e.productId == kGiftId).price, 0,
+          reason: 'setup: yuqori bosqich sovg\'asi tekin');
+
+      // 150k -> 50k: yuqori bosqich (100k) endi qondirilmaydi,
+      // pastki bosqich (50k) hali ham amalda -> ro'yxat BO'SH EMAS.
+      rows.firstWhere((e) => e.productId == kMainId).value = 1;
+      p.findFreeProducts();
+      p.useFreeGiftProducts();
+
+      final gift = rows.firstWhere((e) => e.productId == kGiftId);
+      expect(gift.price, gift.realPrice,
+          reason: 'yuqori bosqich shartlari buzildi — sovg\'a pulli');
     });
   });
 }

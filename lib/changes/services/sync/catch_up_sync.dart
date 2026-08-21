@@ -16,6 +16,8 @@
     qaysi tartibda. Kursor mantig'i StreamSyncRunner ichida.
 */
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -24,6 +26,7 @@ import '../../../features/get_categories/service/category_service.dart';
 import '../../../features/home/bloc/home_bloc/home_bloc.dart';
 import '../../../utils/constants/pref_keys.dart';
 import '../../../utils/helpers/prefs.dart';
+import '../catalog_refresh_notice.dart';
 import '../discount_service.dart';
 import '../web_socket_service/category/categories_ws_service.dart';
 import '../web_socket_service/discount/discount_ws_service.dart';
@@ -130,6 +133,15 @@ class CatchUpSync {
       return ok;
     } finally {
       _running = false;
+
+      // Startup'dagi to'liq yuklash yiqilgan bo'lsa kassirga ogohlantirish
+      // chiqaramiz. Bu nuqta ilova ochilganda, tarmoq tiklanganda va har
+      // davriy tsiklda o'tiladi — ya'ni internet qaytishi bilan ko'rinadi.
+      //
+      // Ataylab `await` qilinmaydi: dialog modal, kassir uni yopmaguncha
+      // kutib turilsa `_running` band bo'lib qolardi va sinxron shu vaqt
+      // davomida butunlay to'xtab turardi.
+      unawaited(CatalogRefreshNotice.maybeShow());
     }
   }
 

@@ -117,12 +117,18 @@ class DiscountHelpers {
   ) {
     final box = HiveBoxes.getDiscounts();
     if (box.isEmpty) {
+      // DIQQAT: bu yerda savat qatorlari O'ZGARTIRILMAYDI.
+      //
+      // Ilgari `discount`, `productDiscount` va `singleDiscount` tozalanardi,
+      // ammo `price` asl holatiga QAYTARILMASDI. Natijada barcha diskontlar
+      // o'chirilganda (WS to'liq sinxron, muddati tugashi) savatdagi tekin
+      // qator 0 so'mligicha qolib ketardi — ustiga-ustak `productDiscount`
+      // tozalangani uchun `DiscountEffectsController` uni "eski diskont" deb
+      // taniy olmasdi va tiklay olmasdi.
+      //
+      // Bu funksiya faqat O'QIYDI; savatni tozalash kontroller zimmasida
+      // (`_clearStaleBuyXGetY`, `_clearStaleBuyXGetX`, `useFreeGiftProducts`).
       _availableDiscount = ReturnedProduct();
-      for (var p in products) {
-        p.discount.clear();
-        p.productDiscount.clear();
-        p.singleDiscount = 0;
-      }
       return null;
     }
     List<ReturnedProduct> returnedProducts = [];
@@ -216,6 +222,9 @@ class DiscountHelpers {
     // qo'shiladi (har biri value=1). Box mahsulotlar uchun real dona soni ishlatiladi.
     final Map<String, double> totalQtyByProductId = {};
     for (final p in products) {
+      // Red-delete rejimida o'chirilgan qator savatda qoladi (isDeleted=true).
+      // U sotilmaydi, demak chegirma shartini ham qondirmasligi kerak.
+      if (p.isDeleted ?? false) continue;
       final effectiveQty = p.saleType == 2
           ? (p.value * p.boxValue).toDouble()
           : p.value.toDouble();
@@ -361,6 +370,8 @@ static List<ReturnedGiftX> _getBuyXGetXAsGift(
   for (final productToBuy in buyXGetX.productsToBuy!) {
     double totalQty = 0.0;
     for (final product in products) {
+      // O'chirilgan qator (red-delete) sotilmaydi — shartni qondirmaydi.
+      if (product.isDeleted ?? false) continue;
       if (product.productId == productToBuy.id) {
         totalQty += product.saleType == 2
             ? (product.value * product.boxValue).toDouble()

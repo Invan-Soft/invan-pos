@@ -22,8 +22,18 @@ class ApiProvider {
   static const INVAN2PRO = 'https://api.7i.uz/';
   static const baseUrlINVAN2 = INVAN2PRO;
   static const imageUrl = imageUrlPro;
+
   // static const baseUrlINVAN2 = INVAN2DEV;
   // static const imageUrl = imageUrlDev;
+
+  static const String envPro = 'pro';
+  static const String envDev = 'dev';
+
+  /// Build qaysi API muhitiga ulanayotgani. dev↔pro almashganda eski token
+  /// boshqa muhitga tegishli bo'lgani uchun yaroqsiz — buni [AuthReset]
+  /// startup'da tekshiradi.
+  static String get currentEnv =>
+      baseUrlINVAN2 == INVAN2PRO ? envPro : envDev;
 
   static const Duration _duration = Duration(seconds: 30);
 

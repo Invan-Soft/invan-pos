@@ -37,8 +37,10 @@ class DiscountEffectsController {
   int freeGiftDialogCount = 0;
 
   /// Savat jami narxi (chegirma qo'llangandan keyingi narx bo'yicha).
-  static num totalPriceForAll(List<ReceiptModelSoldItem4> cart) =>
-      cart.fold(0, (sum, p) => sum + p.price * p.value);
+  /// O'chirilgan qatorlar (red-delete) hisobga olinmaydi — ular sotilmaydi.
+  static num totalPriceForAll(List<ReceiptModelSoldItem4> cart) => cart
+      .where((p) => !(p.isDeleted ?? false))
+      .fold(0, (sum, p) => sum + p.price * p.value);
 
   /// Barcha hisob-kitob holatini tozalaydi.
   void resetBookkeeping() {
@@ -68,14 +70,21 @@ class DiscountEffectsController {
         ) ??
         [];
 
-    if (found.isEmpty) return;
-
+    // MUHIM: xarita HAR SAFAR noldan qayta quriladi.
+    //
+    // Avval `found` bo'sh bo'lsa erta `return` qilinardi va eski yozuvlar
+    // xaritada qolib ketardi. Natijada "A olsang B tekin" chegirmasida A
+    // savatdan o'chirilganda ham `useFreeProducts` eski yozuv bo'yicha B ni
+    // tekin qilishda davom etardi (savatda boshqa product bo'lsa —
+    // quyidagi threshold ham uni ushlab qololmasdi).
+    final rebuilt = <String, ReturnedProduct>{};
     for (final product in found) {
       final discountId = product.discountId;
       if (discountId != null) {
-        returnedProducts[discountId] = product;
+        rebuilt[discountId] = product;
       }
     }
+    returnedProducts = rebuilt;
   }
 
   void findFreeGiftProducts(List<ReceiptModelSoldItem4> cart, String clientGroupId) {
@@ -106,6 +115,10 @@ class DiscountEffectsController {
   }
 
   void useFreeProducts(List<ReceiptModelSoldItem4> cart) {
+    // Amal qilmay qolgan Buy X Get Y qatorlarini avval tozalaymiz — bu
+    // `returnedProducts` bo'sh bo'lganda ham bajarilishi shart.
+    _clearStale(cart, 'Buy X Get Y', returnedProducts.keys.toSet());
+
     if (returnedProducts.isEmpty) return;
 
     final orderedProducts = cart;
@@ -137,11 +150,22 @@ class DiscountEffectsController {
                     sum + (p.saleType == 2 ? p.value * p.boxValue : p.value));
         thresholdMet = totalQtyOfProduct >= mustQty + returnedProductQty;
       } else {
-        final nonGiftTotal = orderedProducts
-            .where((p) =>
-                p.productId != returnedProductId && !p.isPriceOnlyChanged)
-            .fold<num>(0, (sum, p) => sum + p.realPrice * p.value);
-        thresholdMet = nonGiftTotal >= mustQty;
+        // Har bir "sotib olinishi kerak" product savatda yetarli DONA
+        // miqdorida borligini tekshiramiz.
+        //
+        // Avval bu yerda savatdagi BOSHQA barcha productlarning PUL summasi
+        // `mustQty` (dona soni) bilan solishtirilardi. Shu sababli savatga
+        // chegirmaga aloqasi yo'q bitta product qo'shilsa ham shart
+        // "bajarilgan" bo'lib qolardi va A o'chirilgach B tekinligicha
+        // qolib ketardi.
+        final buyIds = availableProducts
+            .map((p) => p.id)
+            .whereType<String>()
+            .where((id) => id != returnedProductId)
+            .toSet();
+
+        thresholdMet = buyIds.isNotEmpty &&
+            buyIds.every((id) => _cartQtyOf(orderedProducts, id) >= mustQty);
       }
 
       if (!thresholdMet) {
@@ -163,7 +187,8 @@ class DiscountEffectsController {
           .where((item) =>
               item.productId == returnedProductId &&
               !item.isPriceOnlyChanged &&
-              !item.isPriceChanged)
+              !item.isPriceChanged &&
+              !(item.isDeleted ?? false))
           .toList();
 
       // Box itemlar (katta effectiveQty) avval ishlansin — individual itemlar keyinida
@@ -232,32 +257,47 @@ class DiscountEffectsController {
   void useFreeGiftProducts(List<ReceiptModelSoldItem4> cart) {
     final orderedProducts = cart;
 
-    if (returnedFreeGiftProducts.isEmpty) {
+    // Endi amal qilmaydigan sovg'alarni bekor qilamiz.
+    //
+    // Ilgari bu faqat `returnedFreeGiftProducts` TO'LIQ bo'sh bo'lgandagina
+    // bajarilardi. Bir nechta Free Gift bosqichi bo'lganda (50k → B, 100k → G)
+    // savat 100k dan pastga tushsa ro'yxat bo'sh bo'lmasdi — pastki bosqich
+    // qolardi — va yuqori bosqichning sovg'asi (G) tekinligicha qolib ketardi.
+    final activeGiftIds = returnedFreeGiftProducts
+        .map((g) => g.getProduct?.id)
+        .whereType<String>()
+        .toSet();
+
+    for (final giftId in giftProducts.keys.toList()) {
+      if (activeGiftIds.contains(giftId)) continue;
       for (final item in orderedProducts) {
         if (item.isPriceOnlyChanged) continue;
-        if (giftProducts.containsKey(item.productId) &&
-            item.price != item.realPrice) {
+        if (item.productId == giftId && item.price != item.realPrice) {
           resetItemDiscount(item);
         }
       }
-      giftProducts.clear();
-      // (ro'yxat havolasi o'zgarmaydi — qayta tayinlash no-op edi)
-      return;
+      giftProducts.remove(giftId);
     }
+
+    if (returnedFreeGiftProducts.isEmpty) return;
 
     for (final gift in returnedFreeGiftProducts) {
       final giftProductId = gift.getProduct?.id;
       if (giftProductId == null) continue;
 
       final nonGiftTotal = orderedProducts
-          .where((p) => p.productId != giftProductId && !p.isPriceOnlyChanged)
+          .where((p) =>
+              p.productId != giftProductId &&
+              !p.isPriceOnlyChanged &&
+              !(p.isDeleted ?? false))
           .fold<num>(0, (sum, p) => sum + p.realPrice * p.value);
 
       final giftItems = orderedProducts
           .where((item) =>
               item.productId == giftProductId &&
               !item.isPriceOnlyChanged &&
-              !item.isPriceChanged)
+              !item.isPriceChanged &&
+              !(item.isDeleted ?? false))
           .toList();
 
       // Sovg'a producti savatda bo'lsa, uning to'lanadigan qismi ham
@@ -314,6 +354,11 @@ class DiscountEffectsController {
   }
 
   void useBuyXGetXProducts(List<ReceiptModelSoldItem4> cart) {
+    // Amal qilmay qolgan Buy X Get X qatorlarini avval tozalaymiz — bu
+    // `returnedBuyXGetX` bo'sh bo'lganda ham bajarilishi shart (masalan
+    // diskont bazadan o'chirilgan yoki muddati tugagan).
+    _clearStale(cart, 'Buy X Get X', _activeBuyXGetXIds());
+
     if (returnedBuyXGetX.isEmpty) return;
 
     final orderedProducts = cart;
@@ -327,7 +372,8 @@ class DiscountEffectsController {
           .where((item) =>
               item.productId == productId &&
               !item.isPriceOnlyChanged &&
-              !item.isPriceChanged)
+              !item.isPriceChanged &&
+              !(item.isDeleted ?? false))
           .toList();
 
       if (items.isEmpty) continue;
@@ -457,6 +503,45 @@ class DiscountEffectsController {
     }
 
     _notify();
+  }
+
+  /// [productId] uchun savatdagi umumiy dona soni (blok qatorlari donaga
+  /// yoyiladi). Qo'lda narxi tuzatilgan va o'chirilgan qatorlar hisobga
+  /// olinmaydi.
+  static num _cartQtyOf(List<ReceiptModelSoldItem4> cart, String productId) =>
+      cart
+          .where((p) =>
+              p.productId == productId &&
+              !p.isPriceOnlyChanged &&
+              !(p.isDeleted ?? false))
+          .fold<num>(
+              0,
+              (sum, p) =>
+                  sum + (p.saleType == 2 ? p.value * p.boxValue : p.value));
+
+  /// Hozir amal qilayotgan Buy X Get X chegirmalarining IDlari.
+  Set<String> _activeBuyXGetXIds() => returnedBuyXGetX
+      .map((g) => g.discountId)
+      .whereType<String>()
+      .toSet();
+
+  /// Endi amal qilmaydigan chegirmalarni savat qatorlaridan olib tashlaydi.
+  ///
+  /// [typeName] — `productDiscount` dagi belgi ('Buy X Get Y' / 'Buy X Get X').
+  /// Qatorda shu turdagi yozuv bor, lekin uning IDsi [activeIds] da yo'q
+  /// bo'lsa (masalan "sotib olinishi kerak" product savatdan o'chirilgan yoki
+  /// diskontning o'zi bazadan yo'qolgan), qator asl narxiga qaytariladi.
+  void _clearStale(
+    List<ReceiptModelSoldItem4> cart,
+    String typeName,
+    Set<String> activeIds,
+  ) {
+    for (final item in cart) {
+      if (item.isPriceOnlyChanged) continue;
+      final hasStale = item.productDiscount
+          .any((d) => d.typeName == typeName && !activeIds.contains(d.idd));
+      if (hasStale) resetItemDiscount(item);
+    }
   }
 
   void resetItemDiscount(ReceiptModelSoldItem4 item) {

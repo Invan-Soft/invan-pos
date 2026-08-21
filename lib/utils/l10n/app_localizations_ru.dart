@@ -830,4 +830,29 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get upd_service => 'Сервис';
+
+  @override
+  String get katalog_yangilanmagan_sarlavha => 'База товаров не обновлена';
+
+  @override
+  String get katalog_yangilanmagan_matn =>
+      'При запуске приложения не было интернета, поэтому база товаров не обновилась. Цены и товары могут быть устаревшими. Пожалуйста, обновите сейчас.';
+
+  @override
+  String get keyinroq => 'Позже';
+
+  @override
+  String get yuklanmoqda_xodimlar => 'Загружается список сотрудников...';
+
+  @override
+  String get yuklanmoqda_mahsulotlar => 'Загружается база товаров...';
+
+  @override
+  String get yuklanmoqda_saqlanmoqda => 'Сохранение товаров...';
+
+  @override
+  String get yuklanmoqda_mxik => 'Загружаются данные МХИК...';
+
+  @override
+  String get yuklanmoqda_tayyor => 'Готово';
 }

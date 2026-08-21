@@ -616,6 +616,14 @@
   "upd_category": "Категория",
   "upd_organization": "Организация",
   "upd_employee": "Сотрудники",
-  "upd_service": "Сервис"
+  "upd_service": "Сервис",
+  "katalog_yangilanmagan_sarlavha": "База товаров не обновлена",
+  "katalog_yangilanmagan_matn": "При запуске приложения не было интернета, поэтому база товаров не обновилась. Цены и товары могут быть устаревшими. Пожалуйста, обновите сейчас.",
+  "keyinroq": "Позже",
+  "yuklanmoqda_xodimlar": "Загружается список сотрудников...",
+  "yuklanmoqda_mahsulotlar": "Загружается база товаров...",
+  "yuklanmoqda_saqlanmoqda": "Сохранение товаров...",
+  "yuklanmoqda_mxik": "Загружаются данные МХИК...",
+  "yuklanmoqda_tayyor": "Готово"
 }
     

@@ -80,6 +80,12 @@ class IdleService {
     _isOnCriticalAuthPage = false;
   }
 
+  /// Hozir AccessLevelPage (PIN) da turibmizmi.
+  bool get isOnLockPage => _isOnLockPage;
+
+  /// Hozir auth sahifalarida (PhoneNumber, ChooseStore va h.k.) turibmizmi.
+  bool get isOnCriticalAuthPage => _isOnCriticalAuthPage;
+
   void start(BuildContext context) {
     _timer?.cancel();
     _timer = Timer.periodic(_checkInterval, (_) {

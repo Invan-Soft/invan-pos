@@ -25,6 +25,7 @@ import 'support/provider_harness.dart';
 const kStoreId = 'shop-1';
 const kBuyId = 'coca-id'; // sotib olinadigan
 const kGetId = 'chips-id'; // tekin beriladigan
+const kOtherId = 'water-id'; // chegirmaga aloqasi yo'q
 
 // Buy X Get Y uchun qat'iy GUIDlar (discount_helpers.dart dan).
 const gGroupBuyXGetY = '86951e75-960f-45d7-9505-9b9cd2ce17a7';
@@ -88,6 +89,7 @@ void main() {
     ItemsSingleton.products = [
       productWithPrice(kBuyId, 'Coca 1L', 12000),
       productWithPrice(kGetId, 'Chips', 6000),
+      productWithPrice(kOtherId, 'Suv 1L', 15000),
     ];
   });
 
@@ -260,6 +262,113 @@ void main() {
       p.useFreeProducts();
 
       expect(notified, greaterThan(0));
+    });
+  });
+
+  // Regressiya: "A olsang B tekin" da A savatdan chiqarilgach B yana pulli
+  // bo'lishi kerak — savatga boshqa (chegirmaga aloqasiz) productlar
+  // qo'shilgan bo'lsa ham.
+  //
+  // Ikkita nuqson bor edi:
+  //  1) `findFreeProducts` hech narsa topmasa erta qaytardi va eski yozuv
+  //     `returnedProducts` da qolib ketardi;
+  //  2) `useFreeProducts` dagi himoya sharti savatdagi BOSHQA productlarning
+  //     PUL summasini kerakli DONA soni bilan solishtirardi — aloqasiz
+  //     product qo'shilishi bilan shart doim "bajarilgan" bo'lardi.
+  group('Buy productni savatdan chiqarish', () {
+    test('faqat A+B: A o\'chirilsa B yana pulli bo\'ladi', () async {
+      await seed([buyXGetYDiscount(buyAmount: 2, getAmount: 1)]);
+      final p = cartWith(buyQty: 2, getQty: 1);
+      final cart = p.getCurrentClient.orderedProducts;
+
+      p.findFreeProducts();
+      p.useFreeProducts();
+      expect(cart.firstWhere((e) => e.productId == kGetId).price, 0);
+
+      cart.removeWhere((e) => e.productId == kBuyId);
+      p.findFreeProducts();
+      p.useFreeProducts();
+
+      final chips = cart.firstWhere((e) => e.productId == kGetId);
+      expect(chips.price, chips.realPrice);
+      expect(chips.singleDiscount, 0);
+      expect(chips.productDiscount, isEmpty);
+    });
+
+    test('oradan boshqa product qo\'shilgan bo\'lsa ham B pulli bo\'ladi',
+        () async {
+      await seed([buyXGetYDiscount(buyAmount: 2, getAmount: 1)]);
+      final p = cartWith(buyQty: 2, getQty: 1);
+      final cart = p.getCurrentClient.orderedProducts;
+
+      p.findFreeProducts();
+      p.useFreeProducts();
+      expect(cart.firstWhere((e) => e.productId == kGetId).price, 0);
+
+      // Chegirmaga aloqasi yo'q product qo'shildi
+      cart.add(makeSoldItem(productId: kOtherId, name: 'Suv 1L', price: 15000));
+      p.findFreeProducts();
+      p.useFreeProducts();
+
+      // Endi A o'chirildi
+      cart.removeWhere((e) => e.productId == kBuyId);
+      p.findFreeProducts();
+      p.useFreeProducts();
+
+      final chips = cart.firstWhere((e) => e.productId == kGetId);
+      expect(chips.price, chips.realPrice);
+      expect(chips.singleDiscount, 0);
+      expect(chips.productDiscount, isEmpty);
+    });
+
+    test('red-delete: A isDeleted bo\'lsa B tekin qolmaydi', () async {
+      await seed([buyXGetYDiscount(buyAmount: 2, getAmount: 1)]);
+      final p = cartWith(buyQty: 2, getQty: 1);
+      final cart = p.getCurrentClient.orderedProducts;
+
+      p.findFreeProducts();
+      p.useFreeProducts();
+      expect(cart.firstWhere((e) => e.productId == kGetId).price, 0);
+
+      cart.firstWhere((e) => e.productId == kBuyId).isDeleted = true;
+      p.findFreeProducts();
+      p.useFreeProducts();
+
+      final chips = cart.firstWhere((e) => e.productId == kGetId);
+      expect(chips.price, chips.realPrice);
+      expect(chips.singleDiscount, 0);
+    });
+
+    test('A hech qachon bo\'lmagan (B + aloqasiz product): tekin berilmaydi',
+        () async {
+      await seed([buyXGetYDiscount(buyAmount: 2, getAmount: 1)]);
+      final p = freshProvider();
+      final cart = p.getCurrentClient.orderedProducts;
+      cart.add(makeSoldItem(productId: kGetId, name: 'Chips', price: 6000));
+      cart.add(makeSoldItem(productId: kOtherId, name: 'Suv 1L', price: 15000));
+
+      p.findFreeProducts();
+      p.useFreeProducts();
+
+      final chips = cart.firstWhere((e) => e.productId == kGetId);
+      expect(chips.price, chips.realPrice);
+    });
+
+    test('A qty kamaysa (2 -> 1) B yana pulli bo\'ladi', () async {
+      await seed([buyXGetYDiscount(buyAmount: 2, getAmount: 1)]);
+      final p = cartWith(buyQty: 2, getQty: 1);
+      final cart = p.getCurrentClient.orderedProducts;
+
+      p.findFreeProducts();
+      p.useFreeProducts();
+      expect(cart.firstWhere((e) => e.productId == kGetId).price, 0);
+
+      cart.firstWhere((e) => e.productId == kBuyId).value = 1;
+      p.findFreeProducts();
+      p.useFreeProducts();
+
+      final chips = cart.firstWhere((e) => e.productId == kGetId);
+      expect(chips.price, chips.realPrice);
     });
   });
 }

@@ -4,13 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/app_navigation.dart';
 import 'package:invan2/features/features.dart';
-import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/settings/bloc/settings_bloc.dart';
 import 'package:invan2/features/settings/features/child_settings/dialogs/before_log_out_dialog.dart';
 import '../../../../../changes/services/api.dart';
 import '../../../../../changes/services/api/result_http_model.dart';
-import '../../../../../changes/services/log_service.dart';
-import '../../../../../utils/helpers/auth_backup.dart';
+import '../../../../../utils/helpers/auth_reset.dart';
 import 'item_list_tile.dart';
 import '../dialogs/language_dialog.dart';
 import '../dialogs/tarozi_prefix_dialog.dart';
@@ -108,12 +106,7 @@ class _ChildSettingsContentState extends State<ChildSettingsContent> {
                   builder: (_) => const BeforeLogOutDialog(isAboutShift: true),
                 );
               } else {
-                await Pref.setBool(PrefKeys.authenticationBool, false);
-                await AuthBackup.delete();
-                await HiveBoxes.clearAllBoxes();
-                await Pref.setString(PrefKeys.mxikCode, '01905012001000000');
-                await Pref.setString(PrefKeys.version,
-                    await LogService.getAppVersion() as String);
+                await AuthReset.clearAuthAndCache();
                 AppNavigation.pushAndRemoveUntil(const PhoneNumberPage());
               }
             }

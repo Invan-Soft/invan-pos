@@ -195,6 +195,20 @@ class PrefKeys {
   /// Faqat adminkada OFD (apps_soliq_app) yoqilgan bo'lsa boshqarish mumkin.
   static const String checkProductByCashsale = 'checkProductByCashsale';
 
+  /// Ilova ochilganda mahsulot bazasini to'liq yangilash yiqilgan (odatda
+  /// startup paytida internet hali yo'q bo'lgani uchun). Bu bayroq yoqilgan
+  /// bo'lsa kassirga "baza yangilanmagan" ogohlantirishi ko'rsatiladi.
+  static const String catalogRefreshPending = 'catalog_refresh_pending';
+
+  /// Oxirgi MUVAFFAQIYATLI to'liq katalog yuklanishi (ms since epoch).
+  /// `lastSyncTime` dan farqi: bu faqat yuklash haqiqatan tugagach yoziladi.
+  static const String lastFullCatalogSyncAt = 'last_full_catalog_sync_at';
+
+  /// Joriy token qaysi API muhitida (dev/pro) olingani.
+  /// Build muhiti almashsa eski token yaroqsiz bo'ladi — [AuthReset] shu
+  /// kalitga qarab tokenlarni tozalab, login sahifasiga qaytaradi.
+  static const String apiEnv = 'api_env';
+
 
 
 }

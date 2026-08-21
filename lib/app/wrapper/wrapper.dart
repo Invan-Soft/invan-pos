@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/widgets/alice_pincode.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:invan2/app/wrapper/bloc/wrapper_bloc.dart';
 import 'package:invan2/app_navigation.dart';
@@ -18,6 +17,9 @@ import '../../objectbox.g.dart';
 import 'package:invan2/features/lock/access_level/view/access_level_page.dart';
 import 'package:invan2/utils/constants/constants.dart';
 import 'package:invan2/utils/helpers/auth_backup.dart';
+import 'package:invan2/utils/helpers/auth_reset.dart';
+import 'package:invan2/changes/services/catalog_refresh_notice.dart';
+import 'package:invan2/changes/services/startup_progress.dart';
 import 'package:invan2/changes/services/discount_auto_sync_service.dart';
 import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
 import 'package:invan2/utils/helpers/network_error_helper.dart';
@@ -28,6 +30,13 @@ import 'package:invan2/utils/themes.dart';
 import 'package:provider/provider.dart';
 import '../../changes/providers/update_provider.dart';
 import '../../idle_service.dart';
+
+/// Debug rejimida ham ilova ochilganda katalog to'liq yangilanadimi.
+///
+/// Odatda `false`: debug'da har restartda 43 MB katalog tortilishi ishlab
+/// chiqishni sekinlashtiradi. `true` qilinsa "internet yo'q holatda ochilish"
+/// stsenariysini debug'da sinab ko'rish mumkin bo'ladi.
+const bool kDebugStartupCatalogSync = false;
 
 class Wrapper extends StatefulWidget {
   const Wrapper({super.key});
@@ -79,6 +88,15 @@ class _WrapperState extends State<Wrapper> {
 
     Timer(const Duration(milliseconds: 1000), () async {
       try {
+        /// dev↔pro almashgan bo'lsa saqlangan token boshqa muhitniki —
+        /// u bilan qolinsa ilova "kirgan" ko'rinadi-yu har so'rov 401 bo'ladi.
+        /// Shuning uchun tokenlarni tozalab, login sahifasiga qaytaramiz.
+        if (await AuthReset.resetIfApiEnvChanged()) {
+          IdleService().disable(); // auth sahifalarida idle redirect ishlamasin
+          AppNavigation.pushAndRemoveUntil(const PhoneNumberPage());
+          return;
+        }
+
         String token = Pref.getString(PrefKeys.token, '');
         if (token.isEmpty) {
           token = await AuthBackup.read();
@@ -107,9 +125,13 @@ class _WrapperState extends State<Wrapper> {
           /// qayta ishga tushgan va navbatni tekshiradigan hech kim bo'lmagan.
           unawaited(ShiftSyncQueue.flush(reason: 'startup'));
 
-          if (!kDebugMode) {
+          // Startup yuklashi davomida "baza yangilanmagan" dialogi
+          // chiqmasligi kerak — u yuklanish ekranining ustiga tushib qolardi.
+          CatalogRefreshNotice.beginLoad();
+          if (!kDebugMode || kDebugStartupCatalogSync) {
             /// Full employees update ///
             ///
+            StartupProgress.set(StartupPhase.employees);
             String? employeeResult =
                 await Provider.of<UpdateProvider>(context, listen: false)
                     .fullUpdateEmployee();
@@ -128,10 +150,16 @@ class _WrapperState extends State<Wrapper> {
             }
           }
 
+          CatalogRefreshNotice.endLoad();
+          // Shkala 100% ga to'lib, keyin sahifa almashadi — kassir
+          // "yarmida uzilib qoldi" degan taassurot olmasligi kerak.
+          StartupProgress.done();
           AppNavigation.pushAndRemoveUntil(const AccessLevelPage());
           return;
         }
       } catch (e) {
+        CatalogRefreshNotice.endLoad();
+        StartupProgress.reset();
         if (mounted) {
           final loc = AppLocalizations.of(context);
           final isUz = loc != null && loc.ha.toLowerCase() == 'ha';
@@ -284,17 +312,93 @@ class _WrapperState extends State<Wrapper> {
               child: Padding(
                 padding: EdgeInsets.only(
                     bottom: MediaQuery.of(context).size.height / 20),
-                child: LoadingAnimationWidget.discreteCircle(
-                  color: Colors.white,
-                  secondRingColor: Colors.white60,
-                  thirdRingColor: Colors.white38,
-                  size: 40,
+                child: ValueListenableBuilder<StartupProgressState>(
+                  valueListenable: StartupProgress.notifier,
+                  builder: (context, progress, _) =>
+                      _StartupProgressView(progress: progress),
                 ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Yuklanish ekranidagi bosqich matni va foiz.
+///
+/// Foiz FAQAT server `Content-Length` bergan bo'lsa chiziladi — aks holda
+/// oddiy aylanuvchi indikator qoladi. Ya'ni kassirga hech qachon o'ylab
+/// topilgan raqam ko'rsatilmaydi.
+class _StartupProgressView extends StatelessWidget {
+  const _StartupProgressView({required this.progress});
+
+  final StartupProgressState progress;
+
+  String? _label(AppLocalizations loc) {
+    switch (progress.phase) {
+      case StartupPhase.employees:
+        return loc.yuklanmoqda_xodimlar;
+      case StartupPhase.packageCode:
+        return loc.yuklanmoqda_mxik;
+      case StartupPhase.productsRequest:
+      case StartupPhase.productsDownload:
+        return loc.yuklanmoqda_mahsulotlar;
+      case StartupPhase.productsSaving:
+        return loc.yuklanmoqda_saqlanmoqda;
+      case StartupPhase.done:
+        return loc.yuklanmoqda_tayyor;
+      case StartupPhase.idle:
+        return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations? loc = AppLocalizations.of(context);
+    final String? label = loc == null ? null : _label(loc);
+    final int? percent = progress.isActive ? progress.percent : null;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (label != null) ...[
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withOpacity(.9),
+              fontSize: 24,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+        if (percent != null) ...[
+          SizedBox(height: MediaQuery.of(context).size.height / 55),
+          SizedBox(
+            width: MediaQuery.of(context).size.width / 3,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: percent / 100,
+                minHeight: 12,
+                backgroundColor: Colors.white24,
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+          ),
+          SizedBox(height: MediaQuery.of(context).size.height / 70),
+          Text(
+            '$percent%',
+            style: TextStyle(
+              color: Colors.white.withOpacity(.8),
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

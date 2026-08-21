@@ -227,4 +227,58 @@ void main() {
       expect(row(p).productDiscount, isEmpty);
     });
   });
+
+  // Regressiya: tekin ulush bergan shart buzilgach qator to'liq narxga
+  // qaytishi kerak. `useBuyXGetXProducts` `returnedBuyXGetX` bo'sh bo'lsa
+  // darrov `return` qilardi — diskont bazadan yo'qolganda savatdagi qator
+  // chegirmali narxda qotib qolardi.
+  group('Shart buzilgach tekin ulush bekor bo\'ladi', () {
+    test('diskont bazadan o\'chirilsa qator to\'liq narxga qaytadi', () async {
+      await seed([buyXGetXDiscount(buyAmount: 2, getAmount: 1)]);
+      final p = cart(3);
+      p.findFreeProducts();
+      p.useBuyXGetXProducts();
+      expect(row(p).price, lessThan(5000), reason: 'setup: tekin ulush bor');
+
+      // WS type 17 (diskont o'chirildi) yoki muddati tugadi
+      await seed([]);
+      p.findFreeProducts();
+      p.useBuyXGetXProducts();
+
+      expect(row(p).price, row(p).realPrice);
+      expect(row(p).singleDiscount, 0);
+      expect(row(p).productDiscount, isEmpty);
+    });
+
+    test('qty kamaysa (3 -> 1) tekin ulush bekor bo\'ladi', () async {
+      await seed([buyXGetXDiscount(buyAmount: 2, getAmount: 1)]);
+      final p = cart(3);
+      p.findFreeProducts();
+      p.useBuyXGetXProducts();
+      expect(row(p).price, lessThan(5000));
+
+      row(p).value = 1;
+      p.findFreeProducts();
+      p.useBuyXGetXProducts();
+
+      expect(row(p).price, row(p).realPrice);
+    });
+
+    test('red-delete: o\'chirilgan qator shartni qondirmaydi', () async {
+      await seed([buyXGetXDiscount(buyAmount: 2, getAmount: 1)]);
+      final p = freshProvider();
+      final rows = p.getCurrentClient.orderedProducts;
+      rows.add(makeSoldItem(productId: kProdId, price: 5000, value: 1));
+      rows.add(makeSoldItem(productId: kProdId, price: 5000, value: 2));
+      p.findFreeProducts();
+      p.useBuyXGetXProducts();
+
+      rows[1].isDeleted = true;
+      p.findFreeProducts();
+      p.useBuyXGetXProducts();
+
+      expect(rows[0].price, rows[0].realPrice,
+          reason: 'faqat 1 dona aktiv qoldi — tekin ulush yo\'q');
+    });
+  });
 }

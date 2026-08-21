@@ -9,7 +9,7 @@ static String notificationUrlPro = 'https://ws.notification.7i.uz/';
 static String notificationUrlDev = 'https://dev-ws.notification.7i.uz/';
 static String baseSocketUrl = socketUrlPro;
 static String baseNotificationUrl = notificationUrlPro;
-//   static String baseNotificationUrl = notificationUrlDev;
- //  static String baseSocketUrl = socketUrlDev;
+  // static String baseNotificationUrl = notificationUrlDev;
+  // static String baseSocketUrl = socketUrlDev;
 
 }

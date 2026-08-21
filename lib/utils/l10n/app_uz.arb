@@ -267,5 +267,13 @@
   "upd_category": "Kategoriya",
   "upd_organization": "Tashkilot",
   "upd_employee": "Xodimlar",
-  "upd_service": "Xizmat"
+  "upd_service": "Xizmat",
+  "katalog_yangilanmagan_sarlavha": "Mahsulotlar bazasi yangilanmagan",
+  "katalog_yangilanmagan_matn": "Ilova ochilganda internet bo'lmagani uchun mahsulotlar bazasi yangilanmadi. Narx va mahsulotlar eski bo'lishi mumkin. Iltimos, hozir yangilang.",
+  "keyinroq": "Keyinroq",
+  "yuklanmoqda_xodimlar": "Xodimlar ro'yxati yuklanmoqda...",
+  "yuklanmoqda_mahsulotlar": "Mahsulotlar bazasi yuklanmoqda...",
+  "yuklanmoqda_saqlanmoqda": "Mahsulotlar saqlanmoqda...",
+  "yuklanmoqda_mxik": "MXIK ma'lumotlari yuklanmoqda...",
+  "yuklanmoqda_tayyor": "Tayyor"
 }

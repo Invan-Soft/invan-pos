@@ -3,6 +3,8 @@
 */
 
 import 'dart:convert';
+import 'package:invan2/changes/services/catalog_refresh_notice.dart';
+import 'package:invan2/changes/services/startup_progress.dart';
 import 'package:invan2/utils/helpers/file_helpers.dart';
 
 import '../changes/models/product/item_model.dart';
@@ -177,12 +179,23 @@ class UtilFunctions {
   //   return getError;
   // }
 static Future<String?> fullUpdateProduct({bool apd = false}) async {
+  CatalogRefreshNotice.beginLoad();
+  try {
+    return await _fullUpdateProduct(apd: apd);
+  } finally {
+    CatalogRefreshNotice.endLoad();
+    StartupProgress.reset();
+  }
+}
+
+static Future<String?> _fullUpdateProduct({bool apd = false}) async {
   DateTime time = DateTime.now();
   List<ItemModel> allProducts = [];
   String getError = '';
 
   print('🔄 fullUpdateProduct chaqirildi - ${DateTime.now()}');
 
+  StartupProgress.set(StartupPhase.packageCode);
   await TasnifService.setPackageCode();
 
   HttpResult httpResult = await OrdersService.getItems();
@@ -223,9 +236,12 @@ static Future<String?> fullUpdateProduct({bool apd = false}) async {
 
   if (allProducts.isNotEmpty) {
     print('💾 Mahsulotlar localga saqlanmoqda...');
-    
+
+    // Yozish bosqichi uch qadamga bo'linadi — shkala qotib qolmasligi uchun.
+    StartupProgress.saving(0);
     await ItemsSingleton.clearAndPutItems(allProducts);
-    
+    StartupProgress.saving(.5);
+
     if (apd) {
       await hiveOpen().then((value) async {
         await Pref.setBool(PrefKeys.authenticationBool, true);
@@ -233,6 +249,7 @@ static Future<String?> fullUpdateProduct({bool apd = false}) async {
     }
 
     await ItemsSingleton.storeProducts();
+    StartupProgress.saving(.85);
     CategorySingleton.init();
 
     await Pref.setInt(
@@ -242,9 +259,15 @@ static Future<String?> fullUpdateProduct({bool apd = false}) async {
 
     print('✅ Mahsulotlar muvaffaqiyatli yangilandi!');
     allProducts = [];
+    // Katalog to'liq yangilandi — "baza yangilanmagan" ogohlantirishi olinadi.
+    await CatalogRefreshNotice.markFresh();
     return null;
   } else {
     print('⚠️ Mahsulotlar bo‘sh keldi yoki xatolik yuz berdi.');
+    // Yiqilish belgilanadi: internet tiklangach kassirga ogohlantirish
+    // chiqadi. Ilgari bu holat butunlay jim edi — ilova eski katalog bilan
+    // ochilaverar, kassir esa buni bilmasdi.
+    await CatalogRefreshNotice.markFailed();
     return getError;
   }
 }

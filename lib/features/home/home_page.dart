@@ -1,5 +1,6 @@
 
 import 'package:flutter/foundation.dart';
+import 'package:invan2/changes/services/catalog_refresh_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/app_navigation.dart';
@@ -60,6 +61,17 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     accessBloc = BlocProvider.of(context, listen: false);
     // connect();
     super.initState();
+
+    /// Ilova ochilganda katalog yangilanmay qolgan bo'lsa, kassir sotuv
+    /// ekraniga kirishi bilan ogohlantirish chiqadi.
+    ///
+    /// Nega aynan shu yerda: dialog PIN (AccessLevelPage) ekranida ataylab
+    /// bloklanadi — u yerda modal oyna kassirni kirishdan to'sib qo'yardi.
+    /// Sinxron tsikliga tayanilsa esa ogohlantirish bir daqiqagacha
+    /// kechikardi. Bu chaqiruv uni darhol ko'rsatadi (shartlar bajarilsa).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      CatalogRefreshNotice.maybeShow();
+    });
   }
 
   bool deleteTicketAccess = Pref.getDeleteItem('delete_ticket');

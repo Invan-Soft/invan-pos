@@ -842,4 +842,30 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get upd_service => 'Xizmat';
+
+  @override
+  String get katalog_yangilanmagan_sarlavha =>
+      'Mahsulotlar bazasi yangilanmagan';
+
+  @override
+  String get katalog_yangilanmagan_matn =>
+      'Ilova ochilganda internet bo\'lmagani uchun mahsulotlar bazasi yangilanmadi. Narx va mahsulotlar eski bo\'lishi mumkin. Iltimos, hozir yangilang.';
+
+  @override
+  String get keyinroq => 'Keyinroq';
+
+  @override
+  String get yuklanmoqda_xodimlar => 'Xodimlar ro\'yxati yuklanmoqda...';
+
+  @override
+  String get yuklanmoqda_mahsulotlar => 'Mahsulotlar bazasi yuklanmoqda...';
+
+  @override
+  String get yuklanmoqda_saqlanmoqda => 'Mahsulotlar saqlanmoqda...';
+
+  @override
+  String get yuklanmoqda_mxik => 'MXIK ma\'lumotlari yuklanmoqda...';
+
+  @override
+  String get yuklanmoqda_tayyor => 'Tayyor';
 }

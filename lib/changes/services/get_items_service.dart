@@ -12,6 +12,7 @@ import '../../features/get_products/singletons/items_singleton.dart';
 import '../../features/hive_repository/hive_boxes.dart';
 import '../models/product/item_model.dart';
 import '../models/product/soliq_mxik_model.dart';
+import 'startup_progress.dart';
 
 class OrdersService {
   // ─── Cancel support ───────────────────────────────────────────────
@@ -47,6 +48,9 @@ class OrdersService {
       "timezone": "-300"
     };
     String url = 'api/v1/products_json_gzip';
+    // Server arxivni tayyorlayotgan bosqich — bu vaqt ichida siljish
+    // haqida ma'lumot yo'q, shuning uchun shkala shu bosqich boshida turadi.
+    StartupProgress.set(StartupPhase.productsRequest);
     HttpResult httpResult =
     await ApiProvider.postResponse(path: url, headers: headers);
 
@@ -54,7 +58,14 @@ class OrdersService {
       String downloadUrl = httpResult.result['id'].toString();
       String fileName = downloadUrl.split('/').last;
 
-      File downloadedFile = await downloadFile(downloadUrl, fileName);
+      File downloadedFile = await downloadFile(
+        downloadUrl,
+        fileName,
+        onProgress: StartupProgress.download,
+      );
+
+      // Yuklab olish tugadi — endi arxivni ochib, lokalga yozish bosqichi.
+      StartupProgress.saving(0);
 
       final bytes = await downloadedFile.readAsBytes();
       final decoded = GZipCodec().decode(bytes);
@@ -82,7 +93,13 @@ class OrdersService {
     );
   }
 
-  static Future<File> downloadFile(String url, String fileName) async {
+  /// [onProgress] — `(olingan bayt, jami bayt)`. Server `Content-Length`
+  /// bermasa `jami` manfiy bo'ladi va chaqiruvchi foiz ko'rsatmasligi kerak.
+  static Future<File> downloadFile(
+    String url,
+    String fileName, {
+    void Function(int received, int total)? onProgress,
+  }) async {
     final directory = await getApplicationDocumentsDirectory();
     final filePath = '${directory.path}/$fileName';
     final file = File(filePath);
@@ -91,8 +108,13 @@ class OrdersService {
     final response = await request.close();
     final sink = file.openWrite();
 
+    final int total = response.contentLength;
+    int received = 0;
+
     await response.forEach((chunk) {
       sink.add(chunk);
+      received += chunk.length;
+      onProgress?.call(received, total);
     });
 
     await sink.close();

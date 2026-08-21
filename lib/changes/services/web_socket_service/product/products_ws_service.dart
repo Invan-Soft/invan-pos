@@ -7,12 +7,12 @@ import 'package:flutter/scheduler.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:invan2/changes/services/log_helper.dart';
+import 'package:invan2/changes/services/catalog_refresh_notice.dart';
 import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'package:invan2/changes/services/web_socket_service/product/model/mxik_updates.dart';
 import 'package:invan2/changes/services/web_socket_service/product/model/product_price_edit_response.dart';
 import 'package:invan2/changes/services/web_socket_service/urls/urls.dart';
 import 'package:provider/provider.dart';
-
 import '../../../../alice_service.dart';
 import '../../../../features/features.dart';
 import '../../../../features/get_products/singletons/items_singleton.dart';
@@ -60,8 +60,6 @@ class ProductsWsService {
     await Pref.setBool(PrefKeys.lastSyncTimeChanged, true);
   }*/
 
-  /// Bir marta chaqirilganda `limit` dan ortiq notification qaytmaydi —
-  /// shu songa yetilsa oyna to'liq qamralmagan deb hisoblanadi.
   static const int limit = 1000;
 
   static Future<SyncFetchResult> getReceivedWS(bool mounted,
@@ -120,6 +118,7 @@ class ProductsWsService {
     if (response.statusCode != 200) {
       return const SyncFetchResult.failed();
     }
+    
     {
       if (jsonDecode(utf8.decode(response.bodyBytes))['notifications'] !=
           null) {
@@ -240,6 +239,15 @@ class ProductsWsService {
   }
 
   static Future<bool> import(BuildContext context) async {
+    CatalogRefreshNotice.beginLoad();
+    try {
+      return await _import(context);
+    } finally {
+      CatalogRefreshNotice.endLoad();
+    }
+  }
+
+  static Future<bool> _import(BuildContext context) async {
     DateTime time = DateTime.now();
     List<ItemModel> allProducts = [];
     await TasnifService.setPackageCode();
@@ -282,6 +290,8 @@ class ProductsWsService {
         Provider.of<OrderingProvider4>(context, listen: false).pressAllPath();
       });
       allProducts.clear();
+      // Bu ham to'liq katalog yuklashi — startup'dagi yiqilish qoplandi.
+      await CatalogRefreshNotice.markFresh();
       return true;
     }
     return false;

@@ -1687,6 +1687,54 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Сервис'**
   String get upd_service;
+
+  /// No description provided for @katalog_yangilanmagan_sarlavha.
+  ///
+  /// In ru, this message translates to:
+  /// **'База товаров не обновлена'**
+  String get katalog_yangilanmagan_sarlavha;
+
+  /// No description provided for @katalog_yangilanmagan_matn.
+  ///
+  /// In ru, this message translates to:
+  /// **'При запуске приложения не было интернета, поэтому база товаров не обновилась. Цены и товары могут быть устаревшими. Пожалуйста, обновите сейчас.'**
+  String get katalog_yangilanmagan_matn;
+
+  /// No description provided for @keyinroq.
+  ///
+  /// In ru, this message translates to:
+  /// **'Позже'**
+  String get keyinroq;
+
+  /// No description provided for @yuklanmoqda_xodimlar.
+  ///
+  /// In ru, this message translates to:
+  /// **'Загружается список сотрудников...'**
+  String get yuklanmoqda_xodimlar;
+
+  /// No description provided for @yuklanmoqda_mahsulotlar.
+  ///
+  /// In ru, this message translates to:
+  /// **'Загружается база товаров...'**
+  String get yuklanmoqda_mahsulotlar;
+
+  /// No description provided for @yuklanmoqda_saqlanmoqda.
+  ///
+  /// In ru, this message translates to:
+  /// **'Сохранение товаров...'**
+  String get yuklanmoqda_saqlanmoqda;
+
+  /// No description provided for @yuklanmoqda_mxik.
+  ///
+  /// In ru, this message translates to:
+  /// **'Загружаются данные МХИК...'**
+  String get yuklanmoqda_mxik;
+
+  /// No description provided for @yuklanmoqda_tayyor.
+  ///
+  /// In ru, this message translates to:
+  /// **'Готово'**
+  String get yuklanmoqda_tayyor;
 }
 
 class _AppLocalizationsDelegate
