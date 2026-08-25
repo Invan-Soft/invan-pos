@@ -73,7 +73,20 @@ Future<void> setUpPosTestEnv(
 }
 
 Future<void> tearDownPosTestEnv() async {
-  await Hive.close();
+  // `Hive.close()` ni CHEKSIZ kutmaymiz — ataylab timeout bilan.
+  //
+  // Sabab: production kodida ba'zi Hive yozuvlari `await` qilinmaydi
+  // (masalan `PaymentTallyController.removeFromPaymentList` ichidagi
+  // `Pref.setBool(PrefKeys.debtClick, false)`). Bunday yozuv `testWidgets`
+  // tanasi ichida boshlansa, u FakeAsync zonasida qoladi — test tugagach
+  // zona tashlab yuboriladi va yozuv HECH QACHON yakunlanmaydi. Natijada
+  // prefs box'ining yozuv navbati bo'shamaydi va `Hive.close()` abadiy
+  // kutadi (`cashback_balance_test.dart` butun to'plamni 12 daqiqaga osib,
+  // "Test timed out" bilan yiqitardi).
+  //
+  // Testlarning natijasi bunga bog'liq emas — bu faqat tozalash bosqichi,
+  // shuning uchun bir necha soniyadan keyin davom etaverish xavfsiz.
+  await Hive.close().timeout(const Duration(seconds: 5), onTimeout: () => []);
   await _tempDir?.delete(recursive: true);
   _tempDir = null;
 }
