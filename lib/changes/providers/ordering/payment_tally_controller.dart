@@ -83,32 +83,21 @@ class PaymentTallyController {
     return paid;
   }
 
-  /// Kiritilgan summadan SHU to'lov turiga qancha tushishi mumkinligi.
+  /// Kiritilgan summadan shu to'lov turiga qancha tushishi mumkinligi.
   ///
-  /// Kassir klaviaturada terilgan [parsed] qoldiqdan katta bo'lsa, qoldiq
-  /// qaytariladi (ortiqcha to'lov yozilmaydi). [parsed] 0 bo'lsa — "hammasi"
-  /// ma'nosida butun qoldiq.
+  /// Kassir klaviaturada tergan [parsed] qoldiqdan katta bo'lsa, qoldiq
+  /// qaytariladi (ortiqcha to'lov yozilmaydi). [parsed] 0 bo'lsa —
+  /// "hammasi" ma'nosida butun qoldiq.
   ///
-  /// Chekda SHU tur bo'yicha allaqachon kiritilgan summa AYIRILADI, chunki
-  /// `allPaymentType` yangi qiymatni eskisining USTIGA qo'yadi — ayirmasa
-  /// tugma har bosilganda summa ikkilanib ketardi.
-  /// Terminal (Uzcard/Humo/Paynet) yo'llari shuni ishlatadi.
-  double amountMinusCurrent(double parsed) {
-    final double available = getAvailableSumma();
-    final double current = getSelectedPaymentSumma();
-    return parsed > 0
-        ? (available - current >= parsed ? parsed : available - current)
-        : available - current;
-  }
-
-  /// [amountMinusCurrent] ning chekdagi joriy summani AYIRMAYDIGAN varianti.
-  /// Click / Payme / Uzum yo'llari shuni ishlatadi.
+  /// Click / Payme / Uzum / Paynet yo'llari shuni ishlatadi.
   ///
-  /// QAYD (4-qoida — tuzatilmadi): ikkala formula bir xil bo'lishi kerakdek
-  /// ko'rinadi. Ayirmaslik tugma ikki marta bosilganda summani oshirib
-  /// yuborishi mumkin — cashback'da aynan shu xato bo'lgan
+  /// QAYD (4-qoida — tuzatilmadi): chekda SHU tur bo'yicha allaqachon
+  /// kiritilgan summa AYIRILMAYDI. `allPaymentType` yangi qiymatni
+  /// eskisining USTIGA qo'yadi, shuning uchun tugma ikki marta bosilsa
+  /// summa oshib ketishi mumkin — cashback'da aynan shu xato bo'lgan
   /// (`docs/sessions/2026-08-12-cashback-overspend-fix.md`). Bu yerda
-  /// hozirgi xatti-harakat o'zgartirilmasdan muzlatildi.
+  /// hozirgi xatti-harakat o'zgartirilmasdan muzlatildi
+  /// (`test/payment_amount_rules_test.dart`).
   double amountIgnoringCurrent(double parsed) {
     final double available = getAvailableSumma();
     return parsed > 0 ? (available >= parsed ? parsed : available) : available;

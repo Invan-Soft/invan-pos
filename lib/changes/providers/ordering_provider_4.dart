@@ -3238,10 +3238,16 @@ ${productLines.toString().trim()}
   void allPaymentType(Payment payment) {
     _selectedPaymentType =
         payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
-    final double parsed =
+    double parsed =
         double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
-    final double currentPaymentValue = getSelectedPaymentSumma();
-    final double summa = _tally.amountMinusCurrent(parsed);
+    double available = getAvailableSumma();
+    double currentPaymentValue = getSelectedPaymentSumma();
+
+    double summa = parsed > 0
+        ? (available - currentPaymentValue >= parsed
+            ? parsed
+            : available - currentPaymentValue)
+        : available - currentPaymentValue;
 
     if (payment.id == Pref.getString(PrefKeys.cashId, "")) {
       if (parsed > 0) {
@@ -3287,9 +3293,15 @@ ${productLines.toString().trim()}
         payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
     AppLocalizations loc = AppLocalizations.of(context)!;
 
-    final double parsed =
+    double available = getAvailableSumma();
+    double currentPaymentValue = getSelectedPaymentSumma();
+    double parsed =
         double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
-    final double summa = _tally.amountMinusCurrent(parsed);
+    double summa = parsed > 0
+        ? (available - currentPaymentValue >= parsed
+            ? parsed
+            : available - currentPaymentValue)
+        : available - currentPaymentValue;
 
     const fs = fl.LocalFileSystem();
     final shell = Shell();
@@ -3324,7 +3336,9 @@ ${productLines.toString().trim()}
           ////////////
 
           final bool isApproved =
-              TerminalReceiptParser.isApproved(asString);
+              asString.contains("ОДО") && asString.contains("РЕНО") ||
+                  asString.contains("ОДОБРЕНО") ||
+                  asString.contains("TASDIQLANDI");
 
           if (isApproved) {
             allPaymentType(payment);
@@ -3362,9 +3376,15 @@ ${productLines.toString().trim()}
         payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
     AppLocalizations loc = AppLocalizations.of(context)!;
 
-    final double parsed =
+    double available = getAvailableSumma();
+    double currentPaymentValue = getSelectedPaymentSumma();
+    double parsed =
         double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
-    final double summa = _tally.amountMinusCurrent(parsed);
+    double summa = parsed > 0
+        ? (available - currentPaymentValue >= parsed
+            ? parsed
+            : available - currentPaymentValue)
+        : available - currentPaymentValue;
 
     const fs = fl.LocalFileSystem();
     final shell = Shell();
@@ -3412,7 +3432,9 @@ ${productLines.toString().trim()}
           ////////////
 
           final bool isApprovedH =
-              TerminalReceiptParser.isApproved(asString);
+              asString.contains("ОДО") && asString.contains("РЕНО") ||
+                  asString.contains("ОДОБРЕНО") ||
+                  asString.contains("TASDIQLANDI");
 
           if (isApprovedH) {
             allPaymentType(Payment(
