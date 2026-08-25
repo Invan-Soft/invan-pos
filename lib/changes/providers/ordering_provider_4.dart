@@ -22,6 +22,7 @@ import 'package:invan2/changes/providers/ordering/discount_effects_controller.da
 import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.dart';
 import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
 import 'package:invan2/changes/domain/barcode/barcode_classifier.dart';
+import 'package:invan2/changes/domain/barcode/scanned_product_lookup.dart';
 import 'package:invan2/changes/domain/cart/cash_restriction_rules.dart';
 import 'package:invan2/changes/services/telegram_notifier.dart';
 import 'package:invan2/changes/domain/cart/deleted_item_recorder.dart';
@@ -3848,9 +3849,6 @@ ${productLines.toString().trim()}
         break;
     }
 
-    String pattern = barcode;
-    ItemModel? item;
-
     final DateTime? expiryDate = BarcodeClassifier.parseExpiry(barcode);
 
     if (expiryDate != null) {
@@ -3875,70 +3873,20 @@ ${productLines.toString().trim()}
         return; // ← bu dialogForMark dan TASHQARIDA bo'lishi kerak
       }
     }
-    if (barcode.startsWith('01') && barcode.length > 16) {
-      final boxGtinMatch = RegExp(r'^01(\d{14})').firstMatch(barcode);
-      if (boxGtinMatch != null) {
-        final gtin14 = boxGtinMatch.group(1)!;
-        final ean13 = gtin14.substring(1);
-        final gtin14NoLeadZero = gtin14.replaceFirst(RegExp(r'^0+'), '');
-
-        final boxProduct = ItemsSingleton.getProductByBoxBarcodeOnly(ean13) ??
-            ItemsSingleton.getProductByBoxBarcodeOnly(gtin14NoLeadZero) ??
-            ItemsSingleton.getProductByBoxBarcodeOnly(gtin14);
-
-        if (boxProduct != null) {
-          await _addBoxProduct(boxProduct, barcode);
-          return;
-        }
-      }
+    final boxProduct = ScannedProductLookup.findBoxProduct(barcode);
+    if (boxProduct != null) {
+      await _addBoxProduct(boxProduct, barcode);
+      return;
     }
-    // ─────────────────────────────────────────────────────────
-    // Narxi=0 tekshiruvi uchun sinab ko'rilgan barcode variantlarini yig'amiz
-    final List<String> triedPatterns = [barcode];
-
-    if (barcode.contains('(01)')) {
-      final gtinMatch = RegExp(r'\(01\)(\d{13,14})').firstMatch(barcode);
-      if (gtinMatch != null) {
-        String gtin = gtinMatch.group(1)!;
-        gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
-        triedPatterns.add(gtin);
-        item = ItemsSingleton.getProductByBarcode(gtin);
-        if (item != null) {
-          item.mark = _isProductMarkable(item) ? _markirovka(barcode) : null;
-        }
-      }
-    }
-
-    if (item == null && barcode.startsWith('01') && barcode.length > 16) {
-      final gtinMatch = RegExp(r'^01(\d{14})').firstMatch(barcode);
-      if (gtinMatch != null) {
-        String gtin = gtinMatch.group(1)!;
-        gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
-        triedPatterns.add(gtin);
-        item = ItemsSingleton.getProductByBarcode(gtin);
-        if (item != null) {
-          item.mark = _isProductMarkable(item) ? _markirovka(barcode) : null;
-        }
-      }
-    }
-
-    if (item == null) {
-      // Hech qanday "ichidan raqam ajratib olish" YO'Q: satr qanday o'qitilgan
-      // bo'lsa shundayligicha 100% teng barcode sifatida solishtiriladi.
-      // Ma'lum formatlar (GS1 "01"+GTIN14, tarozi prefiksi, utsenka QR)
-      // yuqorida strukturaviy tarzda ochilgan; ularga tushmagan noto'g'ri
-      // format hech narsa topmaydi — "topilmadi" dialogi chiqadi.
-      //
-      // SKU fallback skaner uchun ham OCHIQ: do'konlar narx yorlig'iga SKU'ni
-      // barcode qilib chiqaradi, kassir uni skan qiladi. Fragment-himoya SKU
-      // qidiruvining o'zida: faqat sof raqam va normalizatsiyasiz AYNAN teng
-      // moslik ("0206" hech qachon "206" deb topilmaydi).
-      item = ItemsSingleton.getProductByBarcode(pattern);
-      if (item != null) {
-        item.mark = null;
-      }
-    }
-
+    // Mahsulot qidiruvi `ScannedProductLookup` da (Faza 9.4).
+    // triedPatterns — narxi=0 tekshiruvi uchun sinab ko'rilgan variantlar.
+    final match = ScannedProductLookup.find(
+      barcode,
+      isMarkable: _isProductMarkable,
+      cleanMark: _markirovka,
+    );
+    final triedPatterns = match.triedPatterns;
+    ItemModel? item = match.item;
     if (item != null) {
       final mxikStr = (item.mxikCode ?? '').trim();
       final bool markCheckEnabled =
@@ -3970,13 +3918,8 @@ ${productLines.toString().trim()}
     }
     // ─── Narxi 0 bo'lgan mahsulotni tekshirish ───────────────
     {
-      ItemModel? zeroPriceItem;
-      for (final tried in triedPatterns) {
-        zeroPriceItem = ItemsSingleton.products.firstWhereOrNull(
-          (p) => p.barcode?.any((b) => b.trim() == tried.trim()) ?? false,
-        );
-        if (zeroPriceItem != null) break;
-      }
+      final zeroPriceItem =
+          ScannedProductLookup.findZeroPriceProduct(triedPatterns);
       if (zeroPriceItem != null) {
         // Dialog addProduct ichida _checkAndShowDialogsIfNeeded orqali 1 marta ko'rsatiladi
         // ignore: use_build_context_synchronously
