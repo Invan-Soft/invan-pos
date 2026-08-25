@@ -22,6 +22,7 @@ import 'package:invan2/changes/providers/ordering/discount_effects_controller.da
 import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.dart';
 import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
 import 'package:invan2/changes/domain/barcode/barcode_classifier.dart';
+import 'package:invan2/changes/domain/cart/cash_restriction_rules.dart';
 import 'package:invan2/changes/domain/cart/deleted_item_recorder.dart';
 import 'package:invan2/changes/domain/cart/row_repricer.dart';
 import 'package:invan2/changes/providers/ordering/group_edit_controller.dart';
@@ -54,7 +55,6 @@ import 'package:invan2/features/payment/right/dilogs/paynet/bloc/paynet_bloc.dar
 import 'package:invan2/features/payment/right/dilogs/paynet/paynet_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/click/clic_pass_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/uzum/uzum_dialog.dart';
-import 'package:invan2/utils/constants/mxik_constants.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:invan2/widgets/my_snackbar.dart';
 import 'package:provider/provider.dart';
@@ -624,32 +624,30 @@ ${productLines.toString().trim()}
     }
   }
 
-  bool get isCardOnlyPaymentRequired {
-    if (_currentClient.orderedProducts.isEmpty) return false;
+  /// Naqd to'lovni cheklash qoidalari — `CashRestrictionRules` da.
+  bool get isCardOnlyPaymentRequired =>
+      CashRestrictionRules.cardOnlyRequired(_currentClient.orderedProducts);
 
-    return _currentClient.orderedProducts.any((item) {
-      final mxik = item.mxik.trim();
-      return mxik.isNotEmpty && MxikConstants.cardOnlyMxikCodes.contains(mxik);
-    });
-  }
+  bool get isCashPaymentHidden => CashRestrictionRules.cashHiddenByMarking(
+        _currentClient.orderedProducts,
+        ofdOn: Pref.getBool(PrefKeys.markCheckWithOfd, false),
+        markingSaleOn: Pref.getBool(PrefKeys.sellProductsWithMarking, true),
+      );
 
-  bool get isCashPaymentHidden {
-    if (!Pref.getBool(PrefKeys.markCheckWithOfd, false)) return false;
-    if (!Pref.getBool(PrefKeys.sellProductsWithMarking, true)) return false;
-    if (_currentClient.orderedProducts.isEmpty) return false;
+  // cashsale==0 bo'lgan productlar uchun (qat'iy taqiq)
+  bool get isCashHiddenByCashsale =>
+      CashRestrictionRules.cashHiddenByCashsale(
+        _currentClient.orderedProducts,
+        ofdOn: Pref.getBool(PrefKeys.markCheckWithOfd, true),
+        cashsaleCheckOn: Pref.getBool('checkProductByCashsale', true),
+      );
 
-    return _currentClient.orderedProducts.any((item) {
-      final mxik = item.mxik.trim();
-      if (mxik.isEmpty) return false;
-      return mxik.startsWith('02203') ||
-          mxik.startsWith('02204') ||
-          mxik.startsWith('02205') ||
-          mxik.startsWith('02206') ||
-          mxik.startsWith('02207') ||
-          mxik.startsWith('02208') ||
-          mxik.startsWith('024');
-    });
-  }
+  // cashsale==1 bo'lgan productlar narxi 25mln oshganda
+  bool get isBigTotalHidden => CashRestrictionRules.bigTotalHidden(
+        _currentClient.orderedProducts,
+        ofdOn: Pref.getBool(PrefKeys.markCheckWithOfd, true),
+        cashsaleCheckOn: Pref.getBool('checkProductByCashsale', true),
+      );
 
   // Settings o'zgarganda cheklov flaglarini reset qilish
   void resetCashRestrictionWarnings() {
@@ -658,40 +656,6 @@ ${productLines.toString().trim()}
     _bigTotalWarningShown = false;
     notifyListeners();
   }
-
-  // ==================== CASHSALE CHEK ====================
-
-  // cashsale==0 bo'lgan productlar uchun (qat'iy taqiq)
-  bool get isCashHiddenByCashsale {
-    if (!Pref.getBool(PrefKeys.markCheckWithOfd, true)) return false;
-    if (!Pref.getBool('checkProductByCashsale', true)) return false;
-    if (_currentClient.orderedProducts.isEmpty) return false;
-
-    for (final item in _currentClient.orderedProducts) {
-      if (item.isDeleted == true) continue;
-      final product = ItemsSingleton.getProductById(item.productId);
-      final int cashsale = product?.cashsale ?? 1;
-      if (cashsale == 0) return true;
-    }
-    return false;
-  }
-
-  // cashsale==1 bo'lgan productlar narxi 25mln oshganda
-  bool get isBigTotalHidden {
-    if (!Pref.getBool(PrefKeys.markCheckWithOfd, true)) return false;
-    if (!Pref.getBool('checkProductByCashsale', true)) return false;
-    if (_currentClient.orderedProducts.isEmpty) return false;
-
-    for (final item in _currentClient.orderedProducts) {
-      if (item.isDeleted == true) continue;
-      final product = ItemsSingleton.getProductById(item.productId);
-      if (product == null) continue;
-      if ((product.cashsale ?? -1) != 1) continue;
-      if (item.price * item.value > 25000000) return true;
-    }
-    return false;
-  }
-
   Future<void> loadInvoiceByBarcodeWithBloc({
     required String barcode,
     required BuildContext context,
