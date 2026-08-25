@@ -3238,16 +3238,10 @@ ${productLines.toString().trim()}
   void allPaymentType(Payment payment) {
     _selectedPaymentType =
         payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
-    double parsed =
+    final double parsed =
         double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
-    double available = getAvailableSumma();
-    double currentPaymentValue = getSelectedPaymentSumma();
-
-    double summa = parsed > 0
-        ? (available - currentPaymentValue >= parsed
-            ? parsed
-            : available - currentPaymentValue)
-        : available - currentPaymentValue;
+    final double currentPaymentValue = getSelectedPaymentSumma();
+    final double summa = _tally.amountMinusCurrent(parsed);
 
     if (payment.id == Pref.getString(PrefKeys.cashId, "")) {
       if (parsed > 0) {
@@ -3293,15 +3287,9 @@ ${productLines.toString().trim()}
         payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
     AppLocalizations loc = AppLocalizations.of(context)!;
 
-    double available = getAvailableSumma();
-    double currentPaymentValue = getSelectedPaymentSumma();
-    double parsed =
+    final double parsed =
         double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
-    double summa = parsed > 0
-        ? (available - currentPaymentValue >= parsed
-            ? parsed
-            : available - currentPaymentValue)
-        : available - currentPaymentValue;
+    final double summa = _tally.amountMinusCurrent(parsed);
 
     const fs = fl.LocalFileSystem();
     final shell = Shell();
@@ -3336,9 +3324,7 @@ ${productLines.toString().trim()}
           ////////////
 
           final bool isApproved =
-              asString.contains("ОДО") && asString.contains("РЕНО") ||
-                  asString.contains("ОДОБРЕНО") ||
-                  asString.contains("TASDIQLANDI");
+              TerminalReceiptParser.isApproved(asString);
 
           if (isApproved) {
             allPaymentType(payment);
@@ -3376,15 +3362,9 @@ ${productLines.toString().trim()}
         payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
     AppLocalizations loc = AppLocalizations.of(context)!;
 
-    double available = getAvailableSumma();
-    double currentPaymentValue = getSelectedPaymentSumma();
-    double parsed =
+    final double parsed =
         double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
-    double summa = parsed > 0
-        ? (available - currentPaymentValue >= parsed
-            ? parsed
-            : available - currentPaymentValue)
-        : available - currentPaymentValue;
+    final double summa = _tally.amountMinusCurrent(parsed);
 
     const fs = fl.LocalFileSystem();
     final shell = Shell();
@@ -3432,9 +3412,7 @@ ${productLines.toString().trim()}
           ////////////
 
           final bool isApprovedH =
-              asString.contains("ОДО") && asString.contains("РЕНО") ||
-                  asString.contains("ОДОБРЕНО") ||
-                  asString.contains("TASDIQLANDI");
+              TerminalReceiptParser.isApproved(asString);
 
           if (isApprovedH) {
             allPaymentType(Payment(
@@ -3605,11 +3583,9 @@ ${productLines.toString().trim()}
       return;
     }
 
-    double available = getAvailableSumma();
-    double parsed =
+    final double parsed =
         double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
-    double summa =
-        parsed > 0 ? (available >= parsed ? parsed : available) : available;
+    final double summa = _tally.amountIgnoringCurrent(parsed);
 
     if (summa > 0 && !_clickPayIsWorking) {
       _clickPayIsWorking = true;
@@ -3657,11 +3633,9 @@ ${productLines.toString().trim()}
         "${Pref.getString(PrefKeys.checkId, "0")}$number";
     AppLocalizations loc = AppLocalizations.of(context)!;
 
-    double available = getAvailableSumma();
-    double parsed =
+    final double parsed =
         double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
-    double summa =
-        parsed > 0 ? (available >= parsed ? parsed : available) : available;
+    final double summa = _tally.amountIgnoringCurrent(parsed);
 
     if (summa > 0) {
       notifyListeners();
@@ -3709,11 +3683,9 @@ ${productLines.toString().trim()}
         "${Pref.getString(PrefKeys.checkId, "0")}$number";
     AppLocalizations loc = AppLocalizations.of(context)!;
 
-    double available = getAvailableSumma();
-    double parsed =
+    final double parsed =
         double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
-    double summa =
-        parsed > 0 ? (available >= parsed ? parsed : available) : available;
+    final double summa = _tally.amountIgnoringCurrent(parsed);
 
     Log.d('typePaynet() — summa: $summa, receipt: $receiptNumber',
         name: 'OrderingProvider4');

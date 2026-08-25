@@ -81,6 +81,20 @@ class TerminalReceiptParser {
 
   /// Terminal (Arcus) javobidagi (log + chek) tanish xato sabablarini
   /// tushunarli xabarga o'giradi. Topilmasa bo'sh string qaytaradi.
+  /// Terminal logida to'lov TASDIQLANGANmi.
+  ///
+  /// Arcus logi kodlash muammosi tufayli "ОДОБРЕНО" ni bo'lib yozishi
+  /// mumkin — shuning uchun "ОДО" va "РЕНО" alohida ham tekshiriladi.
+  /// Uzbekcha terminalda "TASDIQLANDI" keladi.
+  ///
+  /// DIQQAT (amal ustunligi): shart `(ОДО && РЕНО) || ОДОБРЕНО ||
+  /// TASDIQLANDI` tarzida o'qiladi — birinchi juftlik BIRGA kelishi shart.
+  static bool isApproved(String log) {
+    return log.contains("ОДО") && log.contains("РЕНО") ||
+        log.contains("ОДОБРЕНО") ||
+        log.contains("TASDIQLANDI");
+  }
+
   static String terminalErrorMessage(String log, String receipt, bool isUz) {
     final text = '$log\n$receipt'.toUpperCase();
 

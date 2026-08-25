@@ -10,6 +10,7 @@
 // shuning uchun harness baribir zarur. Faza 1 da funksiya sinfdan chiqarilgach
 // bu bog'liqlik yo'qoladi.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/domain/terminal/terminal_receipt_parser.dart';
 import 'package:invan2/changes/providers/ordering_provider_4.dart';
 
 import 'support/provider_harness.dart';
@@ -157,6 +158,47 @@ Sana: 05.08.2026 16:45
       expect(
         r.keys.toSet(),
         {'rrn', 'cardNumber', 'authCode', 'amount', 'date', 'cardType'},
+      );
+    });
+  });
+
+  group('isApproved — terminal logida tasdiq', () {
+    test('to\'liq "ОДОБРЕНО" → true', () {
+      expect(TerminalReceiptParser.isApproved('СУММА 1000\nОДОБРЕНО'), isTrue);
+    });
+
+    test('uzbekcha "TASDIQLANDI" → true', () {
+      expect(TerminalReceiptParser.isApproved('TASDIQLANDI'), isTrue);
+    });
+
+    test('kodlash buzilib bo\'lingan "ОДО" + "РЕНО" → true', () {
+      expect(TerminalReceiptParser.isApproved('ОДО\ufffdРЕНО'), isTrue);
+    });
+
+    test('faqat "ОДО" (juftliksiz) → false', () {
+      expect(TerminalReceiptParser.isApproved('ОДО'), isFalse);
+    });
+
+    test('faqat "РЕНО" (juftliksiz) → false', () {
+      expect(TerminalReceiptParser.isApproved('РЕНО'), isFalse);
+    });
+
+    test('rad etilgan to\'lov → false', () {
+      expect(
+        TerminalReceiptParser.isApproved('ОТКАЗ\nНЕДОСТАТОЧНО СРЕДСТВ'),
+        isFalse,
+      );
+    });
+
+    test('bo\'sh log → false', () {
+      expect(TerminalReceiptParser.isApproved(''), isFalse);
+    });
+
+    test('QAYD: "ОДО" va "РЕНО" logning turli joyida bo\'lsa ham true', () {
+      // Shart faqat mavjudlikni tekshiradi, joylashuvni emas.
+      expect(
+        TerminalReceiptParser.isApproved('РЕНО ... boshqa matn ... ОДО'),
+        isTrue,
       );
     });
   });
