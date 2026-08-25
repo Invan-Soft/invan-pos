@@ -22,6 +22,7 @@ import 'package:invan2/changes/providers/ordering/discount_effects_controller.da
 import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.dart';
 import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
 import 'package:invan2/changes/domain/barcode/barcode_classifier.dart';
+import 'package:invan2/changes/domain/cart/deleted_item_recorder.dart';
 import 'package:invan2/changes/domain/cart/row_repricer.dart';
 import 'package:invan2/changes/providers/ordering/group_edit_controller.dart';
 import 'package:invan2/changes/dialogs/terminal_error_dialog.dart';
@@ -2035,60 +2036,24 @@ ${productLines.toString().trim()}
     }
   }
 
-  /// O'chirilgan mahsulotni joriy savat sessiyasining deleted-items
-  /// ro'yxatiga yozadi — sotuv yakunlanganda order_pos "deleted_items"
-  /// massivida serverga ketadi (offline chekda ham saqlanadi).
-  ///
-  /// [approvedBy] — o'chirishga PIN kodi bilan ruxsat bergan xodim. Kassirning
-  /// o'zida `deletePrice` ruxsati bo'lmasa, PIN dialogi ochiladi va o'sha PIN
-  /// egasi shu yerga keladi — `deleted_by` da AYNAN O'SHA xodim ketadi.
-  /// null bo'lsa (PIN so'ralmagan, kassirning o'zida ruxsat bor) — joriy kassir.
+  /// O'chirilgan qatorni sessiya deleted-items ro'yxatiga yozadi.
+  /// Qoidalar `DeletedItemRecorder` da.
   void _recordDeletedItem(ReceiptModelSoldItem4 item,
-      {double? quantity, Employee? approvedBy}) {
-    // Auto-boshqariladigan qatorlar (free gift qayta hisoblash va h.k.) emas,
-    // faqat kassir qo'li bilan o'chirgan qatorlar shu metod orqali yoziladi.
-    // quantity berilsa qisman o'chirish (qty kamaytirish), aks holda butun qator.
-    // Red-delete'da allaqachon o'chirilgan qator qayta yozilmaydi (X tugmasi
-    // ketma-ket bosilganda index 0 dagi o'sha qatorga qayta tushishi mumkin).
-    if (item.isDeleted ?? false) return;
-    final qty = quantity ?? item.value;
-    if (qty <= 0) return;
-    final employeeId = approvedBy?.user?.id ??
-        HiveBoxes.getCurrentEmployee?.user?.id ??
-        Pref.getString(PrefKeys.cashierId, "");
-    _currentClient.deletedItems.add(
-      DeletedItemModel4(
-        deletedBy: employeeId,
-        deletedTime:
-            DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()),
-        addedTime: item.createdTime > 0
-            ? DateFormat('yyyy-MM-dd HH:mm:ss').format(
-                DateTime.fromMillisecondsSinceEpoch(item.createdTime).toUtc())
-            : '',
-        productId: item.productId,
-        quantity: qty,
-        totalPrice: double.parse((item.price * qty).round().toStringAsFixed(1)),
-      ),
-    );
-  }
+          {double? quantity, Employee? approvedBy}) =>
+      DeletedItemRecorder.record(
+        _currentClient.deletedItems,
+        item,
+        quantity: quantity,
+        approvedBy: approvedBy,
+        currentEmployeeId: () =>
+            HiveBoxes.getCurrentEmployee?.user?.id ??
+            Pref.getString(PrefKeys.cashierId, ""),
+      );
 
-  /// Savat SOTUVSIZ bo'shaganda (barcha aktiv mahsulot o'chirilib, chek
-  /// yakunlanmasdan) — shu paytgacha yig'ilgan, hali biror chek raqami
-  /// olmagan o'chirishlarni "sotuvsiz" deb belgilaydi: checkNumber = "-".
-  /// Keyingi yakunlangan sotuv bilan shu "-" holatida yuklanadi, shunda
-  /// backend "mahsulot qo'shildi-o'chirildi, lekin sotuv bo'lmadi" holatni
-  /// ajrata oladi (masalan, kassir klientdan pul olib o'chirib tashladimi).
-  ///
-  /// Savatda aktiv mahsulot qolgan bo'lsa — hech narsa qilmaydi (no-op),
-  /// shuning uchun barcha to'liq-o'chirish metodlaridan xavfsiz chaqiriladi.
-  void _flagOrphanDeletedItemsIfCartEmpty() {
-    final hasActive =
-        _currentClient.orderedProducts.any((p) => !(p.isDeleted ?? false));
-    if (hasActive) return;
-    for (final d in _currentClient.deletedItems) {
-      if (d.checkNumber.isEmpty) d.checkNumber = '-';
-    }
-  }
+  /// Savat sotuvsiz bo'shaganda o'chirishlarni "sotuvsiz" (-) deb belgilaydi.
+  void _flagOrphanDeletedItemsIfCartEmpty() =>
+      DeletedItemRecorder.flagOrphansIfCartEmpty(
+          _currentClient.orderedProducts, _currentClient.deletedItems);
 
   /// [approvedBy] — PIN kodi bilan o'chirishga ruxsat bergan xodim (kassirda
   /// `deletePrice` ruxsati bo'lmaganda so'raladi). deleted_by da o'sha ketadi.
