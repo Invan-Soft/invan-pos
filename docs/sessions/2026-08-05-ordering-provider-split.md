@@ -1,8 +1,9 @@
 # Task: OrderingProvider4 ni bosqichma-bosqich ajratish
 
 **Boshlangan:** 2026-08-05
-**Holat:** paused (to'xtatilgan — davom ettiriladi)
-**Oxirgi ish:** 2026-08-06, Faza 8
+**Holat:** in-progress (Faza 0-8 do'konda tasdiqlangan, Faza 9 rejalashtirilmoqda)
+**Oxirgi ish:** 2026-08-25, Faza 9.1 tugadi
+**Branch:** refactor/ordering-split-2 (ayyubxon'dan, push qilinmagan)
 **Branch:** refactor/ordering-split (ayyubxon'dan)
 
 ## Maqsad
@@ -295,7 +296,13 @@ tasdiqladi**:
 - **to'lov**: karta/terminal, naqd + sdacha, aralash to'lov, chekdagi
   mijoz nomi
 
-### ⚠️ HALI SINALMAGAN — DAVOM ETISHDAN OLDIN SHART
+### ✅ Faza 7-8 ham tasdiqlandi (2026-08-24)
+
+Foydalanuvchi real Windows sotuvlarida sinab, **hech qanday muammo
+chiqmaganini** tasdiqladi. Ya'ni quyidagi ro'yxat (skaner + savatga qo'shish)
+yopildi va butun Faza 0-8 zanjiri do'konda ishlaydi.
+
+### ~~⚠️ HALI SINALMAGAN~~ — YOPILDI (2026-08-24)
 
 **Faza 7 va Faza 8 sinovdan KEYIN qo'shilgan.** Ikkalasi ham POS'da eng
 ko'p ishlatiladigan yo'llarga tegadi: skaner va savatga qo'shish.
@@ -465,6 +472,126 @@ Uning sinov ro'yxati **o'sha hujjatda**, alohida bajariladi.
 | To'lov summasi/sdacha noto'g'ri | `67605e0` |
 | Diskont qo'llanmaydi/ikki marta | `c919eaa` |
 | UI joylashuvi buzilgan | `83c2c37` |
+
+## 2026-08-24 SESSIYASI — bazaviy holat qayta o'lchandi
+
+`refactor/ordering-split` **ayyubxon'ga merge qilingan**. Undan keyin 15 commit
+tushdi, 4 tasi providerga tegdi (cashback, qarz, OFD gating) — fayl
+4514 → **4701 qator**ga qaytib o'sdi.
+
+| | Hujjatda (2026-08-06) | Hozir (2026-08-24) |
+|---|---|---|
+| `ordering_provider_4.dart` | 4514 | **4701** |
+| Testlar | 356 | **503** (hammasi yashil) |
+| `flutter analyze` | 1010 | **599** |
+
+### Yo'l-yo'lakay topilgan test-infratuzilma xatosi (tuzatildi)
+
+`flutter test` **12 daqiqa osilib**, `cashback_balance_test.dart` ning
+`tearDownAll` ida "Test timed out" bilan yiqilardi. 16 ta testning hammasi
+o'tardi — muammo faqat tozalashda edi.
+
+**Ildiz sabab:** `PaymentTallyController.removeFromPaymentList` ichidagi
+`Pref.setBool(PrefKeys.debtClick, false)` **`await` qilinmaydi**. Bu yozuv
+`testWidgets` tanasi ichida boshlanadi, ya'ni FakeAsync zonasida qoladi;
+test tugagach zona tashlab yuboriladi va yozuv hech qachon yakunlanmaydi.
+Natijada prefs box'ining yozuv navbati bo'shamaydi → `Hive.close()` abadiy
+kutadi.
+
+**Tuzatildi:** `test/support/provider_harness.dart` — `tearDownPosTestEnv`
+da `Hive.close()` endi 5 soniyalik timeout bilan. To'plam: 12m12s + xato →
+**14 soniya, 503/503 yashil**.
+
+Production kodiga TEGILMADI (4-qoida) — `Pref.setBool` ning await'siz
+chaqirilishi ilovada normal, faqat test muhitida muammo.
+
+### FAZA 9 NOMZODLARI (qayta o'lchangan)
+
+Hujjatda "oson qismlar tugadi" deyilgan edi, lekin fayl qayta o'lchanganda
+**dialogsiz, testlanadigan ~490 qator** topildi:
+
+| Nomzod | Qator | UI nuqtasi |
+|---|---|---|
+| Reprice / qo'lda-narx klasteri (L1763-1899) | 137 | 0 |
+| Guruh tahriri: mark + blok (L2027-2296) | 270 | 0 |
+| `_recordDeletedItem` + orphan flag (L2373-2421) | 49 | 0 |
+| cashsale / naqd-cheklov getterlari (L619-650) | 32 | 0 |
+
+**MUHIM:** guruh tahriri klasteri Faza 5 da "o'ralashgan" deb rad etilgan
+edi, chunki u `findFreeProducts`/`useFreeProducts` ga bog'liq. **O'shanda
+`DiscountEffectsController` hali yo'q edi** — endi u bor va kontrollerga
+parametr sifatida uzatiladi. Rad etish sababi yo'qoldi.
+
+Rejalashtirilgan uchta mustaqil commit:
+1. `domain/cart/row_repricer.dart` — reprice/manual-narx (137)
+2. `providers/ordering/group_edit_controller.dart` — mark/blok guruh (270)
+3. `domain/cart/deleted_item_recorder.dart` + cashsale qoidalari (81)
+
+Natija taxminan 4701 → **~4200**, dialogli zonalarga (`_markingCheck`,
+`type*`) umuman kirmasdan.
+
+## FAZA 9 (2026-08-25) — branch: `refactor/ordering-split-2`
+
+Foydalanuvchi talabi: **avval hamma zonaga to'liq test, keyin bittalab
+ko'chirish**, har qadamdan keyin hisobot.
+
+- [x] **9.0 — test bo'shlig'i yopildi (+144 test)** `f3d1f36`
+  → `test/cash_restriction_test.dart` (46) — naqd-cheklov getterlari
+  → `test/tier_reprice_test.dart` (25) — umumiy dona soni bo'yicha tier
+  → `test/manual_price_sync_test.dart` (16) — mavjud 11 testdagi bo'shliqlar
+  → `test/group_edit_test.dart` (42) — marka/blok guruh tahriri
+  → `test/deleted_item_record_test.dart` (15) — `deleted_items_orderpos`
+    (54 test) qamramagan shoxlar
+  → `lib/` ga tegilmagan. 503 → 647 test.
+
+- [x] **Test infratuzilmasi tuzatildi** `6af7b0d`
+  → `flutter test` 12 daqiqa osilib yiqilardi (yuqoridagi bo'limga qara)
+  → 12m12s + xato → **14 soniya, yashil**
+
+- [x] **9.1a — o'lik kod o'chirildi** `e8e9e00`
+  → `_repriceAllMarksForProduct` (25 qator) — analizator tasdiqlagan
+    `unused_element`. Vazifasini `_repriceProductRowsByTotalUnits` bajaradi.
+  → 4701 → 4676
+
+- [x] **9.1b — `RowRepricer` ga ko'chirildi (+21 test)** `a9a1523`
+  → `lib/changes/domain/cart/row_repricer.dart`
+  → `isKg`, `byTotalUnits`, `syncManualPrice`, `applyExistingManualPrice`
+  → Savat ro'yxati va diskont qo'llovchi **parametr** sifatida keladi
+  → **FOYDASI:** `applyExistingManualPrice` ni ilgari umuman testlab
+    bo'lmasdi (faqat `addProduct`/`addSeperatedProduct`/`_addBoxProduct`
+    orqali, ular `BuildContext` talab qiladi). Endi 12 to'g'ridan-to'g'ri test.
+  → 4676 → **4577**. Testlar 647 → **668**. analyze 599 → **598**.
+
+### Faza 9 holati
+
+| | Boshlanish | Hozir |
+|---|---|---|
+| `ordering_provider_4.dart` | 4701 | **4577** |
+| Testlar | 503 (1 yiqiladigan) | **668** |
+| `flutter analyze` | 599 | **598** |
+| `lib/features/` | — | **tegilmagan** |
+
+### Qolgan qadamlar
+
+- [ ] **9.2 — `GroupEditController`** (marka + blok guruh tahriri, ~270 qator)
+      L2027–2296. Testlari tayyor (`group_edit_test`, 42 ta).
+- [ ] **9.3 — `DeletedItemRecorder` + naqd-cheklov qoidalari** (~81 qator)
+      Testlari tayyor (`deleted_item_record_test` 15 + `cash_restriction_test` 46).
+- [ ] Do'kon sinovi (9.1–9.3 birga)
+
+### Faza 9 da qayd etilgan xatti-harakatlar (4-qoida — tuzatilmadi)
+
+- `byTotalUnits` **tekin sovg'a qatorini ham** qayta narxlaydi (isFreeGift
+  filtri yo'q) — `tier_reprice_test` da muzlatilgan
+- Blok qatorida `singleDiscount` tozalanmaydi (faqat dona qatorida)
+- `isCardOnlyPaymentRequired` va `isCashPaymentHidden` **o'chirilgan
+  qatorni ham** sanaydi (boshqa getterlar sanamaydi)
+- `isBigTotalHidden` 25 mln chegarasi **QATOR** bo'yicha, savat jami emas —
+  2 × 20 mln = 40 mln bo'lsa ham ishlamaydi
+- `_recordDeletedItem` dagi `Pref` fallback amalda faqat kassir IDsi
+  provider yaratilgandan KEYIN o'zgarganda ishlaydi (konstruktor
+  `getCurrentEmployee!` talab qiladi)
+- `RowRepricer.isKg` `'КГ'` (bosh harf) ni tanimaydi
 
 ## Keyingi qadamlar
 
