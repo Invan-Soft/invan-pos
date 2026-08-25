@@ -2,7 +2,7 @@
 
 **Boshlangan:** 2026-08-05
 **Holat:** in-progress (Faza 0-8 do'konda tasdiqlangan, Faza 9 rejalashtirilmoqda)
-**Oxirgi ish:** 2026-08-25, Faza 9.1 tugadi
+**Oxirgi ish:** 2026-08-25, Faza 9.1-9.3 tugadi (do'kon sinovi kutilmoqda)
 **Branch:** refactor/ordering-split-2 (ayyubxon'dan, push qilinmagan)
 **Branch:** refactor/ordering-split (ayyubxon'dan)
 
@@ -562,22 +562,105 @@ ko'chirish**, har qadamdan keyin hisobot.
     orqali, ular `BuildContext` talab qiladi). Endi 12 to'g'ridan-to'g'ri test.
   → 4676 → **4577**. Testlar 647 → **668**. analyze 599 → **598**.
 
-### Faza 9 holati
+- [x] **9.2 — `GroupEditController`** `e95bbed`
+  → `lib/changes/providers/ordering/group_edit_controller.dart`
+  → `activeMarkIndices`, `activeBoxIndices`, `saveMarkGroup`, `saveBoxGroup`,
+    `deleteMarkGroup`, `deleteBoxGroup` + tahrir rejimi bayroqlari
+  → **2-qoida:** `ChangeNotifier` EMAS — `notifyListeners` callback.
+    Savat, `deleted_items` yozuvi, reprice, manual sinxron, diskont
+    effektlari, `showCount` tozalash, qizil-o'chirish bayrog'i ham callback.
+  → Maydonlar getter/setter juftligiga aylandi (Faza 3 naqshi) — UI dagi
+    `beginMarkGroupEdit`/`endBoxGroupEdit` chaqiruvlari o'zgarishsiz
+  → **+25 to'g'ridan-to'g'ri test:** endi SHARTNOMANI ko'rib bo'ladi —
+    qaysi shoxda qaysi callback. Masalan "blok guruhida qo'lda narx tier
+    reprice O'RNIGA syncManual qiladi" qoidasi ilgari hech qanday test
+    bilan qo'riqlanmasdi
+  → 4577 → **4374**
+
+- [x] **9.3a — `DeletedItemRecorder`** `ede37c8`
+  → `lib/changes/domain/cart/deleted_item_recorder.dart`
+  → `record`, `flagOrphansIfCartEmpty`
+  → Xodim IDsi endi callback (ilgari `HiveBoxes.getCurrentEmployee` ga
+    qattiq bog'langan edi) — modul Hive'siz ishlaydi
+  → +22 test; 4374 → **4339**
+
+- [x] **9.3b — `CashRestrictionRules`** `9045cc6`
+  → `lib/changes/domain/cart/cash_restriction_rules.dart`
+  → `cardOnlyRequired`, `cashHiddenByMarking`, `cashHiddenByCashsale`,
+    `bigTotalHidden` + `bigTotalLimit` (25 mln endi nomlangan konstanta)
+  → Sozlama bayroqlari parametr — qoidalar Pref'siz testlanadi
+  → +23 test; 4339 → **4303**
+
+### Faza 9 holati (9.0–9.3 yakuni)
 
 | | Boshlanish | Hozir |
 |---|---|---|
-| `ordering_provider_4.dart` | 4701 | **4577** |
-| Testlar | 503 (1 yiqiladigan) | **668** |
+| `ordering_provider_4.dart` | 4701 | **4303** (−398) |
+| Testlar | 503 (1 yiqiladigan) | **738** |
 | `flutter analyze` | 599 | **598** |
 | `lib/features/` | — | **tegilmagan** |
+| Commitlar | — | **8 ta** (`refactor/ordering-split-2`) |
 
-### Qolgan qadamlar
+### Faza 9 da yaratilgan modullar (4 ta)
 
-- [ ] **9.2 — `GroupEditController`** (marka + blok guruh tahriri, ~270 qator)
-      L2027–2296. Testlari tayyor (`group_edit_test`, 42 ta).
-- [ ] **9.3 — `DeletedItemRecorder` + naqd-cheklov qoidalari** (~81 qator)
-      Testlari tayyor (`deleted_item_record_test` 15 + `cash_restriction_test` 46).
-- [ ] Do'kon sinovi (9.1–9.3 birga)
+```
+lib/changes/domain/cart/
+├── row_repricer.dart              tier, manual narx sinxroni
+├── deleted_item_recorder.dart     deleted_items yozuvi, orphan "-"
+└── cash_restriction_rules.dart    naqd tugmasini yashirish qoidalari
+lib/changes/providers/ordering/
+└── group_edit_controller.dart     marka/blok guruh tahriri
+```
+
+### ⚠️ DO'KON SINOVI — 9.1–9.3 uchun
+
+Faza 9 savatning eng issiq yo'llariga tegdi. Windows'da tekshirilishi kerak:
+
+**Narx (RowRepricer — `a9a1523`):**
+- [ ] Bir mahsulotdan ko'p urish → tier narxga tushishi (masalan 12 dona)
+- [ ] Blok + dona aralash savat → ikkalasi bir xil dona narxda
+- [ ] OPD'da narxni qo'lda o'zgartirish → blok/dona qatorlari sinxron
+- [ ] Qo'lda narxdan keyin YANGI skan → tier'ga qaytmasligi kerak
+- [ ] Kiloli tovar (tarozi) narxi
+
+**Guruh tahriri (GroupEditController — `e95bbed`) 🔴 ENG YUQORI RISK:**
+- [ ] Markirovkali tovarni 3 marta skanerlab, OPD'da qty 3→2 → eng OXIRGI
+      skan qilingan marka chiqishi kerak
+- [ ] Marka guruhining narxini o'zgartirish → hamma markaga tushadi
+- [ ] Marka guruhini butunlay o'chirish
+- [ ] Blok guruhida qty kamaytirish va narx o'zgartirish
+- [ ] Qizil o'chirish rejimida yuqoridagilar (qator savatda qizil qoladi)
+- [ ] Guruh o'chirilgach diskont qayta hisoblanishi
+
+**O'chirish qaydi (DeletedItemRecorder — `ede37c8`):**
+- [ ] Qator o'chirib sotish → `deleted_items` serverga ketadi
+- [ ] PIN bilan o'chirish → `deleted_by` da PIN egasi
+- [ ] Savatni sotuvsiz bo'shatish → keyingi chekda "-" bilan ketadi
+
+**Naqd cheklovi (CashRestrictionRules — `9045cc6`):**
+- [ ] Alkogol/tamaki savatda → naqd tugmasi yashirinadi
+- [ ] `cashsale = 0` mahsulot → naqd yashirinadi
+- [ ] 25 mln dan katta qator → naqd yashirinadi
+- [ ] OFD o'chirilgan bo'lsa → cheklovlar ishlamaydi (naqd ko'rinadi)
+
+Muammo chiqsa: har faza alohida commit, `git revert <hash>`.
+
+### Keyingi bosqich (9.4) — QAROR KERAK
+
+Dialogsiz toza zonalar **tugadi**. Qolgan yiriklari:
+
+| Zona | Qator | UI nuqtalari |
+|---|---|---|
+| `type*` (7 metod) | ~460 | 68 |
+| `_markingCheck` | 418 | 59 |
+| `onBarcodeScanned` | 252 | ko'p |
+| `addProduct` | 225 | 15 |
+| `addSeperatedProduct` | 180 | 22 |
+
+Bularni ajratish har metodni ikkiga bo'lishni talab qiladi: "nima qilish
+kerakligini hal qiladi" (testlanadi) va "dialogni ko'rsatadi" (UI). Bu
+**`lib/features/` ga tegishni talab qiladi** — ya'ni hozirgacha buzilmagan
+"UI ga tegmaslik" qoidasi tugaydi. Foydalanuvchi qarori kerak.
 
 ### Faza 9 da qayd etilgan xatti-harakatlar (4-qoida — tuzatilmadi)
 
