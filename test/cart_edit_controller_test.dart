@@ -1,4 +1,4 @@
-// `GroupEditController` — to'g'ridan-to'g'ri (providersiz) testlar.
+// `CartEditController` — to'g'ridan-to'g'ri (providersiz) testlar.
 //
 // `group_edit_test.dart` xatti-harakatni provider orqali tekshiradi (42 test).
 // Bu yerda kontroller yuzasi va uning provider bilan SHARTNOMASI tekshiriladi:
@@ -7,7 +7,7 @@
 // "narx qo'lda o'zgarganda tier reprice chaqirilmasligi kerak" kabi
 // qoidalar bilinmay buzilishi mumkin.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:invan2/changes/providers/ordering/group_edit_controller.dart';
+import 'package:invan2/changes/providers/ordering/cart_edit_controller.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 
 import 'support/provider_harness.dart';
@@ -24,7 +24,7 @@ class Harness {
   final List<String> calls = [];
   final List<ReceiptModelSoldItem4> recorded = [];
 
-  late final GroupEditController c = GroupEditController(
+  late final CartEditController c = CartEditController(
     rowsOf: () => rows,
     notify: () => calls.add('notify'),
     recordDeletedItem: (item, {quantity, approvedBy}) {

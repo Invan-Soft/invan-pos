@@ -26,7 +26,7 @@ import 'package:invan2/changes/domain/cart/cash_restriction_rules.dart';
 import 'package:invan2/changes/services/telegram_notifier.dart';
 import 'package:invan2/changes/domain/cart/deleted_item_recorder.dart';
 import 'package:invan2/changes/domain/cart/row_repricer.dart';
-import 'package:invan2/changes/providers/ordering/group_edit_controller.dart';
+import 'package:invan2/changes/providers/ordering/cart_edit_controller.dart';
 import 'package:invan2/changes/dialogs/terminal_error_dialog.dart';
 import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
@@ -128,10 +128,10 @@ class OrderingProvider4 extends ChangeNotifier {
   /// Markirovka guruhi tahrir rejimi: null bo'lmasa, tahrir qilinayotgan
   /// markirovka guruhining productId si. Bu rejimda save/delete butun guruhga
   /// (bir xil productId dagi barcha aktiv markalarga) ta'sir qiladi.
-  /// Guruh tahriri (marka/blok) — `GroupEditController` da.
+  /// Guruh tahriri (marka/blok) — `CartEditController` da.
   /// Maydonlar getter/setter juftligiga aylantirildi, shuning uchun sinf
   /// ichidagi mavjud murojaatlar o'zgarishsiz ishlayveradi (Faza 3 naqshi).
-  late final GroupEditController _groupEdit = GroupEditController(
+  late final CartEditController _groupEdit = CartEditController(
     rowsOf: () => _currentClient.orderedProducts,
     notify: notifyListeners,
     recordDeletedItem: _recordDeletedItem,

@@ -1,4 +1,8 @@
-// Markirovka va blok GURUHI tahriri.
+// OPD (mahsulot ustida amal) dialogidan keladigan savat tahrirlari.
+//
+// Dialogning ikki tugmasi bor — "Saqlash" va "O'chirish" — va ular uch xil
+// nishonga tushishi mumkin: markirovka guruhi, blok guruhi yoki bitta qator.
+// Nishonni tahrir rejimi bayroqlari hal qiladi.
 //
 // Savatda markirovkali mahsulot har skanda alohida qator (marka bir-biriga
 // qo'shilmaydi), blok ham alohida qator. UI ularni bitta qator qilib
@@ -18,8 +22,8 @@
 import 'package:invan2/features/get_employees/model/employees_find_response.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 
-class GroupEditController {
-  GroupEditController({
+class CartEditController {
+  CartEditController({
     required this.rowsOf,
     required this.notify,
     required this.recordDeletedItem,

@@ -7,7 +7,6 @@
 // `addProduct` bu yerda ishlatilmaydi — u `BuildContext` talab qiladi.
 // Mavjud testlardagi kabi savat to'g'ridan-to'g'ri to'ldiriladi, so'ng
 // kontekstsiz metodlar chaqiriladi.
-//
 // MUHIM: "to'g'rimi?" emas, "hozir nima bo'lyapti?" yoziladi.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
