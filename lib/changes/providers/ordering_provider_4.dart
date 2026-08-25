@@ -1760,31 +1760,6 @@ ${productLines.toString().trim()}
     notifyListeners();
   } // ✅ Yangi method: bir xil productId dagi barcha marklarni qayta narxlash
 
-  void _repriceAllMarksForProduct(ItemModel product, bool isKg) {
-    final allMarks = _currentClient.orderedProducts
-        .where((e) => e.productId == product.id && !e.isDeleted!)
-        .toList();
-
-    final totalCount = allMarks.length;
-
-    final newPrice =
-        ItemsSingleton.finalPrice(product, totalCount, isKg).toDouble();
-
-    if (newPrice <= 0) return;
-
-    for (final item in _currentClient.orderedProducts) {
-      if (item.productId == product.id && !item.isDeleted!) {
-        item.price = newPrice;
-        item.realPrice = newPrice;
-        item.onlyPrice = newPrice;
-        item.vat = (newPrice * (product.vat?.percentage ?? 12)) /
-            (100 + (product.vat?.percentage ?? 12));
-        item.discountPercent = 0;
-        item.singleDiscount = 0;
-      }
-    }
-  }
-
   /// Mahsulot qatorlarini savatdagi UMUMIY dona soni bo'yicha qayta narxlaydi.
   /// Umumiy son = dona qatorlari value + blok qatorlari (value × boxValue).
   /// Biznes qoida: tier shu umumiy songa qarab tanlanadi (masalan 3 blok(12) +
