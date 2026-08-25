@@ -22,7 +22,7 @@ class TelegramNotifier {
     required String posName,
     required String employeeName,
     required String deleteTime,
-    required String product_qunatity,
+    required String productQuantity,
   }) async {
     const String botToken = '8534579686:AAHuob2SA0ZdnV_emG0kSKmOOoDLdNbvrKQ';
     const String channelId = '-1003834151006';
@@ -33,7 +33,7 @@ class TelegramNotifier {
 
   <b>Org Name:</b> $orgName
   <b>Product:</b> $productName
-  <b>Quantity:</b> $product_qunatity
+  <b>Quantity:</b> $productQuantity
   <b>Pos Name:</b> $posName
   <b>Employee:</b> $employeeName
   <b>Time:</b> $deleteTime

@@ -84,7 +84,7 @@ class CartEditController {
     required String posName,
     required String employeeName,
     required String deleteTime,
-    required String product_qunatity,
+    required String productQuantity,
   }) notifyDeleted;
 
   List<ReceiptModelSoldItem4> get rows => rowsOf();
@@ -337,7 +337,7 @@ class CartEditController {
     final productId = deletedProduct.productId ?? "-";
     final posName = posNameOf();
     final deleteTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
-    final product_qunatity = deletedProduct.value ?? "0";
+    final productQuantity = deletedProduct.value ?? "0";
     final deletedProductId = deletedProduct.productId;
 
     recordDeletedItem(deletedProduct, approvedBy: approvedBy);
@@ -374,7 +374,7 @@ class CartEditController {
     await notifyDeleted(
       productName: productName,
       productId: productId,
-      product_qunatity: product_qunatity.toString(),
+      productQuantity: productQuantity.toString(),
       posName: posName,
       employeeName: employeeName,
       deleteTime: deleteTime,

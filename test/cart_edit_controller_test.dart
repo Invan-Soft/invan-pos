@@ -46,7 +46,7 @@ class Harness {
       required String posName,
       required String employeeName,
       required String deleteTime,
-      required String product_qunatity,
+      required String productQuantity,
     }) async {
       calls.add('notifyDeleted:$productName');
     },
