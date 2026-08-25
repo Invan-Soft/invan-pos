@@ -650,12 +650,12 @@ Faza 9 savatning eng issiq yo'llariga tegdi. Windows'da tekshirilishi kerak:
 - [ ] SKU qo'lda kiritish → topiladi; noto'g'ri SKU → "topilmadi" dialogi
 - [ ] Narxi 0 mahsulot skani → narx dialogi chiqadi
 
-**Karta to'lovi (9.4e — `1e896ab`) 🔴 YUQORI RISK:**
-- [ ] Uzcard/Humo to'lovi → summa to'g'ri, chek chiqadi
-- [ ] Terminalda RAD etilgan to'lov → xato dialogi chiqadi
-- [ ] Karta tugmasini IKKI marta bosish → summa ikkilanmasligi kerak
-- [ ] Click/Payme/Uzum → summa to'g'ri
-- [ ] Aralash to'lov (naqd + karta)
+**Onlayn to'lovlar (9.4e — `1e896ab`):**
+- [ ] Click / Uzum / Paynet → summa to'g'ri
+- [ ] Aralash to'lov (naqd + onlayn)
+
+**Uzcard/Humo (Arcus terminali): TEGILMAGAN** — `61dae9e` bilan asl holiga
+qaytarildi (terminal yo'q, sinab bo'lmaydi). Sinov shart emas.
 
 **O'chirish (9.4c — `bc22e81`):**
 - [ ] Savatdan bitta qator o'chirish → qolganlar qayta narxlanadi
@@ -666,7 +666,7 @@ Muammo chiqsa: har faza alohida commit, `git revert <hash>`.
 | Simptom | Revert |
 |---|---|
 | Skan mahsulot topmayapti / noto'g'ri topyapti | `298effe` |
-| Karta to'lovida summa noto'g'ri | `1e896ab` |
+| Click/Uzum/Paynet summasi noto'g'ri | `1e896ab` |
 | Bitta qator o'chirish buzildi | `bc22e81` |
 | Telegram xabari ketmayapti | `975b86b` |
 
@@ -704,11 +704,18 @@ bo'lindi.
     tartibi, SKU fragment-himoyasi, `triedPatterns` yig'ilishi
   → `onBarcodeScanned` 252 → 195; provider 4204 → **4147**
 
-- [x] **9.4e — takrorlangan pul formulalari yig'ildi** `1e896ab`
-  → `PaymentTallyController.amountMinusCurrent` / `amountIgnoringCurrent`
-    — `type*` da OLTI marta so'zma-so'z takrorlangan edi
-  → `TerminalReceiptParser.isApproved` — ikki joyda
-  → +24 test; 4147 → **4119**
+- [x] **9.4e — takrorlangan pul formulalari yig'ildi** `1e896ab`,
+  **qisman qaytarildi** `61dae9e`
+  → Dastlab olti joydagi ikki formula va `isApproved` yig'ilgan edi
+  → **FOYDALANUVCHI QARORI (2026-08-25):** do'konda fizik Arcus terminali
+    YO'Q, demak Uzcard/Humo yo'lini sinab bo'lmaydi → u refaktoring
+    qilinmasligi kerak. `typeUzcard`, `typeHumo` va ikkalasi chaqiradigan
+    `allPaymentType` **bayt-ma-bayt asl holiga qaytarildi**
+  → Ishlatilmay qolgani uchun o'chirildi: `amountMinusCurrent`,
+    `TerminalReceiptParser.isApproved` (+18 test)
+  → QOLDI: `amountIgnoringCurrent` — Click / Uzum / Paynet (ilova ichidagi
+    to'lovlar, terminalsiz sinaladi)
+  → 4147 → 4119 → **4141**
   → Ish jarayonida **mavjud testlar xatoni darhol ushladi**: `allPaymentType`
     da `currentPaymentValue` formuladan keyin ham ishlatilar ekan, uni
     o'chirish 39 testni yiqitdi
@@ -717,11 +724,11 @@ bo'lindi.
 
 | | Boshlanish | Hozir |
 |---|---|---|
-| `ordering_provider_4.dart` | 4701 | **4119** (−582, 12%) |
-| Testlar | 503 (1 yiqiladigan) | **820** |
+| `ordering_provider_4.dart` | 4701 | **4141** (−560, 12%) |
+| Testlar | 503 (1 yiqiladigan) | **800** |
 | `flutter analyze` | 599 | **596** |
 | `lib/features/` | — | **hech qachon tegilmagan** |
-| Commitlar | — | **15 ta** (`refactor/ordering-split-2`) |
+| Commitlar | — | **18 ta** (`refactor/ordering-split-2`) |
 
 Yaratilgan modullar (8 ta):
 ```
@@ -738,14 +745,21 @@ lib/changes/services/
 (+ payment_tally_controller va terminal_receipt_parser kengaytirildi)
 ```
 
+### QOIDA: fizik qurilma talab qiladigan yo'llarga TEGILMAYDI
+
+Uzcard/Humo (Arcus terminali) yo'li do'konda sinab bo'lmaydi — terminal
+yo'q. Sinab bo'lmaydigan kodni refaktoring qilish = tekshirilmagan risk.
+Shuning uchun bu yo'l (va u chaqiradigan `allPaymentType`) asl holida
+qoladi. Xuddi shu qoida `pressPaymentButton*` (fiskal modul) uchun ham
+o'ylab ko'rilishi kerak.
+
 ### 9.4 da qayd etilgan xatti-harakatlar (4-qoida — tuzatilmadi)
 
-- **Onlayn to'lov formulasi joriy summani ayirmaydi** (`amountIgnoringCurrent`)
+- **Onlayn to'lov formulasi joriy summani ayirmaydi** (`amountIgnoringCurrent`,
+  Click/Uzum/Paynet)
   — Click/Payme/Uzum tugmasi ikki marta bosilsa summa oshib ketishi mumkin.
   Cashback'da AYNAN shu xato bo'lgan (`2026-08-12-cashback-overspend-fix.md`).
   Test bilan muzlatildi: `payment_amount_rules_test` — "Ikki formulaning FARQI"
-- `TerminalReceiptParser.isApproved` da "ОДО" va "РЕНО" logning turli
-  joyida bo'lsa ham tasdiq deb qabul qilinadi (joylashuv tekshirilmaydi)
 - Qizil o'chirishda `rows` bo'shamaydi, shuning uchun `resetClient`
   chaqirilmaydi — lekin orphan "-" baribir belgilanadi
 
