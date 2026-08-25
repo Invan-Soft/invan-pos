@@ -23,6 +23,7 @@ import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.
 import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
 import 'package:invan2/changes/domain/barcode/barcode_classifier.dart';
 import 'package:invan2/changes/domain/cart/row_repricer.dart';
+import 'package:invan2/changes/providers/ordering/group_edit_controller.dart';
 import 'package:invan2/changes/dialogs/terminal_error_dialog.dart';
 import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
@@ -125,12 +126,52 @@ class OrderingProvider4 extends ChangeNotifier {
   /// Markirovka guruhi tahrir rejimi: null bo'lmasa, tahrir qilinayotgan
   /// markirovka guruhining productId si. Bu rejimda save/delete butun guruhga
   /// (bir xil productId dagi barcha aktiv markalarga) ta'sir qiladi.
-  String? _markGroupEditProductId;
+  /// Guruh tahriri (marka/blok) — `GroupEditController` da.
+  /// Maydonlar getter/setter juftligiga aylantirildi, shuning uchun sinf
+  /// ichidagi mavjud murojaatlar o'zgarishsiz ishlayveradi (Faza 3 naqshi).
+  late final GroupEditController _groupEdit = GroupEditController(
+    rowsOf: () => _currentClient.orderedProducts,
+    notify: notifyListeners,
+    recordDeletedItem: _recordDeletedItem,
+    reprice: _repriceProductRowsByTotalUnits,
+    syncManualPrice: _syncManualPriceAcrossProductRows,
+    refreshDiscountEffects: () {
+      findFreeProducts();
+      useFreeProducts();
+      useFreeGiftProducts();
+      useBuyXGetXProducts();
+    },
+    clearShowCounts: (pid) {
+      _showCount.remove(pid);
+      _showCountFreeGift.remove(pid);
+    },
+    resetClientDiscount: () {
+      _currentClient.selectedClient = null;
+      _newClientPersentageDiscount = 0;
+    },
+    flagOrphanDeletedItems: _flagOrphanDeletedItemsIfCartEmpty,
+    isRedDeleteOn: () => Pref.getBool(PrefKeys.isRedDeleteActivated, false),
+  );
 
-  /// Blok guruhi tahrir rejimi: null bo'lmasa, tahrir qilinayotgan blok
-  /// guruhining productId si. Bu rejimda save/delete butun blok guruhiga
-  /// (bir xil productId dagi barcha aktiv saleType==2 qatorlarga) ta'sir qiladi.
-  String? _boxGroupEditProductId;
+  String? get _markGroupEditProductId => _groupEdit.markGroupProductId;
+  set _markGroupEditProductId(String? v) => _groupEdit.markGroupProductId = v;
+
+  String? get _boxGroupEditProductId => _groupEdit.boxGroupProductId;
+  set _boxGroupEditProductId(String? v) => _groupEdit.boxGroupProductId = v;
+
+  Future<void> _saveMarkGroup(ReceiptModelSoldItem4 edited,
+          {Employee? approvedBy}) =>
+      _groupEdit.saveMarkGroup(edited, approvedBy: approvedBy);
+
+  Future<void> _saveBoxGroup(ReceiptModelSoldItem4 edited,
+          {Employee? approvedBy}) =>
+      _groupEdit.saveBoxGroup(edited, approvedBy: approvedBy);
+
+  void _deleteMarkGroup(String pid, {Employee? approvedBy}) =>
+      _groupEdit.deleteMarkGroup(pid, approvedBy: approvedBy);
+
+  void _deleteBoxGroup(String pid, {Employee? approvedBy}) =>
+      _groupEdit.deleteBoxGroup(pid, approvedBy: approvedBy);
   String _lastRRN = '';
   String _lastCardNumber = '';
   int _lastCardType = 0;
@@ -1922,250 +1963,6 @@ ${productLines.toString().trim()}
   /// Blok guruhi tahririni tugatadi (dialog yopilgach).
   void endBoxGroupEdit() {
     _boxGroupEditProductId = null;
-  }
-
-  /// Berilgan productId uchun aktiv (o'chirilmagan) markirovka itemlarining
-  /// orderedProducts dagi indekslari. Eng yangi (insert(0) bilan qo'shilgan)
-  /// markalar pastroq indeksda bo'ladi.
-  List<int> _activeMarkIndices(String productId) {
-    final result = <int>[];
-    for (var i = 0; i < _currentClient.orderedProducts.length; i++) {
-      final e = _currentClient.orderedProducts[i];
-      if (e.productId == productId && e.marking && !(e.isDeleted ?? false)) {
-        result.add(i);
-      }
-    }
-    return result;
-  }
-
-  /// Markirovka guruhini saqlash: yangi qty ga qarab eng yangi markalarni
-  /// o'chiradi (qty kamayganda) yoki narx/diskont o'zgarishini barcha markalarga
-  /// qo'llaydi. Qty ni oshirib bo'lmaydi (yangi mark skanerlanishi kerak).
-  Future<void> _saveMarkGroup(ReceiptModelSoldItem4 edited,
-      {Employee? approvedBy}) async {
-    final pid = _markGroupEditProductId!;
-    final indices = _activeMarkIndices(pid);
-    if (indices.isEmpty) return;
-
-    final currentCount = indices.length;
-    final newCount = edited.value.floor();
-
-    if (newCount <= 0) {
-      _deleteMarkGroup(pid, approvedBy: approvedBy);
-      return;
-    }
-
-    if (newCount < currentCount) {
-      // Eng yangi markalarni o'chiramiz: indices o'sish tartibida, eng past
-      // indeks = eng yangi. Birinchi (currentCount - newCount) tasini olamiz.
-      final removeCount = currentCount - newCount;
-      final toRemove = indices.take(removeCount).toList()
-        ..sort((a, b) => b.compareTo(a)); // teskari tartib (xavfsiz o'chirish)
-      final redDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
-      for (final idx in toRemove) {
-        _recordDeletedItem(_currentClient.orderedProducts[idx],
-            approvedBy: approvedBy);
-        if (redDelete) {
-          _currentClient.orderedProducts[idx].isDeleted = true;
-        } else {
-          _currentClient.orderedProducts.removeAt(idx);
-        }
-      }
-    }
-    // newCount >= currentCount → qty oshmaydi (skan kerak), o'zgarishsiz.
-
-    // Narx/diskont o'zgarishini guruhdagi qolgan barcha markalarga qo'llaymiz.
-    for (final m in _activeMarkIndices(pid)) {
-      final item = _currentClient.orderedProducts[m];
-      item.price = edited.price;
-      item.realPrice = edited.realPrice;
-      item.onlyPrice = edited.onlyPrice;
-      item.singleDiscount = edited.singleDiscount;
-      item.discountPercent = edited.discountPercent;
-      item.isPriceOnlyChanged = edited.isPriceOnlyChanged;
-      item.isPriceChanged = edited.isPriceChanged;
-      item.tin = edited.tin;
-      item.vat = (edited.price * item.vatPercent) / (100 + item.vatPercent);
-    }
-
-    final remaining = _activeMarkIndices(pid);
-    if (remaining.isEmpty) {
-      _showCount.remove(pid);
-      _showCountFreeGift.remove(pid);
-      if (_currentClient.orderedProducts.every((e) => (e.isDeleted ?? false))) {
-        _currentClient.selectedClient = null;
-        _newClientPersentageDiscount = 0;
-      }
-    }
-
-    // Narx qo'lda o'zgartirilgan bo'lsa — mahsulotning BOSHQA qatorlariga
-    // (ayniqsa blok qatori) ham sinxronlaymiz. Aks holda marka guruhini
-    // tahrirlaganda blok tier narxda qolib ketardi (bir xil mahsulot, narxi
-    // bir xil bo'lishi kerak).
-    if (edited.isPriceOnlyChanged) {
-      _syncManualPriceAcrossProductRows(edited);
-    }
-
-    _repriceProductRowsByTotalUnits(pid);
-    findFreeProducts();
-    useFreeProducts();
-    useFreeGiftProducts();
-    useBuyXGetXProducts();
-    notifyListeners();
-  }
-
-  /// Markirovka guruhidagi barcha aktiv markalarni o'chiradi (red-delete ni hisobga olib).
-  void _deleteMarkGroup(String pid, {Employee? approvedBy}) {
-    final redDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
-    final indices = _activeMarkIndices(pid)..sort((a, b) => b.compareTo(a));
-    for (final idx in indices) {
-      _recordDeletedItem(_currentClient.orderedProducts[idx],
-          approvedBy: approvedBy);
-      if (redDelete) {
-        _currentClient.orderedProducts[idx].isDeleted = true;
-      } else {
-        _currentClient.orderedProducts.removeAt(idx);
-      }
-    }
-    _showCount.remove(pid);
-    _showCountFreeGift.remove(pid);
-
-    if (_currentClient.orderedProducts.isEmpty ||
-        _currentClient.orderedProducts.every((e) => (e.isDeleted ?? false))) {
-      _currentClient.selectedClient = null;
-      _newClientPersentageDiscount = 0;
-      // Savat sotuvsiz bo'shadi — yig'ilgan o'chirishlarni "sotuvsiz" (-) belgila.
-      _flagOrphanDeletedItemsIfCartEmpty();
-    }
-
-    _repriceProductRowsByTotalUnits(pid);
-    findFreeProducts();
-    useFreeProducts();
-    useFreeGiftProducts();
-    useBuyXGetXProducts();
-    notifyListeners();
-  }
-
-  /// Berilgan productId uchun aktiv (o'chirilmagan) blok itemlarining
-  /// (saleType==2) orderedProducts dagi indekslari. Eng yangi (insert(0) bilan
-  /// qo'shilgan) bloklar pastroq indeksda bo'ladi.
-  List<int> _activeBoxIndices(String productId) {
-    final result = <int>[];
-    for (var i = 0; i < _currentClient.orderedProducts.length; i++) {
-      final e = _currentClient.orderedProducts[i];
-      if (e.productId == productId &&
-          e.saleType == 2 &&
-          !(e.isDeleted ?? false)) {
-        result.add(i);
-      }
-    }
-    return result;
-  }
-
-  /// Blok guruhini saqlash: yangi qty (blok soni) ga qarab eng yangi bloklarni
-  /// o'chiradi (qty kamayganda) yoki narx o'zgarishini butun mahsulotga qo'llaydi.
-  /// Qty ni oshirib bo'lmaydi (yangi blok skanerlanishi kerak — OPD'da "+" bloklangan).
-  /// [edited.value] blok soni hisobida keladi (order_list displayValue = blok soni).
-  Future<void> _saveBoxGroup(ReceiptModelSoldItem4 edited,
-      {Employee? approvedBy}) async {
-    final pid = _boxGroupEditProductId!;
-    final indices = _activeBoxIndices(pid);
-    if (indices.isEmpty) return;
-
-    final currentCount = indices.length;
-    final newCount = edited.value.floor();
-
-    if (newCount <= 0) {
-      _deleteBoxGroup(pid, approvedBy: approvedBy);
-      return;
-    }
-
-    if (newCount < currentCount) {
-      // Eng yangi bloklarni o'chiramiz: indices o'sish tartibida, eng past
-      // indeks = eng yangi. Birinchi (currentCount - newCount) tasini olamiz.
-      final removeCount = currentCount - newCount;
-      final toRemove = indices.take(removeCount).toList()
-        ..sort((a, b) => b.compareTo(a)); // teskari tartib (xavfsiz o'chirish)
-      final redDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
-      for (final idx in toRemove) {
-        _recordDeletedItem(_currentClient.orderedProducts[idx],
-            approvedBy: approvedBy);
-        if (redDelete) {
-          _currentClient.orderedProducts[idx].isDeleted = true;
-        } else {
-          _currentClient.orderedProducts.removeAt(idx);
-        }
-      }
-    }
-    // newCount >= currentCount → qty oshmaydi (skan kerak), o'zgarishsiz.
-
-    if (edited.isPriceOnlyChanged) {
-      // Narx qo'lda o'zgartirilgan: blok narxini qolgan bloklarga va (blok⇄dona
-      // bitta dona narxi bazasida) mahsulotning boshqa qatorlariga sinxronlaymiz.
-      for (final m in _activeBoxIndices(pid)) {
-        final item = _currentClient.orderedProducts[m];
-        item.price = edited.price;
-        item.realPrice = edited.realPrice;
-        item.onlyPrice = edited.onlyPrice;
-        item.singleDiscount = edited.singleDiscount;
-        item.discountPercent = edited.discountPercent;
-        item.isPriceOnlyChanged = true;
-        item.isPriceChanged = edited.isPriceChanged;
-        item.vat = (edited.price * item.vatPercent) / (100 + item.vatPercent);
-      }
-      _syncManualPriceAcrossProductRows(edited);
-    } else {
-      // Faqat qty o'zgardi: tier savatdagi umumiy dona bo'yicha qayta tanlanadi.
-      _repriceProductRowsByTotalUnits(pid);
-    }
-
-    final remaining = _activeBoxIndices(pid);
-    if (remaining.isEmpty) {
-      _showCount.remove(pid);
-      _showCountFreeGift.remove(pid);
-      if (_currentClient.orderedProducts.every((e) => (e.isDeleted ?? false))) {
-        _currentClient.selectedClient = null;
-        _newClientPersentageDiscount = 0;
-      }
-    }
-
-    findFreeProducts();
-    useFreeProducts();
-    useFreeGiftProducts();
-    useBuyXGetXProducts();
-    notifyListeners();
-  }
-
-  /// Blok guruhidagi barcha aktiv bloklarni o'chiradi (red-delete ni hisobga olib).
-  void _deleteBoxGroup(String pid, {Employee? approvedBy}) {
-    final redDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
-    final indices = _activeBoxIndices(pid)..sort((a, b) => b.compareTo(a));
-    for (final idx in indices) {
-      _recordDeletedItem(_currentClient.orderedProducts[idx],
-          approvedBy: approvedBy);
-      if (redDelete) {
-        _currentClient.orderedProducts[idx].isDeleted = true;
-      } else {
-        _currentClient.orderedProducts.removeAt(idx);
-      }
-    }
-    _showCount.remove(pid);
-    _showCountFreeGift.remove(pid);
-
-    if (_currentClient.orderedProducts.isEmpty ||
-        _currentClient.orderedProducts.every((e) => (e.isDeleted ?? false))) {
-      _currentClient.selectedClient = null;
-      _newClientPersentageDiscount = 0;
-      // Savat sotuvsiz bo'shadi — yig'ilgan o'chirishlarni "sotuvsiz" (-) belgila.
-      _flagOrphanDeletedItemsIfCartEmpty();
-    }
-
-    _repriceProductRowsByTotalUnits(pid);
-    findFreeProducts();
-    useFreeProducts();
-    useFreeGiftProducts();
-    useBuyXGetXProducts();
-    notifyListeners();
   }
 
   /// [approvedBy] — qty kamaytirishga PIN bilan ruxsat bergan xodim
