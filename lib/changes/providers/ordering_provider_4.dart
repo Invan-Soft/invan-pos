@@ -23,6 +23,7 @@ import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.
 import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
 import 'package:invan2/changes/domain/barcode/barcode_classifier.dart';
 import 'package:invan2/changes/domain/cart/cash_restriction_rules.dart';
+import 'package:invan2/changes/services/telegram_notifier.dart';
 import 'package:invan2/changes/domain/cart/deleted_item_recorder.dart';
 import 'package:invan2/changes/domain/cart/row_repricer.dart';
 import 'package:invan2/changes/providers/ordering/group_edit_controller.dart';
@@ -2085,7 +2086,7 @@ ${productLines.toString().trim()}
     useFreeGiftProducts();
     useBuyXGetXProducts();
     notifyListeners();
-    await _sendToTelegram(
+    await TelegramNotifier.productDeleted(
       productName: productName,
       productId: productId,
       product_qunatity: product_qunatity.toString(),
@@ -2093,52 +2094,6 @@ ${productLines.toString().trim()}
       employeeName: employeeName,
       deleteTime: deleteTime,
     );
-  }
-
-  Future<void> _sendToTelegram({
-    required String productName,
-    required String productId,
-    required String posName,
-    required String employeeName,
-    required String deleteTime,
-    required String product_qunatity,
-  }) async {
-    const String botToken = '8534579686:AAHuob2SA0ZdnV_emG0kSKmOOoDLdNbvrKQ';
-    const String channelId = '-1003834151006';
-    final String orgName = Pref.getString(PrefKeys.organizationName, "");
-
-    final String message = """
-<b>🚨 Mahsulot o'chirildi!</b>
-
-<b>Org Name:</b> $orgName
-<b>Product:</b> $productName
-<b>Quantity:</b> $product_qunatity
-<b>Pos Name:</b> $posName
-<b>Employee:</b> $employeeName
-<b>Time:</b> $deleteTime
-  """
-        .trim();
-
-    final Uri url = Uri.parse(
-      'https://api.telegram.org/bot$botToken/sendMessage?'
-      'chat_id=$channelId'
-      '&text=${Uri.encodeComponent(message)}'
-      '&parse_mode=HTML',
-    );
-
-    try {
-      final response = await http.get(url);
-
-      if (response.statusCode != 200) {
-        await LogHelper.logRequest(
-          method: "Sent DeletedProduct To Telegram",
-          path: "Ordering4Provider sendToTelegram",
-          statusCode: response.statusCode,
-          body: '',
-          response: response.body,
-        );
-      }
-    } catch (e) {}
   }
 
   Future<void> freeGiftDialog() async {
