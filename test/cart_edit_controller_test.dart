@@ -38,6 +38,18 @@ class Harness {
     resetClientDiscount: () => calls.add('resetClient'),
     flagOrphanDeletedItems: () => calls.add('orphan'),
     isRedDeleteOn: () => redDelete,
+    currentEmployeeName: () => 'Test Kassir',
+    posNameOf: () => 'Kassa-1',
+    notifyDeleted: ({
+      required String productName,
+      required String productId,
+      required String posName,
+      required String employeeName,
+      required String deleteTime,
+      required String product_qunatity,
+    }) async {
+      calls.add('notifyDeleted:$productName');
+    },
   );
 }
 
@@ -269,6 +281,93 @@ void main() {
       h.c.markGroupProductId = kPid;
       await h.c.saveMarkGroup(edit(value: 1));
       expect(h.rows.length, 1);
+    });
+  });
+
+  group('deleteRow — bitta qator (guruh rejimisiz)', () {
+    test('qator ro\'yxatdan chiqadi va yoziladi', () async {
+      final h = Harness();
+      h.rows.addAll([mark('m1'), makeSoldItem(productId: 'boshqa')]);
+      await h.c.deleteRow(0);
+      expect(h.rows.length, 1);
+      expect(h.calls.where((e) => e == 'record').length, 1);
+    });
+
+    test('qizil o\'chirishda qator qoladi (isDeleted)', () async {
+      final h = Harness(redDelete: true);
+      h.rows.add(mark('m1'));
+      await h.c.deleteRow(0);
+      expect(h.rows.length, 1);
+      expect(h.rows[0].isDeleted, isTrue);
+    });
+
+    test('shu mahsulotdan boshqa qator qolmasa showCount tozalanadi',
+        () async {
+      final h = Harness();
+      h.rows.addAll([mark('m1'), makeSoldItem(productId: 'boshqa')]);
+      await h.c.deleteRow(0);
+      expect(h.calls, contains('clearShowCounts:$kPid'));
+    });
+
+    test('shu mahsulotdan qator qolsa showCount tozalanmaydi', () async {
+      final h = Harness();
+      h.rows.addAll([mark('m1'), mark('m2')]);
+      await h.c.deleteRow(0);
+      expect(h.calls, isNot(contains('clearShowCounts:$kPid')));
+    });
+
+    test('savat bo\'shasa mijoz tanlovi bekor qilinadi', () async {
+      final h = Harness();
+      h.rows.add(mark('m1'));
+      await h.c.deleteRow(0);
+      expect(h.calls, contains('resetClient'));
+    });
+
+    test('savatda qator qolsa mijoz tanlovi saqlanadi', () async {
+      final h = Harness();
+      h.rows.addAll([mark('m1'), makeSoldItem(productId: 'boshqa')]);
+      await h.c.deleteRow(0);
+      expect(h.calls, isNot(contains('resetClient')));
+    });
+
+    test('QAYD: qizil o\'chirishda rows bo\'shamaydi — resetClient '
+        'chaqirilmaydi, lekin orphan baribir belgilanadi', () async {
+      final h = Harness(redDelete: true);
+      h.rows.add(mark('m1'));
+      await h.c.deleteRow(0);
+      expect(h.calls, isNot(contains('resetClient')));
+      expect(h.calls, contains('orphan'));
+    });
+
+    test('qolgan qatorlar qayta narxlanadi', () async {
+      final h = Harness();
+      h.rows.addAll([mark('m1'), mark('m2')]);
+      await h.c.deleteRow(0);
+      expect(h.calls, contains('reprice:$kPid'));
+    });
+
+    test('tashqi xabarnoma yuboriladi', () async {
+      final h = Harness();
+      h.rows.add(mark('m1'));
+      await h.c.deleteRow(0);
+      expect(h.calls.any((e) => e.startsWith('notifyDeleted:')), isTrue);
+    });
+
+    test('xabarnoma notify dan KEYIN yuboriladi (UI kutib qolmaydi)',
+        () async {
+      final h = Harness();
+      h.rows.add(mark('m1'));
+      await h.c.deleteRow(0);
+      final iNotify = h.calls.indexOf('notify');
+      final iTg = h.calls.indexWhere((e) => e.startsWith('notifyDeleted:'));
+      expect(iNotify, lessThan(iTg));
+    });
+
+    test('notify aynan bir marta', () async {
+      final h = Harness();
+      h.rows.addAll([mark('m1'), mark('m2')]);
+      await h.c.deleteRow(0);
+      expect(h.calls.where((e) => e == 'notify').length, 1);
     });
   });
 }

@@ -131,7 +131,7 @@ class OrderingProvider4 extends ChangeNotifier {
   /// Guruh tahriri (marka/blok) — `CartEditController` da.
   /// Maydonlar getter/setter juftligiga aylantirildi, shuning uchun sinf
   /// ichidagi mavjud murojaatlar o'zgarishsiz ishlayveradi (Faza 3 naqshi).
-  late final CartEditController _groupEdit = CartEditController(
+  late final CartEditController _cartEdit = CartEditController(
     rowsOf: () => _currentClient.orderedProducts,
     notify: notifyListeners,
     recordDeletedItem: _recordDeletedItem,
@@ -153,27 +153,31 @@ class OrderingProvider4 extends ChangeNotifier {
     },
     flagOrphanDeletedItems: _flagOrphanDeletedItemsIfCartEmpty,
     isRedDeleteOn: () => Pref.getBool(PrefKeys.isRedDeleteActivated, false),
+    currentEmployeeName: () =>
+        HiveBoxes.getCurrentEmployee!.user?.firstName ?? "Noma'lum xodim",
+    posNameOf: () => Pref.getString(PrefKeys.posName, "Noma'lum POS"),
+    notifyDeleted: TelegramNotifier.productDeleted,
   );
 
-  String? get _markGroupEditProductId => _groupEdit.markGroupProductId;
-  set _markGroupEditProductId(String? v) => _groupEdit.markGroupProductId = v;
+  String? get _markGroupEditProductId => _cartEdit.markGroupProductId;
+  set _markGroupEditProductId(String? v) => _cartEdit.markGroupProductId = v;
 
-  String? get _boxGroupEditProductId => _groupEdit.boxGroupProductId;
-  set _boxGroupEditProductId(String? v) => _groupEdit.boxGroupProductId = v;
+  String? get _boxGroupEditProductId => _cartEdit.boxGroupProductId;
+  set _boxGroupEditProductId(String? v) => _cartEdit.boxGroupProductId = v;
 
   Future<void> _saveMarkGroup(ReceiptModelSoldItem4 edited,
           {Employee? approvedBy}) =>
-      _groupEdit.saveMarkGroup(edited, approvedBy: approvedBy);
+      _cartEdit.saveMarkGroup(edited, approvedBy: approvedBy);
 
   Future<void> _saveBoxGroup(ReceiptModelSoldItem4 edited,
           {Employee? approvedBy}) =>
-      _groupEdit.saveBoxGroup(edited, approvedBy: approvedBy);
+      _cartEdit.saveBoxGroup(edited, approvedBy: approvedBy);
 
   void _deleteMarkGroup(String pid, {Employee? approvedBy}) =>
-      _groupEdit.deleteMarkGroup(pid, approvedBy: approvedBy);
+      _cartEdit.deleteMarkGroup(pid, approvedBy: approvedBy);
 
   void _deleteBoxGroup(String pid, {Employee? approvedBy}) =>
-      _groupEdit.deleteBoxGroup(pid, approvedBy: approvedBy);
+      _cartEdit.deleteBoxGroup(pid, approvedBy: approvedBy);
   String _lastRRN = '';
   String _lastCardNumber = '';
   int _lastCardType = 0;
@@ -2035,65 +2039,7 @@ ${productLines.toString().trim()}
       return;
     }
 
-    bool isRedDeleteActivated =
-        Pref.getBool(PrefKeys.isRedDeleteActivated, false);
-
-    final currentEmployee = HiveBoxes.getCurrentEmployee!;
-    final employeeName = currentEmployee.user?.firstName ??
-        currentEmployee.user?.firstName ??
-        "Noma'lum xodim";
-
-    final deletedProduct = _currentClient.orderedProducts[_tappedIndexToEdit];
-    final productName = deletedProduct.productName ?? "Noma'lum mahsulot";
-    final productId = deletedProduct.productId ?? "-";
-    final posName = Pref.getString(PrefKeys.posName, "Noma'lum POS");
-    final deleteTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
-    final product_qunatity = deletedProduct.value ?? "0";
-    final deletedProductId = deletedProduct.productId;
-
-    _recordDeletedItem(deletedProduct, approvedBy: approvedBy);
-
-    if (isRedDeleteActivated) {
-      _currentClient.orderedProducts[_tappedIndexToEdit].isDeleted = true;
-    } else {
-      _currentClient.orderedProducts.removeAt(_tappedIndexToEdit);
-    }
-
-    // Agar shu productdan boshqa hech narsa qolmagan bo'lsa, dialog flagini tozala
-    if (deletedProductId.isNotEmpty) {
-      final hasRemaining = _currentClient.orderedProducts.any(
-        (e) => e.productId == deletedProductId && !(e.isDeleted ?? false),
-      );
-      if (!hasRemaining) {
-        _showCount.remove(deletedProductId);
-        _showCountFreeGift.remove(deletedProductId);
-      }
-    }
-
-    if (_currentClient.orderedProducts.isEmpty) {
-      _currentClient.selectedClient = null;
-      _newClientPersentageDiscount = 0;
-    }
-
-    // Qator o'chgach umumiy son kamayadi — qolgan qatorlar tier'i qayta tanlanadi
-    _repriceProductRowsByTotalUnits(deletedProductId);
-
-    // Savat sotuvsiz bo'shagan bo'lsa (red-delete'da ham) yig'ilgan
-    // o'chirishlarni "sotuvsiz" (-) belgila.
-    _flagOrphanDeletedItemsIfCartEmpty();
-
-    useFreeProducts();
-    useFreeGiftProducts();
-    useBuyXGetXProducts();
-    notifyListeners();
-    await TelegramNotifier.productDeleted(
-      productName: productName,
-      productId: productId,
-      product_qunatity: product_qunatity.toString(),
-      posName: posName,
-      employeeName: employeeName,
-      deleteTime: deleteTime,
-    );
+    await _cartEdit.deleteRow(_tappedIndexToEdit, approvedBy: approvedBy);
   }
 
   Future<void> freeGiftDialog() async {

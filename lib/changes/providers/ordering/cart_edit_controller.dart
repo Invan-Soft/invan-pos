@@ -19,6 +19,7 @@
 // qolardi. Savat va provider holatiga murojaatlar ham callback orqali —
 // savat egaligi providerda qoladi.
 
+import 'package:intl/intl.dart';
 import 'package:invan2/features/get_employees/model/employees_find_response.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 
@@ -34,6 +35,9 @@ class CartEditController {
     required this.resetClientDiscount,
     required this.flagOrphanDeletedItems,
     required this.isRedDeleteOn,
+    required this.currentEmployeeName,
+    required this.posNameOf,
+    required this.notifyDeleted,
   });
 
   /// Joriy mijozning savat qatorlari (egalik providerda qoladi).
@@ -66,6 +70,22 @@ class CartEditController {
 
   /// "Qizil o'chirish" rejimi yoqilganmi (qator savatda qoladi).
   final bool Function() isRedDeleteOn;
+
+  /// Joriy kassir ismi — xabarnoma matni uchun.
+  final String Function() currentEmployeeName;
+
+  /// Kassa (POS) nomi — xabarnoma matni uchun.
+  final String Function() posNameOf;
+
+  /// O'chirish haqida tashqi xabarnoma (Telegram). Sotuvni to'xtatmaydi.
+  final Future<void> Function({
+    required String productName,
+    required String productId,
+    required String posName,
+    required String employeeName,
+    required String deleteTime,
+    required String product_qunatity,
+  }) notifyDeleted;
 
   List<ReceiptModelSoldItem4> get rows => rowsOf();
 
@@ -303,5 +323,61 @@ class CartEditController {
     reprice(pid);
     refreshDiscountEffects();
     notify();
+  }
+
+  /// OPD dialogidan BITTA qatorni o'chiradi (guruh rejimi yoqilmaganda).
+  ///
+  /// [approvedBy] — PIN kodi bilan o'chirishga ruxsat bergan xodim.
+  Future<void> deleteRow(int index, {Employee? approvedBy}) async {
+    final bool isRedDeleteActivated = isRedDeleteOn();
+    final employeeName = currentEmployeeName();
+
+    final deletedProduct = rows[index];
+    final productName = deletedProduct.productName ?? "Noma'lum mahsulot";
+    final productId = deletedProduct.productId ?? "-";
+    final posName = posNameOf();
+    final deleteTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    final product_qunatity = deletedProduct.value ?? "0";
+    final deletedProductId = deletedProduct.productId;
+
+    recordDeletedItem(deletedProduct, approvedBy: approvedBy);
+
+    if (isRedDeleteActivated) {
+      rows[index].isDeleted = true;
+    } else {
+      rows.removeAt(index);
+    }
+
+    // Agar shu productdan boshqa hech narsa qolmagan bo'lsa, dialog flagini tozala
+    if (deletedProductId.isNotEmpty) {
+      final hasRemaining = rows.any(
+        (e) => e.productId == deletedProductId && !(e.isDeleted ?? false),
+      );
+      if (!hasRemaining) {
+        clearShowCounts(deletedProductId);
+      }
+    }
+
+    if (rows.isEmpty) {
+      resetClientDiscount();
+    }
+
+    // Qator o'chgach umumiy son kamayadi — qolgan qatorlar tier'i qayta tanlanadi
+    reprice(deletedProductId);
+
+    // Savat sotuvsiz bo'shagan bo'lsa (red-delete'da ham) yig'ilgan
+    // o'chirishlarni "sotuvsiz" (-) belgila.
+    flagOrphanDeletedItems();
+
+    refreshDiscountEffects();
+    notify();
+    await notifyDeleted(
+      productName: productName,
+      productId: productId,
+      product_qunatity: product_qunatity.toString(),
+      posName: posName,
+      employeeName: employeeName,
+      deleteTime: deleteTime,
+    );
   }
 }
