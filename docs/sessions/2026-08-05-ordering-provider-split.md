@@ -2,7 +2,7 @@
 
 **Boshlangan:** 2026-08-05
 **Holat:** in-progress (Faza 0-8 do'konda tasdiqlangan, Faza 9 rejalashtirilmoqda)
-**Oxirgi ish:** 2026-08-25, Faza 9.1-9.3 tugadi (do'kon sinovi kutilmoqda)
+**Oxirgi ish:** 2026-08-25, Faza 9.1-9.4 tugadi (do'kon sinovi kutilmoqda)
 **Branch:** refactor/ordering-split-2 (ayyubxon'dan, push qilinmagan)
 **Branch:** refactor/ordering-split (ayyubxon'dan)
 
@@ -643,38 +643,127 @@ Faza 9 savatning eng issiq yo'llariga tegdi. Windows'da tekshirilishi kerak:
 - [ ] 25 mln dan katta qator → naqd yashirinadi
 - [ ] OFD o'chirilgan bo'lsa → cheklovlar ishlamaydi (naqd ko'rinadi)
 
+**Skaner (ScannedProductLookup — `298effe`) 🔴 YUQORI RISK:**
+- [ ] Oddiy shtrix-kod skani → mahsulot topiladi
+- [ ] Markirovkali tovar (GS1 KM) skani → to'g'ri mahsulot + KM biriktiriladi
+- [ ] Blok shtrix-kodi skani → blok qatori qo'shiladi
+- [ ] SKU qo'lda kiritish → topiladi; noto'g'ri SKU → "topilmadi" dialogi
+- [ ] Narxi 0 mahsulot skani → narx dialogi chiqadi
+
+**Karta to'lovi (9.4e — `1e896ab`) 🔴 YUQORI RISK:**
+- [ ] Uzcard/Humo to'lovi → summa to'g'ri, chek chiqadi
+- [ ] Terminalda RAD etilgan to'lov → xato dialogi chiqadi
+- [ ] Karta tugmasini IKKI marta bosish → summa ikkilanmasligi kerak
+- [ ] Click/Payme/Uzum → summa to'g'ri
+- [ ] Aralash to'lov (naqd + karta)
+
+**O'chirish (9.4c — `bc22e81`):**
+- [ ] Savatdan bitta qator o'chirish → qolganlar qayta narxlanadi
+- [ ] Telegram kanaliga xabar boradi
+
 Muammo chiqsa: har faza alohida commit, `git revert <hash>`.
 
-### Keyingi bosqich (9.4) — QAROR KERAK
+| Simptom | Revert |
+|---|---|
+| Skan mahsulot topmayapti / noto'g'ri topyapti | `298effe` |
+| Karta to'lovida summa noto'g'ri | `1e896ab` |
+| Bitta qator o'chirish buzildi | `bc22e81` |
+| Telegram xabari ketmayapti | `975b86b` |
 
-Dialogsiz toza zonalar **tugadi**. Qolgan yiriklari:
+### FAZA 9.4 — dialog↔mantiq bo'linishi (2026-08-25)
 
-| Zona | Qator | UI nuqtalari |
+Maqsad: dialogli metodlar ichidan UI'siz, testlanadigan qismlarni ajratish.
+**`lib/features/` ga baribir tegilmadi** — hamma narsa provider ichida
+bo'lindi.
+
+- [x] **9.4a — `TelegramNotifier`** `975b86b`
+  → `lib/changes/services/telegram_notifier.dart`
+  → Tarmoq xabarnomasi savat mantiqiga tegishli emas edi
+  → Yo'l-yo'lakay +17 test (`cart_row_delete_test`) — 9.4c dan oldin muzlatish
+  → 4303 → **4258**
+
+- [x] **9.4b — `GroupEditController` → `CartEditController`** `a3adae3`
+  → Faqat nom. Sabab: OPD dialogining ikki tugmasi uch nishonga tushadi
+    (marka guruhi / blok guruhi / bitta qator) — ikkinchi kontroller ochish
+    to'qqizta callbackni takrorlash bo'lardi
+
+- [x] **9.4c — bitta-qator o'chirish kontrollerga** `bc22e81`
+  → `pressDialogDeleteButton` endi uch qatorlik dispatcher
+  → Yangi callbacklar: `currentEmployeeName`, `posNameOf`, `notifyDeleted`
+  → **FOYDASI:** `showCount` tozalash sharti ("shu mahsulotdan boshqa qator
+    qolmasa") ilgari hech qanday test bilan qo'riqlanmasdi — private `Map`
+    edi. Xabarnoma `notify` dan KEYIN ketishi ham mahkamlandi
+  → +11 test; 4258 → **4204**
+
+- [x] **9.4d — `ScannedProductLookup`** `298effe`
+  → `lib/changes/domain/barcode/scanned_product_lookup.dart`
+  → `findBoxProduct`, `find` → `ScannedProductMatch`, `findZeroPriceProduct`
+  → **FOYDASI:** ilgari UMUMAN testlab bo'lmasdi — `onBarcodeScanned`
+    `GlobalKey<ScaffoldState>` oladi va dialoglar ochadi. Endi 30 test:
+    GS1 qavsli/qavssiz format, blok kodining uch variantining ustunlik
+    tartibi, SKU fragment-himoyasi, `triedPatterns` yig'ilishi
+  → `onBarcodeScanned` 252 → 195; provider 4204 → **4147**
+
+- [x] **9.4e — takrorlangan pul formulalari yig'ildi** `1e896ab`
+  → `PaymentTallyController.amountMinusCurrent` / `amountIgnoringCurrent`
+    — `type*` da OLTI marta so'zma-so'z takrorlangan edi
+  → `TerminalReceiptParser.isApproved` — ikki joyda
+  → +24 test; 4147 → **4119**
+  → Ish jarayonida **mavjud testlar xatoni darhol ushladi**: `allPaymentType`
+    da `currentPaymentValue` formuladan keyin ham ishlatilar ekan, uni
+    o'chirish 39 testni yiqitdi
+
+### FAZA 9 YAKUNI
+
+| | Boshlanish | Hozir |
 |---|---|---|
-| `type*` (7 metod) | ~460 | 68 |
-| `_markingCheck` | 418 | 59 |
-| `onBarcodeScanned` | 252 | ko'p |
-| `addProduct` | 225 | 15 |
-| `addSeperatedProduct` | 180 | 22 |
+| `ordering_provider_4.dart` | 4701 | **4119** (−582, 12%) |
+| Testlar | 503 (1 yiqiladigan) | **820** |
+| `flutter analyze` | 599 | **596** |
+| `lib/features/` | — | **hech qachon tegilmagan** |
+| Commitlar | — | **15 ta** (`refactor/ordering-split-2`) |
 
-Bularni ajratish har metodni ikkiga bo'lishni talab qiladi: "nima qilish
-kerakligini hal qiladi" (testlanadi) va "dialogni ko'rsatadi" (UI). Bu
-**`lib/features/` ga tegishni talab qiladi** — ya'ni hozirgacha buzilmagan
-"UI ga tegmaslik" qoidasi tugaydi. Foydalanuvchi qarori kerak.
+Yaratilgan modullar (8 ta):
+```
+lib/changes/domain/cart/
+├── row_repricer.dart              tier, qo'lda narx sinxroni
+├── deleted_item_recorder.dart     deleted_items, orphan "-"
+└── cash_restriction_rules.dart    naqd tugmasini yashirish
+lib/changes/domain/barcode/
+└── scanned_product_lookup.dart    skan kodidan mahsulot topish
+lib/changes/providers/ordering/
+└── cart_edit_controller.dart      OPD dialogi: guruh + bitta qator
+lib/changes/services/
+└── telegram_notifier.dart         o'chirish xabarnomasi
+(+ payment_tally_controller va terminal_receipt_parser kengaytirildi)
+```
 
-### Faza 9 da qayd etilgan xatti-harakatlar (4-qoida — tuzatilmadi)
+### 9.4 da qayd etilgan xatti-harakatlar (4-qoida — tuzatilmadi)
 
-- `byTotalUnits` **tekin sovg'a qatorini ham** qayta narxlaydi (isFreeGift
-  filtri yo'q) — `tier_reprice_test` da muzlatilgan
-- Blok qatorida `singleDiscount` tozalanmaydi (faqat dona qatorida)
-- `isCardOnlyPaymentRequired` va `isCashPaymentHidden` **o'chirilgan
-  qatorni ham** sanaydi (boshqa getterlar sanamaydi)
-- `isBigTotalHidden` 25 mln chegarasi **QATOR** bo'yicha, savat jami emas —
-  2 × 20 mln = 40 mln bo'lsa ham ishlamaydi
-- `_recordDeletedItem` dagi `Pref` fallback amalda faqat kassir IDsi
-  provider yaratilgandan KEYIN o'zgarganda ishlaydi (konstruktor
-  `getCurrentEmployee!` talab qiladi)
-- `RowRepricer.isKg` `'КГ'` (bosh harf) ni tanimaydi
+- **Onlayn to'lov formulasi joriy summani ayirmaydi** (`amountIgnoringCurrent`)
+  — Click/Payme/Uzum tugmasi ikki marta bosilsa summa oshib ketishi mumkin.
+  Cashback'da AYNAN shu xato bo'lgan (`2026-08-12-cashback-overspend-fix.md`).
+  Test bilan muzlatildi: `payment_amount_rules_test` — "Ikki formulaning FARQI"
+- `TerminalReceiptParser.isApproved` da "ОДО" va "РЕНО" logning turli
+  joyida bo'lsa ham tasdiq deb qabul qilinadi (joylashuv tekshirilmaydi)
+- Qizil o'chirishda `rows` bo'shamaydi, shuning uchun `resetClient`
+  chaqirilmaydi — lekin orphan "-" baribir belgilanadi
+
+### 9.5 uchun QOLGANLARI — qaror kerak
+
+| Zona | Qator | UI | Izoh |
+|---|---|---|---|
+| `_markingCheck` | 418 | 40 | dialog orkestratori |
+| `pressPaymentButtonOnlyOFD` | 270 | 4 | **pul yo'li**, testlab bo'lmaydi |
+| `addProduct` | 201 | 20 | dialog ichida |
+| `addSeperatedProduct` | 195 | 8 | dialog ichida |
+| `pressPaymentButton` | 142 | 1 | **pul yo'li** |
+| Arcus terminal drayveri | ~70 | 0 | shell + fayl I/O, 2 joyda takror |
+
+**Arcus drayveri** (`CommandLineTool.exe` chaqirish + log/chek o'qish) eng
+toza nomzod, lekin qurilma I/O bo'lgani uchun **testlab bo'lmaydi** — faqat
+do'konda karta to'lovi bilan tekshiriladi. Pul yo'llari ham shunday.
+Shuning uchun bu yerda to'xtatildi: keyingisi risk turi boshqacha.
 
 ## Keyingi qadamlar
 
