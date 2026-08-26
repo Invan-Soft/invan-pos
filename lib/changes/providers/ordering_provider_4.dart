@@ -129,13 +129,6 @@ class OrderingProvider4 extends ChangeNotifier {
       GlobalKey<MarkingDialogState>();
   int _clientNumber = 1;
   int _tappedIndexToEdit = -1;
-
-  /// Markirovka guruhi tahrir rejimi: null bo'lmasa, tahrir qilinayotgan
-  /// markirovka guruhining productId si. Bu rejimda save/delete butun guruhga
-  /// (bir xil productId dagi barcha aktiv markalarga) ta'sir qiladi.
-  /// Guruh tahriri (marka/blok) — `CartEditController` da.
-  /// Maydonlar getter/setter juftligiga aylantirildi, shuning uchun sinf
-  /// ichidagi mavjud murojaatlar o'zgarishsiz ishlayveradi (Faza 3 naqshi).
   late final CartEditController _cartEdit = CartEditController(
     rowsOf: () => _currentClient.orderedProducts,
     notify: notifyListeners,
@@ -193,7 +186,6 @@ class OrderingProvider4 extends ChangeNotifier {
   bool _bigTotalWarningShown = false; // cashsale==1 + total > 25M uchun
 
   /// Egasiz qolgan deleted_items yozuvlari.
-  ///
   /// `deletedItems` mijoz slotining (SixClientModel4) ichida yashaydi, lekin
   /// savati bo'shab qolgan slot ro'yxatdan chiqarilishi mumkin
   /// (`_clearEmptyClients`) — o'shanda yozuvlar slot bilan birga yo'qolardi.
@@ -249,7 +241,6 @@ class OrderingProvider4 extends ChangeNotifier {
   List<ReceiptModelSoldItem4> get getCurrentClientOrderedProducts =>
       _currentClient.orderedProducts;
 
-  // Mavjud provider ichiga qo'shiladi
 
   /* //////////////////////// PROVIDER SETTERS //////////////////////// */
 
@@ -433,9 +424,6 @@ ${productLines.toString().trim()}
     }
   }
 
-  /// /// /// /// /// /// /// /// /// /// /// /// ///
-  ///                Add Products                 ///
-  /// /// /// /// /// /// /// /// /// /// /// /// ///
 
   void addProduct(
       {required double value,
@@ -509,7 +497,6 @@ ${productLines.toString().trim()}
       final loc =
           AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
 
-// ------------------- Cash payment warning dialogs -------------------
       final addedMxik = (product.mxikCode ?? '').trim();
       if (Pref.getBool(PrefKeys.markCheckWithOfd, true) &&
           _isAlcoholMxik(addedMxik) &&
@@ -538,7 +525,6 @@ ${productLines.toString().trim()}
         );
       }
 
-// ------------------- 1. Buy X Get Y (eski dialog) -------------------
       bool isShowOld = false;
       if (DiscountSingleton.availableDiscount.availableProducts != null) {
         for (var p in DiscountSingleton.availableDiscount.availableProducts!) {
@@ -564,7 +550,6 @@ ${productLines.toString().trim()}
         );
       }
 
-// ------------------- 2. Buy X Get X va Free Gift (bitta dialog) -------------------
 
       bool isShowBuyXGetX = false;
       String buyXGetXText = "";
@@ -628,7 +613,6 @@ ${productLines.toString().trim()}
     }
   }
 
-  /// Naqd to'lovni cheklash qoidalari — `CashRestrictionRules` da.
   bool get isCardOnlyPaymentRequired =>
       CashRestrictionRules.cardOnlyRequired(_currentClient.orderedProducts);
 
@@ -638,7 +622,6 @@ ${productLines.toString().trim()}
         markingSaleOn: Pref.getBool(PrefKeys.sellProductsWithMarking, true),
       );
 
-  // cashsale==0 bo'lgan productlar uchun (qat'iy taqiq)
   bool get isCashHiddenByCashsale =>
       CashRestrictionRules.cashHiddenByCashsale(
         _currentClient.orderedProducts,
@@ -646,14 +629,12 @@ ${productLines.toString().trim()}
         cashsaleCheckOn: Pref.getBool('checkProductByCashsale', true),
       );
 
-  // cashsale==1 bo'lgan productlar narxi 25mln oshganda
   bool get isBigTotalHidden => CashRestrictionRules.bigTotalHidden(
         _currentClient.orderedProducts,
         ofdOn: Pref.getBool(PrefKeys.markCheckWithOfd, true),
         cashsaleCheckOn: Pref.getBool('checkProductByCashsale', true),
       );
 
-  // Settings o'zgarganda cheklov flaglarini reset qilish
   void resetCashRestrictionWarnings() {
     _alcoholWarningShown = false;
     _cashsaleWarningShown = false;
@@ -698,7 +679,6 @@ ${productLines.toString().trim()}
               continue;
             }
 
-            // Invoice qatoridan savat qatori yasash `InvoiceRowBuilder` da.
             final soldItem = InvoiceRowBuilder.build(item, product);
             _currentClient.orderedProducts.insert(0, soldItem);
           }
@@ -739,7 +719,6 @@ ${productLines.toString().trim()}
       BuildContext context, ItemModel product, double price) async {
     final isPriceZero = price <= 0;
 
-    // null yoki empty bo'lsa invalid
     final isMxikInvalid =
         product.mxikCode == null || product.mxikCode!.trim().isEmpty;
     final isPackageInvalid =
@@ -842,7 +821,6 @@ ${productLines.toString().trim()}
       soldItem.onlyPrice = newPrice;
       soldItem.realPrice = newPrice;
     }
-    // ← BU QISM TUGADI �'
 
     _applyDiscounts(product, soldItem);
 
@@ -941,7 +919,6 @@ ${productLines.toString().trim()}
   }
 
   /// Savat qatori yasash `SoldItemBuilder` da.
-  ///
   /// DIQQAT: bu delegatsiyani inline qilib yozib qo'ymang. 2026-08-12 da
   /// shunday bo'lgan edi va `marking` bayrog'i OFD tekshiruvisiz eski holiga
   /// qaytib qolgan — OFD o'chiq bo'lsa ham qator markirovka guruhi bo'lib,
@@ -950,14 +927,9 @@ ${productLines.toString().trim()}
           ItemModel product, double price, double value, bool isKg) =>
       SoldItemBuilder.build(product, price, value, isKg);
 
-  /// Diskont effektlari `DiscountEffectsController` ga ko'chirildi
-  /// (2026-08-05). Kontroller `ChangeNotifier` EMAS — `notifyListeners` ni
-  /// callback sifatida oladi.
   late final DiscountEffectsController _discountFx =
       DiscountEffectsController(notifyListeners);
 
-  // Hisob-kitob holati: maydon o'rniga getter/setter, shuning uchun sinf
-  // ichidagi ~90 murojaat o'zgarishsiz ishlayveradi.
   Map<String, int> get _showCount => _discountFx.showCount;
   set _showCount(Map<String, int> v) => _discountFx.showCount = v;
 
@@ -982,10 +954,8 @@ ${productLines.toString().trim()}
   Map<String, String> get _giftProducts => _discountFx.giftProducts;
   set _giftProducts(Map<String, String> v) => _discountFx.giftProducts = v;
 
-  // Faqat yoziladi (hisoblagichni nolga tushirish) — getter kerak emas.
   set _freeGiftDialogCount(int v) => _discountFx.freeGiftDialogCount = v;
 
-  // Tekin mahsulot oqimlari — fasad, imzolar o'zgarmadi.
 
   void findFreeProducts() => _discountFx.findFreeProducts(
       _currentClient.orderedProducts, getClientGroupId);
@@ -1073,8 +1043,6 @@ ${productLines.toString().trim()}
     }
   }
 
-  /// Skan vaqtidagi markirovka tozalash.
-  /// Mantiq `MarkCleaner.scanTime` ga ko'chirildi (2026-08-05).
   String _markirovka(String rawMark) => MarkCleaner.scanTime(rawMark);
 
   bool isLoading = false;
@@ -1094,7 +1062,6 @@ ${productLines.toString().trim()}
   }
 
   Future<void> _markingCheck(
-      //ideal
       ItemModel item,
       String v,
       BuildContext context) async {
@@ -1132,7 +1099,6 @@ ${productLines.toString().trim()}
 
       String? gtinFromMark;
 
-      // 1. Klassik 01 yoki 02 bilan boshlanadigan GTIN
       final gtinMatch = RegExp(r'(?:01|02)(\d{12,14})').firstMatch(v);
       if (gtinMatch != null) {
         gtinFromMark = gtinMatch.group(1)!.replaceFirst(RegExp(r'^0+'), '');
@@ -1163,7 +1129,6 @@ ${productLines.toString().trim()}
         }
         return;
       }
-      // ──────────────────────────────────────────────────────
 
       final productBarcodes = item.barcode ?? [];
       final barcodeMatches = productBarcodes
@@ -1190,14 +1155,11 @@ ${productLines.toString().trim()}
         return;
       }
 
-      // ─── EXPIRY DATE TEKSHIRUV ────────────────────────────
       DateTime? expiryDate;
 
-      // Qavsli format
       final ai17 = RegExp(r'\(17\)(\d{6})').firstMatch(v);
       if (ai17 != null) expiryDate = _parseGS1Date(ai17.group(1)!);
 
-      // Qavsiz: 01 + 14 raqamdan keyin kelgan qismdan qidirish
       if (expiryDate == null && v.startsWith('01') && v.length > 16) {
         final clean = v.replaceAll(RegExp(r'[\x1D\x1C\x1E]'), '');
         final rest = clean.substring(16);
@@ -1212,7 +1174,6 @@ ${productLines.toString().trim()}
         }
       }
 
-      // Qavsli AI 15
       if (expiryDate == null) {
         final ai15 = RegExp(r'\(15\)(\d{6})').firstMatch(v);
         if (ai15 != null) expiryDate = _parseGS1Date(ai15.group(1)!);
@@ -1242,7 +1203,6 @@ ${productLines.toString().trim()}
           return;
         }
       }
-      // ──────────────────────────────────────────────────────
 
       if (!Pref.getBool('validation_onkm', true)) {
         final existingWithMark = _currentClient.orderedProducts.indexWhere(
@@ -1292,7 +1252,6 @@ ${productLines.toString().trim()}
             isLoading = true;
             notifyListeners();
 
-            // So'rov va javobni o'girish `OnkmValidator` da.
             final http.Response response = await OnkmValidator.validate(
               item: item,
               km: v,
@@ -1530,16 +1489,13 @@ ${productLines.toString().trim()}
         .length;
     final totalCount = existingCount + 1;
 
-    // totalCount bo'yicha narx olish
     double price =
         ItemsSingleton.finalPrice(freshProduct, totalCount, isKg).toDouble();
 
-    // Agar narx 0 bo'lsa 1talik narxini ol
     if (price <= 0) {
       price = ItemsSingleton.finalPrice(freshProduct, 1, isKg).toDouble();
     }
 
-    // Markirovkali qator yasash `MarkedRowBuilder` da.
     final soldItem = MarkedRowBuilder.build(
       freshProduct,
       price,
@@ -1555,7 +1511,6 @@ ${productLines.toString().trim()}
       _repriceProductRowsByTotalUnits(freshProduct.id);
     }
 
-    // BuyXGetY, Free Gift, BuyXGetX chegirmalarini tekshiramiz
     DiscountSingleton.productId(freshProduct.id ?? '');
     findFreeProducts();
 
@@ -1566,7 +1521,6 @@ ${productLines.toString().trim()}
     final loc =
         AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
 
-    // Dialog 1: BuyXGetY — "X ta olsang Y ta tekin"
     bool isShowOld = false;
     if (DiscountSingleton.availableDiscount.availableProducts != null) {
       for (final p in DiscountSingleton.availableDiscount.availableProducts!) {
@@ -1591,7 +1545,6 @@ ${productLines.toString().trim()}
       );
     }
 
-    // Dialog 2: BuyXGetX — "X ta olsang X ta tekin"
     bool isShowBuyXGetX = false;
     String buyXGetXText = '';
     final buyXGetXItem = _returnedBuyXGetX.firstWhereOrNull(
@@ -1624,7 +1577,6 @@ ${productLines.toString().trim()}
       );
     }
 
-    // Dialog 3: Free Gift — "Jami X sum oshganda tekin mahsulot"
     await freeGiftDialog();
 
     useFreeProducts();
@@ -1633,17 +1585,13 @@ ${productLines.toString().trim()}
     notifyListeners();
   } // ✅ Yangi method: bir xil productId dagi barcha marklarni qayta narxlash
 
-  /// Savat qatorlarini umumiy dona soni bo'yicha qayta narxlaydi.
-  /// Qoidalar `RowRepricer` da.
   void _repriceProductRowsByTotalUnits(String? productId) =>
       RowRepricer.byTotalUnits(_currentClient.orderedProducts, productId,
           applyDiscounts: _applyDiscounts);
 
-  /// Qo'lda kiritilgan narxni mahsulotning barcha qatorlariga sinxronlaydi.
   void _syncManualPriceAcrossProductRows(ReceiptModelSoldItem4 edited) =>
       RowRepricer.syncManualPrice(_currentClient.orderedProducts, edited);
 
-  /// Mavjud qo'lda narxni yangi qatorga ham tarqatadi; yo'q bo'lsa `false`.
   bool _applyExistingManualPrice(String? productId) =>
       RowRepricer.applyExistingManualPrice(
           _currentClient.orderedProducts, productId);
@@ -1652,7 +1600,6 @@ ${productLines.toString().trim()}
     final freshProduct =
         ItemsSingleton.getProductById(product.id ?? '') ?? product;
 
-    // Duplicate check: xuddi shu box marking kodi allaqachon qo'shilganmi
     final alreadyAdded = _currentClient.orderedProducts.any(
       (e) => !(e.isDeleted ?? false) && e.saleType == 2 && e.mark == rawMark,
     );
@@ -1742,7 +1689,6 @@ ${productLines.toString().trim()}
 
     _currentClient.orderedProducts.insert(0, soldItem);
 
-    // Shu productning barcha box itemlarida boxQuantity ni yangilaymiz
     for (final item in _currentClient.orderedProducts) {
       if (item.productId == (freshProduct.id ?? '') &&
           !(item.isDeleted ?? false) &&
@@ -1760,7 +1706,6 @@ ${productLines.toString().trim()}
     _currentClient.lastAddedIndex = 0;
     isTpEdited = false;
 
-    // BuyXGetY, BuyXGetX, Free Gift chegirmalarini box mahsulot uchun ham qo'llaymiz
     DiscountSingleton.productId(freshProduct.id ?? '');
     findFreeProducts();
     await freeGiftDialog();
@@ -1771,30 +1716,23 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-  /// /// /// /// /// /// /// /// /// /// /// /// ///
-  ///                Add Products                 ///
-  /// /// /// /// /// /// /// /// /// /// /// /// ///
 
   void tapIndexToEdit(int i) {
     _tappedIndexToEdit = i;
   }
 
-  /// Markirovka guruhi tahririni boshlaydi (order_list dan chaqiriladi).
   void beginMarkGroupEdit(String productId) {
     _markGroupEditProductId = productId;
   }
 
-  /// Markirovka guruhi tahririni tugatadi (dialog yopilgach).
   void endMarkGroupEdit() {
     _markGroupEditProductId = null;
   }
 
-  /// Blok guruhi tahririni boshlaydi (order_list dan chaqiriladi).
   void beginBoxGroupEdit(String productId) {
     _boxGroupEditProductId = productId;
   }
 
-  /// Blok guruhi tahririni tugatadi (dialog yopilgach).
   void endBoxGroupEdit() {
     _boxGroupEditProductId = null;
   }
@@ -1869,8 +1807,6 @@ ${productLines.toString().trim()}
     }
   }
 
-  /// O'chirilgan qatorni sessiya deleted-items ro'yxatiga yozadi.
-  /// Qoidalar `DeletedItemRecorder` da.
   void _recordDeletedItem(ReceiptModelSoldItem4 item,
           {double? quantity, Employee? approvedBy}) =>
       DeletedItemRecorder.record(
@@ -1883,7 +1819,6 @@ ${productLines.toString().trim()}
             Pref.getString(PrefKeys.cashierId, ""),
       );
 
-  /// Savat sotuvsiz bo'shaganda o'chirishlarni "sotuvsiz" (-) deb belgilaydi.
   void _flagOrphanDeletedItemsIfCartEmpty() =>
       DeletedItemRecorder.flagOrphansIfCartEmpty(
           _currentClient.orderedProducts, _currentClient.deletedItems);
@@ -1892,12 +1827,10 @@ ${productLines.toString().trim()}
   /// `deletePrice` ruxsati bo'lmaganda so'raladi). deleted_by da o'sha ketadi.
   void pressDialogDeleteButton({Employee? approvedBy}) async {
     LogHelper.activity('CART_DELETE_ITEM', {'editIndex': _tappedIndexToEdit});
-    // Blok guruhi tahririda: butun blok guruhini o'chiramiz.
     if (_boxGroupEditProductId != null) {
       _deleteBoxGroup(_boxGroupEditProductId!, approvedBy: approvedBy);
       return;
     }
-    // Markirovka guruhi tahririda: butun guruhni o'chiramiz.
     if (_markGroupEditProductId != null) {
       _deleteMarkGroup(_markGroupEditProductId!, approvedBy: approvedBy);
       return;
@@ -1917,7 +1850,6 @@ ${productLines.toString().trim()}
 
       if (productId == null) continue;
 
-      // Mapda bu product uchun count borligini tekshir
       final currentCount = _showCount[productId] ?? 0;
 
       if (currentCount >= 1) continue; // allaqachon chiqqan – o'tkaz
@@ -1953,7 +1885,6 @@ ${productLines.toString().trim()}
             );
           }
 
-          // Count ni oshiramiz – bu product uchun endi chiqmaydi
           _showCount[productId] = 1;
         }
       }
@@ -1962,7 +1893,6 @@ ${productLines.toString().trim()}
 
   /// Mijoz savatga qo'shilganda (QR scan / person-icon qidiruv orqali)
   /// diskontlarni qayta hisoblaydi va diskont dialoglarini ko'rsatadi.
-  ///
   /// Muammo: diskontlar `getClientGroupId` bo'yicha filtrlanadi. Maxsus
   /// mijozlar uchun yaratilgan diskont (masalan Free Gift "50k dan oshsa")
   /// savat allaqachon shartni qondirgan bo'lsa ham, mijoz tanlanganda
@@ -1983,14 +1913,11 @@ ${productLines.toString().trim()}
       _applyDiscounts(freshProduct, item);
     }
 
-    // 2. BuyXGetY / Free Gift / BuyXGetX chegirmalarini topamiz
     findFreeProducts();
     notifyListeners();
 
-    // 3. Free Gift dialog — jami summa threshold'iga bog'liq, productga emas
     await freeGiftDialog();
 
-    // 4. Chegirmalarni savatga qo'llaymiz
     useFreeProducts();
     useFreeGiftProducts();
     useBuyXGetXProducts();
@@ -2001,12 +1928,10 @@ ${productLines.toString().trim()}
   /// Mijoz tepadan o'chirilganda chaqiriladi. Faqat o'sha mijoz (customer group)
   /// uchun qo'llangan avtomatik diskontlarni bekor qiladi va savatni mijozsiz
   /// holatda qayta hisoblaydi.
-  ///
   /// Mijoz olib tashlangach `getClientGroupId` bo'sh bo'ladi — customer-group
   /// diskontlar `_checkOptions` filtridan o'tmaydi va qo'llanmaydi. `isForAllClients`
   /// diskontlar esa saqlanadi. Qo'lda narxi o'zgartirilgan (`isPriceOnlyChanged`,
   /// masalan utsenka) qatorlarga tegmaydi.
-  ///
   /// Misol: Free Gift'da tekin berilgan 10,000 li product mijoz o'chirilganda
   /// yana 10,000 ga qaytadi (tekin emas).
   void recalcDiscountsAfterClientRemoved() {
@@ -2052,7 +1977,6 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-/////////////////// OPERATION ON SIX CLIENTS //////////////////////
   int i = 0;
 
   void addClient() {
@@ -2092,7 +2016,6 @@ ${productLines.toString().trim()}
   /// Pref'dan o'qiladi (`print_sold_api.dart`, `printing_methods.dart`).
   /// Qiymatlarning o'zi esa har savatga alohida saqlanadi — shuning uchun
   /// savat almashganda Pref'ni joriy savatnikiga moslaymiz.
-  ///
   /// Aks holda 1-mijoz uchun "Перечисления"da kiritilgan kompaniya nomi
   /// 2-mijozning chekiga bosilib ketardi.
   void _syncReceiptCompanyPrefsFromCurrentClient() {
@@ -2139,7 +2062,6 @@ ${productLines.toString().trim()}
 
   /// Slot yo'q qilinishidan oldin undagi deleted_items yozuvlarini
   /// `_orphanDeletedItems` ga ko'chiradi.
-  ///
   /// Bu faqat savati BO'SH slotga nisbatan chaqiriladi — demak bu yozuvlar
   /// hech qanday chekka tegishli emas. Shuning uchun hali chek raqami
   /// olmaganlariga "-" qo'yiladi ("sotilmasdan o'chirilgan"): keyingi sotuv
@@ -2225,9 +2147,7 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-/////////////////////////// PAYMENT ///////////////////////////////
 
-  ///          ON TOTAL PRICE OPERATIONS             ///
 
   FocusNode focusNodeTotal = FocusNode();
 
@@ -2293,7 +2213,6 @@ ${productLines.toString().trim()}
     }
   }
 
-/////         Client Search Functions                     //////
 
   bool _isInnClient = false;
 
@@ -2318,9 +2237,6 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-/////////// PAYMENT PROVIDER
-// _mustPay, _isChangeToCashback, _zdachaToCashBack, _sdacha, xClient
-// clientName, _fromPointBalance
 
   getComment(String comment, bool isShow) {
     _showComments = isShow;
@@ -2354,7 +2270,6 @@ ${productLines.toString().trim()}
       _zdachaToCashBack = 0;
     }
 
-    // Chek yig'ish `ReceiptBuilder` ga ko'chirildi (2026-08-06).
     // Saqlash (toOBJECTBOX) va tozalash quyida, providerda qoladi —
     // chegara asl kodda ham aynan shu joyda edi.
     final receiptModel4 = ReceiptBuilder.build(
@@ -2380,7 +2295,6 @@ ${productLines.toString().trim()}
             _isInnClient ? null : getCurrentClient.selectedClient?.pointBalance,
       );
 
-      /// Tekin maxsulotlarni tozalash ///
       _returnedProducts = {};
       _returnedFreeGiftProducts = [];
       _giftProducts = {};
@@ -2472,7 +2386,6 @@ ${productLines.toString().trim()}
       }).toList();
 
   /// Fiskal chekka yuborishdan oldingi markirovka tozalash.
-  /// Mantiq `MarkCleaner.forFiscal` ga ko'chirildi (2026-08-05).
   /// Imzo saqlanadi — `test/marking_paren_strip_test.dart` shu nomni chaqiradi.
   static String cleanMarkForFiscal(String rawMark) =>
       MarkCleaner.forFiscal(rawMark);
@@ -2487,7 +2400,6 @@ ${productLines.toString().trim()}
       _zdachaToCashBack = 0;
     }
 
-    // Chek yig'ish `ReceiptBuilder.buildOnlyOfd` ga ko'chirildi (2026-08-06).
     // OFD'ga yuborish va guard quyida, providerda qoladi.
     final receiptModel4 = ReceiptBuilder.buildOnlyOfd(
       sixClient: _sixClientModel4,
@@ -2628,14 +2540,9 @@ ${productLines.toString().trim()}
 
   late bool _paymentInProgress;
 
-  /// To'lov hisobi `PaymentTallyController` ga ko'chirildi (2026-08-05).
-  /// Kontroller `ChangeNotifier` EMAS — `notifyListeners` ni callback
-  /// sifatida oladi (Faza 2 dagi kabi).
   late final PaymentTallyController _tally =
       PaymentTallyController(notifyListeners);
 
-  // Quyidagilar fasad: maydon o'rniga getter/setter, shuning uchun sinf
-  // ichidagi mavjud murojaatlar va UI kodi o'zgarishsiz ishlayveradi.
   int get selectedPaymentIndex => _tally.selectedPaymentIndex;
   set selectedPaymentIndex(int v) => _tally.selectedPaymentIndex = v;
 
@@ -2669,10 +2576,6 @@ ${productLines.toString().trim()}
   bool _isOfdWithOfd = false;
   bool _isChangeToCashback = false;
 
-/////////////////////////////////////////////////////////////////////
-///////////////   GETTERS   /////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////
-  ///
   bool get getOfdIsWithOfd => _isOfdWithOfd;
 
   bool get getPaymentInProgress => _paymentInProgress;
@@ -2752,7 +2655,6 @@ ${productLines.toString().trim()}
   void removeFromPaymentList() => _tally.removeFromPaymentList();
 
   /// Qarz yozib qo'yish uchun EGA (qarzdor) bormi — mijoz yoki supplier.
-  ///
   /// MUHIM: bu shart adminkadagi `is_available_for_debt` bayrog'iga QARAMAYDI.
   /// O'sha bayroq faqat "Qarz" tugmasini ko'rsatish/yashirish uchun ishlatiladi
   /// (`keyboard_of_payment_page.dart` — eskidan shunday) va sotuvni to'xtatish
@@ -2761,7 +2663,6 @@ ${productLines.toString().trim()}
   /// `client_search_bloc.dart`, invoice/nakladnoy orqali kelgan mijoz —
   /// `initOrderByInvoice`), o'sha holatda `isAvailableForDebt == null` bo'lib
   /// ilgari muammosiz o'tib turgan qarz sotuvlari bloklanib qolardi.
-  ///
   /// Tuzatilishi kerak bo'lgan haqiqiy holat esa boshqa: qarz qo'shilgandan
   /// KEYIN qarzdor butunlay yo'qolsa (Didox supplier DELETE, "mijoz topilmadi"
   /// qidiruvi) chek egasiz qarzga yozilardi — shuning uchun bu yerda faqat
@@ -2783,7 +2684,6 @@ ${productLines.toString().trim()}
   /// DEBT qatorini tozalaydi. Qarz tugmasi UI da faqat qarzdor bor bo'lsa
   /// ko'rinadi, lekin qarz QO'SHILGANDAN KEYIN qarzdor yo'qolsa (DELETE,
   /// "mijoz topilmadi" qidiruvi, supplier o'chirilishi) qator qolib ketardi.
-  ///
   /// Mijoz boshqa mijozga ALMASHTIRILSA qator tegilmaydi — qarz egasi bor,
   /// adminka bayrog'i esa bu yerda tekshirilmaydi (`_hasEligibleDebtor` izohi).
   bool dropDebtPaymentIfNoDebtor() {
@@ -2810,7 +2710,6 @@ ${productLines.toString().trim()}
   changeTheSelectedPaymentIndex(bool up) =>
       _tally.changeTheSelectedPaymentIndex(up);
 
-//////////////////////////////////////////////////////////
 
   int clickedCount = 0;
 
@@ -2825,7 +2724,6 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-//////////////         KEYBOARD FUNCTIONS       ///////////////////
 
   onCButtonPressed() {
     controller.text = '0';
@@ -3066,18 +2964,14 @@ ${productLines.toString().trim()}
     return;
   }
 
-  /// OTHER ///
 
-  /// UI to'g'ridan-to'g'ri o'qiydi (payment/left/left.dart,
-  /// keyboard_of_payment_page.dart) — imzo o'zgarmadi.
+  /// UI to'g'ridan-to'g'ri o'qiydi (payment/left, keyboard_of_payment_page).
   Map<String, Payment> get paymentsMap => _tally.paymentsMap;
   set paymentsMap(Map<String, Payment> v) => _tally.paymentsMap = v;
 
-  // Click Pass muvaffaqiyatli to'langan bo'lsa true
   bool _clickPassPaid = false;
   bool get clickPassPaid => _clickPassPaid;
 
-  // Payme (Go yoki QR) muvaffaqiyatli to'langan bo'lsa true
   bool _paymePaid = false;
   bool get paymePaid => _paymePaid;
   void setPaymePaid(bool v) => _paymePaid = v;
@@ -3112,30 +3006,19 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-  // To'lov arifmetikasi `PaymentTallyController` ga ko'chirildi (2026-08-05).
-  // Quyidagilar fasad — imzolar o'zgarmadi.
 
   void _payByAll(double v, Payment payment) => _tally.payByAll(v, payment);
 
-  // `_checkButtonIsEnable` olib tashlandi: uni faqat `_payByAll` va
-  // `removeFromPaymentList` chaqirardi, ikkalasi ham kontrollerga ko'chdi.
 
   double getAvailableSumma() => _tally.getAvailableSumma();
 
   double getSelectedPaymentSumma() => _tally.getSelectedPaymentSumma();
 
-  /// OTHER ///
 
-//#####FOR DOUBLE UZCARD  COUNT ###########
   /// cheq.out yoki log matnidan RRN va karta raqamini ajratib olish
-  /// Terminal chek matnini tahlil qiladi.
-  /// Mantiq `TerminalReceiptParser` ga ko'chirildi (2026-08-05).
   Map<String, String?> parseTerminalReceipt(String receiptText) =>
       TerminalReceiptParser.parseTerminalReceipt(receiptText);
 
-  // `_terminalErrorMessage` olib tashlandi: yagona chaqiruvchisi
-  // `_showTerminalErrorDialog` edi, u `dialogs/terminal_error_dialog.dart`
-  // ga ko'chdi va TerminalReceiptParser ni bevosita chaqiradi.
 
 
   void typeUzcard(BuildContext context, Payment payment) async {
@@ -3597,9 +3480,6 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-  /// Katalog navigatsiyasi `CatalogNavigationController` ga ko'chirildi
-  /// (2026-08-05). Kontroller `ChangeNotifier` EMAS — `notifyListeners` ni
-  /// callback sifatida oladi, aks holda UI qayta chizilmay qolardi.
   late final CatalogNavigationController _catalog =
       CatalogNavigationController(notifyListeners);
 
@@ -3612,7 +3492,6 @@ ${productLines.toString().trim()}
 
   List<CategoryData> get getPathList => _catalog.getPathList;
 
-/////////////////////////////////////////////////////////////////////
 
 /* //////////////////////// PROVIDER METHODS //////////////////////// */
 
@@ -3647,7 +3526,6 @@ ${productLines.toString().trim()}
     // aniq/nol-farqli qidiruv mos kelmay mahsulot "topilmadi" bo'lardi.
     barcode = BarcodeClassifier.sanitize(barcode);
 
-    // Skaner kodining turi `BarcodeClassifier` da aniqlanadi (2026-08-06).
     // Tekshiruvlar tartibi asl koddagidek — u yerda tartib muhim edi.
     final kind = BarcodeClassifier.classify(
       barcode,
@@ -3722,7 +3600,6 @@ ${productLines.toString().trim()}
       await _addBoxProduct(boxProduct, barcode);
       return;
     }
-    // Mahsulot qidiruvi `ScannedProductLookup` da (Faza 9.4).
     // triedPatterns — narxi=0 tekshiruvi uchun sinab ko'rilgan variantlar.
     final match = ScannedProductLookup.find(
       barcode,
@@ -3760,7 +3637,6 @@ ${productLines.toString().trim()}
       );
       return;
     }
-    // ─── Narxi 0 bo'lgan mahsulotni tekshirish ───────────────
     {
       final zeroPriceItem =
           ScannedProductLookup.findZeroPriceProduct(triedPatterns);
@@ -3777,19 +3653,7 @@ ${productLines.toString().trim()}
       }
     }
 
-    // // ─── Box barcode ─────────────────────────────────────────
-    // ItemModel? boxItem = ItemsSingleton.getProductByBoxBarcode(barcode);
-    // if (boxItem != null) {
-    //   addProduct(
-    //     context: scaffoldKey.currentState!.context,
-    //     value: 0,
-    //     product: boxItem,
-    //     where: "PRODUCTS GRID VIEW / scanBarcode box item",
-    //   );
-    //   return;
-    // }
 
-    // ─── Topilmadi ───────────────────────────────────────────
     if (!displayingNotFoundDialog) {
       displayingNotFoundDialog = true;
       await showDialog(
@@ -3814,7 +3678,6 @@ ${productLines.toString().trim()}
     }
   }
 
-  // MXIK va GS1 qoidalari `MxikRules` / `Gs1` ga ko'chirildi (2026-08-05).
   bool _isMxikMarking(String mxikStr) => MxikRules.isMxikMarking(mxikStr);
 
   bool _isAlcoholMxik(String mxikStr) => MxikRules.isAlcoholMxik(mxikStr);
@@ -3828,8 +3691,6 @@ ${productLines.toString().trim()}
   String _resolveProductPackage(ItemModel product) =>
       MxikRules.resolveProductPackage(product);
 
-  // `_getProductType` olib tashlandi: yagona chaqiruvchisi `_resolveProductType`
-  // edi, u endi to'g'ridan-to'g'ri MxikRules ga delegatsiya qiladi.
 
   DateTime? _parseGS1Date(String yymmdd) => Gs1.parseDate(yymmdd);
 
@@ -3938,8 +3799,6 @@ ${productLines.toString().trim()}
     notifyListeners();
   }
 
-  // Katalog navigatsiyasi `CatalogNavigationController` ga ko'chirildi
-  // (2026-08-05). Quyidagilar fasad — public imzolar o'zgarmadi.
 
   void pressCategory(CategoryData categoryData) =>
       _catalog.pressCategory(categoryData);
