@@ -35,6 +35,7 @@ import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
 import 'package:invan2/changes/domain/receipt/receipt_payments.dart';
 import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
 import 'package:invan2/changes/domain/cart/box_row_builder.dart';
+import 'package:invan2/changes/domain/cart/client_discount.dart';
 import 'package:invan2/changes/domain/cart/invoice_row_builder.dart';
 import 'package:invan2/changes/domain/cart/marked_row_builder.dart';
 import 'package:invan2/changes/domain/cart/sold_item_builder.dart';
@@ -238,28 +239,16 @@ class OrderingProvider4 extends ChangeNotifier {
 
   setNewClientDiscountPercentage(double percentage) {
     _newClientPersentageDiscount = percentage;
-    var products = _currentClient.orderedProducts;
-    double newPRICE = 0;
-    for (int i = 0; i < products.length; i++) {
-      num basePrice = ItemsSingleton.getItemBasePrice(products[i], false,
-          allRows: products);
-      num onlyBasePrice = products[i].price;
-      newPRICE = (onlyBasePrice / 100) * (100 - percentage);
-      for (int n = 0; n < products[i].discount.length; n++) {
-        if (products[i].discount[n].type == "sum") {
-          products[i].discount.removeAt(n);
-        }
-      }
-      products[i].discount.add(
-            ItemsSingleton.discounter(
-                howMuch: basePrice - newPRICE,
-                quantity: 1,
-                where: DiscountFromWhere.client),
-          );
-      products[i].price = newPRICE;
-      products[i].discountPercent = (100 - (newPRICE * 100 / basePrice));
-      products[i].isPriceChanged = true;
-    }
+    final products = _currentClient.orderedProducts;
+    ClientDiscount.applyPercentage(
+      products,
+      percentage,
+      makeDiscount: (howMuch) => ItemsSingleton.discounter(
+        howMuch: howMuch,
+        quantity: 1,
+        where: DiscountFromWhere.client,
+      ),
+    );
     _currentClient.orderedProducts = [];
     _currentClient.orderedProducts.addAll(products);
     notifyListeners();
