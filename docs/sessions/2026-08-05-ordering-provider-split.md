@@ -866,7 +866,33 @@ optimizatsiya qilish TO'XTATILADI.
   → savatdagi KM qidiruvlari OLTI joyda takrorlangan edi
   → `MarkAction` (addNew / attachToExistingRow / warnDuplicate)
 
-**Hozir: 3440 qator, 981 test yashil, analyze 589.**
+- [x] **Barcha izohlar olib tashlandi** `ca2e2cc` → 3195
+  → Foydalanuvchi qarori. 224 to'liq qatorli + 7 oxiridagi izoh.
+  → `// ignore:` direktivasi saqlandi (izoh emas, analizator ko'rsatmasi)
+  → TASDIQ: izoh va bo'shliqsiz kod HEAD bilan bayt-ma-bayt bir xil (79114)
+- [x] **9.6j — `ReceiptPayments`** `3df98eb` (+30 test) → 3138
+  → `paymentsMapAsList`: 11 ta to'lov nomi FISKAL CHEKKA ketadi, lekin
+    bironta ham sinalmagan edi (mavjud test faqat uzunlik/yig'indi)
+  → `PaymentIds` orqali sozlama IDlari parametr — modul Pref'siz ishlaydi
+- [x] **9.6k — `ClientDiscount`** `f130743` (+17 test) → 3126
+  → mijoz foizli chegirmasi matematikasi, ilgari umuman testlanmagan
+
+**Hozir: 3126 qator, 1028 test yashil, analyze 589.**
+
+### 9.6 da topilgan XATOLAR (tuzatilmadi, foydalanuvchiga xabar berildi)
+
+1. **`dialogForMark` qaytarilmasligi** — 4 ta dialog bayroqni `true` qo'yadi,
+   lekin `false` ga qaytarmaydi. Shundan keyin keyingi barcha markirovka
+   dialoglari jimgina ko'rsatilmaydi.
+
+2. **OFD sotuvida `_returnedFreeGiftProducts` tozalanmaydi** —
+   `pressPaymentButton` (oddiy sotuv) uni tozalaydi, `pressPaymentButtonOnlyOFD`
+   (OFD sotuvi) esa YO'Q. Ya'ni tekin-sovg'a holati keyingi chekka o'tib
+   qolishi mumkin. Aynan shu sababli 7 ta diskont-reset bloki bitta helperga
+   BIRLASHTIRILMADI — birlashtirilsa xatti-harakat o'zgarardi.
+
+3. **`ClientDiscount` da `removeAt` tsikl ichida** — ketma-ket ikkita "sum"
+   chegirmasi bo'lsa ikkinchisi o'tkazib yuboriladi.
 
 ### 9.6 da qayd etilgan xatti-harakatlar (tuzatilmadi)
 
