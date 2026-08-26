@@ -23,6 +23,7 @@ import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.
 import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
 import 'package:invan2/changes/domain/barcode/barcode_classifier.dart';
 import 'package:invan2/changes/domain/barcode/scanned_product_lookup.dart';
+import 'package:invan2/changes/domain/barcode/utsenka_qr.dart';
 import 'package:invan2/changes/domain/cart/cash_restriction_rules.dart';
 import 'package:invan2/changes/services/telegram_notifier.dart';
 import 'package:invan2/changes/domain/cart/deleted_item_recorder.dart';
@@ -739,40 +740,19 @@ ${productLines.toString().trim()}
     await marking(context, product);
   }
 
+  /// Utsenka QR dan savat qatori. Kod tahlili `UtsenkaQr` da.
   ReceiptModelSoldItem4? _parseUtsenkaQr(String barcode) {
-    try {
-      final decoded = jsonDecode(barcode);
-      if (decoded is! Map) return null;
-      final skuRaw = decoded['sku'];
-      final priceRaw = decoded['price'];
-      if (skuRaw == null || priceRaw == null) return null;
+    final offer = UtsenkaQr.parse(barcode);
+    if (offer == null) return null;
 
-      final skuInt = int.tryParse(skuRaw.toString());
-      if (skuInt == null) return null;
-      final utsenkaPrice = (priceRaw as num).toDouble();
-      if (utsenkaPrice <= 0) return null;
-
-      final product = ItemsSingleton.getProductBySku(skuInt);
-      if (product == null) return null;
-
-      final originalPrice =
-          ItemsSingleton.finalPrice(product, 1, false).toDouble();
-      final discount =
-          (originalPrice - utsenkaPrice).clamp(0.0, double.infinity);
-      final percent =
-          originalPrice > 0 ? (discount / originalPrice) * 100 : 0.0;
-
-      final item = _createSoldItem(product, utsenkaPrice, 1, false);
-      item.realPrice = originalPrice;
-      item.onlyPrice = originalPrice;
-      item.singleDiscount = discount;
-      item.discountPercent = percent.toDouble();
-      item.isPriceChanged = true;
-      item.isPriceOnlyChanged = true;
-      return item;
-    } catch (_) {
-      return null;
-    }
+    final item = _createSoldItem(offer.product, offer.price, 1, false);
+    item.realPrice = offer.originalPrice;
+    item.onlyPrice = offer.originalPrice;
+    item.singleDiscount = offer.discount;
+    item.discountPercent = offer.percent;
+    item.isPriceChanged = true;
+    item.isPriceOnlyChanged = true;
+    return item;
   }
 
   Future<void> _handleRegularProduct(BuildContext context, ItemModel product,
