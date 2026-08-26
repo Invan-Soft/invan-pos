@@ -2,7 +2,7 @@
 
 **Boshlangan:** 2026-08-05
 **Holat:** in-progress (Faza 0-8 do'konda tasdiqlangan, Faza 9 rejalashtirilmoqda)
-**Oxirgi ish:** 2026-08-25, Faza 9.1-9.4 tugadi (do'kon sinovi kutilmoqda)
+**Oxirgi ish:** 2026-08-26, Faza 9.5 tugadi — **4000 qator maqsadi bajarildi** (do'kon sinovi kutilmoqda)
 **Branch:** refactor/ordering-split-2 (ayyubxon'dan, push qilinmagan)
 **Branch:** refactor/ordering-split (ayyubxon'dan)
 
@@ -763,21 +763,87 @@ o'ylab ko'rilishi kerak.
 - Qizil o'chirishda `rows` bo'shamaydi, shuning uchun `resetClient`
   chaqirilmaydi — lekin orphan "-" baribir belgilanadi
 
-### 9.5 uchun QOLGANLARI — qaror kerak
+### FAZA 9.5 (2026-08-26) — 4000 qator maqsadi bajarildi
 
-| Zona | Qator | UI | Izoh |
-|---|---|---|---|
-| `_markingCheck` | 418 | 40 | dialog orkestratori |
-| `pressPaymentButtonOnlyOFD` | 270 | 4 | **pul yo'li**, testlab bo'lmaydi |
-| `addProduct` | 201 | 20 | dialog ichida |
-| `addSeperatedProduct` | 195 | 8 | dialog ichida |
-| `pressPaymentButton` | 142 | 1 | **pul yo'li** |
-| Arcus terminal drayveri | ~70 | 0 | shell + fayl I/O, 2 joyda takror |
+Avval `fix/marking-flag-ofd-gating` branchi shu branchga merge qilindi
+(markirovka bayrog'i xatosi — pastda alohida bo'lim).
 
-**Arcus drayveri** (`CommandLineTool.exe` chaqirish + log/chek o'qish) eng
-toza nomzod, lekin qurilma I/O bo'lgani uchun **testlab bo'lmaydi** — faqat
-do'konda karta to'lovi bilan tekshiriladi. Pul yo'llari ham shunday.
-Shuning uchun bu yerda to'xtatildi: keyingisi risk turi boshqacha.
+- [x] **9.5a — o'lik kod tozalandi** `1a61538`
+  → 5 ta ishlatilmaydigan maydon (`_cardEnabled` ... `_debtEnabled`) va
+    ularning yozuvlari; `addProduct` dagi 2 ta ishlatilmaydigan lokal
+  → Chaqiruvlarni o'chirishdan oldin yon ta'siri tekshirildi:
+    `getBuyXGetXDiscountsOnly` savatni faqat O'QIYDI
+  → **QAYD:** u ichkarida `forDialogOnly: true` ni QOTIRIB chaqiradi, ya'ni
+    o'z parametri e'tiborga olinmaydi — o'chirilgan ikki chaqiruv aslida
+    bir xil natija berardi
+  → 4109 → **4090**
+
+- [x] **9.5b — `OnkmValidator`** `e180bd8`
+  → `lib/changes/services/onkm_validator.dart`
+  → `_markingCheck` ichida `http.post` o'rtasida turgan edi
+  → **FOYDASI:** so'rov tanasi (kmIds, commitentTin, productCode, packageCode)
+    biznes uchun kritik — noto'g'ri ketsa soliq rad javob beradi va kassir
+    markirovkali tovarni sota olmaydi. Endi 18 test
+  → 4090 → **4064**
+
+- [x] **9.5c — `InvoiceRowBuilder`** `1a94436`
+  → `loadInvoiceByBarcodeWithBloc` ichida edi (BuildContext + BLoC stream)
+  → `SoldItemBuilder` bilan ATAYLAB birlashtirilmadi — maydon manbalari
+    boshqa (nom/miqdor/tannarx invoice dan, MXIK/paket/INN katalogdan)
+  → Narx qoidasi muzlatildi: invoice tiers ichidan eng KATTA minQuantity
+    ustun; invoice narx bermasa katalogning 1 donalik narxi
+  → +19 test; 4064 → **4020**
+
+- [x] **9.5d — `MarkedRowBuilder`** `2efabbc`
+  → `addSeperatedProduct` ichida edi (dialog + navigatorKey)
+  → `SoldItemBuilder` dan farqlari biznes qoidasi va endi test bilan
+    mahkamlangan: miqdor har doim 1 (har donaning o'z KM i), `soldBy` da
+    o'lchov birligi, `mark`/`packageName`, `cost` = 0
+  → +22 test; 4020 → **3991**
+
+### FAZA 9 YAKUNIY NATIJA
+
+| | Boshlanish | Hozir |
+|---|---|---|
+| `ordering_provider_4.dart` | 4701 | **3991** (−710, 15%) |
+| Testlar | 503 (1 yiqiladigan) | **865** |
+| `flutter analyze` | 599 | **589** |
+| `lib/features/` | — | **hech qachon tegilmagan** |
+
+**Foydalanuvchi so'ragan 4000 qator chegarasi bajarildi.**
+
+### Yo'l-yo'lakay topilgan va tuzatilgan XATO
+
+`fix/marking-flag-ofd-gating` (`c032a3c`) — alohida branchda, `ayyubxon` dan.
+
+OFD o'chiq bo'lsa ham savat qatoriga `marking: true` qo'yilardi → qator
+"markirovka guruhi" deb ko'rsatilib, OPD da qty ni na kamaytirib, na
+oshirib bo'lardi (xato ham chiqmasdi).
+
+Ildiz sabab: 2026-08-12 dagi OFD gating ishi tuzatishni `SoldItemBuilder`
+ga qo'llagan, lekin O'SHA commit providerdagi delegatsiyani inline qilib
+qaytargan. Natijada to'g'ri kod hech qachon chaqirilmagan, `SoldItemBuilder`
+o'lik kodga aylangan, uning 12 testi esa ilova ishlatmaydigan kodni sinagan.
+
+Tuzatildi: uch joyda bitta qaror (`MxikRules.isProductMarkable`) +
+delegatsiya ustiga izoh (yana inline qilinmasligi uchun) + 6 ta yangi test
+(`test/marking_flag_ofd_gating_test.dart`), ular `addProduct` ni real
+`BuildContext` bilan chaqiradi — regressiya takrorlansa darhol ushlanadi.
+
+**Saboq:** ajratilgan modul faqat yangi ishlar uni ISHLATGANDA saqlanadi.
+Bitta feature commiti chetlab o'tsa, kod jimgina qaytib keladi.
+
+### QOLGANLARI — refaktoring qilinmaydi
+
+| Zona | Qator | Nega tegilmaydi |
+|---|---|---|
+| `_markingCheck` (qolgani) | ~350 | 24 ta dialog — orkestrator |
+| `pressPaymentButtonOnlyOFD` | 270 | fiskal modul, sinab bo'lmaydi |
+| `addProduct` | ~200 | dialoglar bilan o'ralashgan |
+| `pressPaymentButton` | 142 | fiskal modul |
+| `typeUzcard` / `typeHumo` | 190 | **Arcus terminali yo'q** (foydalanuvchi qarori) |
+
+Printsip: **do'konda sinab bo'lmaydigan kodni refaktoring qilmaymiz.**
 
 ## Keyingi qadamlar
 
