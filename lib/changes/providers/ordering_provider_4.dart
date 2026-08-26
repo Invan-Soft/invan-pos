@@ -33,6 +33,7 @@ import 'package:invan2/changes/dialogs/terminal_error_dialog.dart';
 import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
 import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
+import 'package:invan2/changes/domain/cart/box_row_builder.dart';
 import 'package:invan2/changes/domain/cart/invoice_row_builder.dart';
 import 'package:invan2/changes/domain/cart/marked_row_builder.dart';
 import 'package:invan2/changes/domain/cart/sold_item_builder.dart';
@@ -1348,25 +1349,11 @@ class OrderingProvider4 extends ChangeNotifier {
       (e) => !(e.isDeleted ?? false) && e.saleType == 2 && e.mark == rawMark,
     );
     if (alreadyAdded) {
-      if (!dialogForMark) {
-        dialogForMark = true;
-        final loc =
-            AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
-        await showGeneralDialog(
-          barrierDismissible: false,
-          context: AppNavigation.navigatorKey.currentContext!,
-          pageBuilder: (f, d, ctx) => ContainsZeroPriceItemDialog(
-            text: loc.ha.toLowerCase() == 'ha'
-                ? 'Bu box allaqachon qo\'shilgan!'
-                : 'Этот бокс уже добавлен!',
-            text2: 'Ok',
-            delete: false,
-            isFirst: true,
-            provider: this,
-          ),
-        ).then((_) {});
-        dialogForMark = false;
-      }
+      final loc =
+          AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
+      await _showMarkDialog(loc.ha.toLowerCase() == 'ha'
+          ? 'Bu box allaqachon qo\'shilgan!'
+          : 'Этот бокс уже добавлен!');
       return;
     }
 
@@ -1390,45 +1377,13 @@ class OrderingProvider4 extends ChangeNotifier {
         .length;
     final newBoxQuantity = existingBoxCount + 1;
 
-    final soldItem = ReceiptModelSoldItem4(
-      inBox: 0,
-      tin: freshProduct.commissionTin ?? '',
-      isDeleted: false,
-      marking: false,
-      mark: _isProductMarkable(freshProduct) ? rawMark : null,
-      soldBy: freshProduct.categories?.isNotEmpty == true
-          ? freshProduct.categories!.first.id ?? ''
-          : '',
-      cost: freshProduct.shopPrices?.shID?.supplyPrice?.toDouble() ?? 0,
-      createdTime: DateTime.now().millisecondsSinceEpoch,
-      price: boxPrice,
-      realPrice: boxPrice,
-      onlyPrice: boxPrice,
-      singleDiscount: 0,
-      value: 1,
-      productId: freshProduct.id ?? '',
-      productName: '${freshProduct.name ?? ''} //blok',
-      ownerType: int.tryParse(freshProduct.ownerType ?? '1') ?? 1,
-      packageCode: freshProduct.packageCode,
-      packageName: freshProduct.packageName,
-      barcode: freshProduct.barcode?.isNotEmpty == true
-          ? freshProduct.barcode!.first
-          : '',
-      sku: int.tryParse(freshProduct.sku ?? '0') ?? 0,
-      vat: boxPrice == 0
-          ? 0
-          : (boxPrice * (freshProduct.vat?.percentage ?? 12)) /
-              (100 + (freshProduct.vat?.percentage ?? 12)),
-      mxik: freshProduct.mxikCode ?? '',
-      sellerId: Pref.getString(PrefKeys.cashierId, ''),
-      vatName: freshProduct.vat?.name ?? '',
-      vatPercent: (freshProduct.vat?.percentage ?? 12).toDouble(),
-      discountPercent: 0,
-      productType: _resolveProductType(freshProduct),
-      productPackage: _resolveProductPackage(freshProduct),
-      saleType: 2,
+    final soldItem = BoxRowBuilder.build(
+      freshProduct,
+      boxPrice: boxPrice,
       boxValue: boxValue,
       boxQuantity: newBoxQuantity,
+      rawMark: rawMark,
+      sellerId: Pref.getString(PrefKeys.cashierId, ''),
     );
 
     _currentClient.orderedProducts.insert(0, soldItem);
@@ -3414,12 +3369,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
   bool _isProductMarkable(ItemModel product) =>
       MxikRules.isProductMarkable(product);
-
-  String _resolveProductType(ItemModel product) =>
-      MxikRules.resolveProductType(product);
-
-  String _resolveProductPackage(ItemModel product) =>
-      MxikRules.resolveProductPackage(product);
 
 
   DateTime? _parseGS1Date(String yymmdd) => Gs1.parseDate(yymmdd);
