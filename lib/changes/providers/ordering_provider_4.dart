@@ -305,10 +305,9 @@ class OrderingProvider4 extends ChangeNotifier {
   Future<void> cancelOrderingWithTelegram() async {
     if (_currentClient.orderedProducts.isEmpty) return;
 
-    final currentEmployee = HiveBoxes.getCurrentEmployee;
-    final employeeName = currentEmployee?.user?.firstName ?? "Noma'lum xodim";
+    final employeeName =
+        HiveBoxes.getCurrentEmployee?.user?.firstName ?? "Noma'lum xodim";
     final posName = Pref.getString(PrefKeys.posName, "Noma'lum POS");
-    final orgName = Pref.getString(PrefKeys.organizationName, "");
     final deleteTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
 
     final products = _currentClient.orderedProducts
@@ -328,38 +327,15 @@ class OrderingProvider4 extends ChangeNotifier {
 
     if (products.isEmpty) return;
 
-    final StringBuffer productLines = StringBuffer();
-    for (int i = 0; i < products.length; i++) {
-      final p = products[i];
-      productLines.writeln('${i + 1}. ${p.productName} — qty: ${p.value}');
-    }
-
-    const String botToken = '8534579686:AAHuob2SA0ZdnV_emG0kSKmOOoDLdNbvrKQ';
-    const String channelId = '-1003834151006';
-
-    final String message = """
-<b>🚨 Chek o'chirildi!</b>
-
-<b>Org Name:</b> $orgName
-<b>Pos Name:</b> $posName
-<b>Employee:</b> $employeeName
-<b>Time:</b> $deleteTime
-
-<b>Mahsulotlar:</b>
-${productLines.toString().trim()}
-    """
-        .trim();
-
-    final Uri url = Uri.parse(
-      'https://api.telegram.org/bot$botToken/sendMessage?'
-      'chat_id=$channelId'
-      '&text=${Uri.encodeComponent(message)}'
-      '&parse_mode=HTML',
+    await TelegramNotifier.cartCancelled(
+      posName: posName,
+      employeeName: employeeName,
+      deleteTime: deleteTime,
+      productLines: [
+        for (int i = 0; i < products.length; i++)
+          '${i + 1}. ${products[i].productName} — qty: ${products[i].value}',
+      ],
     );
-
-    try {
-      await http.get(url);
-    } catch (e) {}
   }
 
   Future<void> onMxikError(List<NoMxikItem> v) async {
