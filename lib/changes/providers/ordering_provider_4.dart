@@ -26,6 +26,7 @@ import 'package:invan2/changes/dialogs/terminal_error_dialog.dart';
 import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
 import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
+import 'package:invan2/changes/domain/cart/sold_item_builder.dart';
 import 'package:invan2/changes/domain/marking/mxik_rules.dart';
 import 'package:invan2/changes/domain/terminal/terminal_receipt_parser.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
@@ -718,8 +719,7 @@ ${productLines.toString().trim()}
               vatPercent: product.vat?.percentage?.toDouble() ?? 12,
               mxik: product.mxikCode ?? '',
               packageCode: product.packageCode ?? '',
-              marking: (product.isMarking ?? false) ||
-                  _isMxikMarking((product.mxikCode ?? '').trim()),
+              marking: MxikRules.isProductMarkable(product),
               createdTime: DateTime.now().millisecondsSinceEpoch,
               cost: item.cost,
               ownerType: product.ownerType != null
@@ -978,46 +978,15 @@ ${productLines.toString().trim()}
     );
   }
 
+  /// Savat qatori yasash `SoldItemBuilder` da.
+  ///
+  /// DIQQAT: bu delegatsiyani inline qilib yozib qo'ymang. 2026-08-12 da
+  /// shunday bo'lgan edi va `marking` bayrog'i OFD tekshiruvisiz eski holiga
+  /// qaytib qolgan — OFD o'chiq bo'lsa ham qator markirovka guruhi bo'lib,
+  /// kassir qty ni na oshira, na kamaytira olardi.
   ReceiptModelSoldItem4 _createSoldItem(
-      ItemModel product, double price, double value, bool isKg) {
-    return ReceiptModelSoldItem4(
-      inBox: 0,
-      tin: product.commissionTin ?? '',
-      isDeleted: false,
-      marking: (product.isMarking ?? false) ||
-          _isMxikMarking((product.mxikCode ?? '').trim()),
-      soldBy: product.categories?.isNotEmpty == true
-          ? product.categories![0].id ?? ''
-          : '',
-      cost: product.shopPrices?.shID?.supplyPrice?.toDouble() ?? 0,
-      createdTime: DateTime.now().millisecondsSinceEpoch,
-      price: price,
-      realPrice: price,
-      singleDiscount: 0,
-      value: value,
-      ownerType: int.tryParse(product.ownerType ?? '1') ?? 1,
-      onlyPrice: price,
-      productId: product.id ?? '',
-      productName: product.name ?? '',
-      packageCode: product.packageCode ?? '',
-      packageName: product.packageName ?? '',
-      barcode:
-          product.barcode?.isNotEmpty == true ? product.barcode!.first : '',
-      sku: int.tryParse(product.sku ?? '0') ?? 0,
-      vat: price == 0
-          ? 0
-          : (price * (product.vat?.percentage ?? 12)) /
-              (100 + (product.vat?.percentage ?? 12)),
-      mxik: product.mxikCode ?? '',
-      sellerId: Pref.getString(PrefKeys.cashierId, ''),
-      vatName: product.vat?.name ?? '',
-      discountPercent: 0,
-      vatPercent: (product.vat?.percentage ?? 12).toDouble(),
-      isKg: isKg,
-      productType: _resolveProductType(product),
-      productPackage: _resolveProductPackage(product),
-    );
-  }
+          ItemModel product, double price, double value, bool isKg) =>
+      SoldItemBuilder.build(product, price, value, isKg);
 
   /// Diskont effektlari `DiscountEffectsController` ga ko'chirildi
   /// (2026-08-05). Kontroller `ChangeNotifier` EMAS — `notifyListeners` ni
@@ -1639,8 +1608,7 @@ ${productLines.toString().trim()}
       isDeleted: false,
       inBox: 0,
       tin: freshProduct.commissionTin,
-      marking: (freshProduct.isMarking ?? false) ||
-          _isMxikMarking((freshProduct.mxikCode ?? '').trim()),
+      marking: MxikRules.isProductMarkable(freshProduct),
       mark: _isProductMarkable(freshProduct) ? markValue : null,
       soldBy: freshProduct.measurementUnit?.shortName ?? "",
       cost: 0,
