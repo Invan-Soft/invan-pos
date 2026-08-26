@@ -23,6 +23,7 @@ import 'package:invan2/changes/providers/ordering/catalog_navigation_controller.
 import 'package:invan2/changes/providers/ordering/payment_tally_controller.dart';
 import 'package:invan2/changes/domain/barcode/barcode_classifier.dart';
 import 'package:invan2/changes/domain/barcode/scanned_product_lookup.dart';
+import 'package:invan2/changes/domain/barcode/tarozi_label.dart';
 import 'package:invan2/changes/domain/barcode/utsenka_qr.dart';
 import 'package:invan2/changes/domain/cart/cash_restriction_rules.dart';
 import 'package:invan2/changes/services/telegram_notifier.dart';
@@ -3373,69 +3374,41 @@ class OrderingProvider4 extends ChangeNotifier {
 
   DateTime? _parseGS1Date(String yymmdd) => Gs1.parseDate(yymmdd);
 
+  /// Tarozi yorlig'i — KILOLI tovar: miqdor yorliqdagi grammdan olinadi.
   void scanWeightItem(
     String barcode,
     GlobalKey<ScaffoldState> scaffoldKey,
-  ) async {
-    String gramString = barcode.substring(7, barcode.length);
+  ) async =>
+      _addFromTaroziLabel(barcode, scaffoldKey,
+          value: TaroziLabel.weightKg(barcode), where: 'scanWeightItem');
 
-    double gram = double.tryParse(gramString) ?? 0;
-    double value = (gram / 10000);
-
-    double val = (value * 1000).floorToDouble() / 1000;
-
-    // Tarozi formati: PLU (SKU) 5 xonaga nol bilan to'ldiriladi ("00206").
-    // Avval aynan shu ko'rinishda, topilmasa format bo'yicha nol'lar olib
-    // tashlangan ko'rinishda qidiriladi. Bu tarozi FORMATINING qoidasi —
-    // ixtiyoriy kiritishdan raqam ajratib olish emas.
-    final String plu = barcode.substring(2, 7);
-    var item = ItemsSingleton.getProductByBarcode(plu);
-    if (item == null) {
-      final noZeros = plu.replaceFirst(RegExp(r'^0+'), '');
-      if (noZeros.isNotEmpty && noZeros != plu) {
-        item = ItemsSingleton.getProductByBarcode(noZeros);
-      }
-    }
-    if (item != null) {
-      addProduct(
-        context: scaffoldKey.currentState!.context,
-        value: val,
-        product: item,
-        where: "PRODUCTS GRID VIEW / scanWeightItem",
-        isTarozi: true,
-      );
-    } else {
-      await _showBarcodeNotFoundDialog(scaffoldKey);
-    }
-  }
-
-  /// Shtuchniy (dona) tovar: shtrix-kodda faqat prefiks(2)+SKU(5) muhim —
-  /// qolgan raqamlar (kiloli formatdagi gram qismi) e'tiborga olinmaydi,
-  /// miqdor doim 1 dona sifatida qo'shiladi. SKU aynan (exact) mos kelmasa
-  /// "topilmadi" ko'rsatiladi — yaqin/o'xshash boshqa mahsulot urilmaydi.
+  /// Tarozi yorlig'i — SHTUCHNIY (dona) tovar: gramm qismi e'tiborga
+  /// olinmaydi, miqdor doim 1 dona.
   void scanPieceItem(
     String barcode,
     GlobalKey<ScaffoldState> scaffoldKey,
-  ) async {
-    final String sku = barcode.substring(2, 7);
-    var item = ItemsSingleton.getProductByBarcode(sku);
+  ) async =>
+      _addFromTaroziLabel(barcode, scaffoldKey,
+          value: 1, where: 'scanPieceItem');
+
+  Future<void> _addFromTaroziLabel(
+    String barcode,
+    GlobalKey<ScaffoldState> scaffoldKey, {
+    required double value,
+    required String where,
+  }) async {
+    final item = TaroziLabel.findProduct(TaroziLabel.plu(barcode));
     if (item == null) {
-      final noZeros = sku.replaceFirst(RegExp(r'^0+'), '');
-      if (noZeros.isNotEmpty && noZeros != sku) {
-        item = ItemsSingleton.getProductByBarcode(noZeros);
-      }
-    }
-    if (item != null) {
-      addProduct(
-        context: scaffoldKey.currentState!.context,
-        value: 1,
-        product: item,
-        where: "PRODUCTS GRID VIEW / scanPieceItem",
-        isTarozi: true,
-      );
-    } else {
       await _showBarcodeNotFoundDialog(scaffoldKey);
+      return;
     }
+    addProduct(
+      context: scaffoldKey.currentState!.context,
+      value: value,
+      product: item,
+      where: "PRODUCTS GRID VIEW / $where",
+      isTarozi: true,
+    );
   }
 
   Future<void> _showBarcodeNotFoundDialog(
