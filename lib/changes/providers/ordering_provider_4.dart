@@ -32,6 +32,7 @@ import 'package:invan2/changes/domain/cart/row_repricer.dart';
 import 'package:invan2/changes/providers/ordering/cart_edit_controller.dart';
 import 'package:invan2/changes/dialogs/terminal_error_dialog.dart';
 import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
+import 'package:invan2/changes/domain/receipt/receipt_payments.dart';
 import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
 import 'package:invan2/changes/domain/cart/box_row_builder.dart';
 import 'package:invan2/changes/domain/cart/invoice_row_builder.dart';
@@ -192,7 +193,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
   final List<DeletedItemModel4> _orphanDeletedItems = [];
 
-
   OrderingProvider4() {
     DiscountService.onDiscountsCleared = clearAllDiscountEffects;
   }
@@ -235,7 +235,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
   List<ReceiptModelSoldItem4> get getCurrentClientOrderedProducts =>
       _currentClient.orderedProducts;
-
 
   setNewClientDiscountPercentage(double percentage) {
     _newClientPersentageDiscount = percentage;
@@ -1817,74 +1816,20 @@ class OrderingProvider4 extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<ReceiptModelPaymentType4> get paymentsMapAsList =>
-      paymentsMap.entries.map((e) {
-        String name = e.value.name ?? '';
-        double paymentValue = e.value.value ?? 0;
-        if (e.key == Pref.getString(PrefKeys.cashId, "")) {
-          name = 'CASH';
-        }
-
-        if (e.key.replaceFirst('@', '') ==
-            Pref.getString(PrefKeys.cardId, "")) {
-          name = 'UZCARD';
-        }
-        if (e.key.replaceFirst('@', '') ==
-                Pref.getString(PrefKeys.cardId, "") &&
-            e.value.type == 1) {
-          name = 'HUMO';
-        }
-
-        if (e.key == Pref.getString(PrefKeys.cashbackId, "")) {
-          name = 'CASHBACK';
-        }
-        if (e.key == Pref.getString(PrefKeys.debtId, "")) {
-          name = 'DEBT';
-        }
-        if (_sdachaa > 0 && e.key == Pref.getString(PrefKeys.cashId, "")) {
-          paymentValue -= _sdachaa;
-        }
-        if (_zdachaToCashBack > 0 &&
-            e.key == Pref.getString(PrefKeys.cashId, "")) {
-          paymentValue -= _zdachaToCashBack;
-        }
-
-        if (e.key.replaceFirst('@', '') ==
-            Pref.getString(PrefKeys.paymeId, "")) {
-          name = 'PAYME GO';
-        }
-        if (e.key.replaceFirst('@', '') ==
-            Pref.getString(PrefKeys.clickId, "")) {
-          name = 'CLICK PASS';
-        }
-        if (e.key.replaceFirst('@', '') ==
-            Pref.getString(PrefKeys.uzumId, "")) {
-          name = 'UZUM';
-        }
-
-        if (e.key.replaceFirst('@', '') ==
-                Pref.getString(PrefKeys.paymeId, "") &&
-            e.value.type == 1) {
-          name = 'PAYME QR';
-        }
-        if (e.key.replaceFirst('@', '') ==
-                Pref.getString(PrefKeys.clickId, "") &&
-            e.value.type == 1) {
-          name = 'CLICK QR';
-        }
-        if (e.key.replaceFirst('@', '') ==
-                Pref.getString(PrefKeys.uzumId, "") &&
-            e.value.type == 1) {
-          name = 'UZUM QR';
-        }
-
-        paymentValue = double.parse(paymentValue.round().toStringAsFixed(3));
-        return ReceiptModelPaymentType4(
-          name: name,
-          payId: e.key,
-          value: paymentValue,
-        );
-      }).toList();
+  List<ReceiptModelPaymentType4> get paymentsMapAsList => ReceiptPayments.build(
+        paymentsMap,
+        ids: PaymentIds(
+          cash: Pref.getString(PrefKeys.cashId, ""),
+          card: Pref.getString(PrefKeys.cardId, ""),
+          cashback: Pref.getString(PrefKeys.cashbackId, ""),
+          debt: Pref.getString(PrefKeys.debtId, ""),
+          payme: Pref.getString(PrefKeys.paymeId, ""),
+          click: Pref.getString(PrefKeys.clickId, ""),
+          uzum: Pref.getString(PrefKeys.uzumId, ""),
+        ),
+        sdacha: _sdachaa,
+        zdachaToCashBack: _zdachaToCashBack,
+      );
 
   static String cleanMarkForFiscal(String rawMark) =>
       MarkCleaner.forFiscal(rawMark);
@@ -2535,7 +2480,6 @@ class OrderingProvider4 extends ChangeNotifier {
     }
   }
 
-
   void typeHumo(BuildContext context, Payment payment) async {
     _selectedPaymentType =
         payment.type == 1 ? '@${payment.id}' : payment.id ?? '';
@@ -2903,11 +2847,9 @@ class OrderingProvider4 extends ChangeNotifier {
   bool displayingNotFoundDialog = false;
   bool _invalidBarcodeDialogActive = false;
 
-
   List<dynamic> get getItems => _catalog.getItems;
 
   List<CategoryData> get getPathList => _catalog.getPathList;
-
 
   Future<void> _showInvalidFormatBarcodeDialog() async {
     if (_invalidBarcodeDialogActive) return;
