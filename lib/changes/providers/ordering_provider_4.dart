@@ -426,8 +426,6 @@ class OrderingProvider4 extends ChangeNotifier {
       _currentClient.lastAddedIndex = 0;
       isTpEdited = false;
       notifyListeners();
-      final loc =
-          AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
 
       final addedMxik = (product.mxikCode ?? '').trim();
       if (Pref.getBool(PrefKeys.markCheckWithOfd, true) &&
@@ -457,76 +455,7 @@ class OrderingProvider4 extends ChangeNotifier {
         );
       }
 
-      bool isShowOld = false;
-      if (DiscountSingleton.availableDiscount.availableProducts != null) {
-        for (var p in DiscountSingleton.availableDiscount.availableProducts!) {
-          if (p.id == product.id) {
-            if ((_showCount[product.id ?? ''] ?? 0) < 1) {
-              isShowOld = true;
-            }
-            _showCount[product.id ?? ''] = 1;
-          }
-        }
-      }
-
-      if (isShowOld && !dialogForDiscount) {
-        setDialogForDiscount(true);
-        await showGeneralDialog(
-          barrierDismissible: false,
-          context: context,
-          pageBuilder: (_, __, ___) => ContainsDiscountItemDialog(
-            provider: this,
-            returnedProduct: DiscountSingleton.availableDiscount,
-            isFirst: true,
-          ),
-        );
-      }
-
-
-      bool isShowBuyXGetX = false;
-      String buyXGetXText = "";
-
-      // QAYD: bu yerda `getBuyXGetXDiscounts` ikki marta (forDialogOnly bilan
-      // va usiz) chaqirilardi, natijalar esa hech qayerda ishlatilmasdi.
-      // Helper savatni o'zgartirmaydi — faqat o'qiydi, shuning uchun ikkala
-      // chaqiruv ham olib tashlandi.
-      ReturnedGiftX? buyXGetXItem = _returnedBuyXGetX.firstWhereOrNull(
-        (g) => g.getProduct?.id == product.id,
-      );
-      if (buyXGetXItem != null) {
-        final count = _showCountFreeGift[product.id ?? ''] ?? 0;
-        if (count < 1) {
-          isShowBuyXGetX = true;
-
-          final productName =
-              buyXGetXItem.getProduct?.name ?? product.name ?? 'mahsulot';
-          final buyAmount = buyXGetXItem.buyAmount;
-          final freeAmount = buyXGetXItem.getProductAmount;
-
-          buyXGetXText = loc.ha.toLowerCase() == 'ha'
-              ? '$productName dan $buyAmount ta sotib olgani uchun,\n$freeAmount ta tekin berish kerak!'
-              : ' За каждые $buyAmount $productName  $freeAmount бесплатно';
-
-          _showCountFreeGift[product.id ?? ''] = 1;
-        }
-      }
-
-      if (isShowBuyXGetX && !dialogForDiscount) {
-        setDialogForDiscount(true);
-        await showGeneralDialog(
-          barrierDismissible: false,
-          context: AppNavigation.navigatorKey.currentContext!,
-          pageBuilder: (_, __, ___) => ContainsDiscountItemDialog2(
-            provider: this,
-            text: buyXGetXText,
-            isFirst: true,
-          ),
-        );
-      }
-      await freeGiftDialog();
-      useFreeProducts();
-      useFreeGiftProducts();
-      useBuyXGetXProducts();
+      await _showPostAddDiscountDialogs(context, product);
 
       if (_currentClient.orderedProducts.isNotEmpty &&
           _currentClient.orderedProducts[0].isKg &&
@@ -988,6 +917,74 @@ class OrderingProvider4 extends ChangeNotifier {
 
   bool dialogForDiscount = false;
 
+  /// Mahsulot savatga qo'shilgandan keyingi diskont dialoglari.
+  ///
+  /// Har mahsulot uchun BIR MARTA ko'rsatiladi (`_showCount` /
+  /// `_showCountFreeGift` hisoblagichlari). Oxirida tekin mahsulot
+  /// effektlari savatga qo'llanadi.
+  Future<void> _showPostAddDiscountDialogs(
+      BuildContext context, ItemModel product) async {
+    final loc =
+        AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
+    final pid = product.id ?? '';
+
+    bool isShowOld = false;
+    if (DiscountSingleton.availableDiscount.availableProducts != null) {
+      for (final p in DiscountSingleton.availableDiscount.availableProducts!) {
+        if (p.id == product.id) {
+          if ((_showCount[pid] ?? 0) < 1) isShowOld = true;
+          _showCount[pid] = 1;
+        }
+      }
+    }
+    if (isShowOld && !dialogForDiscount) {
+      setDialogForDiscount(true);
+      await showGeneralDialog(
+        barrierDismissible: false,
+        context: context,
+        pageBuilder: (_, __, ___) => ContainsDiscountItemDialog(
+          provider: this,
+          returnedProduct: DiscountSingleton.availableDiscount,
+          isFirst: true,
+        ),
+      );
+    }
+
+    bool isShowBuyXGetX = false;
+    String buyXGetXText = '';
+    final buyXGetXItem = _returnedBuyXGetX.firstWhereOrNull(
+      (g) => g.getProduct?.id == product.id,
+    );
+    if (buyXGetXItem != null && (_showCountFreeGift[pid] ?? 0) < 1) {
+      isShowBuyXGetX = true;
+      final productName =
+          buyXGetXItem.getProduct?.name ?? product.name ?? 'mahsulot';
+      final buyAmount = buyXGetXItem.buyAmount;
+      final freeAmount = buyXGetXItem.getProductAmount;
+      buyXGetXText = loc.ha.toLowerCase() == 'ha'
+          ? '$productName dan $buyAmount ta sotib olgani uchun,\n$freeAmount ta tekin berish kerak!'
+          : 'За каждые $buyAmount $productName  $freeAmount бесплатно';
+      _showCountFreeGift[pid] = 1;
+    }
+    if (isShowBuyXGetX && !dialogForDiscount) {
+      setDialogForDiscount(true);
+      await showGeneralDialog(
+        barrierDismissible: false,
+        context: AppNavigation.navigatorKey.currentContext!,
+        pageBuilder: (_, __, ___) => ContainsDiscountItemDialog2(
+          provider: this,
+          text: buyXGetXText,
+          isFirst: true,
+        ),
+      );
+    }
+
+    await freeGiftDialog();
+    useFreeProducts();
+    useFreeGiftProducts();
+    useBuyXGetXProducts();
+  }
+
   void setDialogForDiscount(bool value) {
     dialogForDiscount = value;
     notifyListeners();
@@ -1326,70 +1323,9 @@ class OrderingProvider4 extends ChangeNotifier {
     isTpEdited = false;
     notifyListeners();
 
-    final loc =
-        AppLocalizations.of(AppNavigation.navigatorKey.currentContext!)!;
 
-    bool isShowOld = false;
-    if (DiscountSingleton.availableDiscount.availableProducts != null) {
-      for (final p in DiscountSingleton.availableDiscount.availableProducts!) {
-        if (p.id == freshProduct.id) {
-          if ((_showCount[freshProduct.id ?? ''] ?? 0) < 1) {
-            isShowOld = true;
-          }
-          _showCount[freshProduct.id ?? ''] = 1;
-        }
-      }
-    }
-    if (isShowOld && !dialogForDiscount) {
-      setDialogForDiscount(true);
-      await showGeneralDialog(
-        barrierDismissible: false,
-        context: AppNavigation.navigatorKey.currentContext!,
-        pageBuilder: (_, __, ___) => ContainsDiscountItemDialog(
-          provider: this,
-          returnedProduct: DiscountSingleton.availableDiscount,
-          isFirst: true,
-        ),
-      );
-    }
-
-    bool isShowBuyXGetX = false;
-    String buyXGetXText = '';
-    final buyXGetXItem = _returnedBuyXGetX.firstWhereOrNull(
-      (g) => g.getProduct?.id == freshProduct.id,
-    );
-    if (buyXGetXItem != null) {
-      final count = _showCountFreeGift[freshProduct.id ?? ''] ?? 0;
-      if (count < 1) {
-        isShowBuyXGetX = true;
-        final productName =
-            buyXGetXItem.getProduct?.name ?? freshProduct.name ?? 'mahsulot';
-        final buyAmount = buyXGetXItem.buyAmount;
-        final freeAmount = buyXGetXItem.getProductAmount;
-        buyXGetXText = loc.ha.toLowerCase() == 'ha'
-            ? '$productName dan $buyAmount ta sotib olgani uchun,\n$freeAmount ta tekin berish kerak!'
-            : 'За каждые $buyAmount $productName  $freeAmount бесплатно';
-        _showCountFreeGift[freshProduct.id ?? ''] = 1;
-      }
-    }
-    if (isShowBuyXGetX && !dialogForDiscount) {
-      setDialogForDiscount(true);
-      await showGeneralDialog(
-        barrierDismissible: false,
-        context: AppNavigation.navigatorKey.currentContext!,
-        pageBuilder: (_, __, ___) => ContainsDiscountItemDialog2(
-          provider: this,
-          text: buyXGetXText,
-          isFirst: true,
-        ),
-      );
-    }
-
-    await freeGiftDialog();
-
-    useFreeProducts();
-    useFreeGiftProducts();
-    useBuyXGetXProducts();
+    await _showPostAddDiscountDialogs(
+        AppNavigation.navigatorKey.currentContext!, freshProduct);
     notifyListeners();
   } // ✅ Yangi method: bir xil productId dagi barcha marklarni qayta narxlash
 
