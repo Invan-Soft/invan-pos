@@ -1049,6 +1049,27 @@ ${productLines.toString().trim()}
 
   bool dialogForMark = false;
 
+  /// Markirovka oqimidagi ogohlantirish dialogi.
+  ///
+  /// Bir vaqtda faqat BITTA dialog ochiladi: `dialogForMark` qayta kirishni
+  /// bloklaydi. Ilgari bu blok bir necha joyda so'zma-so'z takrorlangan edi.
+  Future<void> _showMarkDialog(String message) async {
+    if (dialogForMark) return;
+    dialogForMark = true;
+    await showGeneralDialog(
+      barrierDismissible: false,
+      context: AppNavigation.navigatorKey.currentContext!,
+      pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
+        text: message,
+        text2: 'Ok',
+        delete: false,
+        isFirst: true,
+        provider: this,
+      ),
+    ).then((value) {});
+    dialogForMark = false;
+  }
+
   void setDialogForMark(bool value) {
     dialogForMark = value;
     notifyListeners();
@@ -1077,23 +1098,8 @@ ${productLines.toString().trim()}
       item.mark = v;
       AppLocalizations loc = AppLocalizations.of(context)!;
       if (v.startsWith('http://') || v.startsWith('https://')) {
-        if (!dialogForMark) {
-          dialogForMark = true;
-          await showGeneralDialog(
-            barrierDismissible: false,
-            context: AppNavigation.navigatorKey.currentContext!,
-            pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
-              text: loc.ha.toLowerCase() == 'ha'
-                  ? 'Noto\'g\'ri markirovka kodi! Faqat GS1 DataMatrix formatidagi kod qabul qilinadi.'
-                  : 'Неверный код маркировки! Принимаются только коды в формате GS1 DataMatrix.',
-              text2: 'Ok',
-              delete: false,
-              isFirst: true,
-              provider: this,
-            ),
-          ).then((value) {});
-          dialogForMark = false;
-        }
+        await _showMarkDialog(
+            loc.ha.toLowerCase() == 'ha' ? 'Noto\'g\'ri markirovka kodi! Faqat GS1 DataMatrix formatidagi kod qabul qilinadi.' : 'Неверный код маркировки! Принимаются только коды в формате GS1 DataMatrix.');
         return;
       }
 
@@ -1110,23 +1116,8 @@ ${productLines.toString().trim()}
       }
 
       if (gtinFromMark == null) {
-        if (!dialogForMark) {
-          dialogForMark = true;
-          await showGeneralDialog(
-            barrierDismissible: false,
-            context: AppNavigation.navigatorKey.currentContext!,
-            pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
-              text: loc.ha.toLowerCase() == 'ha'
-                  ? 'Noto\'g\'ri markirovka kodi! Faqat GS1 DataMatrix formatidagi kod qabul qilinadi.'
-                  : 'Неверный код маркировки! Принимаются только коды в формате GS1 DataMatrix.',
-              text2: 'Ok',
-              delete: false,
-              isFirst: true,
-              provider: this,
-            ),
-          ).then((value) {});
-          dialogForMark = false;
-        }
+        await _showMarkDialog(
+            loc.ha.toLowerCase() == 'ha' ? 'Noto\'g\'ri markirovka kodi! Faqat GS1 DataMatrix formatidagi kod qabul qilinadi.' : 'Неверный код маркировки! Принимаются только коды в формате GS1 DataMatrix.');
         return;
       }
 
@@ -1135,23 +1126,8 @@ ${productLines.toString().trim()}
           .any((b) => b.replaceFirst(RegExp(r'^0+'), '') == gtinFromMark);
 
       if (!barcodeMatches) {
-        if (!dialogForMark) {
-          dialogForMark = true;
-          await showGeneralDialog(
-            barrierDismissible: false,
-            context: AppNavigation.navigatorKey.currentContext!,
-            pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
-              text: loc.ha.toLowerCase() == 'ha'
-                  ? 'Noto\'g\'ri markirovka! Bu markirovka boshqa mahsulotga tegishli.'
-                  : 'Неверная маркировка! Эта маркировка принадлежит другому товару.',
-              text2: 'Ok',
-              delete: false,
-              isFirst: true,
-              provider: this,
-            ),
-          ).then((value) {});
-          dialogForMark = false;
-        }
+        await _showMarkDialog(
+            loc.ha.toLowerCase() == 'ha' ? 'Noto\'g\'ri markirovka! Bu markirovka boshqa mahsulotga tegishli.' : 'Неверная маркировка! Эта маркировка принадлежит другому товару.');
         return;
       }
 
@@ -1183,23 +1159,8 @@ ${productLines.toString().trim()}
         final today = DateTime(
             DateTime.now().year, DateTime.now().month, DateTime.now().day);
         if (expiryDate.isBefore(today)) {
-          if (!dialogForMark) {
-            dialogForMark = true;
-            await showGeneralDialog(
-              barrierDismissible: false,
-              context: AppNavigation.navigatorKey.currentContext!,
-              pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
-                text: loc.ha.toLowerCase() == 'ha'
-                    ? 'Bu mahsulotning muddati tugagan!'
-                    : 'Срок годности этого товара ист�к!',
-                text2: 'Ok',
-                delete: false,
-                isFirst: true,
-                provider: this,
-              ),
-            ).then((value) {});
-            dialogForMark = false;
-          }
+          await _showMarkDialog(
+              loc.ha.toLowerCase() == 'ha' ? 'Bu mahsulotning muddati tugagan!' : 'Срок годности этого товара ист�к!');
           return;
         }
       }
@@ -1218,23 +1179,8 @@ ${productLines.toString().trim()}
         );
 
         if (existingWithMark != -1) {
-          if (!dialogForMark) {
-            dialogForMark = true;
-            await showGeneralDialog(
-              barrierDismissible: false,
-              context: AppNavigation.navigatorKey.currentContext!,
-              pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
-                text: loc.ha.toLowerCase() == 'ha'
-                    ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
-                    : 'Этот отмеченный продукт уже был добавлен ранее!',
-                text2: 'Ok',
-                delete: false,
-                isFirst: true,
-                provider: this,
-              ),
-            ).then((value) {});
-            dialogForMark = false;
-          }
+          await _showMarkDialog(
+              loc.ha.toLowerCase() == 'ha' ? 'Bu markirovkali mahsulot oldin qo\'shilgan!' : 'Этот отмеченный продукт уже был добавлен ранее!');
         } else if (existingNoMark != -1) {
           _currentClient.orderedProducts[existingNoMark].mark = v;
           notifyListeners();
@@ -1266,23 +1212,8 @@ ${productLines.toString().trim()}
                 (e) => e.productId == item.id && e.mark != null && e.mark == v,
               );
               if (alreadyExists) {
-                if (!dialogForMark) {
-                  dialogForMark = true;
-                  await showGeneralDialog(
-                    barrierDismissible: false,
-                    context: AppNavigation.navigatorKey.currentContext!,
-                    pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
-                      text: loc.ha.toLowerCase() == 'ha'
-                          ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
-                          : 'Этот отмеченный продукт уже был добавлен ранее!',
-                      text2: 'Ok',
-                      delete: false,
-                      isFirst: true,
-                      provider: this,
-                    ),
-                  ).then((value) {});
-                  dialogForMark = false;
-                }
+                await _showMarkDialog(
+                    loc.ha.toLowerCase() == 'ha' ? 'Bu markirovkali mahsulot oldin qo\'shilgan!' : 'Этот отмеченный продукт уже был добавлен ранее!');
               } else {
                 addSeperatedProduct(item..mark = v);
               }
@@ -1298,48 +1229,14 @@ ${productLines.toString().trim()}
                 );
 
                 if (alreadyExists) {
-                  if (!dialogForMark) {
-                    dialogForMark = true;
-                    await showGeneralDialog(
-                      barrierDismissible: false,
-                      context: AppNavigation.navigatorKey.currentContext!,
-                      pageBuilder: (f, d, context) {
-                        return ContainsZeroPriceItemDialog(
-                          text: loc.ha.toLowerCase() == 'ha'
-                              ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
-                              : 'Этот отмеченный продукт уже был добавlen ранее!',
-                          text2: 'Ok',
-                          delete: false,
-                          isFirst: true,
-                          provider: this,
-                        );
-                      },
-                    ).then((value) {});
-                    dialogForMark = false;
-                  }
+                  await _showMarkDialog(
+                      loc.ha.toLowerCase() == 'ha' ? 'Bu markirovkali mahsulot oldin qo\'shilgan!' : 'Этот отмеченный продукт уже был добавlen ранее!');
                 } else {
                   addSeperatedProduct(item..mark = v);
                 }
               } else {
-                if (!dialogForMark) {
-                  dialogForMark = true;
-                  await showGeneralDialog(
-                    barrierDismissible: false,
-                    context: AppNavigation.navigatorKey.currentContext!,
-                    pageBuilder: (f, d, context) {
-                      return ContainsZeroPriceItemDialog(
-                        text: loc.ha.toLowerCase() == 'ha'
-                            ? httpResult.result['messageLat']
-                            : httpResult.result['messageRu'],
-                        text2: 'Ok',
-                        provider: this,
-                        delete: false,
-                        isFirst: true,
-                      );
-                    },
-                  ).then((value) {});
-                  dialogForMark = false;
-                }
+                await _showMarkDialog(
+                    loc.ha.toLowerCase() == 'ha' ? httpResult.result['messageLat'] : httpResult.result['messageRu']);
               }
             }
           } catch (e) {
@@ -3577,21 +3474,7 @@ ${productLines.toString().trim()}
       final today = DateTime(
           DateTime.now().year, DateTime.now().month, DateTime.now().day);
       if (expiryDate.isBefore(today)) {
-        if (!dialogForMark) {
-          dialogForMark = true;
-          await showGeneralDialog(
-            barrierDismissible: false,
-            context: AppNavigation.navigatorKey.currentContext!,
-            pageBuilder: (f, d, context) => ContainsZeroPriceItemDialog(
-              text: 'Срок годности этого товара ист�к!',
-              text2: 'Ok',
-              delete: false,
-              isFirst: true,
-              provider: this,
-            ),
-          ).then((value) {});
-          dialogForMark = false;
-        }
+        await _showMarkDialog('Срок годности этого товара ист�к!');
         return; // ← bu dialogForMark dan TASHQARIDA bo'lishi kerak
       }
     }
