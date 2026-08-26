@@ -858,7 +858,15 @@ optimizatsiya qilish TO'XTATILADI.
 - [x] **9.6g — `TaroziLabel`** `d051f60` (+14 test) → 3502
   → `scanWeightItem` / `scanPieceItem` deyarli bir xil edi
 
-**Hozir: 3502 qator, 922 test yashil, analyze 589.**
+- [x] **9.6h — `MarkValidator`** `8e927ee` (+35 test) → 3455
+  → `_markingCheck` ning tarmoqqa borishdan OLDINGI qismi: format, KM ning
+    shu mahsulotga tegishliligi, muddat. Uchala qoida ham sotuvni to'xtatadi
+  → `_markingCheck` 258 → 178 qator
+- [x] **9.6i — `MarkedCart`** `d40e7c4` (+24 test) → 3440
+  → savatdagi KM qidiruvlari OLTI joyda takrorlangan edi
+  → `MarkAction` (addNew / attachToExistingRow / warnDuplicate)
+
+**Hozir: 3440 qator, 981 test yashil, analyze 589.**
 
 ### 9.6 da qayd etilgan xatti-harakatlar (tuzatilmadi)
 
