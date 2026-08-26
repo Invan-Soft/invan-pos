@@ -156,6 +156,7 @@ class OrderingProvider4 extends ChangeNotifier {
         HiveBoxes.getCurrentEmployee!.user?.firstName ?? "Noma'lum xodim",
     posNameOf: () => Pref.getString(PrefKeys.posName, "Noma'lum POS"),
     notifyDeleted: TelegramNotifier.productDeleted,
+    setLastAddedIndex: (i) => _currentClient.lastAddedIndex = i,
   );
 
   String? get _markGroupEditProductId => _cartEdit.markGroupProductId;
@@ -376,53 +377,7 @@ ${productLines.toString().trim()}
 
   void removeLastAdded() {
     LogHelper.activity('CART_REMOVE_LAST', {'index': getLastAddedIndex});
-    bool canDelete = Pref.getBool(PrefKeys.isRedDeleteActivated, false);
-
-    if (canDelete) {
-      if (getLastAddedIndex >= getLastAddedIndex) {
-        final removedId =
-            _currentClient.orderedProducts[getLastAddedIndex].productId;
-        _recordDeletedItem(_currentClient.orderedProducts[getLastAddedIndex]);
-        _currentClient.orderedProducts[getLastAddedIndex].isDeleted = true;
-        _currentClient.lastAddedIndex = 0;
-        if (removedId.isNotEmpty) {
-          final hasRemaining = _currentClient.orderedProducts.any(
-            (e) => e.productId == removedId && !(e.isDeleted ?? false),
-          );
-          if (!hasRemaining) {
-            _showCount.remove(removedId);
-            _showCountFreeGift.remove(removedId);
-          }
-        }
-        _repriceProductRowsByTotalUnits(removedId);
-        _flagOrphanDeletedItemsIfCartEmpty();
-        notifyListeners();
-        return;
-      }
-    } else {
-      try {
-        final removedId =
-            _currentClient.orderedProducts[getLastAddedIndex].productId;
-        _recordDeletedItem(_currentClient.orderedProducts[getLastAddedIndex]);
-        _currentClient.orderedProducts.removeAt(getLastAddedIndex);
-        _currentClient.lastAddedIndex = 0;
-        if (removedId.isNotEmpty) {
-          final hasRemaining = _currentClient.orderedProducts.any(
-            (e) => e.productId == removedId && !(e.isDeleted ?? false),
-          );
-          if (!hasRemaining) {
-            _showCount.remove(removedId);
-            _showCountFreeGift.remove(removedId);
-          }
-        }
-        _repriceProductRowsByTotalUnits(removedId);
-        _flagOrphanDeletedItemsIfCartEmpty();
-        notifyListeners();
-      } catch (e) {
-        return;
-      }
-      return;
-    }
+    _cartEdit.removeLastAdded(getLastAddedIndex);
   }
 
 

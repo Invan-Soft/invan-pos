@@ -38,6 +38,7 @@ class CartEditController {
     required this.currentEmployeeName,
     required this.posNameOf,
     required this.notifyDeleted,
+    required this.setLastAddedIndex,
   });
 
   /// Joriy mijozning savat qatorlari (egalik providerda qoladi).
@@ -70,6 +71,9 @@ class CartEditController {
 
   /// "Qizil o'chirish" rejimi yoqilganmi (qator savatda qoladi).
   final bool Function() isRedDeleteOn;
+
+  /// Savatdagi "oxirgi qo'shilgan" indeksni o'zgartiradi.
+  final void Function(int index) setLastAddedIndex;
 
   /// Joriy kassir ismi — xabarnoma matni uchun.
   final String Function() currentEmployeeName;
@@ -379,5 +383,44 @@ class CartEditController {
       employeeName: employeeName,
       deleteTime: deleteTime,
     );
+  }
+
+  /// "X" tugmasi: oxirgi qo'shilgan qatorni savatdan olib tashlaydi.
+  ///
+  /// Qizil o'chirishda qator ro'yxatda qoladi (`isDeleted`), aks holda
+  /// butunlay chiqadi. Bo'sh savatda indeks noto'g'ri bo'lsa oddiy rejimda
+  /// xato yutiladi — qizil rejimda esa yutilmaydi (asl xatti-harakat).
+  void removeLastAdded(int index) {
+    final redDelete = isRedDeleteOn();
+
+    void applyAfterRemove(String removedId) {
+      setLastAddedIndex(0);
+      if (removedId.isNotEmpty) {
+        final hasRemaining = rows.any(
+          (e) => e.productId == removedId && !(e.isDeleted ?? false),
+        );
+        if (!hasRemaining) clearShowCounts(removedId);
+      }
+      reprice(removedId);
+      flagOrphanDeletedItems();
+      notify();
+    }
+
+    if (redDelete) {
+      final removedId = rows[index].productId;
+      recordDeletedItem(rows[index]);
+      rows[index].isDeleted = true;
+      applyAfterRemove(removedId);
+      return;
+    }
+
+    try {
+      final removedId = rows[index].productId;
+      recordDeletedItem(rows[index]);
+      rows.removeAt(index);
+      applyAfterRemove(removedId);
+    } catch (e) {
+      return;
+    }
   }
 }

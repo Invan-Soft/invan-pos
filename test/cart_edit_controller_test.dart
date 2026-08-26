@@ -50,6 +50,7 @@ class Harness {
     }) async {
       calls.add('notifyDeleted:$productName');
     },
+    setLastAddedIndex: (i) => calls.add('lastAddedIndex:$i'),
   );
 }
 
@@ -368,6 +369,65 @@ void main() {
       h.rows.addAll([mark('m1'), mark('m2')]);
       await h.c.deleteRow(0);
       expect(h.calls.where((e) => e == 'notify').length, 1);
+    });
+  });
+
+  group('removeLastAdded — "X" tugmasi', () {
+    test('oddiy rejimda qator ro\'yxatdan chiqadi', () {
+      final h = Harness();
+      h.rows.addAll([mark('m1'), mark('m2')]);
+      h.c.removeLastAdded(0);
+      expect(h.rows.length, 1);
+      expect(h.calls, contains('record'));
+    });
+
+    test('qizil rejimda qator qoladi (isDeleted)', () {
+      final h = Harness(redDelete: true);
+      h.rows.add(mark('m1'));
+      h.c.removeLastAdded(0);
+      expect(h.rows.length, 1);
+      expect(h.rows[0].isDeleted, isTrue);
+    });
+
+    test('lastAddedIndex nolga tushadi', () {
+      final h = Harness();
+      h.rows.addAll([mark('m1'), mark('m2')]);
+      h.c.removeLastAdded(0);
+      expect(h.calls, contains('lastAddedIndex:0'));
+    });
+
+    test('shu mahsulotdan boshqa qator qolmasa showCount tozalanadi', () {
+      final h = Harness();
+      h.rows.add(mark('m1'));
+      h.c.removeLastAdded(0);
+      expect(h.calls, contains('clearShowCounts:$kPid'));
+    });
+
+    test('shu mahsulotdan qator qolsa showCount tozalanmaydi', () {
+      final h = Harness();
+      h.rows.addAll([mark('m1'), mark('m2')]);
+      h.c.removeLastAdded(0);
+      expect(h.calls, isNot(contains('clearShowCounts:$kPid')));
+    });
+
+    test('qolgan qatorlar qayta narxlanadi va orphan belgilanadi', () {
+      final h = Harness();
+      h.rows.add(mark('m1'));
+      h.c.removeLastAdded(0);
+      expect(h.calls, contains('reprice:$kPid'));
+      expect(h.calls, contains('orphan'));
+    });
+
+    test('bo\'sh savatda oddiy rejim xato bermaydi', () {
+      final h = Harness();
+      expect(() => h.c.removeLastAdded(0), returnsNormally);
+      expect(h.calls, isEmpty);
+    });
+
+    test('QAYD: qizil rejimda bo\'sh savat xato beradi (asl xatti-harakat)',
+        () {
+      final h = Harness(redDelete: true);
+      expect(() => h.c.removeLastAdded(0), throwsA(isA<RangeError>()));
     });
   });
 }
