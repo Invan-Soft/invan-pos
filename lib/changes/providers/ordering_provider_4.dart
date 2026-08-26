@@ -33,6 +33,7 @@ import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
 import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
 import 'package:invan2/changes/domain/cart/sold_item_builder.dart';
+import 'package:invan2/changes/services/onkm_validator.dart';
 import 'package:invan2/changes/domain/marking/mxik_rules.dart';
 import 'package:invan2/changes/domain/terminal/terminal_receipt_parser.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
@@ -1331,47 +1332,20 @@ ${productLines.toString().trim()}
       if (hasInternet) {
         if (Pref.getBool(PrefKeys.markCheckWithOfd, false)) {
           try {
-            final headers = {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'Authorization':
-                  'Basic cmVhY3RNYXJraW5nVXNlcjpkM0BUNypacEwhYU4kOW1R'
-            };
-            final body = {
-              "ownerTin": Pref.getString(PrefKeys.organizationINN, ''),
-              "refund": 0,
-              "products": [
-                {
-                  "kmIds": [v],
-                  "commitentTin": item.commissionTin,
-                  "productCode": item.mxikCode,
-                  "packageCode": item.packageCode,
-                  "amount": 1
-                }
-              ]
-            };
             isLoading = true;
             notifyListeners();
 
-            http.Response response = await http.post(
-              Uri.parse(
-                  "https://tasnif.soliq.uz/api/cl-api/marking/validation-onkm"),
-              body: jsonEncode(body),
-              headers: headers,
+            // So'rov va javobni o'girish `OnkmValidator` da.
+            final http.Response response = await OnkmValidator.validate(
+              item: item,
+              km: v,
+              ownerTin: Pref.getString(PrefKeys.organizationINN, ''),
+              onResponse: alice.onHttpResponse,
             );
-            alice.onHttpResponse(response);
 
-            HttpResult httpResult = HttpResult(
-                statusCode: 1, isSuccess: false, result: null, reBytes: null);
+            HttpResult httpResult = OnkmValidator.toResult(response);
 
-            if (response.statusCode == 200) {
-              httpResult = HttpResult(
-                statusCode: response.statusCode,
-                isSuccess: true,
-                result: jsonDecode(utf8.decode(response.bodyBytes)),
-                reBytes: null,
-              );
-            } else if (response.statusCode == 500) {
+            if (response.statusCode == 500) {
               final alreadyExists = _currentClient.orderedProducts.any(
                 (e) => e.productId == item.id && e.mark != null && e.mark == v,
               );
