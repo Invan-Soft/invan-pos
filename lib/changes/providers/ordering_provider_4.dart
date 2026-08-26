@@ -39,6 +39,7 @@ import 'package:invan2/changes/domain/cart/marked_row_builder.dart';
 import 'package:invan2/changes/domain/cart/sold_item_builder.dart';
 import 'package:invan2/changes/services/onkm_validator.dart';
 import 'package:invan2/changes/domain/marking/mark_validator.dart';
+import 'package:invan2/changes/domain/marking/marked_cart.dart';
 import 'package:invan2/changes/domain/marking/mxik_rules.dart';
 import 'package:invan2/changes/domain/terminal/terminal_receipt_parser.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
@@ -1031,23 +1032,17 @@ class OrderingProvider4 extends ChangeNotifier {
 
     if (!dialogForMark) {
       if (!Pref.getBool('validation_onkm', true)) {
-        final existingWithMark = _currentClient.orderedProducts.indexWhere(
-          (e) =>
-              !(e.isDeleted ?? false) &&
-              e.mark != null &&
-              e.mark!.isNotEmpty &&
-              e.mark == v,
-        );
+        final action = MarkedCart.decideWithoutOnkm(
+            _currentClient.orderedProducts, item.id, v);
 
-        final existingNoMark = _currentClient.orderedProducts.indexWhere(
-          (e) => e.productId == item.id && (e.mark == null || e.mark!.isEmpty),
-        );
-
-        if (existingWithMark != -1) {
+        if (action == MarkAction.warnDuplicate) {
           await _showMarkDialog(
               loc.ha.toLowerCase() == 'ha' ? 'Bu markirovkali mahsulot oldin qo\'shilgan!' : 'Этот отмеченный продукт уже был добавлен ранее!');
-        } else if (existingNoMark != -1) {
-          _currentClient.orderedProducts[existingNoMark].mark = v;
+        } else if (action == MarkAction.attachToExistingRow) {
+          _currentClient
+              .orderedProducts[MarkedCart.indexOfWithoutMark(
+                  _currentClient.orderedProducts, item.id)]
+              .mark = v;
           notifyListeners();
         } else {
           addSeperatedProduct(item..mark = v);
@@ -1073,10 +1068,8 @@ class OrderingProvider4 extends ChangeNotifier {
             HttpResult httpResult = OnkmValidator.toResult(response);
 
             if (response.statusCode == 500) {
-              final alreadyExists = _currentClient.orderedProducts.any(
-                (e) => e.productId == item.id && e.mark != null && e.mark == v,
-              );
-              if (alreadyExists) {
+              if (MarkedCart.hasMark(
+                  _currentClient.orderedProducts, item.id, v)) {
                 await _showMarkDialog(
                     loc.ha.toLowerCase() == 'ha' ? 'Bu markirovkali mahsulot oldin qo\'shilgan!' : 'Этот отмеченный продукт уже был добавлен ранее!');
               } else {
@@ -1088,12 +1081,8 @@ class OrderingProvider4 extends ChangeNotifier {
 
             if (httpResult.isSuccess) {
               if (httpResult.result['success']) {
-                final alreadyExists = _currentClient.orderedProducts.any(
-                  (e) =>
-                      e.productId == item.id && e.mark != null && e.mark == v,
-                );
-
-                if (alreadyExists) {
+                if (MarkedCart.hasMark(
+                    _currentClient.orderedProducts, item.id, v)) {
                   await _showMarkDialog(
                       loc.ha.toLowerCase() == 'ha' ? 'Bu markirovkali mahsulot oldin qo\'shilgan!' : 'Этот отмеченный продукт уже был добавlen ранее!');
                 } else {
@@ -1123,10 +1112,8 @@ class OrderingProvider4 extends ChangeNotifier {
             }
           }
         } else {
-          int i = _currentClient.orderedProducts.indexWhere(
-            (e) => e.productId == item.id && e.mark == item.mark,
-          );
-          if (i == -1) {
+          if (!MarkedCart.hasMark(
+              _currentClient.orderedProducts, item.id, v)) {
             addSeperatedProduct(item..mark = v);
           } else {
             if (!dialogForMark) {
@@ -1177,10 +1164,8 @@ class OrderingProvider4 extends ChangeNotifier {
                 );
               }).then((value) {});
         }
-        int i = _currentClient.orderedProducts.indexWhere(
-          (e) => e.productId == item.id && e.mark == item.mark,
-        );
-        if (i == -1) {
+        if (!MarkedCart.hasMark(
+            _currentClient.orderedProducts, item.id, v)) {
           addSeperatedProduct(item..mark = v);
         } else {
           if (!dialogForMark) {
