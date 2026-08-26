@@ -2,7 +2,7 @@
 
 **Boshlangan:** 2026-08-05
 **Holat:** in-progress (Faza 0-8 do'konda tasdiqlangan, Faza 9 rejalashtirilmoqda)
-**Oxirgi ish:** 2026-08-26, Faza 9.5 tugadi — **4000 qator maqsadi bajarildi** (do'kon sinovi kutilmoqda)
+**Oxirgi ish:** 2026-08-26, Faza 9.6 ketmoqda — yangi maqsad **3000 qator**
 **Branch:** refactor/ordering-split-2 (ayyubxon'dan, push qilinmagan)
 **Branch:** refactor/ordering-split (ayyubxon'dan)
 
@@ -832,6 +832,60 @@ delegatsiya ustiga izoh (yana inline qilinmasligi uchun) + 6 ta yangi test
 
 **Saboq:** ajratilgan modul faqat yangi ishlar uni ISHLATGANDA saqlanadi.
 Bitta feature commiti chetlab o'tsa, kod jimgina qaytib keladi.
+
+### FAZA 9.6 (2026-08-26) — yangi maqsad: 3000 qator
+
+Foydalanuvchi yangi maqsad qo'ydi: **~3000 qator**, keyin bu faylni
+optimizatsiya qilish TO'XTATILADI.
+
+- [x] **Izohlar tozalandi** `e0d871e` — 354 → 220 qator
+  → bezak chiziqlar (51), refaktoring tarixi (30), kodni takrorlaydiganlar (53)
+  → SAQLANDI: xatolar tarixi va biznes qoidalari. 100 gacha tushirilmadi —
+    qolgani `_createSoldItem` ustidagi "inline qilma" kabi ogohlantirishlar
+  → Faqat izoh qatorlari o'chdi (git diff bilan tasdiqlandi)
+
+- [x] **9.6a — markirovka dialogi bitta helperga** `2324ceb` → 3733
+  → `_showMarkDialog`; 9 ta AYNAN bir xil 15 qatorlik blok bitta chaqiruvga
+
+- [x] **9.6b — `UtsenkaQr`** `1e452d8` (+18 test) → 3713
+- [x] **9.6c — `removeLastAdded` → CartEditController** `b90fabe` (+8) → 3668
+- [x] **9.6d — chek bekor xabari → TelegramNotifier** `428387a` → 3644
+- [x] **9.6e — qo'shishdan keyingi diskont dialoglari umumiy helperga**
+  `4d70440` → 3580
+  → `addProduct` va `addSeperatedProduct` da BIR XIL ~65 qatorlik ketma-ketlik
+    bor edi; qoida o'zgarsa ikkala nusxani yangilash kerak edi
+- [x] **9.6f — `BoxRowBuilder`** `43c30a8` (+17 test) → 3529
+- [x] **9.6g — `TaroziLabel`** `d051f60` (+14 test) → 3502
+  → `scanWeightItem` / `scanPieceItem` deyarli bir xil edi
+
+**Hozir: 3502 qator, 922 test yashil, analyze 589.**
+
+### 9.6 da qayd etilgan xatti-harakatlar (tuzatilmadi)
+
+- **`dialogForMark` qaytarilmasligi:** 4 ta dialog bloki bayroqni `true`
+  qo'yadi, lekin HECH QACHON `false` ga qaytarmaydi (tarmoq xatosi,
+  "oldin qo'shilgan" ×2, oflayn-rejim tasdiqlash). Shundan keyin KEYINGI
+  barcha markirovka dialoglari jimgina ko'rsatilmaydi. Aynan shu sababli
+  ular umumiy helperga o'tkazilmadi. **Alohida bug-fix kerak.**
+- `removeLastAdded` da `if (getLastAddedIndex >= getLastAddedIndex)` — har
+  doim true edi, olib tashlandi (ehtimol `>= 0` bo'lishi kerak edi)
+- `getBuyXGetXDiscountsOnly` ichkarida `forDialogOnly: true` ni qotirib
+  chaqiradi — o'z parametri e'tiborga olinmaydi
+
+### 3000 GACHA QOLGANI — qaror kerak
+
+Qiymatli (takrorlanish/testlanadigan qoida) ajratishlar **TUGADI**. Qolgan
+~500 qator faqat orkestratsiya ko'chirish, ya'ni **shakl** beradi, sifat emas:
+
+| Zona | Qator | Izoh |
+|---|---|---|
+| `_markingCheck` | 258 | dialog orkestratori, 12 dialog |
+| `onBarcodeScanned` | ~150 | sof marshrutlash |
+| `addProduct` | ~130 | dialoglar bilan o'ralashgan |
+| `addSeperatedProduct` | ~90 | shu holatda |
+
+Ularni ko'chirish uchun 8-10 ta callback kerak bo'ladi va testlanish
+qobiliyati OSHMAYDI — kod baribir `BuildContext` talab qiladi.
 
 ### QOLGANLARI — refaktoring qilinmaydi
 
