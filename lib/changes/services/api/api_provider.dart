@@ -20,11 +20,11 @@ class ApiProvider {
   static const imageUrlPro = 'https://cdn.7i.uz/file/';
   static const INVAN2DEV = 'https://dev.api.7i.uz/';
   static const INVAN2PRO = 'https://api.7i.uz/';
-  static const baseUrlINVAN2 = INVAN2PRO;
-  static const imageUrl = imageUrlPro;
+  // static const baseUrlINVAN2 = INVAN2PRO;
+  // static const imageUrl = imageUrlPro;
 
-  // static const baseUrlINVAN2 = INVAN2DEV;
-  // static const imageUrl = imageUrlDev;
+  static const baseUrlINVAN2 = INVAN2DEV;
+  static const imageUrl = imageUrlDev;
 
   static const String envPro = 'pro';
   static const String envDev = 'dev';

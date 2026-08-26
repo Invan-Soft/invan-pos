@@ -566,16 +566,10 @@ ${productLines.toString().trim()}
       bool isShowBuyXGetX = false;
       String buyXGetXText = "";
 
-      final potentialBuyXGetX = DiscountSingleton.getBuyXGetXDiscounts(
-        _currentClient.orderedProducts,
-        getClientGroupId,
-        forDialogOnly: true,
-      );
-
-      final actualBuyXGetX = DiscountSingleton.getBuyXGetXDiscounts(
-        _currentClient.orderedProducts,
-        getClientGroupId,
-      );
+      // QAYD: bu yerda `getBuyXGetXDiscounts` ikki marta (forDialogOnly bilan
+      // va usiz) chaqirilardi, natijalar esa hech qayerda ishlatilmasdi.
+      // Helper savatni o'zgartirmaydi — faqat o'qiydi, shuning uchun ikkala
+      // chaqiruv ham olib tashlandi.
       ReturnedGiftX? buyXGetXItem = _returnedBuyXGetX.firstWhereOrNull(
         (g) => g.getProduct?.id == product.id,
       );
@@ -2729,12 +2723,6 @@ ${productLines.toString().trim()}
     _clickPassPaid = false;
     _paymePaid = false;
     PaynetService.paymentId = null;
-    ////////////////////////////////////////
-    _cardEnabled = Pref.getBool(PrefKeys.cardEnabled, false);
-    _cashEnabled = Pref.getBool(PrefKeys.cashEnabled, false);
-    _giftEnabled = Pref.getBool(PrefKeys.giftEnabled, false);
-    _nfcEnabled = Pref.getBool(PrefKeys.nfcEnabled, false);
-    _debtEnabled = Pref.getBool(PrefKeys.debtEnabled, false);
   }
 
   late bool _paymentInProgress;
@@ -2779,13 +2767,6 @@ ${productLines.toString().trim()}
   set _isButtonEnabled(bool v) => _tally.isButtonEnabled = v;
   bool _isOfdWithOfd = false;
   bool _isChangeToCashback = false;
-
-/////////////////////////////////////////////////////////////////////
-  bool _cardEnabled = Pref.getBool(PrefKeys.cardEnabled, false);
-  bool _cashEnabled = Pref.getBool(PrefKeys.cashEnabled, false);
-  bool _giftEnabled = Pref.getBool(PrefKeys.giftEnabled, false);
-  bool _nfcEnabled = Pref.getBool(PrefKeys.nfcEnabled, false);
-  bool _debtEnabled = Pref.getBool(PrefKeys.debtEnabled, false);
 
 /////////////////////////////////////////////////////////////////////
 ///////////////   GETTERS   /////////////////////////////////////////
