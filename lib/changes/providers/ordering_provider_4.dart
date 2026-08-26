@@ -32,6 +32,7 @@ import 'package:invan2/changes/dialogs/terminal_error_dialog.dart';
 import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
 import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
+import 'package:invan2/changes/domain/cart/invoice_row_builder.dart';
 import 'package:invan2/changes/domain/cart/sold_item_builder.dart';
 import 'package:invan2/changes/services/onkm_validator.dart';
 import 'package:invan2/changes/domain/marking/mxik_rules.dart';
@@ -696,53 +697,8 @@ ${productLines.toString().trim()}
               continue;
             }
 
-            double selectedPrice = 0;
-            if (item.prices.isNotEmpty) {
-              item.prices
-                  .sort((a, b) => b.minQuantity.compareTo(a.minQuantity));
-              selectedPrice = item.prices.first.price;
-            }
-            if (selectedPrice <= 0) {
-              final isKg = product.measurementUnit?.shortName == 'кг' ||
-                  product.measurementUnit?.shortName == 'kg';
-              selectedPrice =
-                  ItemsSingleton.finalPrice(product, 1, isKg).toDouble();
-            }
-
-            final soldItem = ReceiptModelSoldItem4(
-              productId: product.id ?? '',
-              productName: item.productName,
-              barcode: product.barcode?.isNotEmpty == true
-                  ? product.barcode!.first
-                  : '',
-              sku: int.tryParse(product.sku ?? '0') ?? 0,
-              value: item.expectedAmount.toDouble(),
-              price: selectedPrice,
-              realPrice: selectedPrice,
-              onlyPrice: selectedPrice,
-              isKg: _isKg(product),
-              isDeleted: false,
-              discountPercent: 0,
-              singleDiscount: 0,
-              vatPercent: product.vat?.percentage?.toDouble() ?? 12,
-              mxik: product.mxikCode ?? '',
-              packageCode: product.packageCode ?? '',
-              marking: MxikRules.isProductMarkable(product),
-              createdTime: DateTime.now().millisecondsSinceEpoch,
-              cost: item.cost,
-              ownerType: product.ownerType != null
-                  ? int.tryParse(product.ownerType!) ?? 1
-                  : 1,
-              tin: product.commissionTin ?? '',
-              soldBy: product.categories?.isNotEmpty == true
-                  ? product.categories!.first.id ?? ''
-                  : '',
-              inBox: 0,
-              vat: product.vat?.percentage?.toDouble() ?? 0,
-              vatName: product.vat?.name ?? "",
-              sellerId: "",
-            );
-
+            // Invoice qatoridan savat qatori yasash `InvoiceRowBuilder` da.
+            final soldItem = InvoiceRowBuilder.build(item, product);
             _currentClient.orderedProducts.insert(0, soldItem);
           }
 
