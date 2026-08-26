@@ -187,19 +187,11 @@ class OrderingProvider4 extends ChangeNotifier {
   final int _amountActions = 0;
   double _newClientPersentageDiscount = 0;
   bool _alcoholWarningShown = false;
-  bool _cashsaleWarningShown = false; // cashsale==0 uchun
-  bool _bigTotalWarningShown = false; // cashsale==1 + total > 25M uchun
+  bool _cashsaleWarningShown = false;
+  bool _bigTotalWarningShown = false;
 
-  /// Egasiz qolgan deleted_items yozuvlari.
-  /// `deletedItems` mijoz slotining (SixClientModel4) ichida yashaydi, lekin
-  /// savati bo'shab qolgan slot ro'yxatdan chiqarilishi mumkin
-  /// (`_clearEmptyClients`) — o'shanda yozuvlar slot bilan birga yo'qolardi.
-  /// Endi ular shu ro'yxatga ko'chiriladi va keyingi YAKUNLANGAN sotuv bilan
-  /// serverga ketadi (check_number = "-", ya'ni hech qaysi chekka tegishli
-  /// emas — "qo'shildi-o'chirildi, sotilmadi").
   final List<DeletedItemModel4> _orphanDeletedItems = [];
 
-  /* //////////////////////// PROVIDER GETTERS //////////////////////// */
 
   OrderingProvider4() {
     DiscountService.onDiscountsCleared = clearAllDiscountEffects;
@@ -233,8 +225,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
   List<SixClientModel4> get getSixClient4List => _sixClient4List;
 
-  /// Slot o'chirilganda saqlab qolingan, hali chekka biriktirilmagan
-  /// deleted_items yozuvlari (test va diagnostika uchun).
   List<DeletedItemModel4> get getOrphanDeletedItems => _orphanDeletedItems;
 
   int get getLastAddedIndex => _currentClient.lastAddedIndex;
@@ -246,8 +236,6 @@ class OrderingProvider4 extends ChangeNotifier {
   List<ReceiptModelSoldItem4> get getCurrentClientOrderedProducts =>
       _currentClient.orderedProducts;
 
-
-  /* //////////////////////// PROVIDER SETTERS //////////////////////// */
 
   setNewClientDiscountPercentage(double percentage) {
     _newClientPersentageDiscount = percentage;
@@ -359,7 +347,6 @@ class OrderingProvider4 extends ChangeNotifier {
     _cartEdit.removeLastAdded(getLastAddedIndex);
   }
 
-
   void addProduct(
       {required double value,
       required ItemModel product,
@@ -367,9 +354,6 @@ class OrderingProvider4 extends ChangeNotifier {
       required BuildContext context,
       bool isTarozi = false}) async {
     try {
-      // Xizmat vaqti: birinchi mahsulot qo'shilgan payt start hisoblanadi;
-      // slot uchun start allaqachon bor bo'lsa (savat sotuvsiz tozalangan
-      // bo'lsa ham) tegilmaydi — faqat sotuv yakunida tozalanadi.
       CashierServiceTimeService.instance
           .onProductAdded(_currentClient.clientNumber);
 
@@ -416,8 +400,6 @@ class OrderingProvider4 extends ChangeNotifier {
         await _handleRegularProduct(context, product, value, price, isKg);
       }
 
-      // Mahsulotning qo'lda o'zgartirilgan narxi bo'lsa — yangi skan ham shu
-      // manual narxni oladi; aks holda tier savatdagi umumiy son bo'yicha.
       if (!_applyExistingManualPrice(product.id)) {
         _repriceProductRowsByTotalUnits(product.id);
       }
@@ -486,8 +468,7 @@ class OrderingProvider4 extends ChangeNotifier {
         markingSaleOn: Pref.getBool(PrefKeys.sellProductsWithMarking, true),
       );
 
-  bool get isCashHiddenByCashsale =>
-      CashRestrictionRules.cashHiddenByCashsale(
+  bool get isCashHiddenByCashsale => CashRestrictionRules.cashHiddenByCashsale(
         _currentClient.orderedProducts,
         ofdOn: Pref.getBool(PrefKeys.markCheckWithOfd, true),
         cashsaleCheckOn: Pref.getBool('checkProductByCashsale', true),
@@ -505,6 +486,7 @@ class OrderingProvider4 extends ChangeNotifier {
     _bigTotalWarningShown = false;
     notifyListeners();
   }
+
   Future<void> loadInvoiceByBarcodeWithBloc({
     required String barcode,
     required BuildContext context,
@@ -597,13 +579,12 @@ class OrderingProvider4 extends ChangeNotifier {
     if (isMxikOrPackageInvalid) {
       _currentClient.orderedProducts.removeAt(_currentClient.lastAddedIndex);
       await _showMxikPackageDialog(context);
-      return; // ← RETURN qo'shildi, marking() ga o'tmasin
+      return;
     }
 
     await marking(context, product);
   }
 
-  /// Utsenka QR dan savat qatori. Kod tahlili `UtsenkaQr` da.
   ReceiptModelSoldItem4? _parseUtsenkaQr(String barcode) {
     final offer = UtsenkaQr.parse(barcode);
     if (offer == null) return null;
@@ -620,11 +601,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
   Future<void> _handleRegularProduct(BuildContext context, ItemModel product,
       double value, double price, bool isKg) async {
-    // Bir xil product qayta qo'shilsa bitta qatorga birlashadi.
-    // Qo'lda narxi override qilingan qatorlar (isPriceOnlyChanged) ham birlashadi —
-    // _updateExistingProduct ularning onlyPrice'ini saqlaydi (qayta hisoblamaydi).
-    // FAQAT haqiqiy chegirmali/utsenka qatorlar (singleDiscount > 0) alohida qoladi,
-    // aks holda ularning markdown narxi yangi qo'shishga "yuqib" ketardi.
     final existingIndex = _currentClient.orderedProducts.indexWhere((e) =>
         e.productId == product.id &&
         e.saleType != 2 &&
@@ -687,7 +663,6 @@ class OrderingProvider4 extends ChangeNotifier {
   }
 
   void _applyDiscounts(ItemModel product, ReceiptModelSoldItem4 soldItem) {
-    // Agar narx qo'lda o'zgartirilgan bo'lsa — discount qo'shma
     if (soldItem.isPriceOnlyChanged) return;
 
     final categoryId = product.categories?.isNotEmpty == true
@@ -730,7 +705,7 @@ class OrderingProvider4 extends ChangeNotifier {
 
     if (isPriceZero) {
       await _showZeroPriceDialog(context);
-      return true; // narxi 0/qo'yilmagan — dialog ko'rsatamiz, basketga QO'SHMAYMIZ
+      return true;
     }
 
     if (isMxikOrPackageInvalid) {
@@ -761,11 +736,6 @@ class OrderingProvider4 extends ChangeNotifier {
     );
   }
 
-  /// Savat qatori yasash `SoldItemBuilder` da.
-  /// DIQQAT: bu delegatsiyani inline qilib yozib qo'ymang. 2026-08-12 da
-  /// shunday bo'lgan edi va `marking` bayrog'i OFD tekshiruvisiz eski holiga
-  /// qaytib qolgan — OFD o'chiq bo'lsa ham qator markirovka guruhi bo'lib,
-  /// kassir qty ni na oshira, na kamaytira olardi.
   ReceiptModelSoldItem4 _createSoldItem(
           ItemModel product, double price, double value, bool isKg) =>
       SoldItemBuilder.build(product, price, value, isKg);
@@ -799,7 +769,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
   set _freeGiftDialogCount(int v) => _discountFx.freeGiftDialogCount = v;
 
-
   void findFreeProducts() => _discountFx.findFreeProducts(
       _currentClient.orderedProducts, getClientGroupId);
 
@@ -815,8 +784,8 @@ class OrderingProvider4 extends ChangeNotifier {
   void _resetItemDiscount(ReceiptModelSoldItem4 item) =>
       _discountFx.resetItemDiscount(item);
 
-  num _totalPriceForAllProduct() =>
-      DiscountEffectsController.totalPriceForAll(_currentClient.orderedProducts);
+  num _totalPriceForAllProduct() => DiscountEffectsController.totalPriceForAll(
+      _currentClient.orderedProducts);
 
   bool isMarkingDialogDisplaying = false;
   bool isMarkingChecking = false;
@@ -892,10 +861,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
   bool dialogForMark = false;
 
-  /// Markirovka oqimidagi ogohlantirish dialogi.
-  ///
-  /// Bir vaqtda faqat BITTA dialog ochiladi: `dialogForMark` qayta kirishni
-  /// bloklaydi. Ilgari bu blok bir necha joyda so'zma-so'z takrorlangan edi.
   Future<void> _showMarkDialog(String message) async {
     if (dialogForMark) return;
     dialogForMark = true;
@@ -920,11 +885,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
   bool dialogForDiscount = false;
 
-  /// Mahsulot savatga qo'shilgandan keyingi diskont dialoglari.
-  ///
-  /// Har mahsulot uchun BIR MARTA ko'rsatiladi (`_showCount` /
-  /// `_showCountFreeGift` hisoblagichlari). Oxirida tekin mahsulot
-  /// effektlari savatga qo'llanadi.
   Future<void> _showPostAddDiscountDialogs(
       BuildContext context, ItemModel product) async {
     final loc =
@@ -994,18 +954,12 @@ class OrderingProvider4 extends ChangeNotifier {
   }
 
   Future<void> _markingCheck(
-      ItemModel item,
-      String v,
-      BuildContext context) async {
-    // Asl kodda butun tana `if (!dialogForMark)` ichida edi — dialog ochiq
-    // bo'lsa metod hech narsa qilmaydi.
+      ItemModel item, String v, BuildContext context) async {
     if (dialogForMark) return;
 
     final AppLocalizations loc = AppLocalizations.of(context)!;
     final bool isUz = loc.ha.toLowerCase() == 'ha';
 
-    // Tarmoqqa borishdan oldingi mahalliy tekshiruvlar `MarkValidator` da:
-    // format, KM ning shu mahsulotga tegishliligi va muddati.
     final check = MarkValidator.validate(v, item);
     v = check.mark;
     item.mark = v;
@@ -1036,8 +990,9 @@ class OrderingProvider4 extends ChangeNotifier {
             _currentClient.orderedProducts, item.id, v);
 
         if (action == MarkAction.warnDuplicate) {
-          await _showMarkDialog(
-              loc.ha.toLowerCase() == 'ha' ? 'Bu markirovkali mahsulot oldin qo\'shilgan!' : 'Этот отмеченный продукт уже был добавлен ранее!');
+          await _showMarkDialog(loc.ha.toLowerCase() == 'ha'
+              ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
+              : 'Этот отмеченный продукт уже был добавлен ранее!');
         } else if (action == MarkAction.attachToExistingRow) {
           _currentClient
               .orderedProducts[MarkedCart.indexOfWithoutMark(
@@ -1070,8 +1025,9 @@ class OrderingProvider4 extends ChangeNotifier {
             if (response.statusCode == 500) {
               if (MarkedCart.hasMark(
                   _currentClient.orderedProducts, item.id, v)) {
-                await _showMarkDialog(
-                    loc.ha.toLowerCase() == 'ha' ? 'Bu markirovkali mahsulot oldin qo\'shilgan!' : 'Этот отмеченный продукт уже был добавлен ранее!');
+                await _showMarkDialog(loc.ha.toLowerCase() == 'ha'
+                    ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
+                    : 'Этот отмеченный продукт уже был добавлен ранее!');
               } else {
                 addSeperatedProduct(item..mark = v);
               }
@@ -1083,14 +1039,16 @@ class OrderingProvider4 extends ChangeNotifier {
               if (httpResult.result['success']) {
                 if (MarkedCart.hasMark(
                     _currentClient.orderedProducts, item.id, v)) {
-                  await _showMarkDialog(
-                      loc.ha.toLowerCase() == 'ha' ? 'Bu markirovkali mahsulot oldin qo\'shilgan!' : 'Этот отмеченный продукт уже был добавlen ранее!');
+                  await _showMarkDialog(loc.ha.toLowerCase() == 'ha'
+                      ? 'Bu markirovkali mahsulot oldin qo\'shilgan!'
+                      : 'Этот отмеченный продукт уже был добавlen ранее!');
                 } else {
                   addSeperatedProduct(item..mark = v);
                 }
               } else {
-                await _showMarkDialog(
-                    loc.ha.toLowerCase() == 'ha' ? httpResult.result['messageLat'] : httpResult.result['messageRu']);
+                await _showMarkDialog(loc.ha.toLowerCase() == 'ha'
+                    ? httpResult.result['messageLat']
+                    : httpResult.result['messageRu']);
               }
             }
           } catch (e) {
@@ -1112,8 +1070,7 @@ class OrderingProvider4 extends ChangeNotifier {
             }
           }
         } else {
-          if (!MarkedCart.hasMark(
-              _currentClient.orderedProducts, item.id, v)) {
+          if (!MarkedCart.hasMark(_currentClient.orderedProducts, item.id, v)) {
             addSeperatedProduct(item..mark = v);
           } else {
             if (!dialogForMark) {
@@ -1164,8 +1121,7 @@ class OrderingProvider4 extends ChangeNotifier {
                 );
               }).then((value) {});
         }
-        if (!MarkedCart.hasMark(
-            _currentClient.orderedProducts, item.id, v)) {
+        if (!MarkedCart.hasMark(_currentClient.orderedProducts, item.id, v)) {
           addSeperatedProduct(item..mark = v);
         } else {
           if (!dialogForMark) {
@@ -1226,8 +1182,6 @@ class OrderingProvider4 extends ChangeNotifier {
       }
     }
 
-    // Basketdagi shu productlar soni + 1 (yangi qo'shilayotgan)
-    // Box itemlar (saleType==2) narx hisobiga kirmaydi — ular alohida logikada
     final existingCount = _currentClient.orderedProducts
         .where((e) =>
             e.productId == freshProduct.id &&
@@ -1252,8 +1206,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
     _currentClient.orderedProducts.insert(0, soldItem);
 
-    // Umumiy son (dona + blok donalari) bo'yicha tier — barcha qatorlar
-    // qayta narxlanadi va product/category chegirmalari qayta qo'llanadi
     if (!_applyExistingManualPrice(freshProduct.id)) {
       _repriceProductRowsByTotalUnits(freshProduct.id);
     }
@@ -1265,11 +1217,10 @@ class OrderingProvider4 extends ChangeNotifier {
     isTpEdited = false;
     notifyListeners();
 
-
     await _showPostAddDiscountDialogs(
         AppNavigation.navigatorKey.currentContext!, freshProduct);
     notifyListeners();
-  } // ✅ Yangi method: bir xil productId dagi barcha marklarni qayta narxlash
+  }
 
   void _repriceProductRowsByTotalUnits(String? productId) =>
       RowRepricer.byTotalUnits(_currentClient.orderedProducts, productId,
@@ -1304,8 +1255,6 @@ class OrderingProvider4 extends ChangeNotifier {
     final rawBoxValue = freshProduct.boxBarcodeQuantity;
     final boxValue =
         (rawBoxValue == null || rawBoxValue == 0) ? 1 : rawBoxValue.toInt();
-    // Tier narx blok ichidagi dona soni bo'yicha tanlanadi: 6 talik blok
-    // "4+ dona" tier'iga tushsa, har bir dona o'sha tier narxida hisoblanadi.
     final unitPrice =
         ItemsSingleton.finalPrice(freshProduct, boxValue, isKg).toDouble();
     final boxPrice = unitPrice * boxValue;
@@ -1337,8 +1286,6 @@ class OrderingProvider4 extends ChangeNotifier {
       }
     }
 
-    // Umumiy son (dona + blok donalari) bo'yicha tier — shu productning barcha
-    // qatorlari (avvalgi dona qatorlari ham) qayta narxlanadi
     if (!_applyExistingManualPrice(freshProduct.id)) {
       _repriceProductRowsByTotalUnits(freshProduct.id);
     }
@@ -1355,7 +1302,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
     notifyListeners();
   }
-
 
   void tapIndexToEdit(int i) {
     _tappedIndexToEdit = i;
@@ -1377,25 +1323,17 @@ class OrderingProvider4 extends ChangeNotifier {
     _boxGroupEditProductId = null;
   }
 
-  /// [approvedBy] — qty kamaytirishga PIN bilan ruxsat bergan xodim
-  /// (OPD dialogida "−" bosilganda so'raladi). deleted_by da o'sha ketadi.
   Future<void> pressDialogSaveButton(ReceiptModelSoldItem4 item,
       {Employee? approvedBy}) async {
-    // Blok guruhi tahriri: butun blok guruhiga qo'llaymiz (qty kamaytirish =
-    // eng yangi bloklarni o'chirish, narx o'zgarishi = butun mahsulotga).
     if (_boxGroupEditProductId != null) {
       await _saveBoxGroup(item, approvedBy: approvedBy);
       return;
     }
-    // Markirovka guruhi tahriri: butun guruhga qo'llaymiz (qty kamaytirish =
-    // eng yangi markalarni o'chirish, narx o'zgarishi = barcha markalarga).
     if (_markGroupEditProductId != null) {
       await _saveMarkGroup(item, approvedBy: approvedBy);
       return;
     }
     if (item.value > 0) {
-      // Qty kamaytirilsa (masalan 3 → 2) farq ham o'chirilgan hisoblanadi —
-      // deleted_items ga eski narx bilan yoziladi.
       final oldItem = _currentClient.orderedProducts[_tappedIndexToEdit];
       if (item.value < oldItem.value) {
         _recordDeletedItem(oldItem,
@@ -1403,14 +1341,10 @@ class OrderingProvider4 extends ChangeNotifier {
       }
       _currentClient.orderedProducts[_tappedIndexToEdit] = item;
 
-      // Narx SHU tahrirda qo'lda o'zgartirilgan bo'lsa, mahsulotning boshqa
-      // qatorlariga ham sinxronlaymiz (blok ⇄ dona, bitta dona narx bazasida).
       if (item.isPriceOnlyChanged && item.price != oldItem.price) {
         _syncManualPriceAcrossProductRows(item);
       }
 
-      // Qty o'zgargach tier savatdagi umumiy son bo'yicha qayta tanlanadi va
-      // product/category discount qayta qo'llanadi (manual narx saqlanadi).
       _repriceProductRowsByTotalUnits(item.productId);
     } else {
       pressDialogDeleteButton(approvedBy: approvedBy);
@@ -1463,8 +1397,6 @@ class OrderingProvider4 extends ChangeNotifier {
       DeletedItemRecorder.flagOrphansIfCartEmpty(
           _currentClient.orderedProducts, _currentClient.deletedItems);
 
-  /// [approvedBy] — PIN kodi bilan o'chirishga ruxsat bergan xodim (kassirda
-  /// `deletePrice` ruxsati bo'lmaganda so'raladi). deleted_by da o'sha ketadi.
   void pressDialogDeleteButton({Employee? approvedBy}) async {
     LogHelper.activity('CART_DELETE_ITEM', {'editIndex': _tappedIndexToEdit});
     if (_boxGroupEditProductId != null) {
@@ -1492,7 +1424,7 @@ class OrderingProvider4 extends ChangeNotifier {
 
       final currentCount = _showCount[productId] ?? 0;
 
-      if (currentCount >= 1) continue; // allaqachon chiqqan – o'tkaz
+      if (currentCount >= 1) continue;
 
       if (_totalPriceForAllProduct() > gift.buyAmount) {
         String buyAmount = MoneyFormatter.formatter.format(gift.buyAmount);
@@ -1531,20 +1463,9 @@ class OrderingProvider4 extends ChangeNotifier {
     }
   }
 
-  /// Mijoz savatga qo'shilganda (QR scan / person-icon qidiruv orqali)
-  /// diskontlarni qayta hisoblaydi va diskont dialoglarini ko'rsatadi.
-  /// Muammo: diskontlar `getClientGroupId` bo'yicha filtrlanadi. Maxsus
-  /// mijozlar uchun yaratilgan diskont (masalan Free Gift "50k dan oshsa")
-  /// savat allaqachon shartni qondirgan bo'lsa ham, mijoz tanlanganda
-  /// dialog chiqmasdi — faqat keyingi product urilganda `addProduct`
-  /// oqimi orqali chiqardi. Bu metod o'sha oqimni mijoz tanlangan zahoti
-  /// yangi product urilishini kutmasdan ishga tushiradi.
   Future<void> recheckDiscountsAfterClientChanged() async {
     if (_currentClient.orderedProducts.isEmpty) return;
 
-    // 1. Product/Category chegirmalarini yangi client group bilan qayta
-    //    qo'llaymiz. Qo'lda narxi/chegirmasi o'zgartirilgan qatorlarga tegmaymiz
-    //    (flat-rate mijoz diskonti ham isPriceChanged orqali bu yerda saqlanadi).
     for (final item in _currentClient.orderedProducts) {
       if (item.isPriceOnlyChanged || item.isPriceChanged) continue;
       final freshProduct = ItemsSingleton.getProductById(item.productId);
@@ -1565,19 +1486,9 @@ class OrderingProvider4 extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Mijoz tepadan o'chirilganda chaqiriladi. Faqat o'sha mijoz (customer group)
-  /// uchun qo'llangan avtomatik diskontlarni bekor qiladi va savatni mijozsiz
-  /// holatda qayta hisoblaydi.
-  /// Mijoz olib tashlangach `getClientGroupId` bo'sh bo'ladi — customer-group
-  /// diskontlar `_checkOptions` filtridan o'tmaydi va qo'llanmaydi. `isForAllClients`
-  /// diskontlar esa saqlanadi. Qo'lda narxi o'zgartirilgan (`isPriceOnlyChanged`,
-  /// masalan utsenka) qatorlarga tegmaydi.
-  /// Misol: Free Gift'da tekin berilgan 10,000 li product mijoz o'chirilganda
-  /// yana 10,000 ga qaytadi (tekin emas).
   void recalcDiscountsAfterClientRemoved() {
     if (_currentClient.orderedProducts.isEmpty) return;
 
-    // Avvalgi avtomatik diskont holatini to'liq tozalaymiz (mijoz endi yo'q)
     _returnedProducts.clear();
     _returnedFreeGiftProducts.clear();
     _returnedBuyXGetX.clear();
@@ -1589,12 +1500,10 @@ class OrderingProvider4 extends ChangeNotifier {
     DiscountSingleton.resetAll();
 
     for (final item in _currentClient.orderedProducts) {
-      // Qo'lda narx o'zgartirilgan qatorlarga tegmaymiz (utsenka va h.k.)
       if (item.isPriceOnlyChanged) continue;
       final freshProduct = ItemsSingleton.getProductById(item.productId);
       if (freshProduct == null) continue;
 
-      // Asl narxga qaytarib, mijoz tufayli qo'llangan eski diskontlarni tozalaymiz
       item.price = item.realPrice;
       item.discountPercent = 0;
       item.singleDiscount = 0;
@@ -1602,13 +1511,9 @@ class OrderingProvider4 extends ChangeNotifier {
       item.discount.clear();
       item.productDiscount.clear();
 
-      // Mijozsiz holatda faqat amaldagi (isForAllClients) product/category
-      // diskontlarini qayta qo'llaymiz
       _applyDiscounts(freshProduct, item);
     }
 
-    // BuyXGetY / Free Gift / BuyXGetX ni mijozsiz qayta hisoblab qo'llaymiz.
-    // Customer-group diskontlar topilmaydi → tekin/chegirmali qatorlar asl narxda qoladi.
     findFreeProducts();
     useFreeProducts();
     useFreeGiftProducts();
@@ -1636,8 +1541,6 @@ class OrderingProvider4 extends ChangeNotifier {
       _sixClient4List.add(sixClientModel);
       _currentClient = _sixClient4List.last;
       _index = _sixClient4List.length - 1;
-      // Yangi (bo'sh) savat — oldingi savatning kompaniya nomi qolib
-      // ketmasligi uchun Pref tozalanadi.
       _syncReceiptCompanyPrefsFromCurrentClient();
       notifyListeners();
     }
@@ -1652,12 +1555,6 @@ class OrderingProvider4 extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Chekka bosiladigan kompaniya nomi va nusxa soni chop etishda GLOBAL
-  /// Pref'dan o'qiladi (`print_sold_api.dart`, `printing_methods.dart`).
-  /// Qiymatlarning o'zi esa har savatga alohida saqlanadi — shuning uchun
-  /// savat almashganda Pref'ni joriy savatnikiga moslaymiz.
-  /// Aks holda 1-mijoz uchun "Перечисления"da kiritilgan kompaniya nomi
-  /// 2-mijozning chekiga bosilib ketardi.
   void _syncReceiptCompanyPrefsFromCurrentClient() {
     final String? name = _currentClient.receiptCompanyName;
     final int? copies = _currentClient.receiptCopies;
@@ -1675,9 +1572,6 @@ class OrderingProvider4 extends ChangeNotifier {
     }
   }
 
-  /// "Перечисления" oynasida "Ok" bosilganda chaqiriladi: qiymatlar joriy
-  /// savatga yoziladi va darhol Pref'ga ham (shu savat sotilsa chop etish
-  /// o'sha zahoti to'g'ri o'qishi uchun).
   void setReceiptCompanyInfo({
     required String companyName,
     required int copies,
@@ -1692,20 +1586,12 @@ class OrderingProvider4 extends ChangeNotifier {
     for (int i = 0; i < _sixClient4List.length; i++) {
       if (_sixClient4List[i].orderedProducts.isEmpty) {
         clientNumbers.add(_sixClient4List[i].clientNumber);
-        // Slot ro'yxatdan chiqib ketishidan OLDIN uning o'chirish yozuvlarini
-        // saqlab qolamiz — aks holda ular slot bilan birga yo'qolardi.
         _harvestDeletedItems(_sixClient4List[i]);
       }
     }
     _sixClient4List.removeWhere((e) => e.orderedProducts.isEmpty);
   }
 
-  /// Slot yo'q qilinishidan oldin undagi deleted_items yozuvlarini
-  /// `_orphanDeletedItems` ga ko'chiradi.
-  /// Bu faqat savati BO'SH slotga nisbatan chaqiriladi — demak bu yozuvlar
-  /// hech qanday chekka tegishli emas. Shuning uchun hali chek raqami
-  /// olmaganlariga "-" qo'yiladi ("sotilmasdan o'chirilgan"): keyingi sotuv
-  /// bilan ketganda ular o'sha chekning raqamini o'zlashtirib olmaydi.
   void _harvestDeletedItems(SixClientModel4 client) {
     if (client.deletedItems.isEmpty) return;
     for (final d in client.deletedItems) {
@@ -1716,21 +1602,12 @@ class OrderingProvider4 extends ChangeNotifier {
   }
 
   void _paymentOnClients() {
-    // Faqat SOTILGAN slotning supplieri tozalanadi (`_selectedSupplier` =
-    // `_currentClient.selectedSupplier`). Boshqa mijozlarning slotlari
-    // o'z supplierini saqlab qoladi.
     _selectedSupplier = null;
-    // Chek allaqachon chop etilgan (toBOJECTBOX ichida) — endi bu savatning
-    // kompaniya nomi/nusxa soni ham keraksiz.
     _currentClient.receiptCompanyName = null;
     _currentClient.receiptCopies = null;
     _alcoholWarningShown = false;
     _cashsaleWarningShown = false;
     _bigTotalWarningShown = false;
-    // Joriy slot bu yerda har holatda bo'shatiladi yoki yangi obyektga
-    // almashtiriladi. Muvaffaqiyatli sotuvda uning deleted_items ro'yxati
-    // allaqachon tozalangan (chekka biriktirilgan) — bu chaqiruv no-op.
-    // Sotuv saqlanmagan holatda esa yozuvlar shu yerda saqlab qolinadi.
     _harvestDeletedItems(_currentClient);
     if (_sixClient4List.isEmpty) {
       _clientNumber = 1;
@@ -1756,8 +1633,6 @@ class OrderingProvider4 extends ChangeNotifier {
       _index = 0;
       _currentClient = _sixClient4List.first;
     }
-    // Sotuvdan keyin joriy savat almashdi — Pref yangi savatnikiga moslanadi
-    // (yangi/bo'sh savatda kalitlar o'chadi).
     _syncReceiptCompanyPrefsFromCurrentClient();
   }
 
@@ -1770,8 +1645,6 @@ class OrderingProvider4 extends ChangeNotifier {
         v.orderedProducts.clear();
         v.clientNumber = 0;
         v.lastAddedIndex = -1;
-        // Savat tozalanganda supplier ham qolmasin — aks holda bo'sh
-        // savatda "Allaqachon supplier tanlangan" bloki qolib ketardi.
         v.selectedSupplier = null;
         v.receiptCompanyName = null;
         v.receiptCopies = null;
@@ -1786,8 +1659,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
     notifyListeners();
   }
-
-
 
   FocusNode focusNodeTotal = FocusNode();
 
@@ -1853,7 +1724,6 @@ class OrderingProvider4 extends ChangeNotifier {
     }
   }
 
-
   bool _isInnClient = false;
 
   initClientByBloc(
@@ -1865,18 +1735,12 @@ class OrderingProvider4 extends ChangeNotifier {
     _currentClient.selectedClient = client;
     _currentClient.discountPercent = _currentClient.discountPercent ??
         0 + (client?.discountValue ?? 0).toDouble();
-    // Mijoz tozalanganda (null — masalan qidiruvda "mijoz topilmadi") qarz
-    // qatori ham chiqib ketsin.
     dropDebtPaymentIfNoDebtor();
-    // Cashback esa AYNAN eski mijozning balansiga qarab tekshirilgan edi —
-    // mijoz o'zgargan bo'lsa (o'chirilgan yoki boshqasiga almashtirilgan)
-    // qator qolmasligi kerak.
     if (previousClientId != client?.id) {
       _tally.removeCashbackPayment();
     }
     notifyListeners();
   }
-
 
   getComment(String comment, bool isShow) {
     _showComments = isShow;
@@ -1910,8 +1774,6 @@ class OrderingProvider4 extends ChangeNotifier {
       _zdachaToCashBack = 0;
     }
 
-    // Saqlash (toOBJECTBOX) va tozalash quyida, providerda qoladi —
-    // chegara asl kodda ham aynan shu joyda edi.
     final receiptModel4 = ReceiptBuilder.build(
       sixClient: _sixClientModel4,
       selectedSupplier: _selectedSupplier,
@@ -1942,7 +1804,6 @@ class OrderingProvider4 extends ChangeNotifier {
       _showCount = {};
       _showCountFreeGift = {};
 
-      // O'chirilganlar chekka biriktirildi — keyingi sotuvga o'tmasligi uchun
       _sixClientModel4.deletedItems.clear();
       _orphanDeletedItems.clear();
 
@@ -2025,8 +1886,6 @@ class OrderingProvider4 extends ChangeNotifier {
         );
       }).toList();
 
-  /// Fiskal chekka yuborishdan oldingi markirovka tozalash.
-  /// Imzo saqlanadi — `test/marking_paren_strip_test.dart` shu nomni chaqiradi.
   static String cleanMarkForFiscal(String rawMark) =>
       MarkCleaner.forFiscal(rawMark);
 
@@ -2040,7 +1899,6 @@ class OrderingProvider4 extends ChangeNotifier {
       _zdachaToCashBack = 0;
     }
 
-    // OFD'ga yuborish va guard quyida, providerda qoladi.
     final receiptModel4 = ReceiptBuilder.buildOnlyOfd(
       sixClient: _sixClientModel4,
       selectedSupplier: _selectedSupplier,
@@ -2060,12 +1918,6 @@ class OrderingProvider4 extends ChangeNotifier {
       lastRRN: _lastRRN,
     );
 
-    // GUARD: items bo'sh bo'lsa OFD'ga umuman yubormaymiz.
-    // Double-trigger holatida birinchi muvaffaqiyatli sotuv orderedProducts'ni
-    // tozalaydi (_paymentOnClients), lekin paymentsMap qolib ketishi mumkin —
-    // natijada ikkinchi chaqiruv "items:[] + receivedCash" yuborib, fiskal modul
-    // "Передан недействительный параметр в JSON" xatosini qaytaradi.
-    // skipped=true bilan qaytamiz => kassirga qizil xato ko'rsatilmaydi.
     if (receiptModel4.soldItemList.isEmpty) {
       LogHelper.write(
         LogLevel.warn,
@@ -2124,16 +1976,11 @@ class OrderingProvider4 extends ChangeNotifier {
       _showCount = {};
       _showCountFreeGift = {};
 
-      // O'chirilganlar chekka biriktirildi — keyingi sotuvga o'tmasligi uchun
       _sixClientModel4.deletedItems.clear();
       _orphanDeletedItems.clear();
 
       DiscountSingleton.maxPrice();
       _paymentOnClients();
-      // Muvaffaqiyatli sotuvdan keyin to'lov ro'yxatini DARHOL tozalaymiz.
-      // Aks holda double-trigger holatida qolib ketgan naqd/karta qiymati
-      // keyingi (bo'sh items) chaqiruvga "sizib" o'tib, noto'g'ri chek hosil
-      // qiladi. Avval paymentsMap faqat sahifaga qayta kirishda tozalanardi.
       paymentsMap = {};
     }
 
@@ -2294,24 +2141,9 @@ class OrderingProvider4 extends ChangeNotifier {
 
   void removeFromPaymentList() => _tally.removeFromPaymentList();
 
-  /// Qarz yozib qo'yish uchun EGA (qarzdor) bormi — mijoz yoki supplier.
-  /// MUHIM: bu shart adminkadagi `is_available_for_debt` bayrog'iga QARAMAYDI.
-  /// O'sha bayroq faqat "Qarz" tugmasini ko'rsatish/yashirish uchun ishlatiladi
-  /// (`keyboard_of_payment_page.dart` — eskidan shunday) va sotuvni to'xtatish
-  /// uchun ishlatilmasligi kerak. Sababi: `ClientModel` bir necha joyda shu
-  /// maydonsiz yaratiladi (internetsiz 36-belgili ID qidiruvi —
-  /// `client_search_bloc.dart`, invoice/nakladnoy orqali kelgan mijoz —
-  /// `initOrderByInvoice`), o'sha holatda `isAvailableForDebt == null` bo'lib
-  /// ilgari muammosiz o'tib turgan qarz sotuvlari bloklanib qolardi.
-  /// Tuzatilishi kerak bo'lgan haqiqiy holat esa boshqa: qarz qo'shilgandan
-  /// KEYIN qarzdor butunlay yo'qolsa (Didox supplier DELETE, "mijoz topilmadi"
-  /// qidiruvi) chek egasiz qarzga yozilardi — shuning uchun bu yerda faqat
-  /// "mijoz YOKI supplier bormi" tekshiriladi.
   bool get _hasEligibleDebtor =>
       _currentClient.selectedClient != null || _selectedSupplier != null;
 
-  /// `paymentsMap` da DEBT bor, lekin egasi (mijoz/supplier) yo'q.
-  /// Bu holatda sotuv "mijozsiz qarz" bo'lib yozilib ketardi.
   bool get isDebtSelectedWithoutDebtor {
     if (_hasEligibleDebtor) return false;
     final String debtId = Pref.getString(PrefKeys.debtId, '');
@@ -2320,26 +2152,16 @@ class OrderingProvider4 extends ChangeNotifier {
         (e.value.name ?? '').toUpperCase().contains('DEBT'));
   }
 
-  /// Mijoz/supplier butunlay olib tashlanganda `paymentsMap` da qolib ketgan
-  /// DEBT qatorini tozalaydi. Qarz tugmasi UI da faqat qarzdor bor bo'lsa
-  /// ko'rinadi, lekin qarz QO'SHILGANDAN KEYIN qarzdor yo'qolsa (DELETE,
-  /// "mijoz topilmadi" qidiruvi, supplier o'chirilishi) qator qolib ketardi.
-  /// Mijoz boshqa mijozga ALMASHTIRILSA qator tegilmaydi — qarz egasi bor,
-  /// adminka bayrog'i esa bu yerda tekshirilmaydi (`_hasEligibleDebtor` izohi).
   bool dropDebtPaymentIfNoDebtor() {
     if (_hasEligibleDebtor) return false;
     return _tally.removeDebtPayment();
   }
 
-  /// `paymentsMap` da CASHBACK bor, lekin mijoz yo'q. Bunda chek "bonus bilan
-  /// to'landi" bo'lib yozilardi, lekin `pay_by_loyalty/{client_id}` bo'sh id
-  /// bilan ketib xato berardi — balansdan pul yechilmasdan tovar ketardi.
   bool get isCashbackSelectedWithoutClient {
     if (_currentClient.selectedClient != null) return false;
     return _tally.hasCashbackPayment;
   }
 
-  /// Mijoz olib tashlanganda cashback qatorini tozalaydi.
   bool dropCashbackPaymentIfNoClient() {
     if (_currentClient.selectedClient != null) return false;
     return _tally.removeCashbackPayment();
@@ -2349,7 +2171,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
   changeTheSelectedPaymentIndex(bool up) =>
       _tally.changeTheSelectedPaymentIndex(up);
-
 
   int clickedCount = 0;
 
@@ -2363,7 +2184,6 @@ class OrderingProvider4 extends ChangeNotifier {
     }
     notifyListeners();
   }
-
 
   onCButtonPressed() {
     controller.text = '0';
@@ -2445,9 +2265,6 @@ class OrderingProvider4 extends ChangeNotifier {
 
   BuildContext? con;
 
-  // Mijoz va supplier bir vaqtda tanlanmaydi — biri tanlangan bo'lsa,
-  // ikkinchisini qo'shishga urinishda ogohlantirish chiqadi va eskisini
-  // avval o'chirish talab qilinadi.
   Future<void> _showClientSupplierConflictWarning(
     BuildContext context, {
     required bool clientAlreadySelected,
@@ -2504,12 +2321,7 @@ class OrderingProvider4 extends ChangeNotifier {
                   .setNewClientDiscountPercentage(0);
               OrderingProvider4().getCurrentClient.discountAmountFromNewClient =
                   0;
-              // Mijoz olib tashlandi — faqat o'sha mijoz uchun qo'llangan
-              // customer-group diskontlarni (Free Gift va h.k.) bekor qilamiz.
               recalcDiscountsAfterClientRemoved();
-              // Qarzga sotuv tanlangan bo'lsa, qarzdor qolmagani uchun DEBT
-              // qatori ham ro'yxatdan chiqadi. Cashback ham xuddi shunday —
-              // u mijoz balansiga bog'liq.
               dropDebtPaymentIfNoDebtor();
               dropCashbackPaymentIfNoClient();
               AppNavigation.pop();
@@ -2533,10 +2345,6 @@ class OrderingProvider4 extends ChangeNotifier {
     return;
   }
 
-  /// Tanlangan supplier HAR SAVAT (slot) uchun alohida saqlanadi —
-  /// `_currentClient.selectedSupplier`. Oldin bu provider darajasidagi bitta
-  /// maydon edi: 1-mijozda supplier tanlansa, 2-mijozga o'tib mijoz/cashback
-  /// tanlamoqchi bo'lganda "Allaqachon supplier tanlangan" chiqib qolardi.
   SupplierModel? get _selectedSupplier => _currentClient.selectedSupplier;
 
   set _selectedSupplier(SupplierModel? supplier) =>
@@ -2544,13 +2352,8 @@ class OrderingProvider4 extends ChangeNotifier {
 
   SupplierModel? get getSelectedSupplier => _selectedSupplier;
 
-  // Perechisleniya/Didox INN qidiruvida clients_by_pos'da topilmay,
-  // supplier API'sida topilgan natijani o'rnatish uchun (yoki tozalash
-  // uchun null bilan chaqiriladi).
   void setSelectedSupplierFromInnSearch(SupplierModel? supplier) {
     _selectedSupplier = supplier;
-    // Supplier o'chirilganda (null) qarz qatori ham ro'yxatdan chiqadi —
-    // aks holda qarzdorsiz DEBT sotuvi ketardi.
     dropDebtPaymentIfNoDebtor();
     notifyListeners();
   }
@@ -2604,8 +2407,6 @@ class OrderingProvider4 extends ChangeNotifier {
     return;
   }
 
-
-  /// UI to'g'ridan-to'g'ri o'qiydi (payment/left, keyboard_of_payment_page).
   Map<String, Payment> get paymentsMap => _tally.paymentsMap;
   set paymentsMap(Map<String, Payment> v) => _tally.paymentsMap = v;
 
@@ -2646,20 +2447,14 @@ class OrderingProvider4 extends ChangeNotifier {
     notifyListeners();
   }
 
-
   void _payByAll(double v, Payment payment) => _tally.payByAll(v, payment);
-
 
   double getAvailableSumma() => _tally.getAvailableSumma();
 
   double getSelectedPaymentSumma() => _tally.getSelectedPaymentSumma();
 
-
-  /// cheq.out yoki log matnidan RRN va karta raqamini ajratib olish
   Map<String, String?> parseTerminalReceipt(String receiptText) =>
       TerminalReceiptParser.parseTerminalReceipt(receiptText);
-
-
 
   void typeUzcard(BuildContext context, Payment payment) async {
     _selectedPaymentType =
@@ -2701,12 +2496,10 @@ class OrderingProvider4 extends ChangeNotifier {
           final file = File(log.path);
           var data = await file.readAsBytes();
           String asString = windows1251.decode(data);
-          /////////// receipt uzcard
           var receiptDirectory = fs.directory('C:\\Arcus2\\cheq.out');
           final file2 = File(receiptDirectory.path);
           var data2 = await file2.readAsBytes();
           String asString2 = windows1251.decode(data2);
-          ////////////
 
           final bool isApproved =
               asString.contains("ОДО") && asString.contains("РЕНО") ||
@@ -2742,7 +2535,6 @@ class OrderingProvider4 extends ChangeNotifier {
     }
   }
 
-//#####FOR DOUBLE HUMO CARDS COUNT ###########
 
   void typeHumo(BuildContext context, Payment payment) async {
     _selectedPaymentType =
@@ -2797,12 +2589,10 @@ class OrderingProvider4 extends ChangeNotifier {
           final file = File(log.path);
           var data = await file.readAsBytes();
           String asString = windows1251.decode(data);
-          /////////// recipt humo
           var reciptDirectory = fs.directory('C:\\Arcus2\\cheq.out');
           final file2 = File(reciptDirectory.path);
           var data2 = await file2.readAsBytes();
           String asString2 = windows1251.decode(data2);
-          ////////////
 
           final bool isApprovedH =
               asString.contains("ОДО") && asString.contains("РЕНО") ||
@@ -2861,20 +2651,11 @@ class OrderingProvider4 extends ChangeNotifier {
       double available = getAvailableSumma();
       num balance = _sixClientModel4.selectedClient?.pointBalance ?? 0.0;
 
-      // Chekka ALLAQACHON kiritilgan cashback. `allPaymentType` yangi summani
-      // shuning USTIGA qo'shadi (`_payByAll(summa + currentPaymentValue)`),
-      // shuning uchun balans tekshiruvi ham YIG'INDI bo'yicha borishi shart.
-      // Avval faqat `parsed` tekshirilardi — tugmani bir necha marta bosib
-      // balansdan ko'p to'lash mumkin edi (78 000 balansdan 131 000 ketgan).
       double used = getSelectedPaymentSumma();
       double freeBalance = balance.toDouble() - used;
       if (freeBalance < 0) freeBalance = 0;
 
       if (parsed > 0) {
-        // `>=`: to'liq qoldiq balansni bitta bosishda ishlatishga ruxsat.
-        // Avvalgi qat'iy `>` balansning aynan o'zini kiritishga yo'l qo'ymay,
-        // kassirni summani bo'lib kiritishga majburlardi — aynan shu yo'l
-        // yuqoridagi bug'ni ochardi.
         if (freeBalance >= parsed) {
           if (available >= parsed) {
             allPaymentType(payment);
@@ -2887,10 +2668,6 @@ class OrderingProvider4 extends ChangeNotifier {
           );
         }
       } else if (available > 0) {
-        // Summa kiritilmagan: butun qoldiq yopiladi, ya'ni yakuniy cashback
-        // aynan `available` bo'ladi (`summa + currentPaymentValue == available`).
-        // Shuning uchun bu yerda `available <= balance` allaqachon to'g'ri
-        // kumulyativ tekshiruv — o'zgartirilmadi.
         if (available <= balance) {
           allPaymentType(payment);
         } else {
@@ -3126,14 +2903,11 @@ class OrderingProvider4 extends ChangeNotifier {
   bool displayingNotFoundDialog = false;
   bool _invalidBarcodeDialogActive = false;
 
-/* //////////////////////// PROVIDER GETTERS //////////////////////// */
 
   List<dynamic> get getItems => _catalog.getItems;
 
   List<CategoryData> get getPathList => _catalog.getPathList;
 
-
-/* //////////////////////// PROVIDER METHODS //////////////////////// */
 
   Future<void> _showInvalidFormatBarcodeDialog() async {
     if (_invalidBarcodeDialogActive) return;
@@ -3159,23 +2933,14 @@ class OrderingProvider4 extends ChangeNotifier {
   }
 
   onBarcodeScanned(String barcode, GlobalKey<ScaffoldState> scaffoldKey) async {
-    // Skaner (ayniqsa macOS klaviatura-emulyatsiyasida) barcode oxiriga
-    // ko'rinmas maxsus belgi qo'shib yuborishi mumkin (masalan codeUnit
-    // 63233 = U+F701). Private-use (0xE000-0xF8FF) belgilarni olib
-    // tashlaymiz — ular hech qachon haqiqiy barcode qismi emas. Aks holda
-    // aniq/nol-farqli qidiruv mos kelmay mahsulot "topilmadi" bo'lardi.
     barcode = BarcodeClassifier.sanitize(barcode);
 
-    // Tekshiruvlar tartibi asl koddagidek — u yerda tartib muhim edi.
     final kind = BarcodeClassifier.classify(
       barcode,
       taroziPrefix: Pref.getInt(PrefKeys.taroziPrefix, 28),
       taroziPiecePrefix: Pref.getInt(PrefKeys.taroziPiecePrefix, 21),
     );
 
-    // ASL TARTIB SAQLANADI: bo'sh -> URL -> isMarkingDialogDisplaying -> qolgani.
-    // Markirovka dialogi ochiq bo'lsa, tarozi/utsenka/UUID kodlari ham
-    // e'tiborsiz qolishi kerak — shuning uchun bu tekshiruv switch'dan OLDIN.
     if (kind == ScannedCodeKind.empty) return;
     if (kind == ScannedCodeKind.url) {
       await _showInvalidFormatBarcodeDialog();
@@ -3218,7 +2983,7 @@ class OrderingProvider4 extends ChangeNotifier {
           DateTime.now().year, DateTime.now().month, DateTime.now().day);
       if (expiryDate.isBefore(today)) {
         await _showMarkDialog('Срок годности этого товара ист�к!');
-        return; // ← bu dialogForMark dan TASHQARIDA bo'lishi kerak
+        return;
       }
     }
     final boxProduct = ScannedProductLookup.findBoxProduct(barcode);
@@ -3226,7 +2991,6 @@ class OrderingProvider4 extends ChangeNotifier {
       await _addBoxProduct(boxProduct, barcode);
       return;
     }
-    // triedPatterns — narxi=0 tekshiruvi uchun sinab ko'rilgan variantlar.
     final match = ScannedProductLookup.find(
       barcode,
       isMarkable: _isProductMarkable,
@@ -3267,7 +3031,6 @@ class OrderingProvider4 extends ChangeNotifier {
       final zeroPriceItem =
           ScannedProductLookup.findZeroPriceProduct(triedPatterns);
       if (zeroPriceItem != null) {
-        // Dialog addProduct ichida _checkAndShowDialogsIfNeeded orqali 1 marta ko'rsatiladi
         // ignore: use_build_context_synchronously
         addProduct(
           context: scaffoldKey.currentState!.context,
@@ -3278,7 +3041,6 @@ class OrderingProvider4 extends ChangeNotifier {
         return;
       }
     }
-
 
     if (!displayingNotFoundDialog) {
       displayingNotFoundDialog = true;
@@ -3311,8 +3073,6 @@ class OrderingProvider4 extends ChangeNotifier {
   bool _isProductMarkable(ItemModel product) =>
       MxikRules.isProductMarkable(product);
 
-
-  /// Tarozi yorlig'i — KILOLI tovar: miqdor yorliqdagi grammdan olinadi.
   void scanWeightItem(
     String barcode,
     GlobalKey<ScaffoldState> scaffoldKey,
@@ -3320,8 +3080,6 @@ class OrderingProvider4 extends ChangeNotifier {
       _addFromTaroziLabel(barcode, scaffoldKey,
           value: TaroziLabel.weightKg(barcode), where: 'scanWeightItem');
 
-  /// Tarozi yorlig'i — SHTUCHNIY (dona) tovar: gramm qismi e'tiborga
-  /// olinmaydi, miqdor doim 1 dona.
   void scanPieceItem(
     String barcode,
     GlobalKey<ScaffoldState> scaffoldKey,
@@ -3389,15 +3147,12 @@ class OrderingProvider4 extends ChangeNotifier {
     notifyListeners();
   }
 
-
   void pressCategory(CategoryData categoryData) =>
       _catalog.pressCategory(categoryData);
 
   void pressSubCategory(SubCategoryModel subModel) =>
       _catalog.pressSubCategory(subModel);
 
-  /// Savatga ko'prik — kontrollerga KO'CHMAYDI, chunki `addProduct` savat
-  /// mantiqiga tegishli.
   void pressProduct(BuildContext context, ItemModel product, String where) {
     product.mark = null;
     addProduct(context: context, product: product, value: 1, where: where);
