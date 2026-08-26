@@ -33,6 +33,7 @@ import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
 import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
 import 'package:invan2/changes/domain/cart/invoice_row_builder.dart';
+import 'package:invan2/changes/domain/cart/marked_row_builder.dart';
 import 'package:invan2/changes/domain/cart/sold_item_builder.dart';
 import 'package:invan2/changes/services/onkm_validator.dart';
 import 'package:invan2/changes/domain/marking/mxik_rules.dart';
@@ -1538,42 +1539,12 @@ ${productLines.toString().trim()}
       price = ItemsSingleton.finalPrice(freshProduct, 1, isKg).toDouble();
     }
 
-    final soldItem = ReceiptModelSoldItem4(
-      isDeleted: false,
-      inBox: 0,
-      tin: freshProduct.commissionTin,
-      marking: MxikRules.isProductMarkable(freshProduct),
-      mark: _isProductMarkable(freshProduct) ? markValue : null,
-      soldBy: freshProduct.measurementUnit?.shortName ?? "",
-      cost: 0,
-      createdTime: DateTime.now().millisecondsSinceEpoch,
-      price: price,
-      realPrice: price,
-      onlyPrice: price,
-      singleDiscount: 0,
-      value: 1,
-      productId: freshProduct.id!,
-      productName: freshProduct.name!,
-      ownerType:
-          (freshProduct.ownerType != null && freshProduct.ownerType!.isNotEmpty)
-              ? int.parse(freshProduct.ownerType!)
-              : 1,
-      packageCode: freshProduct.packageCode,
-      packageName: freshProduct.packageType,
-      barcode:
-          freshProduct.barcode!.isNotEmpty ? freshProduct.barcode!.first : "",
-      sku: int.parse(freshProduct.sku ?? "0"),
-      vat: price == 0
-          ? 0
-          : (price * (freshProduct.vat!.percentage ?? 12)) /
-              (100 + (freshProduct.vat!.percentage ?? 12)),
-      mxik: freshProduct.mxikCode!,
-      vatPercent: (freshProduct.vat!.percentage ?? 12).toDouble(),
+    // Markirovkali qator yasash `MarkedRowBuilder` da.
+    final soldItem = MarkedRowBuilder.build(
+      freshProduct,
+      price,
+      markValue: markValue,
       sellerId: Pref.getString(PrefKeys.cashierId, ""),
-      vatName: freshProduct.vat?.name ?? "",
-      discountPercent: 0,
-      productType: _resolveProductType(freshProduct),
-      productPackage: _resolveProductPackage(freshProduct),
     );
 
     _currentClient.orderedProducts.insert(0, soldItem);
