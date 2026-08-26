@@ -32,13 +32,13 @@ import 'package:invan2/changes/domain/cart/row_repricer.dart';
 import 'package:invan2/changes/providers/ordering/cart_edit_controller.dart';
 import 'package:invan2/changes/dialogs/terminal_error_dialog.dart';
 import 'package:invan2/changes/domain/receipt/receipt_builder.dart';
-import 'package:invan2/changes/domain/marking/gs1.dart';
 import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
 import 'package:invan2/changes/domain/cart/box_row_builder.dart';
 import 'package:invan2/changes/domain/cart/invoice_row_builder.dart';
 import 'package:invan2/changes/domain/cart/marked_row_builder.dart';
 import 'package:invan2/changes/domain/cart/sold_item_builder.dart';
 import 'package:invan2/changes/services/onkm_validator.dart';
+import 'package:invan2/changes/domain/marking/mark_validator.dart';
 import 'package:invan2/changes/domain/marking/mxik_rules.dart';
 import 'package:invan2/changes/domain/terminal/terminal_receipt_parser.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
@@ -996,85 +996,40 @@ class OrderingProvider4 extends ChangeNotifier {
       ItemModel item,
       String v,
       BuildContext context) async {
-    // Markni ishlatishdan/saqlashdan oldin boshqaruv belgilarini (GS1 <GS>=0x1D,
-    // FS, RS, US va boshqa ko'rinmas kodlar) tozalaymiz. Aks holda chekda/JSON da
-    // "▯" kabi g'alati belgilar chiqib qoladi. (17)/(15) AI qavslari validatsiya
-    // uchun saqlanadi — faqat boshqaruv belgilari olib tashlanadi.
-    v = v
-        .replaceAll(RegExp(r'[\x00-\x1F\x7F-\x9F]'), '')
-        .replaceAll('￼', '')
-        .replaceAll('�', '');
+    // Asl kodda butun tana `if (!dialogForMark)` ichida edi — dialog ochiq
+    // bo'lsa metod hech narsa qilmaydi.
+    if (dialogForMark) return;
+
+    final AppLocalizations loc = AppLocalizations.of(context)!;
+    final bool isUz = loc.ha.toLowerCase() == 'ha';
+
+    // Tarmoqqa borishdan oldingi mahalliy tekshiruvlar `MarkValidator` da:
+    // format, KM ning shu mahsulotga tegishliligi va muddati.
+    final check = MarkValidator.validate(v, item);
+    v = check.mark;
+    item.mark = v;
+
+    switch (check.issue) {
+      case MarkIssue.invalidFormat:
+        await _showMarkDialog(isUz
+            ? 'Noto\'g\'ri markirovka kodi! Faqat GS1 DataMatrix formatidagi kod qabul qilinadi.'
+            : 'Неверный код маркировки! Принимаются только коды в формате GS1 DataMatrix.');
+        return;
+      case MarkIssue.wrongProduct:
+        await _showMarkDialog(isUz
+            ? 'Noto\'g\'ri markirovka! Bu markirovka boshqa mahsulotga tegishli.'
+            : 'Неверная маркировка! Эта маркировка принадлежит другому товару.');
+        return;
+      case MarkIssue.expired:
+        await _showMarkDialog(isUz
+            ? 'Bu mahsulotning muddati tugagan!'
+            : 'Срок годности этого товара ист\u04ddк!');
+        return;
+      case MarkIssue.none:
+        break;
+    }
+
     if (!dialogForMark) {
-      item.mark = v;
-      AppLocalizations loc = AppLocalizations.of(context)!;
-      if (v.startsWith('http://') || v.startsWith('https://')) {
-        await _showMarkDialog(
-            loc.ha.toLowerCase() == 'ha' ? 'Noto\'g\'ri markirovka kodi! Faqat GS1 DataMatrix formatidagi kod qabul qilinadi.' : 'Неверный код маркировки! Принимаются только коды в формате GS1 DataMatrix.');
-        return;
-      }
-
-      String? gtinFromMark;
-
-      final gtinMatch = RegExp(r'(?:01|02)(\d{12,14})').firstMatch(v);
-      if (gtinMatch != null) {
-        gtinFromMark = gtinMatch.group(1)!.replaceFirst(RegExp(r'^0+'), '');
-      } else {
-        final numbers = RegExp(r'\d{12,14}').firstMatch(v);
-        if (numbers != null) {
-          gtinFromMark = numbers.group(0)!.replaceFirst(RegExp(r'^0+'), '');
-        }
-      }
-
-      if (gtinFromMark == null) {
-        await _showMarkDialog(
-            loc.ha.toLowerCase() == 'ha' ? 'Noto\'g\'ri markirovka kodi! Faqat GS1 DataMatrix formatidagi kod qabul qilinadi.' : 'Неверный код маркировки! Принимаются только коды в формате GS1 DataMatrix.');
-        return;
-      }
-
-      final productBarcodes = item.barcode ?? [];
-      final barcodeMatches = productBarcodes
-          .any((b) => b.replaceFirst(RegExp(r'^0+'), '') == gtinFromMark);
-
-      if (!barcodeMatches) {
-        await _showMarkDialog(
-            loc.ha.toLowerCase() == 'ha' ? 'Noto\'g\'ri markirovka! Bu markirovka boshqa mahsulotga tegishli.' : 'Неверная маркировка! Эта маркировка принадлежит другому товару.');
-        return;
-      }
-
-      DateTime? expiryDate;
-
-      final ai17 = RegExp(r'\(17\)(\d{6})').firstMatch(v);
-      if (ai17 != null) expiryDate = _parseGS1Date(ai17.group(1)!);
-
-      if (expiryDate == null && v.startsWith('01') && v.length > 16) {
-        final clean = v.replaceAll(RegExp(r'[\x1D\x1C\x1E]'), '');
-        final rest = clean.substring(16);
-        final ai17rest = RegExp(r'^17(\d{6})').firstMatch(rest);
-        if (ai17rest != null) expiryDate = _parseGS1Date(ai17rest.group(1)!);
-
-        if (expiryDate == null) {
-          final ai15rest = RegExp(r'^15(\d{6})').firstMatch(rest);
-          if (ai15rest != null) {
-            expiryDate = _parseGS1Date(ai15rest.group(1)!);
-          }
-        }
-      }
-
-      if (expiryDate == null) {
-        final ai15 = RegExp(r'\(15\)(\d{6})').firstMatch(v);
-        if (ai15 != null) expiryDate = _parseGS1Date(ai15.group(1)!);
-      }
-
-      if (expiryDate != null) {
-        final today = DateTime(
-            DateTime.now().year, DateTime.now().month, DateTime.now().day);
-        if (expiryDate.isBefore(today)) {
-          await _showMarkDialog(
-              loc.ha.toLowerCase() == 'ha' ? 'Bu mahsulotning muddati tugagan!' : 'Срок годности этого товара ист�к!');
-          return;
-        }
-      }
-
       if (!Pref.getBool('validation_onkm', true)) {
         final existingWithMark = _currentClient.orderedProducts.indexWhere(
           (e) =>
@@ -3371,8 +3326,6 @@ class OrderingProvider4 extends ChangeNotifier {
   bool _isProductMarkable(ItemModel product) =>
       MxikRules.isProductMarkable(product);
 
-
-  DateTime? _parseGS1Date(String yymmdd) => Gs1.parseDate(yymmdd);
 
   /// Tarozi yorlig'i — KILOLI tovar: miqdor yorliqdagi grammdan olinadi.
   void scanWeightItem(
