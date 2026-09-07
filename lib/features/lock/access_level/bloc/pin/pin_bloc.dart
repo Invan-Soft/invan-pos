@@ -135,8 +135,11 @@ class PinBloc extends Bloc<PinEvent, PinState> {
         if (element.user!.passCode == pinCode) {
           Pref.setString(PrefKeys.userId, element.user!.id!);
         }
+        // `access` null bo'lishi mumkin (masalan xodimlar yangilanishi
+        // yarim yo'lda uzilgan eski bazada) — bunda ruxsat yo'q deb
+        // hisoblaymiz, ilova qulab tushmasin.
         return element.user!.passCode == pinCode &&
-            element.access!.receiptHistory!;
+            (element.access?.receiptHistory ?? false);
       });
     } else {
       index = employeeList.indexWhere(

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:intl/intl.dart';
-import 'package:invan2/changes/bloc/network/network_bloc.dart';
 import 'package:invan2/changes/models/shift/shift_hive_model.dart';
 import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
@@ -18,6 +15,7 @@ import 'package:invan2/utils/utils.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../../../../changes/models/shift/shifting_model.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
 
 class ShiftSingleton4 {
   static void updateTheShift(List<ReceiptModelPaymentType4> payments,
@@ -125,9 +123,39 @@ class ShiftSingleton4 {
     // urinishning sababini ko'rsatishi kerak.
     ShiftDiagnostics.resetOpenIssue();
 
-    if (await InternetConnectionChecker().hasConnection) {
+    /// Smenani serversiz (lokal) ochish — navbatga qo'yiladi.
+    ///
+    /// Ikki holatda ishlatiladi: internet yo'q va server yiqilgan. Ikkalasi
+    /// ham kassa uchun bir xil: serverdagi holatni tekshirib bo'lmaydi,
+    /// lekin kassir sotishi kerak.
+    Future<void> openOffline() async {
+      if (Pref.getInt(PrefKeys.openedCount, 0) == 0) {
+        isReturn = true;
+        await Pref.setInt(PrefKeys.openedCount, 1);
+      }
+    }
+
+    if (await BackendHealth.isUsable()) {
       await ShiftApi4.shiftStatusInvan2().then((HttpResult status) async {
-        // 1) Server holatni umuman bermadi.
+        // 1a) Server yiqilgan (5xx / timeout / ulanmadi) — bu "smena
+        // ochilmasin" degani EMAS. Internet uzilgandagi kabi lokal ochamiz
+        // va navbatga qo'yamiz. Aks holda server o'chganda butun do'kon
+        // sotolmay qoladi: 2026-09-02 dagi to'xtash aynan shu sabab edi.
+        //
+        // Muhim: `BackendHealth` hali `down` ga o'tmagan bo'lishi mumkin
+        // (buning uchun ketma-ket bir necha xato kerak), shuning uchun bu
+        // yerda status kodining o'zi tekshiriladi — birinchi urinishdayoq.
+        if (BackendHealth.isServerFailureStatus(status.statusCode)) {
+          ShiftDiagnostics.lastOpenIssue = ShiftIssue.serverStatusUnavailable;
+          ShiftDiagnostics.lastOpenDetail =
+              'GET api/v1/shift_statuses → status ${status.statusCode} '
+              '(server yiqilgan — smena lokal ochildi, navbatga qo\'yildi)';
+          await openOffline();
+          return;
+        }
+
+        // 1b) Server TIRIK, lekin so'rovni rad etdi (401/403/404 va h.k.) —
+        // bu haqiqiy muammo, lokal ochib yashirmaymiz.
         if (status.statusCode >= 400 || !status.isSuccess) {
           ShiftDiagnostics.lastOpenIssue = ShiftIssue.serverStatusUnavailable;
           ShiftDiagnostics.lastOpenDetail =
@@ -228,17 +256,13 @@ class ShiftSingleton4 {
         await Pref.setString(PrefKeys.openedDate, '');
       });
     } else {
-      if (Pref.getInt(PrefKeys.openedCount, 0) == 0) {
-        isReturn = true;
-        await Pref.setInt(PrefKeys.openedCount, 1);
-      }
+      await openOffline();
     }
     return isReturn;
   }
 
 ////////////////////////////////////////////////////////////////////////////////
   static Future<ShiftModelHive> closeShift(BuildContext context) async {
-    NetworkBloc networkBloc = BlocProvider.of(context, listen: false);
     final closingTime = DateTime.now().millisecondsSinceEpoch;
     int currentShiftKey = Pref.getInt(PrefKeys.currentShiftKey, -1);
     Box<ShiftModelHive> box = HiveBoxes.getShifts();
@@ -253,20 +277,44 @@ class ShiftSingleton4 {
         DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()));
     await box.put(currentShiftKey, shift);
     //-------------
-    if (networkBloc.internet) {
+
+    /// Smenani serversiz yopish — yopish NAVBATGA qo'yiladi.
+    ///
+    /// `ShiftSyncQueue` navbatni ikki shart bo'yicha topadi: `closedDate`
+    /// bo'sh emas VA `closedCount == 1`. Shuning uchun hisoblagichni
+    /// qo'ymaslik yopishni butunlay yo'qotishga olib keladi.
+    Future<void> closeOffline() async {
+      // Ochish navbatda turgani yopishga TO'SIQ EMAS: `ShiftSyncQueue` endi
+      // ikkalasini vaqt tartibida yuboradi (avval ochish, keyin yopish).
+      // Ilgari bu shart `openedCount == 0` ni ham talab qilardi — natijada
+      // server o'chgan kunda ertalab oflayn ochilgan smenani kechqurun
+      // umuman yopib bo'lmasdi.
+      //
+      // `closedCount == 0` sharti qoladi: navbatda bitta yopish uchungina
+      // joy bor, ikkinchisi birinchisining sanasini yo'q qilib yuborardi.
+      if (Pref.getInt(PrefKeys.closedCount, 0) == 0) {
+        await Pref.setBool(PrefKeys.shiftsOpened, false);
+        await Pref.setInt(PrefKeys.closedCount, 1);
+      }
+    }
+
+    if (await BackendHealth.isUsable()) {
       ShiftingModel shiftingModel = await ShiftApi4.closeShift();
       if (shiftingModel.statusCode != null && shiftingModel.statusCode == 200) {
         uploadHiveShifts();
         await Pref.setBool(PrefKeys.shiftsOpened, false);
         await Pref.setString(PrefKeys.closedDate, '');
         await Pref.setInt(PrefKeys.closedCount, 0);
+      } else if (BackendHealth.isServerFailureStatus(
+          shiftingModel.statusCode ?? 0)) {
+        // Server yiqilgan — internet uzilgandagi kabi navbatga qo'yamiz.
+        // Ilgari bu shox umuman yo'q edi: Hive'da smena "yopilgan" bo'lib
+        // qolar, `closedCount` esa 0 bo'lgani uchun navbat ham hosil
+        // bo'lmasdi — ya'ni yopilish serverga HECH QACHON yetmasdi.
+        await closeOffline();
       }
     } else {
-      if (Pref.getInt(PrefKeys.closedCount, 0) == 0 &&
-          Pref.getInt(PrefKeys.openedCount, 0) == 0) {
-        await Pref.setBool(PrefKeys.shiftsOpened, false);
-        await Pref.setInt(PrefKeys.closedCount, 1);
-      }
+      await closeOffline();
     }
     return returnedShift;
   }

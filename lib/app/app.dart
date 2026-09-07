@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:in_app_notification/in_app_notification.dart';
 import 'package:invan2/changes/bloc/supplier_search/supplier_search_bloc.dart';
+import 'package:invan2/changes/services/receipt/refund_upload_queue.dart';
 import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
 import 'package:invan2/changes/services/sync/catch_up_sync.dart';
 import 'package:invan2/app/theme_bloc/theme_mode_bloc.dart';
@@ -172,6 +173,7 @@ class AppState extends State<App> {
                   /// shu sabab yopilish serverga ketmay qolgan. Smena
                   /// yopilishining cheklar navbatiga hech qanday aloqasi yo'q.
                   await ShiftSyncQueue.flush(reason: 'network-success');
+                  await RefundUploadQueue.flush(reason: 'network-success');
 
                   {
                     /// Notification catch-up ///

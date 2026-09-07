@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/changes/components/logo_widget.dart';
 
 import '../../../app_navigation.dart';
+import '../../../changes/services/health/backend_health.dart';
 import '../../../changes/services/sync/catch_up_sync.dart';
 import '../../../utils/utils.dart';
 import '../../features.dart';
@@ -55,6 +56,9 @@ class _SyncButtonHomeState extends State<SyncButtonHome> {
                 if (mounted) {
                   // Oyna hisobi CatchUpSync ichida — kursordan hozirgacha
                   // bo'lgan hamma narsa olinadi.
+                  // Kassir o'zi bosgan sinxron — server yiqilgan deb
+                  // belgilangan bo'lsa ham haqiqiy urinish qilinsin.
+                  BackendHealth.markUserInitiatedAction();
                   await CatchUpSync.run(context, mounted,
                       reason: 'manual', force: true);
 

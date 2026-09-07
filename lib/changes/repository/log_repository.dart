@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:invan2/changes/models/log/log_model.dart';
 import 'package:invan2/changes/services/api_state.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
 import 'package:invan2/changes/services/app_constants.dart';
 import 'package:invan2/changes/services/log_service.dart';
 import 'package:invan2/features/features.dart';
@@ -45,6 +46,30 @@ LogRepository {
     // yuboradi ("TimeoutException" so'zi bo'lmaydi), shu pattern ushlaydi.
     'future not completed',
   ];
+
+  /// Server yiqilganda Telegramga shuncha vaqtda bir marta xabar ketadi.
+  static const Duration serverDownTelegramInterval = Duration(minutes: 5);
+
+  static DateTime? _lastServerDownTelegramAt;
+
+  /// Server yiqilgan davrda Telegram xabarini bosib turadimi.
+  ///
+  /// Nima uchun: server o'chganda HAR bir muvaffaqiyatsiz so'rov alohida
+  /// Telegram xabarini yuborardi. Bitta kassa daqiqasiga o'nlab so'rov
+  /// yuboradi — bir necha kassa bilan bu yuzlab xabarga aylanadi, natijada
+  /// muhim xabarlar oqim ichida ko'rinmay ketadi va Telegram limiti
+  /// (429) ishga tushadi. Server yiqilgani — bitta hodisa, u haqda bir
+  /// marta xabar berish kifoya.
+  static bool _suppressTelegramWhileServerDown() {
+    if (!BackendHealth.isDown) return false;
+    final DateTime now = DateTime.now();
+    final DateTime? last = _lastServerDownTelegramAt;
+    if (last == null || now.difference(last) >= serverDownTelegramInterval) {
+      _lastServerDownTelegramAt = now;
+      return false; // oraliqda bittasini o'tkazamiz
+    }
+    return true;
+  }
 
   /// Tarmoq xatosimi — bunday loglar Telegramga jo'natilmaydi.
   /// Public: LogRepository'ni chetlab to'g'ridan-to'g'ri yuboruvchilar
@@ -107,6 +132,7 @@ LogRepository {
         }
       }
       if (success && !successToTelegram) return;
+      if (_suppressTelegramWhileServerDown()) return;
       telegramLogInProgress = true;
       ApiState state = await LogService.sendToTelegramm(
           log,
@@ -235,6 +261,7 @@ LogRepository {
         }
       }
       if (success && !successToTelegram) return;
+      if (_suppressTelegramWhileServerDown()) return;
       telegramLogInProgress = true;
       ApiState state = await LogService.sendToTelegramm(
           log,

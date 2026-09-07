@@ -5,11 +5,19 @@ import 'package:invan2/changes/services/shift/shift_diagnostics.dart';
 /// shoxidagi shart bilan bir xil bo'lishi kerak:
 ///
 /// ```dart
-/// if (closedCount == 0 && openedCount == 0) { ...yopiladi... }
+/// if (closedCount == 0) { ...yopiladi... }
 /// ```
 ///
 /// 2026-08-17 da UI shu shartni bilmasdi: kassirga "Smena yopildi" deb xabar
 /// berilardi, kod esa smenani yopmasdi.
+///
+/// 2026-09-02 da shart YUMSHATILDI (BackendHealth taski): ilgari u
+/// `openedCount == 0` ni ham talab qilardi. Oqibati og'ir edi — server
+/// o'chgan kunda ertalab oflayn ochilgan smenani kechqurun UMUMAN yopib
+/// bo'lmasdi. Endi `ShiftSyncQueue` ochish va yopishni vaqt tartibida
+/// yuboradi (avval ochish, keyin yopish), shuning uchun navbatdagi ochish
+/// to'siq emas. Navbatda YOPISH turgani esa hamon to'siq: unda bitta
+/// yopish uchungina joy bor.
 ShiftSnapshot _snapshot({
   bool internet = false,
   int openedCount = 0,
@@ -41,8 +49,10 @@ void main() {
       expect(_snapshot().canCloseOffline, isTrue);
     });
 
-    test('oflayn ochilgan smena (openedCount=1) — yopib bo\'lmaydi', () {
-      expect(_snapshot(openedCount: 1).canCloseOffline, isFalse);
+    test('oflayn ochilgan smena (openedCount=1) — YOPISH MUMKIN', () {
+      expect(_snapshot(openedCount: 1).canCloseOffline, isTrue,
+          reason: 'server o\'chgan kunda ochilgan smena kechqurun '
+              'yopilishi shart — navbat ikkalasini tartib bilan yuboradi');
     });
 
     test('navbatda yopish turibdi (closedCount=1) — yopib bo\'lmaydi', () {
@@ -64,10 +74,11 @@ void main() {
       expect(ShiftDiagnostics.blockingCloseIssue(_snapshot()), isNull);
     });
 
-    test('oflayn ochilgan smena — pendingOpen sababi bilan bloklanadi', () {
+    test('oflayn ochilgan smena — BLOKLANMAYDI', () {
       expect(
         ShiftDiagnostics.blockingCloseIssue(_snapshot(openedCount: 1)),
-        ShiftIssue.offlineCloseBlockedByPendingOpen,
+        isNull,
+        reason: 'ochish navbatda tursa ham yopish navbatga qo\'shiladi',
       );
     });
 
@@ -78,12 +89,14 @@ void main() {
       );
     });
 
-    test('ikkalasi ham 1 bo\'lsa — ochish sababi ustun (asl sabab shu)', () {
+    test('ikkalasi ham 1 bo\'lsa — yopish navbati band, bloklanadi', () {
       expect(
         ShiftDiagnostics.blockingCloseIssue(
           _snapshot(openedCount: 1, closedCount: 1),
         ),
-        ShiftIssue.offlineCloseBlockedByPendingOpen,
+        ShiftIssue.offlineCloseBlockedByPendingClose,
+        reason: 'navbatda allaqachon yopish bor — ikkinchisi birinchisining '
+            'sanasini o\'chirib yuborardi',
       );
     });
   });

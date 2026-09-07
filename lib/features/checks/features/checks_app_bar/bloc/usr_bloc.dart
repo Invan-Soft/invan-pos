@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
@@ -11,6 +10,7 @@ import 'package:invan2/objectbox.g.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../../changes/services/api.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
 
 part 'usr_event.dart';
 
@@ -48,7 +48,7 @@ class UsrBloc extends Bloc<UsrEvent, UsrState> {
     if (!uploadingWorkingg) {
       uploadingWorkingg = true;
       emit(UsrLoadingState("Checking for Internet..."));
-      bool internet = await InternetConnectionChecker().hasConnection;
+      bool internet = await BackendHealth.isUsable();
       await Future.delayed(const Duration(milliseconds: 900));
       if (internet) {
         emit(UsrInSendingState());
@@ -81,6 +81,21 @@ class UsrBloc extends Bloc<UsrEvent, UsrState> {
         if (receiptList.isNotEmpty) {
           for (; receiptList.isNotEmpty && _responseSuccess;) {
             HttpResult? v = await ReceiptApi4.receiptCreateGroup(receiptList);
+            if (v.statusCode == 409) {
+              // Server "bu cheklar menda allaqachon bor" dedi — bu
+              // MUVAFFAQIYAT. Qo'lda yuborish yo'li (`_sendSpecial`) buni
+              // doim shunday tushungan, avtomatik yo'l esa yo'q edi:
+              // 409 "rad etildi" deb belgilanar va chek serverda turgani
+              // holda kassada abadiy qizil (!) bo'lib qolardi.
+              for (int i = 0; i < receiptList.length; i++) {
+                receiptList[i].uploaded = true;
+                receiptList[i].rejected = false;
+              }
+              _put10(receiptList);
+              uploadingWorkingg = false;
+              emit(UsrFinishedState());
+              return;
+            }
             if (v.statusCode != 201) {
               emit(UsrErrorState(v.getError));
               _responseSuccess = false;
@@ -100,12 +115,35 @@ class UsrBloc extends Bloc<UsrEvent, UsrState> {
               // Tarmoq xatosi Telegramga yozilmaydi — bu loyihada tarmoq
               // xatolari ataylab filtrlanadi (LogRepository.isNetworkError),
               // aks holda har uzilishda o'nlab xabar ketardi.
-              final bool serverRejected = v.statusCode >= 400;
+              // 5xx ikki xil ma'noni anglatishi mumkin, shuning uchun
+              // taxmin qilmasdan SERVERNING O'ZIDAN so'raymiz:
+              //   • server tirik javob berdi → ayb shu chek(lar)da →
+              //     rad etilgan, kassir "Rad etilgan cheklar" da ko'radi;
+              //   • server javob bermadi → yiqilgan → cheklar navbatda
+              //     qoladi va tiklangach o'zi ketadi.
+              //
+              // Nima uchun shunday: agar HAR 5xx rad etish deb hisoblansa,
+              // server o'chgan paytda bitta guruhdagi 10 tagacha SOG'LOM
+              // chek avtomatik navbatdan chiqib ketardi. Agar HECH BIRI
+              // rad etish deb hisoblanmasa, serverda xatoga olib keladigan
+              // buzuq chek abadiy aylanaverar va kassir uni ko'rmasdi.
+              final bool serverRejected =
+                  await BackendHealth.isDocumentRejection(v.statusCode);
               if (serverRejected) {
-                for (int i = 0; i < receiptList.length; i++) {
-                  receiptList[i].rejected = true;
-                }
-                _put10(receiptList);
+                // GURUH yiqildi, lekin server tirik. Bu HAMMA chek yomon
+                // degani EMAS: `api/v1/order_pos` guruhni bittalab qayta
+                // ishlaydi va bitta buzuq chekka kelib butun so'rovga xato
+                // qaytaradi — undan oldingilari serverda SAQLANIB qolgan
+                // bo'ladi.
+                //
+                // 2026-09-03 da aynan shunday bo'ldi: iyul oyidan qolgan
+                // bitta chek (DH148, "sql: no rows in result set") 10 talik
+                // guruhni bloklab turardi. Serverda cheklar bor edi, kassada
+                // esa hammasi qizil (!) bo'lib ko'rinardi.
+                //
+                // Shuning uchun guruh yiqilsa BITTALAB qayta yuboramiz:
+                // yaxshi cheklar o'tadi, buzug'i yolg'iz qolib ajratiladi.
+                await _sendEachSeparately(receiptList);
               }
               return;
             } else {
@@ -164,7 +202,7 @@ class UsrBloc extends Bloc<UsrEvent, UsrState> {
     if (uploadingWorkingg2 == false) {
       uploadingWorkingg2 = true;
       emit(UsrLoadingState("Checking for Internet..."));
-      bool internet = await InternetConnectionChecker().hasConnection;
+      bool internet = await BackendHealth.isUsable();
       await Future.delayed(const Duration(milliseconds: 900));
       if (internet) {
         emit(UsrInSendingState());
@@ -231,22 +269,79 @@ class UsrBloc extends Bloc<UsrEvent, UsrState> {
     }
   }
 
+  /// Guruh yiqilgandan keyin cheklarni BITTALAB yuboradi.
+  ///
+  /// Maqsad — bitta buzuq chek qolganlarini garovga olmasin. Har chek
+  /// alohida yuboriladi va o'z taqdirini oladi:
+  ///   * 201 yoki 409 → serverda bor, `uploaded`
+  ///   * boshqa 4xx/5xx (server tirik) → aynan shu chek muammoli,
+  ///     `rejected` — kassir uni "Rad etilgan cheklar" da ko'radi
+  ///   * tarmoq xatosi / server yiqildi → to'xtaymiz, qolganlari navbatda
+  Future<void> _sendEachSeparately(List<ReceiptModel4> receiptList) async {
+    for (final ReceiptModel4 receipt in receiptList) {
+      final HttpResult one = await ReceiptApi4.receiptCreateGroup([receipt]);
+
+      if (one.statusCode == 201 || one.statusCode == 409) {
+        receipt.uploaded = true;
+        receipt.rejected = false;
+        continue;
+      }
+
+      final bool rejected =
+          await BackendHealth.isDocumentRejection(one.statusCode);
+      if (!rejected) {
+        // Server javob bermay qoldi — qolganlarini urinishning ma'nosi yo'q,
+        // ular navbatda qolsin.
+        break;
+      }
+
+      receipt.rejected = true;
+      LogRepository.addLog(
+        "Chek serverda xatoga olib keldi (bittalab yuborishda): "
+        "${one.getError}",
+        where: "UsrBloc._sendEachSeparately",
+        file: "usr_bloc.dart",
+        method: "POST",
+        path: "api/v1/order_pos",
+        statusCode: one.statusCode,
+        checkNo: receipt.externalId,
+        createdDate: receipt.createdDate,
+        success: false,
+      );
+    }
+    _put10(receiptList);
+  }
+
+  /// Yuborilishi kerak bo'lgan SOTUV cheklari.
+  ///
+  /// Qaytarishlar ATAYLAB chiqarib tashlangan: ular butunlay boshqa
+  /// endpointdan (`refund_for_pos_new` + `refund_order_items`) ketadi va
+  /// `RefundUploadQueue` bilan yuboriladi. `receiptCreateGroup` ularni
+  /// `jsonListFromRefund` ga yig'adi-yu hech qayerga yubormaydi — ya'ni
+  /// bu yerga tushgan qaytarish yuborilmagan holicha qolar, bundan ham
+  /// yomoni: server guruhga 4xx qaytarsa GURUHDAGI HAMMA chek (haqiqiy
+  /// sotuvlar ham) `rejected = true` bo'lib qolardi.
   static List<ReceiptModel4> _find10() {
     final box = MyObjectbox.saleStore.box<ReceiptModel4>();
     final query = box
         .query(ReceiptModel4_.uploaded.equals(false) &
-            ReceiptModel4_.rejected.equals(false))
+            ReceiptModel4_.rejected.equals(false) &
+            ReceiptModel4_.isRefund.equals(false))
         .build();
     List<ReceiptModel4> receiptList = query.find().take(10).toList();
     query.close();
     return receiptList;
   }
 
+  /// Server rad etgan SOTUV cheklari (qo'lda qayta yuborish uchun).
+  ///
+  /// Qaytarishlar bu yerga ham kirmaydi — yuqoridagi izohga qarang.
   static List<ReceiptModel4> _findIsRejected10() {
     final box = MyObjectbox.saleStore.box<ReceiptModel4>();
     final query = box
         .query(ReceiptModel4_.uploaded.equals(false) &
-            ReceiptModel4_.rejected.equals(true))
+            ReceiptModel4_.rejected.equals(true) &
+            ReceiptModel4_.isRefund.equals(false))
         .build();
     List<ReceiptModel4> receiptList = query.find().take(10).toList();
     query.close();

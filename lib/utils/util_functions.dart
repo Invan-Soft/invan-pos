@@ -25,6 +25,17 @@ class UtilFunctions {
     return value % 1 >= 0.5 ? value.ceilToDouble() : value.floorToDouble();
   }
 
+  /// Xodimlar va ularning ruxsatlarini serverdan yangilaydi.
+  ///
+  /// MUHIM — yozuv ATOMIK: lokal baza faqat IKKALA so'rov ham muvaffaqiyatli
+  /// bo'lgandan keyin o'zgartiriladi.
+  ///
+  /// Ilgari `box.clear()` birinchi so'rovdan keyin bajarilar, rollar esa
+  /// undan KEYIN so'ralardi. Server qisman ishlayotgan bo'lsa (xodimlar 200,
+  /// rollar 500) baza tozalanib, xodimlar `access = null` bilan qayta
+  /// yozilardi — ya'ni butun kassa ruxsatlarini yo'qotardi va PIN kiritishda
+  /// `element.access!` null xatosiga olib kelardi. Server yiqilganda kassa
+  /// "kirib bo'lmaydigan" holga tushishining sababi shu edi.
   static Future<String?> fullUpdateEmployee() async {
     String? error;
 
@@ -33,25 +44,37 @@ class UtilFunctions {
       return httpResult.getError;
     }
 
-    final box = HiveBoxes.getEmployees();
-    await box.clear();
+    HttpResult empRoleResult = await EmployeesApi.getRoleWithPermissions();
 
     final employeeList = List<Employee>.from(
       httpResult.result['employees'].map((e) => Employee.fromJson(e)),
     );
 
-    if (employeeList.isNotEmpty) {
-      for (var e in employeeList) {
-        await box.put(e.key, e);
+    List<RoleWithPermission>? roleList = empRoleResult.isSuccess
+        ? RoleWithPermissions.fromJson(empRoleResult.result).data
+        : null;
+
+    if (roleList == null) {
+      // Rollar kelmadi — ruxsatlarni hisoblab bo'lmaydi.
+      //
+      // Odatda eski ma'lumotni saqlab qolamiz: ruxsatsiz xodimlar bilan
+      // almashtirgandan ko'ra eski (ishlaydigan) holat yaxshiroq.
+      //
+      // LEKIN baza butunlay bo'sh bo'lsa (birinchi login, yoki chiqib
+      // qayta kirilgan holat) hech narsa yozmaslik ilovani ishlab
+      // bo'lmaydigan holga soladi: kassir PIN ekranida hech kimni
+      // ko'rmaydi. Bunda ruxsatsiz bo'lsa ham yozib qo'yamiz — keyingi
+      // muvaffaqiyatli yangilash ruxsatlarni to'g'rilaydi.
+      final box = HiveBoxes.getEmployees();
+      if (box.isEmpty && employeeList.isNotEmpty) {
+        for (var e in employeeList) {
+          await box.put(e.key, e);
+        }
       }
+      return empRoleResult.isSuccess
+          ? "Xodim ruxsatlari olinmadi"
+          : empRoleResult.getError;
     }
-
-    HttpResult empRoleResult = await EmployeesApi.getRoleWithPermissions();
-    if (!empRoleResult.isSuccess) return empRoleResult.getError;
-
-    List<RoleWithPermission>? roleList =
-        RoleWithPermissions.fromJson(empRoleResult.result).data;
-    if (roleList == null) return null;
 
     final rolePermissionMap = <String, Map<String, bool>>{};
     for (var rl in roleList) {
@@ -78,7 +101,11 @@ class UtilFunctions {
       rolePermissionMap[rl.id ?? ""] = permissions;
     }
 
-    for (var employee in box.values) {
+    // Hammasi tayyor bo'lgandan keyingina lokal bazaga tegamiz.
+    final box = HiveBoxes.getEmployees();
+    await box.clear();
+
+    for (var employee in employeeList) {
       final perms = rolePermissionMap[employee.role?.id] ?? {};
 
       // Owner roli — backend'da checkbox unutilsa ham har doim to'liq ruxsat.

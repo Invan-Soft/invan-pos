@@ -11,6 +11,7 @@ import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
 import 'package:invan2/features/home/bloc/home_bloc/home_bloc.dart';
 import 'package:invan2/features/home/bloc/invoice/invoice_bloc.dart';
 import 'package:invan2/features/home/build_content.dart';
+import 'package:invan2/features/home/components/offline_mode_badge.dart';
 import 'package:invan2/features/home/components/sync_button_home.dart';
 import 'package:invan2/features/home/features/home_products/shift_opened/top_buttons/search_buttons.dart';
 import 'package:invan2/features/home/features/home_orders/clients_part/clients_part.dart';
@@ -135,6 +136,8 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
               ),
               title: const ClientsPart(),
               actions: [
+                // Server javob bermayotgan bo'lsa kassir buni ko'rib tursin.
+                const OfflineModeBadge(),
                 Consumer<SettingsProvider>(
                   builder: (context, settings, _) => settings.showInvoiceButton
                       ? TextButton(

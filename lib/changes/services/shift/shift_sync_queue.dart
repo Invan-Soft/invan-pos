@@ -49,47 +49,85 @@ class ShiftSyncQueue {
     _inProgress = true;
 
     try {
-      if (hasPendingClose) {
-        final ShiftingModel res = await ShiftApi4.closeShift();
-        final bool ok = res.statusCode == 200;
-        if (kDebugMode) {
-          print('ShiftSyncQueue: CLOSE flush ($reason) → ${res.statusCode}');
-        }
-        if (ok) {
-          await Pref.setInt(PrefKeys.closedCount, 0);
-          await Pref.setString(PrefKeys.closedDate, '');
-        } else {
-          await ShiftDiagnostics.report(
-            issue: ShiftIssue.pendingCloseNotSynced,
-            action: ShiftAction.close,
-            detail: 'Navbatdagi yopishni yuborish urinishi ($reason) '
-                'muvaffaqiyatsiz: status ${res.statusCode ?? "-"} / '
-                '${res.message ?? "-"}. Navbatda qoldirildi.',
-          );
-        }
-      }
-
-      if (hasPendingOpen) {
-        final HttpResult res = await ShiftApi4.openShift();
-        final bool ok = res.statusCode == 200 || res.statusCode == 201;
-        if (kDebugMode) {
-          print('ShiftSyncQueue: OPEN flush ($reason) → ${res.statusCode}');
-        }
-        if (ok) {
-          await Pref.setInt(PrefKeys.openedCount, 0);
-          await Pref.setString(PrefKeys.openedDate, '');
-        } else {
-          await ShiftDiagnostics.report(
-            issue: ShiftIssue.pendingOpenNotSynced,
-            action: ShiftAction.open,
-            detail: 'Navbatdagi ochishni yuborish urinishi ($reason) '
-                'muvaffaqiyatsiz: status ${res.statusCode}. '
-                'Navbatda qoldirildi.',
-          );
-        }
+      // TARTIB MUHIM. Navbatda ochish ham, yopish ham turgan bo'lishi mumkin:
+      // masalan server o'chgan paytda smena ertalab OCHILIB, kechqurun
+      // YOPILGAN bo'lsa. Bunda serverga avval ochish, keyin yopish ketishi
+      // shart — aks holda server "ochilmagan smenani yopyapsiz" deb rad etadi.
+      //
+      // Teskari holat ham bor: oldingi smenaning yopilishi navbatda qolgan
+      // bo'lsa, yangi smena ochilishidan OLDIN o'sha yopilish ketishi kerak.
+      //
+      // Shuning uchun tartib qat'iy emas — vaqt belgilariga qarab aniqlanadi.
+      if (_openBeforeClose()) {
+        if (!await _flushOpen(reason)) return;
+        await _flushClose(reason);
+      } else {
+        if (!await _flushClose(reason)) return;
+        await _flushOpen(reason);
       }
     } finally {
       _inProgress = false;
     }
+  }
+
+  /// Navbatdagi ochish yopishdan OLDIN sodir bo'lganmi.
+  ///
+  /// Ikkalasi ham navbatda bo'lmasa javob ahamiyatsiz — mos `_flush*` metodi
+  /// o'zi bo'sh navbatni o'tkazib yuboradi.
+  static bool _openBeforeClose() {
+    if (!hasPendingOpen) return false;
+    if (!hasPendingClose) return true;
+    final DateTime? opened =
+        DateTime.tryParse(Pref.getString(PrefKeys.openedDate, ''));
+    final DateTime? closed =
+        DateTime.tryParse(Pref.getString(PrefKeys.closedDate, ''));
+    if (opened == null || closed == null) return true; // noaniq — ochish oldin
+    return opened.isBefore(closed);
+  }
+
+  /// `true` — yuborildi yoki navbatda yo'q edi; `false` — urinish yiqildi.
+  static Future<bool> _flushOpen(String reason) async {
+    if (!hasPendingOpen) return true;
+    final HttpResult res = await ShiftApi4.openShift();
+    final bool ok = res.statusCode == 200 || res.statusCode == 201;
+    if (kDebugMode) {
+      print('ShiftSyncQueue: OPEN flush ($reason) → ${res.statusCode}');
+    }
+    if (ok) {
+      await Pref.setInt(PrefKeys.openedCount, 0);
+      await Pref.setString(PrefKeys.openedDate, '');
+      return true;
+    }
+    await ShiftDiagnostics.report(
+      issue: ShiftIssue.pendingOpenNotSynced,
+      action: ShiftAction.open,
+      detail: 'Navbatdagi ochishni yuborish urinishi ($reason) '
+          'muvaffaqiyatsiz: status ${res.statusCode}. '
+          'Navbatda qoldirildi.',
+    );
+    return false;
+  }
+
+  /// `true` — yuborildi yoki navbatda yo'q edi; `false` — urinish yiqildi.
+  static Future<bool> _flushClose(String reason) async {
+    if (!hasPendingClose) return true;
+    final ShiftingModel res = await ShiftApi4.closeShift();
+    final bool ok = res.statusCode == 200;
+    if (kDebugMode) {
+      print('ShiftSyncQueue: CLOSE flush ($reason) → ${res.statusCode}');
+    }
+    if (ok) {
+      await Pref.setInt(PrefKeys.closedCount, 0);
+      await Pref.setString(PrefKeys.closedDate, '');
+      return true;
+    }
+    await ShiftDiagnostics.report(
+      issue: ShiftIssue.pendingCloseNotSynced,
+      action: ShiftAction.close,
+      detail: 'Navbatdagi yopishni yuborish urinishi ($reason) '
+          'muvaffaqiyatsiz: status ${res.statusCode ?? "-"} / '
+          '${res.message ?? "-"}. Navbatda qoldirildi.',
+    );
+    return false;
   }
 }

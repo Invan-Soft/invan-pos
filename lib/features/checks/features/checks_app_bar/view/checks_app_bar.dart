@@ -12,6 +12,8 @@ import 'package:invan2/utils/utils.dart';
 import 'package:invan2/widgets/widgets.dart';
 import '../../../../../utils/l10n/app_localizations.dart';
 import 'build_checks_text.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
+import 'package:invan2/changes/services/receipt/refund_upload_queue.dart';
 
 class ChecksAppBarr extends StatefulWidget {
   const ChecksAppBarr({
@@ -127,8 +129,14 @@ class _ChecksAppBarrState extends State<ChecksAppBarr> {
           const SizedBox(width: 20),
           AppBarSyncButton(
             onPress: () {
+              // Kassir o'zi bosdi — server "yiqilgan" deb belgilangan
+              // bo'lsa ham haqiqiy urinish qilinsin.
+              BackendHealth.markUserInitiatedAction();
               usrBloc
                   .add(UsrSendSpecialEvent("Checks appBar", usrBloc.unsents));
+              // Qaytarishlar alohida navbatda — rad etilganlari bilan birga.
+              RefundUploadQueue.flush(
+                  reason: 'checks-refresh', includeRejected: true);
             },
           ),
           AppBarLockButton(

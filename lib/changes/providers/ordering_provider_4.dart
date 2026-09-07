@@ -218,7 +218,7 @@ class OrderingProvider4 extends ChangeNotifier {
     notifyListeners();
   }
 
-  Employee currentEmployee = HiveBoxes.getCurrentEmployee!;
+  Employee get currentEmployee => HiveBoxes.getCurrentEmployee ?? Employee();
 
   int get getAmountOfActions => _amountActions;
 
@@ -268,7 +268,6 @@ class OrderingProvider4 extends ChangeNotifier {
     }
     _currentClient.orderedProducts = [];
     _currentClient.lastAddedIndex = -1;
-
     _returnedProducts.clear();
     _returnedFreeGiftProducts.clear();
     _giftProducts.clear();
@@ -502,6 +501,7 @@ class OrderingProvider4 extends ChangeNotifier {
               discountValue: 0,
             );
           }
+          
           Pref.setString(
               'invoice_id_for_order', "Invoice Id: ${invoice.externalId}");
           bool hasMissingProduct = false;
@@ -1040,6 +1040,8 @@ class OrderingProvider4 extends ChangeNotifier {
               }
             }
           } catch (e) {
+            isLoading = false;
+            notifyListeners();
             if (!dialogForMark) {
               dialogForMark = true;
               await showGeneralDialog(
@@ -2269,6 +2271,7 @@ class OrderingProvider4 extends ChangeNotifier {
         },
       ),
     );
+
     if (getClientGroupId.isNotEmpty) {
       _currentClient.orderedProducts = _currentClient.orderedProducts
           .map((item) => DiscountSingleton.addDiscountOnProduct(

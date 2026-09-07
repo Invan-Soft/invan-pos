@@ -23,7 +23,7 @@ class WithCashProvider extends ChangeNotifier {
 
   increaseControllerText(int num) {
     if (isTheFirstTapping) {
-      controller!.text = num .toString();
+      controller!.text = num.toString();
       isTheFirstTapping = false;
       return;
     }

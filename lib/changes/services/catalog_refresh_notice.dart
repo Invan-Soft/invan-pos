@@ -15,7 +15,6 @@
 
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
-import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:provider/provider.dart';
 
 import '../../app_navigation.dart';
@@ -29,6 +28,7 @@ import '../../utils/themes.dart';
 import '../models/six_client_model.dart';
 import '../providers/ordering_provider_4.dart';
 import '../providers/update_provider.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
 
 class CatalogRefreshNotice {
   CatalogRefreshNotice._();
@@ -149,7 +149,7 @@ class CatalogRefreshNotice {
     // Internet yo'q bo'lsa ko'rsatishning ma'nosi yo'q — "Yangilash" baribir
     // yiqilardi. Tekshiruv faqat bayroq qo'yilgan holatda (ya'ni kamdan-kam)
     // bajariladi, shuning uchun odatdagi ishlashga yuk qo'shmaydi.
-    if (!await InternetConnectionChecker().hasConnection) {
+    if (!await BackendHealth.isUsable()) {
       if (kDebugMode) {
         debugPrint('🔕 Katalog ogohlantirishi: internet yo\'q, kutamiz');
       }

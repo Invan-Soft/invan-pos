@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/changes/services/api.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
 import 'package:invan2/changes/services/log_out_service.dart';
 import '../../../alice_service.dart';
 import '../log_helper.dart';
@@ -37,11 +38,43 @@ class ApiProvider {
 
   static const Duration _duration = Duration(seconds: 30);
 
+  /// GET so'rovlari uchun timeout.
+  ///
+  /// Ilgari GET'da timeout UMUMAN yo'q edi: server TCP ulanishni qabul
+  /// qilib, javob bermay qo'ysa (yiqilgan serverda odatiy hol) Future hech
+  /// qachon tugamasdi va ilova startup'da splash ekranda muzlab qolardi.
+  /// POST/PUT dan qisqaroq: GET'lar odatda ma'lumot o'qish uchun va ular
+  /// kutilishi kassirni to'g'ridan-to'g'ri to'sib qo'yadi.
+  static const Duration _getDuration = Duration(seconds: 15);
+
+  /// Server yiqilgani aniqlangani uchun tarmoqqa umuman chiqarilmagan so'rov.
+  ///
+  /// Bu javob darhol qaytadi — kassir 15-30 soniya kutib o'tirmaydi va
+  /// chaqiruvchi kod mavjud oflayn shoxiga tushadi.
+  static HttpResult _serverDownResult(String path) {
+    LogHelper.logRequest(
+      method: "GATE",
+      path: path,
+      statusCode: BackendHealth.serverDownStatusCode,
+      response: "So'rov yuborilmadi: server yiqilgan (BackendHealth)",
+    );
+    return HttpResult(
+      reBytes: "",
+      isSuccess: false,
+      result: "Server bilan aloqa yo'q",
+      statusCode: BackendHealth.serverDownStatusCode,
+    );
+  }
+
   static Future<HttpResult> postResponse({
     required String path,
     dynamic body,
     required Map<String, String> headers,
+    bool force = false,
   }) async {
+    if (!BackendHealth.allowRequest(force: force)) {
+      return _serverDownResult(path);
+    }
     try {
       http.Response response = await http
           .post(
@@ -50,16 +83,21 @@ class ApiProvider {
             headers: headers,
           )
           .timeout(_duration);
+      BackendHealth.recordStatusCode(response.statusCode, path: path);
 
-      if (response.statusCode != 409) {
-        await LogHelper.logRequest(
-          method: "POST",
-          path: path,
-          statusCode: response.statusCode,
-          body: body,
-          response: response.body,
-        );
-      }
+      // 409 ham yoziladi. Ilgari u o'tkazib yuborilardi va natijada
+      // "server chekni allaqachon qabul qilgan" degan MUHIM holat na
+      // jurnalda, na tashxisda ko'rinmasdi — 2026-09-03 da cheklar serverda
+      // turgani holda kassada qizil (!) bo'lib qolganini aniqlash shu sabab
+      // qiyin bo'ldi. Telegramga esa baribir ketmaydi (LogRepository 409 ni
+      // filtrlaydi) — u yerda shovqin bo'lardi.
+      await LogHelper.logRequest(
+        method: "POST",
+        path: path,
+        statusCode: response.statusCode,
+        body: body,
+        response: response.body,
+      );
 
       alice.onHttpResponse(response);
       ReceiptModel4? receiptModel4;
@@ -90,6 +128,7 @@ class ApiProvider {
       return _result(
           res: response, data: body, path: path, receiptModel4: receiptModel4);
     } on TimeoutException {
+      BackendHealth.recordFailure(path: path);
       LogRepository.addLog(
         "TimeoutException: $path",
         where: "ApiProvider.postResponse",
@@ -105,6 +144,9 @@ class ApiProvider {
         statusCode: -1,
       );
     } catch (e, stack) {
+      if (BackendHealth.isNetworkFailure(e)) {
+        BackendHealth.recordFailure(path: path);
+      }
       LogRepository.requestSend(
         "Kutilmagan xato: $e",
         where: "ApiProvider.postResponse",
@@ -136,12 +178,19 @@ class ApiProvider {
   static Future<HttpResult> getResponse(
       {required String path,
       required Map<String, String> headers,
-      int? seconds}) async {
+      int? seconds,
+      bool force = false}) async {
+    if (!BackendHealth.allowRequest(force: force)) {
+      return _serverDownResult(path);
+    }
     try {
-      http.Response response = await http.get(
-        _parsedUri(path),
-        headers: headers,
-      );
+      http.Response response = await http
+          .get(
+            _parsedUri(path),
+            headers: headers,
+          )
+          .timeout(seconds != null ? Duration(seconds: seconds) : _getDuration);
+      BackendHealth.recordStatusCode(response.statusCode, path: path);
       await LogHelper.logRequest(
           method: "GET",
           path: path,
@@ -156,6 +205,7 @@ class ApiProvider {
       }
       return _result(res: response, path: path);
     } on TimeoutException catch (_) {
+      BackendHealth.recordFailure(path: path);
       return HttpResult(
         reBytes: "",
         result: "Internet Error",
@@ -163,11 +213,22 @@ class ApiProvider {
         statusCode: -1,
       );
     } on SocketException catch (_) {
+      BackendHealth.recordFailure(path: path);
       return HttpResult(
         reBytes: "",
         result: "Internet Error",
         isSuccess: false,
         statusCode: -1,
+      );
+    } catch (e) {
+      if (BackendHealth.isNetworkFailure(e)) {
+        BackendHealth.recordFailure(path: path);
+      }
+      return HttpResult(
+        reBytes: "",
+        result: "Xato yuz berdi: $e",
+        isSuccess: false,
+        statusCode: -2,
       );
     }
   }
@@ -176,7 +237,11 @@ class ApiProvider {
     required String path,
     dynamic body,
     required Map<String, String> headers,
+    bool force = false,
   }) async {
+    if (!BackendHealth.allowRequest(force: force)) {
+      return _serverDownResult(path);
+    }
     try {
       http.Response response = await http
           .put(
@@ -185,6 +250,7 @@ class ApiProvider {
             headers: headers,
           )
           .timeout(_duration);
+      BackendHealth.recordStatusCode(response.statusCode, path: path);
       await LogHelper.logRequest(
         method: "PUT",
         path: path,
@@ -207,6 +273,7 @@ class ApiProvider {
       return _result(
           res: response, data: body, path: path, receiptModel4: receiptModel4);
     } on TimeoutException catch (_) {
+      BackendHealth.recordFailure(path: path);
       return HttpResult(
         reBytes: "",
         result: "Internet Error",
@@ -214,11 +281,22 @@ class ApiProvider {
         statusCode: -1,
       );
     } on SocketException catch (_) {
+      BackendHealth.recordFailure(path: path);
       return HttpResult(
         reBytes: "",
         result: "Internet Error",
         isSuccess: false,
         statusCode: -1,
+      );
+    } catch (e) {
+      if (BackendHealth.isNetworkFailure(e)) {
+        BackendHealth.recordFailure(path: path);
+      }
+      return HttpResult(
+        reBytes: "",
+        result: "Xato yuz berdi: $e",
+        isSuccess: false,
+        statusCode: -2,
       );
     }
   }

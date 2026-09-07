@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
 import 'package:invan2/changes/services/local_selling_service.dart';
 import 'package:invan2/features/checks/return_page/right/return_dialog/return_dialog.dart';
 import 'package:invan2/features/features.dart';
@@ -119,25 +120,32 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
 
     // Qolgan kod o'zgarmadi...
     emit(ReturnLoadingState(message: ReturnMessage.internet));
-    bool internet = await InternetConnectionChecker().hasConnection;
+
+    // Internet va SERVER holati endi alohida tekshiriladi.
+    //
+    // Internet yo'q bo'lsa qaytarishni umuman bajarib bo'lmaydi: fiskal chek
+    // OFD (soliq) ga yozilishi kerak, u esa internetsiz ishlamaydi — bu
+    // holat o'zgarmadi.
+    //
+    // Internet BOR, lekin BIZNING server javob bermayotgan bo'lsa —
+    // qaytarish endi lokal bajariladi (fiskal chek chiqadi, ObjectBox'ga
+    // yoziladi), serverga yuborish esa `RefundUploadQueue` navbatiga
+    // qo'yiladi. Ilgari bu holatda qaytarish umuman ishlamasdi: kassir
+    // "internet yo'q" degan xabarni ko'rar, holbuki internet bor edi.
+    final bool internet = await InternetConnectionChecker().hasConnection;
+    final bool serverUp = internet && BackendHealth.isUp;
     if (event.isRetry) {
       await Future.delayed(const Duration(milliseconds: 500));
     }
 
-    if (newReceiptModel41.isRefund == true && internet) {
-      emit(ReturnLoadingState(message: ReturnMessage.returnig));
-      newReceiptModel41.uploaded = true;
+    /// Fiskal qism va lokal saqlash — onlayn va oflayn yo'l uchun bir xil.
+    ///
+    /// [uploaded] `false` bo'lsa chek `RefundUploadQueue` navbatida qoladi
+    /// va server tiklangach avtomatik yuboriladi.
+    Future<void> finishRefund({required bool uploaded}) async {
+      newReceiptModel41.uploaded = uploaded;
 
-      // Yangi check raqami generate qilib APIga ham, local DBga ham bir xil yuboramiz
-      newReceiptModel41.externalId = await ReceiptSingleton4.getCheckNo();
-
-      HttpResult? refundResponse =
-          await ReceiptApi4.receiptCreateGrouppForRefund(newReceiptModel41);
-
-      if (refundResponse.statusCode == 200) {
-        newReceiptModel41.uploaded = true;
-
-        if (ofd) {
+      if (ofd) {
           // Sotuv OFDga ro'yxatdan o'tganligini tekshiramiz:
           // 1) URL bo'lishi kerak
           // 2) Fiskal ma'lumotlar (terminalId, fiscalSign, dateTimeOFD) bo'lishi kerak
@@ -192,11 +200,39 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
           }
 
           //////////ofd
-        } else {
-          await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
-          emit(ReturnSuccedState());
-        }
       } else {
+        await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
+        emit(ReturnSuccedState());
+      }
+    }
+
+    if (newReceiptModel41.isRefund == true && internet) {
+      emit(ReturnLoadingState(message: ReturnMessage.returnig));
+
+      // Yangi check raqami generate qilib APIga ham, local DBga ham bir xil
+      // yuboramiz. Raqam lokal hisoblagichdan olinadi — serverga bog'liq emas.
+      newReceiptModel41.externalId = await ReceiptSingleton4.getCheckNo();
+
+      if (!serverUp) {
+        // Server yiqilgani allaqachon ma'lum — so'rov yuborib kassirni
+        // kutdirishning ma'nosi yo'q.
+        await finishRefund(uploaded: false);
+        return;
+      }
+
+      HttpResult? refundResponse =
+          await ReceiptApi4.receiptCreateGrouppForRefund(newReceiptModel41);
+
+      if (refundResponse.statusCode == 200) {
+        await finishRefund(uploaded: true);
+      } else if (BackendHealth.isServerFailureStatus(
+          refundResponse.statusCode)) {
+        // Server aynan shu so'rov paytida yiqildi — qaytarish yo'qolmasin,
+        // lokal bajarib navbatga qo'yamiz.
+        await finishRefund(uploaded: false);
+      } else {
+        // Server tirik va so'rovni rad etdi (masalan chek allaqachon
+        // qaytarilgan) — bu haqiqiy xato, yashirmaymiz.
         emit(ReturnFailedState(error: refundResponse.getError));
       }
     } else {

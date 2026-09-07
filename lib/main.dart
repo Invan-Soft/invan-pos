@@ -15,13 +15,15 @@ import 'package:invan2/changes/models/product/soliq_mxik_model.dart';
 import 'package:invan2/changes/models/receipt/receipt_model.dart';
 import 'package:invan2/changes/models/shift/shift_hive_model.dart';
 import 'package:invan2/changes/providers/settings_provider.dart';
+import 'package:invan2/changes/services/api/api_provider.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
 import 'package:invan2/changes/singletons/organization_singleton.dart';
 import 'package:invan2/features/get_discounts/model/discounts_response.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 import 'package:invan2/features/printing/repository/printer_backup.dart';
-import 'dart:async'; 
+import 'dart:async';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:invan2/features/home/bloc/invoice/invoice_bloc.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
@@ -53,7 +55,6 @@ class MyWindowListener extends WindowListener {
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
-
     return super.createHttpClient(context)
       ..badCertificateCallback =
           (X509Certificate cert, String host, int port) => true;
@@ -65,6 +66,16 @@ Future<void> main() async {
   PackageInfo.fromPlatform();
   HttpOverrides.global = MyHttpOverrides();
   GoogleFonts.config.allowRuntimeFetching = true;
+
+  // Server salomatligini tekshiruvchi so'rov qaysi manzilga ketishini
+  // belgilaymiz (aylanma import bo'lmasligi uchun shu yerda).
+  BackendHealth.configureProbeUrl(ApiProvider.baseUrlINVAN2);
+  // Tekshiruv so'roviga token qo'shiladi. Token bo'lmasa ham muhim emas:
+  // 401 javobi ham serverning tirikligini isbotlaydi.
+  BackendHealth.probeHeaders = () => {
+        'Authorization': "Bearer ${Pref.getString(PrefKeys.token, '')}",
+        'timezone': "-300",
+      };
 
   await windowManager.ensureInitialized();
   windowManager.addListener(MyWindowListener());
@@ -103,7 +114,9 @@ Future<void> main() async {
 
   try {
     await ItemsSingleton.storeProducts();
-  } catch (e) {}
+  } catch (e) {
+    
+  }
 
   // ClientsSingleton.init();
   CategorySingleton.init();
@@ -115,7 +128,6 @@ Future<void> main() async {
       providers: [
         BlocProvider(create: (context) => HomeBloc()),
         BlocProvider(create: (context) => InvoiceBloc()),
-
       ],
       child: const App(),
     ),
@@ -208,7 +220,6 @@ Future<void> _hiveInit() async {
   Hive.registerAdapter(BuyXGetXAdapter()); //30
   Hive.registerAdapter(SoliqMxikModelAdapter()); //31
 
-
   /////////////////////////
 }
 
@@ -233,7 +244,8 @@ Future<void> hiveOpen() async {
       Hive.openBox<DiscountItem>("discounts", path: "${basePath}discounts\\"),
       Hive.openBox<Payment>("other_payments",
           path: "${basePath}other_payments\\"),
-      Hive.openBox<SoliqMxikModel>('marking_products', path: "${basePath}marking_products\\"),
+      Hive.openBox<SoliqMxikModel>('marking_products',
+          path: "${basePath}marking_products\\"),
     ]);
   } else {
     Directory directory = await pp.getApplicationSupportDirectory();
@@ -256,7 +268,8 @@ Future<void> hiveOpen() async {
     await Hive.openBox<DiscountItem>("discounts", path: "${basePath}discounts");
     await Hive.openBox<Payment>("other_payments",
         path: "$basePath/other_payments");
-    await Hive.openBox<SoliqMxikModel>('marking_products', path: "$basePath/marking_products");
+    await Hive.openBox<SoliqMxikModel>('marking_products',
+        path: "$basePath/marking_products");
   }
 }
 /**

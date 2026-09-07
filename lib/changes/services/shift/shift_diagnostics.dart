@@ -1,9 +1,9 @@
-import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 import 'package:invan2/objectbox.g.dart';
 import 'package:invan2/utils/utils.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
 
 /// Smena bilan bog'liq muammolarning yagona ro'yxati.
 ///
@@ -119,7 +119,12 @@ class ShiftSnapshot {
   /// `ShiftSingleton4.closeShift` ning oflayn shoxidagi shartning aynan
   /// nusxasi — ikkalasi bir joydan o'qilishi kerak, aks holda UI "yopiladi"
   /// deb va'da berib, kod yopmay qo'yadi (2026-08-17 hodisasi).
-  bool get canCloseOffline => openedCount == 0 && closedCount == 0;
+  /// Serverga ulanmasdan yopish mumkinmi.
+  ///
+  /// Navbatda OCHISH turgani to'siq emas — `ShiftSyncQueue` ochish va
+  /// yopishni vaqt tartibida yuboradi. Faqat navbatda allaqachon YOPISH
+  /// turgan bo'lsa mumkin emas: navbatda bitta yopish uchungina joy bor.
+  bool get canCloseOffline => closedCount == 0;
 }
 
 class ShiftDiagnostics {
@@ -149,7 +154,7 @@ class ShiftDiagnostics {
   /// POS'ning joriy holatini yig'adi. [internet] berilmasa o'zi tekshiradi.
   static Future<ShiftSnapshot> capture({bool? internet}) async {
     final bool hasNet =
-        internet ?? await InternetConnectionChecker().hasConnection;
+        internet ?? await BackendHealth.isUsable();
 
     int unsent = 0;
     int rejected = 0;
@@ -212,7 +217,6 @@ class ShiftDiagnostics {
   /// qarab hal qilinadi.
   static ShiftIssue? blockingCloseIssue(ShiftSnapshot s) {
     if (s.internet || s.canCloseOffline) return null;
-    if (s.openedCount != 0) return ShiftIssue.offlineCloseBlockedByPendingOpen;
     return ShiftIssue.offlineCloseBlockedByPendingClose;
   }
 

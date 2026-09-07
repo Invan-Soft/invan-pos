@@ -21,6 +21,8 @@ import 'package:invan2/utils/helpers/auth_reset.dart';
 import 'package:invan2/changes/services/catalog_refresh_notice.dart';
 import 'package:invan2/changes/services/startup_progress.dart';
 import 'package:invan2/changes/services/discount_auto_sync_service.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
+import 'package:invan2/changes/services/receipt/refund_upload_queue.dart';
 import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
 import 'package:invan2/utils/helpers/network_error_helper.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
@@ -86,6 +88,18 @@ class _WrapperState extends State<Wrapper> {
     /// autentifikatsiyadan qat'i nazar shu yerda ishga tushirish xavfsiz.
     DiscountAutoSyncService.instance.start();
 
+    /// Server yiqilib, keyin tiklanganda navbatlarni darhol yuboramiz.
+    ///
+    /// `NetworkBloc` bu yerda yordam bermaydi: server o'chganda internet
+    /// UZILMAYDI, demak tarmoq holati o'zgarmaydi va hech qanday trigger
+    /// bo'lmaydi. `UsrBloc` ilova ildizida yaratilgani uchun Wrapper
+    /// dispose bo'lgandan keyin ham tirik qoladi.
+    BackendHealth.onRecovered = () {
+      usrBloc.add(UsrSendEvent("BackendHealth tiklandi", null));
+      unawaited(ShiftSyncQueue.flush(reason: 'backend-recovered'));
+      unawaited(RefundUploadQueue.flush(reason: 'backend-recovered'));
+    };
+
     Timer(const Duration(milliseconds: 1000), () async {
       try {
         /// dev↔pro almashgan bo'lsa saqlangan token boshqa muhitniki —
@@ -125,29 +139,17 @@ class _WrapperState extends State<Wrapper> {
           /// qayta ishga tushgan va navbatni tekshiradigan hech kim bo'lmagan.
           unawaited(ShiftSyncQueue.flush(reason: 'startup'));
 
+          /// Serverga yetmagan qaytarishlar navbati. Sotuv cheklaridan
+          /// farqli o'laroq qaytarish `UsrBloc` orqali ketmaydi — u
+          /// butunlay boshqa endpointdan boradi.
+          unawaited(RefundUploadQueue.flush(reason: 'startup'));
+
           // Startup yuklashi davomida "baza yangilanmagan" dialogi
           // chiqmasligi kerak — u yuklanish ekranining ustiga tushib qolardi.
           CatalogRefreshNotice.beginLoad();
           if (!kDebugMode || kDebugStartupCatalogSync) {
-            /// Full employees update ///
-            ///
-            StartupProgress.set(StartupPhase.employees);
-            String? employeeResult =
-                await Provider.of<UpdateProvider>(context, listen: false)
-                    .fullUpdateEmployee();
-            if (employeeResult != null) {
-              await Provider.of<UpdateProvider>(context, listen: false)
-                  .fullUpdateEmployee();
-            }
-            /// Full product update ///
-            ///
-            String? result =
-                await Provider.of<UpdateProvider>(context, listen: false)
-                    .fullUpdateItems();
-            if (result != null) {
-              result = await Provider.of<UpdateProvider>(context, listen: false)
-                  .fullUpdateItems();
-            }
+            await _syncCatalogOnStartup(
+                Provider.of<UpdateProvider>(context, listen: false));
           }
 
           CatalogRefreshNotice.endLoad();
@@ -174,6 +176,42 @@ class _WrapperState extends State<Wrapper> {
       usrBloc.add(UsrSendSpecialEvent("Checks appBar", usrBloc.unsents));
     }
     super.initState();
+  }
+
+  /// Startup'dagi katalog/xodim yangilanishi uchun umumiy vaqt budjeti.
+  ///
+  /// Yangilanish ilovaning ochilishini HECH QACHON to'sib qo'ymasligi kerak:
+  /// katalog lokal Hive'da turibdi va kassir usiz ham sotishi mumkin.
+  /// Budjet tugasa yuklash fonda davom etadi, ilova esa ochilaveradi.
+  static const Duration _startupSyncBudget = Duration(seconds: 25);
+
+  /// Ilova ochilganda katalog va xodimlarni yangilaydi — bloklanmasdan.
+  ///
+  /// Ilgari bu yerda ikkala yangilanish `await` qilinar, xato bo'lsa YANA
+  /// BIR MARTA takrorlanardi. GET so'rovlarida timeout yo'qligi bilan
+  /// qo'shilganda (api_provider.dart) server javob bermay qo'ysa ilova
+  /// splash ekranda cheksiz qotib qolardi — lokal katalog joyida turgani
+  /// holda kassir ichkariga kira olmasdi.
+  ///
+  /// Endi: server yiqilgani ma'lum bo'lsa umuman urinmaymiz, urinsak ham
+  /// budjet bilan cheklaymiz va takror urinish yo'q. Yiqilish fakti
+  /// `CatalogRefreshNotice` orqali kassirga ko'rinadi.
+  Future<void> _syncCatalogOnStartup(UpdateProvider updateProvider) async {
+    if (!await BackendHealth.isUsable()) {
+      await CatalogRefreshNotice.markFailed();
+      return;
+    }
+    try {
+      await Future(() async {
+        StartupProgress.set(StartupPhase.employees);
+        await updateProvider.fullUpdateEmployee();
+        await updateProvider.fullUpdateItems();
+      }).timeout(_startupSyncBudget);
+    } catch (_) {
+      // Yiqildi yoki budjetga sig'madi — eski katalog bilan ochilaveramiz,
+      // kassirga ogohlantirish `CatalogRefreshNotice` orqali chiqadi.
+      await CatalogRefreshNotice.markFailed();
+    }
   }
 
   /// Ilova ochilganda ObjectBox'da qolib ketgan (serverga ketmagan, lekin

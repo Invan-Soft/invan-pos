@@ -20,6 +20,7 @@ class AuthenticationApi {
       "password": password,
     });
     HttpResult res = await ApiProvider.postResponse(
+      force: true,
       path: 'auth/login',
       headers: headers,
       body: body,
@@ -33,6 +34,7 @@ class AuthenticationApi {
       "Authorization": "Bearer $token",
     };
     HttpResult res = await ApiProvider.getResponse(
+      force: true,
       path: 'api/v1/user/get_shops',
       headers: headers,
     );
@@ -56,6 +58,7 @@ class AuthenticationApi {
     });
 
     HttpResult httpResult = await ApiProvider.postResponse(
+      force: true,
       path: "user/login/verify",
       headers: headers,
       body: body,

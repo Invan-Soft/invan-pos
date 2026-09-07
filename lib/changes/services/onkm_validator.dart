@@ -71,17 +71,28 @@ class OnkmValidator {
   /// KM ni ONKM da tekshiradi.
   ///
   /// [onResponse] — tarmoq debuggeri (Alice) uchun; ixtiyoriy.
+  /// So'rov timeouti.
+  ///
+  /// Ilgari timeout umuman yo'q edi: soliq xizmati javob bermay qo'ysa
+  /// (ulanish ochiq, javob yo'q) Future hech qachon tugamasdi va kassir
+  /// markirovkali tovarni skanerlaganda `isLoading` holatida abadiy muzlab
+  /// qolardi — chiqish yo'li yo'q edi. 10 soniya: bu kassirni kutdiradigan
+  /// jonli yo'l, undan uzog'i savdo nuqtasida qabul qilib bo'lmaydi.
+  static const Duration timeout = Duration(seconds: 10);
+
   static Future<http.Response> validate({
     required ItemModel item,
     required String km,
     required String ownerTin,
     void Function(http.Response response)? onResponse,
   }) async {
-    final response = await http.post(
-      Uri.parse(endpoint),
-      body: jsonEncode(buildBody(ownerTin: ownerTin, km: km, item: item)),
-      headers: headers,
-    );
+    final response = await http
+        .post(
+          Uri.parse(endpoint),
+          body: jsonEncode(buildBody(ownerTin: ownerTin, km: km, item: item)),
+          headers: headers,
+        )
+        .timeout(timeout);
     onResponse?.call(response);
     return response;
   }

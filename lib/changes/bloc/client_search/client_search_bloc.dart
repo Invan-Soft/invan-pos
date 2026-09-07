@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:invan2/changes/services/api.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/models/supplier_model.dart';
 import 'package:invan2/changes/services/supplier_service.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
 
 part 'client_search_event.dart';
 
@@ -36,7 +36,7 @@ class ClientBloc extends Bloc<ClientEvent, SearchClientState> {
       emit(ClientLoadingState(ClientLS.internet));
 
       emit(ClientLoadingState(ClientLS.client));
-      if (!await InternetConnectionChecker().hasConnection &&
+      if (!await BackendHealth.isUsable() &&
           fixedText.length == 36) {
         emit(ClientFoundState(
           client: ClientModel(
