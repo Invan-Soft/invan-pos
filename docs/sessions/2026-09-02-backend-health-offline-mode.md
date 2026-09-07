@@ -1,8 +1,8 @@
  # Task: Server o'chganda kassa ishlashda davom etsin (BackendHealth)
 
 **Boshlangan:** 2026-09-02
-**Holat:** in-progress (kod tayyor, Windows testi kutilmoqda)
-**Branch:** refactor/ordering-split-2
+**Holat:** in-progress (kod `ayyubxon` da — `3527ef0`, Windows testi kutilmoqda)
+**Branch:** ayyubxon (2026-09-07 da `refactor/ordering-split-2` dan merge qilindi)
 
 ## Maqsad
 Backend server yiqilganda (5xx yoki umuman javob bermaganda) kassa xuddi
@@ -244,8 +244,10 @@ yoki `receiptCreateGrouppForRefund` kerakmi.
       refresh tugmasi `RefundUploadQueue.flush(includeRejected: true)`.
 
 ## Keyingi qadamlar (prioritet bo'yicha)
+- [x] Commit + `ayyubxon` ga merge + push (2026-09-07, `3527ef0`)
+      → gitlab/ayyubxon va origin/main sinxron, 1076/1076 test yashil
 - [ ] Windows'da test (quyidagi stsenariylar bo'yicha)
-- [ ] Test tasdiqlansa → commit + Holat: done
+- [ ] Test tasdiqlansa → relizga kiritish + Holat: done
 
 ## Qabul qilingan qarorlar (2026-09-02, foydalanuvchi bilan kelishildi)
 

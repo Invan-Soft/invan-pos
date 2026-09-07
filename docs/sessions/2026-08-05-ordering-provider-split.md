@@ -1,10 +1,10 @@
 # Task: OrderingProvider4 ni bosqichma-bosqich ajratish
 
 **Boshlangan:** 2026-08-05
-**Holat:** in-progress (Faza 0-8 do'konda tasdiqlangan, Faza 9 rejalashtirilmoqda)
-**Oxirgi ish:** 2026-08-26, Faza 9.6 ketmoqda — yangi maqsad **3000 qator**
-**Branch:** refactor/ordering-split-2 (ayyubxon'dan, push qilinmagan)
-**Branch:** refactor/ordering-split (ayyubxon'dan)
+**Holat:** in-progress (Faza 0-8 do'konda tasdiqlangan; Faza 9.0-9.6 `ayyubxon` da, do'kon sinovi kutilmoqda)
+**Oxirgi ish:** 2026-09-07 — Faza 9.0-9.6 (42 commit) `ayyubxon` ga merge qilindi va
+push qilindi (gitlab/ayyubxon + origin/main, `72632c3`). Hozir 3126 qator, 1076 test.
+**Branch:** ayyubxon (`refactor/ordering-split-2` merge qilindi, fast-forward)
 
 ## Maqsad
 
