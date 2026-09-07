@@ -1,13 +1,4 @@
-// `RowRepricer` — to'g'ridan-to'g'ri (providersiz) testlar.
-//
-// Bu funksiyalar Faza 9.1 gacha `OrderingProvider4` ning private metodlari
-// edi. Ayniqsa `applyExistingManualPrice` ni UMUMAN testlab bo'lmasdi:
-// unga faqat `addProduct` / `addSeperatedProduct` / `_addBoxProduct` orqali
-// borilardi, ular esa `BuildContext` va dialog talab qiladi. Ajratishning
-// bevosita foydasi shu — endi u to'g'ridan-to'g'ri chaqiriladi.
-//
-// Provider orqali o'tadigan qamrov `tier_reprice_test` va
-// `manual_price_sync_test` da; bu yerda modul yuzasi va chetki holatlar.
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invan2/changes/domain/cart/row_repricer.dart';
 import 'package:invan2/changes/models/product/item_model.dart';
@@ -39,8 +30,6 @@ ItemModel product({
   return m;
 }
 
-/// Diskont qo'llovchi o'rniga sanagich — byTotalUnits uni qaysi qatorlarga
-/// chaqirishini kuzatish uchun.
 class DiscountSpy {
   final calls = <String>[];
   void call(ItemModel p, ReceiptModelSoldItem4 row) =>
