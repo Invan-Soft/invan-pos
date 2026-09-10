@@ -1,12 +1,9 @@
 // ignore_for_file: use_build_context_synchronously
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:invan2/app_navigation.dart';
 import 'package:invan2/changes/models/shift/shift_hive_model.dart';
-import 'package:invan2/changes/services/cash_limit/bhm_service.dart';
 import 'package:invan2/changes/services/shift/shift_diagnostics.dart';
 import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
 import 'package:invan2/features/checks/features/checks_app_bar/bloc/usr_bloc.dart';
@@ -267,13 +264,6 @@ class OpenShiftProvider extends ChangeNotifier {
 
     await Pref.setBool(PrefKeys.shiftsOpened, result ?? false);
     _isShiftOpened = result ?? false;
-    if (result == true) {
-      /// Naqd chegarasi (400 × BHM) uchun BHM ni yangilash. Smena ochilishi
-      /// kam bo'ladigan amal, BHM esa yiliga bir-ikki marta o'zgaradi —
-      /// shuning uchun aynan shu yerga bog'langan. Fonda ketadi, smena
-      /// ochilishini kutdirmaydi; xato bo'lsa eski kesh qolaveradi.
-      unawaited(BhmService.refreshIfStale(reason: 'shift-open'));
-    }
     notifyListeners();
     return result;
   }

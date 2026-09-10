@@ -16,19 +16,26 @@
       2. Cheklov qoidasi (`CashRestrictionRules.bigTotalHidden`) faqat
          Pref'dagi qiymatdan hisoblangan [cashLimit] ni oladi — sotuv
          paytida tarmoqqa hech qachon chiqilmaydi.
-      3. Yangilash kam bo'ladigan amallarga bog'langan: smena ochilishi
-         (`OpenShiftProvider.openShift`) va ilova ishga tushishi
-         (`Wrapper`). Ikkalasi ham [refreshInterval] TTL bilan
-         himoyalangan — BHM yiliga bir-ikki marta o'zgaradi, tez-tez
-         so'rash shart emas.
+      3. Yangilash ikki joyda:
+         - "To'liq yangilash" dialogining "Сервис" bosqichi (`UpdBloc`) —
+           har doim so'raydi. "Организация" bosqichi STIR'ni yozib
+           bo'lgan, va bu kassir ataylab bosadigan kam uchraydigan amal.
+         - Ilova ishga tushganda (`Wrapper`) — [refreshInterval] TTL bilan,
+           xavfsizlik to'ri sifatida.
+         BHM yiliga bir-ikki marta o'zgaradi, tez-tez so'rash shart emas.
       4. Kesh bo'sh bo'lsa (birinchi ishga tushish, oflayn) [fallbackBhm]
          ishlatiladi — 2026-09-10 holatiga ko'ra API bergan qiymat.
+      5. Har so'rov Alice'da ko'rinadi (`BackendHealth` kabi qo'lda qayd
+         etiladi, chunki bu so'rov `ApiProvider` dan o'tmaydi). Javob umuman
+         kelmasa status 599 bilan sun'iy yozuv qo'shiladi — aks holda
+         tashqaridan "kassa hech narsa so'ramadi" bo'lib ko'rinardi.
 */
 
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:invan2/alice_service.dart';
 import 'package:invan2/changes/services/log_helper.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
@@ -55,6 +62,11 @@ class BhmService {
 
   /// So'rov timeouti — fonda ketadi, kassirni kutdirmaydi.
   static const Duration requestTimeout = Duration(seconds: 10);
+
+  /// Alice'dagi sun'iy yozuv uchun status: javob umuman kelmadi.
+  /// 599 — "Network Connect Timeout Error" (norasmiy, lekin keng tarqalgan);
+  /// haqiqiy server kodlari bilan aralashmaydi va Alice'da qizil ko'rinadi.
+  static const int noResponseStatus = 599;
 
   /// Test uchun almashtiriladigan HTTP so'rov.
   static Future<http.Response> Function(Uri uri) request = _defaultRequest;
@@ -115,12 +127,23 @@ class BhmService {
 
   static Future<bool> _refresh(String reason) async {
     final stir = Pref.getString(PrefKeys.organizationINN, '').trim();
+    final uri = Uri.parse('$endpoint$stir');
     if (stir.isEmpty) {
+      // Tashkilotda `tax_payer_id` bo'sh — so'rov yuborib bo'lmaydi.
+      // Alice'da ham ko'rinsin, aks holda "nega so'ramadi" degan savol
+      // tashqaridan javobsiz qoladi.
+      _toAlice(http.Response(
+        'BHM ($reason): tashkilot STIR\'i (tax_payer_id) bo\'sh, so\'rov yuborilmadi. '
+        'Fallback: $fallbackBhm × $multiplier = ${fallbackBhm * multiplier}',
+        noResponseStatus,
+        request: http.Request('GET', uri),
+      ));
       await _log(LogLevel.warn, 'BHM ($reason): STIR yo\'q, so\'rov yuborilmadi');
       return false;
     }
     try {
-      final res = await request(Uri.parse('$endpoint$stir'));
+      final res = await request(uri);
+      _toAlice(res);
       if (res.statusCode != 200) {
         await _log(LogLevel.warn, 'BHM ($reason): HTTP ${res.statusCode}');
         return false;
@@ -138,9 +161,27 @@ class BhmService {
           'BHM ($reason): $previous → $amount, naqd chegarasi ${amount * multiplier}');
       return true;
     } catch (e) {
+      // Javob UMUMAN kelmadi (timeout, ulanish yo'q, DNS). Alice faqat
+      // haqiqiy javobni ko'rsata oladi — sun'iy yozuv, tanasida sabab.
+      // Status [noResponseStatus]: `http` paketi 100 dan kichik kodni
+      // (masalan 0) qabul qilmaydi — `ArgumentError: Invalid status code`.
+      _toAlice(http.Response(
+        'BHM ($reason): Soliq API javob bermadi\n$e',
+        noResponseStatus,
+        request: http.Request('GET', uri),
+      ));
       await _log(LogLevel.warn, 'BHM ($reason): so\'rov yiqildi: $e');
       return false;
     }
+  }
+
+  /// Alice'ga qayd etadi. Alice `request` maydoni bo'sh javobni (testlardagi
+  /// sun'iy javob) o'zi o'tkazib yuboradi; boshqa har qanday xato ham asosiy
+  /// oqimni to'xtatmasligi kerak.
+  static void _toAlice(http.Response res) {
+    try {
+      alice.onHttpResponse(res);
+    } catch (_) {}
   }
 
   /// API javobidan BHM ni ajratadi. Shakl noto'g'ri bo'lsa null.

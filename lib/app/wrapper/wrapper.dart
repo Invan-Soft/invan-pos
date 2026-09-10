@@ -146,8 +146,8 @@ class _WrapperState extends State<Wrapper> {
           unawaited(RefundUploadQueue.flush(reason: 'startup'));
 
           /// Naqd chegarasi uchun BHM (400 × BHM). Kesh 24 soatdan eski
-          /// bo'lsagina Soliq API'ga boradi; smena ochilganda ham
-          /// yangilanadi. Fonda ketadi, startup'ni kutdirmaydi.
+          /// bo'lsagina Soliq API'ga boradi; "To'liq yangilash" (Сервис
+          /// bosqichi) ham yangilaydi. Fonda ketadi, startup'ni kutdirmaydi.
           unawaited(BhmService.refreshIfStale(reason: 'startup'));
 
           // Startup yuklashi davomida "baza yangilanmagan" dialogi

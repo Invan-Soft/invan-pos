@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:invan2/changes/models/organization_model.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
+import 'package:invan2/changes/services/cash_limit/bhm_service.dart';
 import 'package:invan2/changes/services/get_items_service.dart';
 import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'package:invan2/changes/services/company_app_service.dart';
@@ -115,6 +116,13 @@ class UpdBloc extends Bloc<UpdEvent, UpdState> {
         case APDstatus.service:
           {
             String? v = await _service(emit);
+            // Naqd chegarasi uchun BHM (400 × BHM) ni Soliq API'dan yangilash.
+            // Aynan shu yerda: "Организация" bosqichi STIR'ni Pref'ga yozib
+            // bo'lgan, va to'liq yangilash kassir ataylab bosadigan kam
+            // uchraydigan amal. Natija qatorning belgisiga ta'sir qilmaydi —
+            // BHM kelmasa eski kesh yoki fallback (176 mln) ishlayveradi.
+            // So'rov Alice'da ko'rinadi.
+            await BhmService.refresh(reason: 'full-update');
             List<UpdFailedRepo> r = _changeRepoStatus(i, v);
             emit(UpdLoadingState(repos: r));
           }
