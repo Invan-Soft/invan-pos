@@ -24,8 +24,8 @@ class ApiProvider {
   // static const baseUrlINVAN2 = INVAN2PRO;
   // static const imageUrl = imageUrlPro;
 
-  static const baseUrlINVAN2 = INVAN2DEV;
-  static const imageUrl = imageUrlDev;
+  static const baseUrlINVAN2 = INVAN2PRO;
+  static const imageUrl = imageUrlPro;
 
   static const String envPro = 'pro';
   static const String envDev = 'dev';

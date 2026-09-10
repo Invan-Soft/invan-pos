@@ -247,7 +247,8 @@ yoki `receiptCreateGrouppForRefund` kerakmi.
 - [x] Commit + `ayyubxon` ga merge + push (2026-09-07, `3527ef0`)
       → gitlab/ayyubxon va origin/main sinxron, 1076/1076 test yashil
 - [ ] Windows'da test (quyidagi stsenariylar bo'yicha)
-- [ ] Test tasdiqlansa → relizga kiritish + Holat: done
+- [x] Relizga kiritildi: 1.1.2+123 (2026-09-10, foydalanuvchi qarori — Windows testi relizdan keyin do'konda)
+- [ ] Do'kon testi tasdiqlansa → Holat: done
 
 ## Qabul qilingan qarorlar (2026-09-02, foydalanuvchi bilan kelishildi)
 
