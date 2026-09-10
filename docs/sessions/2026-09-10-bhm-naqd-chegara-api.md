@@ -1,7 +1,7 @@
 # Task: Naqd to'lov chegarasini (400 × BHM) Soliq API'dan olish
 
 **Boshlangan:** 2026-09-10
-**Holat:** in-progress (1.1.2+123 relizga kiritildi 2026-09-10; do'konda real API bilan sinov kutilmoqda)
+**Holat:** in-progress (1.1.2+123 va +124 relizga kiritildi 2026-09-10; do'konda real API bilan sinov kutilmoqda)
 **Branch:** ayyubxon
 
 ## Maqsad
@@ -48,10 +48,13 @@ accept: */*
   → Sabab: qoida sof qoladi (Pref/Hive'siz testlanadi); qiymatni
     chaqiruvchi (`BhmService.cashLimit`) beradi. Eski `bigTotalLimit`
     konstantasi olib tashlandi.
-- [x] Hook: smena ochilganda (`OpenShiftProvider.openShift`, result==true)
-  `unawaited(BhmService.refreshIfStale(reason: 'shift-open'))`
-  → Sabab: foydalanuvchi talabi — kam bo'ladigan amalga bog'lash; smena
-    har sotuvdan oldin ochiladi, demak birinchi sotuvgacha kesh to'ladi.
+- [x] ~~Hook: smena ochilganda~~ → 2026-09-10 kechqurun OLIB TASHLANDI
+  (foydalanuvchi qarori). O'rniga "To'liq yangilash" dialogining "Сервис"
+  bosqichi (`UpdBloc`, upd_bloc.dart `case APDstatus.service`):
+  `await BhmService.refresh(reason: 'full-update')` — har doim so'raydi.
+  → Sabab: "Организация" bosqichi STIR'ni yozib bo'lgan; kassir ataylab
+    bosadigan kam uchraydigan amal. macOS sinovida smena ochilganda
+    `STIR yo'q` chiqdi (test kompaniyada `tax_payer_id` bo'sh).
 - [x] Hook: startup (`Wrapper`, auth'dan keyin, navbatlar flush'i yonida)
   → Sabab: ilova smena ochiq holda yangilangan/qayta ochilgan holatni
     qoplaydi. TTL tufayli arzon.
@@ -60,6 +63,14 @@ accept: */*
   eskirmaydi). Kodda ishlatilmagan matn, lekin arb'da qoldi.
 - [x] Testlar: test/bhm_service_test.dart (yangi), cash_restriction_rules_test,
   cash_restriction_test (176 mln + Pref'dagi BHM testi)
+- [x] Alice'ga qayd (1.1.2+123 dan KEYIN, hali relizda emas): javob kelsa
+  `alice.onHttpResponse(res)`, javob kelmasa yoki STIR bo'sh bo'lsa status
+  599 bilan sun'iy yozuv (tanasida sabab)
+  → lib/changes/services/cash_limit/bhm_service.dart (`_toAlice`)
+  → Sabab: so'rov `ApiProvider` dan o'tmaydi, Alice'da ko'rinmasdi.
+  → TOPILMA: `http` 1.6.0 status < 100 ni rad etadi (`Invalid status code 0`).
+    BackendHealth'dagi status-0 sun'iy yozuv (backend_health.dart:406-410)
+    ham shu sabab hech qachon Alice'ga tushmaydi — alohida tuzatish kerak.
 
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] Windows'da real sinov: smena ochish → loglarda
@@ -70,6 +81,9 @@ accept: */*
   `bigTotalHidden` sikli). 2 × 100 mln savat hozir naqdga ochiq.
 - [ ] Elnor'dan aniqlashtirish: `cashSaleAllowed:false` nimani anglatadi?
   Tashkilot darajasida naqd taqiqmi? Agar shunday bo'lsa alohida task.
+- [ ] Tashkilotda `tax_payer_id` bo'sh bo'lsa BHM hech qachon so'ralmaydi
+  (fallback 176 mln ishlaydi). Do'konlarda STIR to'ldirilganini tekshirish
+  (u fiskal chekda `ownerTin` sifatida ham ketadi, demak odatda bor).
 
 ## Qabul qilingan qarorlar
 - Chegara `limit` parametr sifatida uzatiladi, rules sinfi Pref'ga
