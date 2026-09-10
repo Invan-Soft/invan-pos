@@ -209,6 +209,13 @@ class PrefKeys {
   /// kalitga qarab tokenlarni tozalab, login sahifasiga qaytaradi.
   static const String apiEnv = 'api_env';
 
+  /// Soliq API'dan olingan BHM (Bazaviy Hisoblash Miqdori, so'm).
+  /// Naqd to'lov chegarasi = BHM × 400. Qarang: `BhmService`.
+  static const String bhmAmount = 'bhm_amount';
+
+  /// [bhmAmount] oxirgi marta qachon olingan (ms since epoch).
+  static const String bhmFetchedAt = 'bhm_fetched_at';
+
 
 
 }

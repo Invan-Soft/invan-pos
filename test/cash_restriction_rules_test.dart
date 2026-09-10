@@ -126,62 +126,71 @@ void main() {
   });
 
   group('bigTotalHidden', () {
-    bool run(double price, {double value = 1, int? cashsale = 1}) {
+    // 400 × 440 000. Qoida chegarani parametr sifatida oladi — manba
+    // (`BhmService`) alohida testlanadi (bhm_service_test.dart).
+    const kLimit = 176000000.0;
+
+    bool run(double price,
+        {double value = 1, int? cashsale = 1, double limit = kLimit}) {
       ItemsSingleton.products = [catalogItem('a', cashsale)];
       return CashRestrictionRules.bigTotalHidden(
         [makeSoldItem(productId: 'a', price: price, value: value)],
         ofdOn: true,
         cashsaleCheckOn: true,
+        limit: limit,
       );
     }
 
-    test('chegara konstantasi 25 mln', () {
-      expect(CashRestrictionRules.bigTotalLimit, 25000000);
-    });
-
     test('chegaradan 1 so\'m yuqori → true', () {
-      expect(run(25000001), isTrue);
+      expect(run(176000001), isTrue);
     });
 
     test('aynan chegara → false (qat\'iy >)', () {
-      expect(run(25000000), isFalse);
+      expect(run(176000000), isFalse);
+    });
+
+    test('chegara parametrdan olinadi — 10 000 bo\'lsa 10 001 → true', () {
+      expect(run(10001, limit: 10000), isTrue);
+      expect(run(10000, limit: 10000), isFalse);
     });
 
     test('narx × miqdor hisoblanadi', () {
-      expect(run(13000000, value: 2), isTrue);
+      expect(run(90000000, value: 2), isTrue);
     });
 
     test('cashsale 0 bu qoidaga kirmaydi', () {
-      expect(run(30000000, cashsale: 0), isFalse);
+      expect(run(180000000, cashsale: 0), isFalse);
     });
 
     test('cashsale null bu qoidaga kirmaydi', () {
-      expect(run(30000000, cashsale: null), isFalse);
+      expect(run(180000000, cashsale: null), isFalse);
     });
 
     test('OFD o\'chiq → false', () {
       ItemsSingleton.products = [catalogItem('a', 1)];
       expect(
         CashRestrictionRules.bigTotalHidden(
-          [makeSoldItem(productId: 'a', price: 30000000)],
+          [makeSoldItem(productId: 'a', price: 180000000)],
           ofdOn: false,
           cashsaleCheckOn: true,
+          limit: kLimit,
         ),
         isFalse,
       );
     });
 
-    test('QAYD: chegara QATOR bo\'yicha — 2 × 20 mln savat jami ishlamaydi',
+    test('QAYD: chegara QATOR bo\'yicha — 2 × 100 mln savat jami ishlamaydi',
         () {
       ItemsSingleton.products = [catalogItem('a', 1), catalogItem('b', 1)];
       expect(
         CashRestrictionRules.bigTotalHidden(
           [
-            makeSoldItem(productId: 'a', price: 20000000),
-            makeSoldItem(productId: 'b', price: 20000000),
+            makeSoldItem(productId: 'a', price: 100000000),
+            makeSoldItem(productId: 'b', price: 100000000),
           ],
           ofdOn: true,
           cashsaleCheckOn: true,
+          limit: kLimit,
         ),
         isFalse,
       );

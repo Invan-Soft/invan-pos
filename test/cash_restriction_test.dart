@@ -5,11 +5,12 @@
 // katalog. Faza 9 da alohida modulga ko'chiriladi — shuning uchun avval
 // HOZIRGI xatti-harakat to'liq muzlatiladi.
 //
-// Qamrov: har getterning har bir `if` shoxi, chegaraviy qiymatlar (25 mln,
+// Qamrov: har getterning har bir `if` shoxi, chegaraviy qiymatlar (400 × BHM = 176 mln,
 // cashsale 0/1/null), o'chirilgan qatorlar, bo'sh savat va Pref gate'lari.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invan2/changes/models/product/item_model.dart';
 import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/changes/services/cash_limit/bhm_service.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
@@ -42,6 +43,8 @@ void main() {
   setUp(() async {
     ItemsSingleton.products = [];
     await enableCashsaleGates();
+    // Kesh bo'sh → fallback 440 000 × 400 = 176 mln.
+    await BhmService.clearCache();
     await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
   });
 
@@ -234,7 +237,7 @@ void main() {
     });
   });
 
-  group('isBigTotalHidden — cashsale == 1 va qator jami > 25 mln', () {
+  group('isBigTotalHidden — cashsale == 1 va qator jami > 400 × BHM (176 mln)', () {
     OrderingProvider4 withRow({
       int? cashsale = 1,
       double price = 5000,
@@ -256,47 +259,54 @@ void main() {
 
     test('markCheckWithOfd o\'chiq bo\'lsa false', () async {
       await Pref.setBool(PrefKeys.markCheckWithOfd, false);
-      expect(withRow(price: 30000000).isBigTotalHidden, isFalse);
+      expect(withRow(price: 180000000).isBigTotalHidden, isFalse);
     });
 
     test('checkProductByCashsale o\'chiq bo\'lsa false', () async {
       await Pref.setBool('checkProductByCashsale', false);
-      expect(withRow(price: 30000000).isBigTotalHidden, isFalse);
+      expect(withRow(price: 180000000).isBigTotalHidden, isFalse);
     });
 
     test('bo\'sh savatda false', () {
       expect(freshProvider().isBigTotalHidden, isFalse);
     });
 
-    test('25 000 001 → true', () {
-      expect(withRow(price: 25000001).isBigTotalHidden, isTrue);
+    test('176 000 001 → true', () {
+      expect(withRow(price: 176000001).isBigTotalHidden, isTrue);
     });
 
-    test('CHEGARA: aynan 25 000 000 → false (qat\'iy >)', () {
-      expect(withRow(price: 25000000).isBigTotalHidden, isFalse);
+    test('CHEGARA: aynan 176 000 000 → false (qat\'iy >)', () {
+      expect(withRow(price: 176000000).isBigTotalHidden, isFalse);
     });
 
-    test('price × value hisoblanadi (10 mln × 3 = 30 mln → true)', () {
-      expect(withRow(price: 10000000, value: 3).isBigTotalHidden, isTrue);
+    test('chegara Pref\'dagi BHM dan hisoblanadi (500 000 × 400 = 200 mln)',
+        () async {
+      await Pref.setInt(PrefKeys.bhmAmount, 500000);
+      expect(withRow(price: 176000001).isBigTotalHidden, isFalse);
+      expect(withRow(price: 200000001).isBigTotalHidden, isTrue);
+    });
+
+    test('price × value hisoblanadi (60 mln × 3 = 180 mln → true)', () {
+      expect(withRow(price: 60000000, value: 3).isBigTotalHidden, isTrue);
     });
 
     test('cashsale == 0 bo\'lsa bu getter false (u qat\'iy taqiqqa tegishli)',
         () {
-      expect(withRow(cashsale: 0, price: 30000000).isBigTotalHidden, isFalse);
+      expect(withRow(cashsale: 0, price: 180000000).isBigTotalHidden, isFalse);
     });
 
     test('cashsale == null bo\'lsa false (-1 default, 1 ga teng emas)', () {
       expect(
-          withRow(cashsale: null, price: 30000000).isBigTotalHidden, isFalse);
+          withRow(cashsale: null, price: 180000000).isBigTotalHidden, isFalse);
     });
 
     test('katalogda topilmasa false', () {
       expect(
-          withRow(inCatalog: false, price: 30000000).isBigTotalHidden, isFalse);
+          withRow(inCatalog: false, price: 180000000).isBigTotalHidden, isFalse);
     });
 
     test('o\'chirilgan qator hisobga olinmaydi', () {
-      expect(withRow(price: 30000000, deleted: true).isBigTotalHidden, isFalse);
+      expect(withRow(price: 180000000, deleted: true).isBigTotalHidden, isFalse);
     });
 
     test('ikkita qatordan biri oshsa true', () {
@@ -307,20 +317,20 @@ void main() {
       final p = freshProvider();
       p.getCurrentClient.orderedProducts
         ..add(makeSoldItem(productId: 'a', price: 1000))
-        ..add(makeSoldItem(productId: 'b', price: 26000000));
+        ..add(makeSoldItem(productId: 'b', price: 177000000));
       expect(p.isBigTotalHidden, isTrue);
     });
 
     test('QAYD: chegara QATOR bo\'yicha, savat jami bo\'yicha emas', () {
-      // 2 × 20 mln = 40 mln, lekin hech bir QATOR 25 mln dan oshmaydi.
+      // 2 × 100 mln = 200 mln, lekin hech bir QATOR 176 mln dan oshmaydi.
       ItemsSingleton.products = [
         productWithCashsale('a', 1),
         productWithCashsale('b', 1),
       ];
       final p = freshProvider();
       p.getCurrentClient.orderedProducts
-        ..add(makeSoldItem(productId: 'a', price: 20000000))
-        ..add(makeSoldItem(productId: 'b', price: 20000000));
+        ..add(makeSoldItem(productId: 'a', price: 100000000))
+        ..add(makeSoldItem(productId: 'b', price: 100000000));
       expect(p.isBigTotalHidden, isFalse);
     });
   });

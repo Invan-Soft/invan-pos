@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:invan2/changes/services/cash_limit/bhm_service.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 import 'package:invan2/features/home/features/home_orders/order_list/order_list_top.dart';
@@ -47,13 +48,13 @@ class OrderListItem extends StatelessWidget {
     return (product?.cashsale ?? 1) == 0;
   }
 
-  // Shartli taqiq: cashsale==1 va umumiy narx 25mln dan oshgan
+  // Shartli taqiq: cashsale==1 va qator jami 400 × BHM dan oshgan
   bool _isBigTotalRestricted() {
     if (!CashsaleSettingHelper.isEnabled) return false;
     final product = ItemsSingleton.getProductById(orderedProduct.productId);
     if (product == null) return false;
     if ((product.cashsale ?? -1) != 1) return false;
-    return (orderedProduct.price * orderedProduct.value) > 25000000;
+    return (orderedProduct.price * orderedProduct.value) > BhmService.cashLimit;
   }
 
   @override

@@ -1643,7 +1643,7 @@ abstract class AppLocalizations {
   /// No description provided for @narx_limit_oshdi.
   ///
   /// In ru, this message translates to:
-  /// **'Общая сумма превысила 25 млн'**
+  /// **'Общая сумма превысила 400 БРВ'**
   String get narx_limit_oshdi;
 
   /// No description provided for @notogri_format_qr.

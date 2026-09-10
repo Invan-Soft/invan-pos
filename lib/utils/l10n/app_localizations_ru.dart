@@ -808,7 +808,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get naqd_tolov_taqiq => 'Оплата наличными запрещена';
 
   @override
-  String get narx_limit_oshdi => 'Общая сумма превысила 25 млн';
+  String get narx_limit_oshdi => 'Общая сумма превысила 400 БРВ';
 
   @override
   String get notogri_format_qr => 'Отсканирован QR-код неправильного формата';

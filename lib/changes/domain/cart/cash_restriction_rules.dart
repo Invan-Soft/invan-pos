@@ -5,7 +5,8 @@
 //   1. FAQAT KARTA — kommunal xizmat MXIK lari (elektr, gaz, suv...)
 //   2. MARKIROVKA — alkogol/tamaki guruhlari (OFD sozlamasiga bog'liq)
 //   3. CASHSALE — katalogdagi `cashsale` bayrog'i: 0 = naqd taqiqlangan,
-//      1 = ruxsat, lekin qator jami 25 mln dan oshsa yana taqiqlanadi
+//      1 = ruxsat, lekin qator jami 400 × BHM dan oshsa yana taqiqlanadi
+//      (chegara `BhmService.cashLimit` dan parametr sifatida keladi)
 //
 // `OrderingProvider4` dan ko'chirildi (Faza 9.3) — tanalar o'zgarmagan.
 // Sozlama bayroqlari parametr sifatida keladi, shuning uchun qoidalar
@@ -17,9 +18,6 @@ import 'package:invan2/utils/constants/mxik_constants.dart';
 
 class CashRestrictionRules {
   const CashRestrictionRules._();
-
-  /// Naqd 25 mln dan oshgan `cashsale == 1` qator uchun yopiladi.
-  static const double bigTotalLimit = 25000000;
 
   /// Kommunal xizmat kabi faqat karta bilan to'lanadigan MXIK bormi.
   /// QAYD: o'chirilgan qatorlar ham sanaladi (hozirgi xatti-harakat).
@@ -76,13 +74,16 @@ class CashRestrictionRules {
     return false;
   }
 
-  /// `cashsale == 1` mahsulotning QATOR jami 25 mln dan oshdimi.
-  /// QAYD: chegara qator bo'yicha — 2 × 20 mln savat jami 40 mln bo'lsa ham
+  /// `cashsale == 1` mahsulotning QATOR jami [limit] dan oshdimi.
+  /// [limit] — 400 × BHM (`BhmService.cashLimit`). Parametr sifatida keladi,
+  /// shunda qoida Pref/tarmoqsiz testlanadi.
+  /// QAYD: chegara qator bo'yicha — 2 × 100 mln savat jami 200 mln bo'lsa ham
   /// bu qoida ishlamaydi (hozirgi xatti-harakat).
   static bool bigTotalHidden(
     List<ReceiptModelSoldItem4> rows, {
     required bool ofdOn,
     required bool cashsaleCheckOn,
+    required double limit,
   }) {
     if (!ofdOn) return false;
     if (!cashsaleCheckOn) return false;
@@ -93,7 +94,7 @@ class CashRestrictionRules {
       final product = ItemsSingleton.getProductById(item.productId);
       if (product == null) continue;
       if ((product.cashsale ?? -1) != 1) continue;
-      if (item.price * item.value > bigTotalLimit) return true;
+      if (item.price * item.value > limit) return true;
     }
     return false;
   }

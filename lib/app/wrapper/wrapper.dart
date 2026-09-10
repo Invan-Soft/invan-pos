@@ -22,6 +22,7 @@ import 'package:invan2/changes/services/catalog_refresh_notice.dart';
 import 'package:invan2/changes/services/startup_progress.dart';
 import 'package:invan2/changes/services/discount_auto_sync_service.dart';
 import 'package:invan2/changes/services/health/backend_health.dart';
+import 'package:invan2/changes/services/cash_limit/bhm_service.dart';
 import 'package:invan2/changes/services/receipt/refund_upload_queue.dart';
 import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
 import 'package:invan2/utils/helpers/network_error_helper.dart';
@@ -143,6 +144,11 @@ class _WrapperState extends State<Wrapper> {
           /// farqli o'laroq qaytarish `UsrBloc` orqali ketmaydi — u
           /// butunlay boshqa endpointdan boradi.
           unawaited(RefundUploadQueue.flush(reason: 'startup'));
+
+          /// Naqd chegarasi uchun BHM (400 × BHM). Kesh 24 soatdan eski
+          /// bo'lsagina Soliq API'ga boradi; smena ochilganda ham
+          /// yangilanadi. Fonda ketadi, startup'ni kutdirmaydi.
+          unawaited(BhmService.refreshIfStale(reason: 'startup'));
 
           // Startup yuklashi davomida "baza yangilanmagan" dialogi
           // chiqmasligi kerak — u yuklanish ekranining ustiga tushib qolardi.

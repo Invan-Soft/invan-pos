@@ -26,6 +26,7 @@ import 'package:invan2/changes/domain/barcode/scanned_product_lookup.dart';
 import 'package:invan2/changes/domain/barcode/tarozi_label.dart';
 import 'package:invan2/changes/domain/barcode/utsenka_qr.dart';
 import 'package:invan2/changes/domain/cart/cash_restriction_rules.dart';
+import 'package:invan2/changes/services/cash_limit/bhm_service.dart';
 import 'package:invan2/changes/services/telegram_notifier.dart';
 import 'package:invan2/changes/domain/cart/deleted_item_recorder.dart';
 import 'package:invan2/changes/domain/cart/row_repricer.dart';
@@ -465,6 +466,7 @@ class OrderingProvider4 extends ChangeNotifier {
         _currentClient.orderedProducts,
         ofdOn: Pref.getBool(PrefKeys.markCheckWithOfd, true),
         cashsaleCheckOn: Pref.getBool('checkProductByCashsale', true),
+        limit: BhmService.cashLimit,
       );
 
   void resetCashRestrictionWarnings() {

@@ -820,7 +820,7 @@ class AppLocalizationsUz extends AppLocalizations {
   String get naqd_tolov_taqiq => 'Naqd to\'lov mumkin emas';
 
   @override
-  String get narx_limit_oshdi => 'Umumiy narx 25 mln dan oshdi';
+  String get narx_limit_oshdi => 'Umumiy narx BHMning 400 baravaridan oshdi';
 
   @override
   String get notogri_format_qr => 'Noto\'g\'ri formatdagi QR kod skanerlandi';
