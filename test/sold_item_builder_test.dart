@@ -99,6 +99,20 @@ void main() {
       expect(r.marking, isFalse);
     });
 
+    // 2026-09-11: adminka `is_marking=false` degan bo'lsa MXIK ro'yxatda
+    // bo'lsa ham oddiy qator (markirovka dialogi ham chiqmaydi).
+    test('is_marking = false + MXIK ro\'yxatda -> marking false, type bo\'sh',
+        () {
+      final r = SoldItemBuilder.build(
+          product(mxik: '02202001001000000', isMarking: false), 5000, 1, false);
+
+      expect(r.marking, isFalse);
+      expect(r.productType, '');
+      expect(r.productPackage, '');
+      expect(r.mxik, '02202001001000000',
+          reason: 'savat qatorida asl MXIK qoladi (order_pos o\'zgarmaydi)');
+    });
+
     test('markirovkali mahsulotga productType va KIZ qo\'yiladi', () {
       final r = SoldItemBuilder.build(
           product(mxik: '02205000000000000'), 5000, 1, false);

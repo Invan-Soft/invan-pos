@@ -1,10 +1,12 @@
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:invan2/changes/domain/marking/fiscal_mxik_fallback.dart';
 import 'package:invan2/changes/models/discount_model.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
 import 'package:invan2/changes/models/product/sale_item_model.dart';
 import 'package:invan2/changes/models/product_discount_model.dart';
+import 'package:invan2/changes/services/log_helper.dart';
 import 'package:invan2/changes/services/payment/click_service.dart';
 import 'package:invan2/changes/services/receipt_api_4.dart';
 import 'package:invan2/features/features.dart';
@@ -216,6 +218,27 @@ class ReceiptSingleton4 {
   }
 
  
+  /// Chek qatori mahsulotining adminka `is_marking` bayrog'i (katalogdan).
+  ///
+  /// Bayroq chek qatorida saqlanmaydi, shuning uchun `ItemsSingleton` dan
+  /// o'qiladi. Faqat fallback UMUMAN mumkin bo'lganda (MXIK markirovka
+  /// ro'yxatida va KM yo'q) qidiriladi — katalog bo'ylab chiziqli qidiruv
+  /// har qator uchun bekorga yurmasin.
+  ///
+  /// Mahsulot katalogda yo'q (o'chirilgan, eski chek vozvrati) yoki qidiruv
+  /// xato bersa — `false`: qaror MXIK va KM bo'yicha qilinadi. Bu yo'l to'lov
+  /// yo'li, shuning uchun hech qachon exception tashlamasligi kerak.
+  static bool _isMarkingInCatalog(ReceiptModelSoldItem4 e) {
+    if (!FiscalMxikFallback.mayNeedFallback(mxik: e.mxik, mark: e.mark)) {
+      return false; // natija baribir ishlatilmaydi — qidiruv shart emas
+    }
+    try {
+      return ItemsSingleton.getProductById(e.productId)?.isMarking ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
     static Map<String, dynamic> saleOnOFD(ReceiptModel4 incomingReceipt) {
     ReceiptModel4 receipt = ReceiptApi4.func(incomingReceipt);
 
@@ -288,6 +311,14 @@ class ReceiptSingleton4 {
     String terId = Pref.getString(PrefKeys.terminalID, '');
     double totalPrice = ItemsSingleton.getOfdTotalPrice(receipt.soldItemList);
 
+    // Adminkada markirovkali deb belgilanMAGAN (`is_marking=false`), lekin
+    // MXIK'i markirovka ro'yxatida bo'lgan va KM siz qator → fiskalga statik
+    // MXIK va bo'sh shtrix-kod ketadi (adminkada MXIK xato kiritilgan holat;
+    // aks holda soliq chekni rad etadi). FAQAT fiskal body — `order_pos`
+    // (`product_mxik`, `product_barcode`) va savat qatori o'zgarmaydi. Sotuv va
+    // vozvrat bir xil. Qarang: lib/changes/domain/marking/fiscal_mxik_fallback.dart
+    final String staticMxik = Pref.getString(PrefKeys.mxikCode, '');
+
     // OFD itemlarini avval MODEL sifatida quramiz (toJson keyin). Shunda
     // yuborishdan oldin §10.2.1 balansini tekshirib/tuzatish imkoni bo'ladi.
     final List<SalingItemModel> ofdItems = receipt.soldItemList.map((e) {
@@ -299,13 +330,29 @@ class ReceiptSingleton4 {
       );
       num price = _countPrice(e);
 
+      final FiscalItemCodes codes = FiscalMxikFallback.resolve(
+        isMarkingProduct: _isMarkingInCatalog(e),
+        mxik: e.mxik,
+        mark: e.mark,
+        barcode: e.barcode,
+        staticMxik: staticMxik,
+      );
+      if (codes.substituted) {
+        LogHelper.write(
+          LogLevel.warn,
+          'FISKAL MXIK FALLBACK: "${e.productName}" is_marking=false, '
+          "MXIK=${e.mxik} markirovka ro'yxatida, KM yo'q -> "
+          "SPIC=${codes.classCode}, Barcode='' (adminkada MXIK tekshirilsin)",
+        );
+      }
+
       return SalingItemModel(
         id: e.productId,
         tin: e.commissionTIN,
         label: e.mark ?? '',
         amount: e.value * 1000,
-        barcode: e.barcode,
-        classCode: e.mxik,
+        barcode: codes.barcode,
+        classCode: codes.classCode,
         name: e.productName.replaceAll(' //blok', ''),
         discount: discount,
         ownerType: e.ownerType,

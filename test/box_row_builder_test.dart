@@ -22,12 +22,14 @@ ItemModel product({
   int vatPercent = 12,
   num supplyPrice = 3000,
   String? ownerType = '2',
+  bool? isMarking,
 }) {
   final m = ItemModel();
   m.id = 'suv-id';
   m.name = name;
   m.sku = '1001';
   m.mxikCode = mxik;
+  m.isMarking = isMarking;
   m.packageCode = 'PACK-1';
   m.packageName = 'BOX';
   m.commissionTin = '123456789';
@@ -82,6 +84,16 @@ void main() {
 
     test('markirovkali mahsulotda blok KM saqlanadi', () {
       expect(row(p: product(mxik: kMarkingMxik), rawMark: 'KM-9').mark, 'KM-9');
+    });
+
+    // 2026-09-11: `is_marking=false` — MXIK ro'yxatda bo'lsa ham blok KM
+    // saqlanmaydi (mahsulot markirovkali emas).
+    test('is_marking = false + MXIK ro\'yxatda -> mark null', () {
+      expect(
+        row(p: product(mxik: kMarkingMxik, isMarking: false), rawMark: 'KM-9')
+            .mark,
+        isNull,
+      );
     });
 
     test('markirovkasiz mahsulotda mark null', () {

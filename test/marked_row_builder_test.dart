@@ -21,7 +21,7 @@ const kPlainMxik = '01101001001000000';
 
 ItemModel product({
   String mxik = kMarkingMxik,
-  bool isMarking = false,
+  bool? isMarking, // null = bayroq kelmagan (MXIK bo'yicha avto-aniqlash)
   String unit = 'dona',
   int vatPercent = 12,
   String? ownerType = '2',
@@ -76,6 +76,21 @@ void main() {
     test('marking bayrog\'i MxikRules qaroriga tayanadi', () {
       expect(row().marking, isTrue);
       expect(row(p: product(mxik: kPlainMxik)).marking, isFalse);
+    });
+
+    // 2026-09-11: `is_marking=false` — MXIK ro'yxatda bo'lsa ham oddiy qator.
+    test('is_marking = false: marking false, mark null, type bo\'sh', () {
+      final r = row(p: product(isMarking: false), mark: 'KM-XYZ');
+      expect(r.marking, isFalse);
+      expect(r.mark, isNull);
+      expect(r.productType, isEmpty);
+      expect(r.productPackage, isEmpty);
+    });
+
+    test('is_marking = true: marking true, mark saqlanadi', () {
+      final r = row(p: product(isMarking: true), mark: 'KM-XYZ');
+      expect(r.marking, isTrue);
+      expect(r.mark, 'KM-XYZ');
     });
 
     test('OFD o\'chiq bo\'lsa marking false va mark null', () async {

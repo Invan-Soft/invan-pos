@@ -155,12 +155,90 @@ void main() {
 
       expect(MxikRules.isProductMarkable(item()), isFalse);
     });
+
+    // 2026-09-11: `is_marking` — birinchi mezon. Adminka aniq `false` degan
+    // bo'lsa MXIK ro'yxatda bo'lsa ham (adminkada MXIK xato) markirovkali emas.
+    test('is_marking = false + MXIK ro\'yxatda -> markirovkali EMAS', () async {
+      await Pref.setBool(PrefKeys.markCheckWithOfd, true);
+      await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
+
+      expect(
+        MxikRules.isProductMarkable(
+            item(mxik: '02202001001000000', isMarking: false)),
+        isFalse,
+      );
+      expect(
+        MxikRules.isProductMarkable(
+            item(mxik: '02205000000000000', isMarking: false)),
+        isFalse,
+        reason: 'alkogol MXIK ham',
+      );
+    });
+
+    test('is_marking = null (bayroq kelmagan) + MXIK ro\'yxatda -> markirovkali',
+        () async {
+      await Pref.setBool(PrefKeys.markCheckWithOfd, true);
+      await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
+
+      expect(
+        MxikRules.isProductMarkable(
+            item(mxik: '02202001001000000', isMarking: null)),
+        isTrue,
+      );
+    });
+
+    test('is_marking = true, MXIK ro\'yxatda -> markirovkali (o\'zgarmagan)',
+        () async {
+      await Pref.setBool(PrefKeys.markCheckWithOfd, true);
+      await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
+
+      expect(
+        MxikRules.isProductMarkable(
+            item(mxik: '02202001001000000', isMarking: true)),
+        isTrue,
+      );
+    });
+  });
+
+  group('isMxikAutoDetectCandidate (sozlamalarsiz sof qoida)', () {
+    test('is_marking = false -> MXIK ro\'yxatda bo\'lsa ham false', () {
+      expect(
+        MxikRules.isMxikAutoDetectCandidate(
+            item(mxik: '02202001001000000', isMarking: false)),
+        isFalse,
+      );
+    });
+
+    test('is_marking = null + MXIK ro\'yxatda -> true', () {
+      expect(
+        MxikRules.isMxikAutoDetectCandidate(item(mxik: '02202001001000000')),
+        isTrue,
+      );
+    });
+
+    test('is_marking = null + MXIK ro\'yxatda emas -> false', () {
+      expect(
+        MxikRules.isMxikAutoDetectCandidate(item(mxik: '01234567890123456')),
+        isFalse,
+      );
+    });
+
+    test('mxikCode null -> false', () {
+      expect(MxikRules.isMxikAutoDetectCandidate(item()), isFalse);
+    });
   });
 
   group('resolveProductType / resolveProductPackage', () {
     setUp(() async {
       await Pref.setBool(PrefKeys.markCheckWithOfd, true);
       await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
+    });
+
+    test('is_marking = false + MXIK ro\'yxatda -> bo\'sh type va package', () {
+      final p = item(mxik: '02202001001000000', isMarking: false);
+
+      expect(MxikRules.resolveProductType(p), '');
+      expect(MxikRules.resolveProductPackage(p), '');
     });
 
     test('markirovkali emas -> bo\'sh type va bo\'sh package', () {

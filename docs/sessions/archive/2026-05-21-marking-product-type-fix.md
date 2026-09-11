@@ -1,5 +1,9 @@
 # Task: Markirovkali mahsulot uchun product_type/product_package nomuvofiqligini tuzatish
 
+> ⚠️ **Superseded by:** docs/sessions/2026-09-11-fiskal-mxik-fallback-markirovkasiz.md (2026-09-11)
+> Bu hujjat o'sha vaqtdagi qarorni aks ettiradi. Joriy implementatsiya o'zgargan:
+> `isMarking=false` bo'lsa MXIK bo'yicha avto-aniqlash QILINMAYDI (faqat `null` uchun).
+
 **Boshlangan:** 2026-05-21
 **Holat:** done
 **Yakunlangan:** 2026-09-07

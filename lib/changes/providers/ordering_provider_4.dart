@@ -370,13 +370,15 @@ class OrderingProvider4 extends ChangeNotifier {
         'isTarozi': isTarozi,
       });
 
-      final mxikStr = (product.mxikCode ?? product.mxikCode ?? '').trim();
       final bool markCheckEnabled =
           Pref.getBool(PrefKeys.markCheckWithOfd, false);
       final bool sellWithMarkingEnabled =
           Pref.getBool(PrefKeys.sellProductsWithMarking, true);
-      final bool isMarkingByMxik =
-          markCheckEnabled && sellWithMarkingEnabled && _isMxikMarking(mxikStr);
+      // `is_marking == false` bo'lsa MXIK ro'yxatda bo'lsa ham markirovka
+      // dialogi chiqmaydi — oddiy mahsulot (qoida: MxikRules).
+      final bool isMarkingByMxik = markCheckEnabled &&
+          sellWithMarkingEnabled &&
+          MxikRules.isMxikAutoDetectCandidate(product);
 
       final isMarking =
           markCheckEnabled && (product.isMarking == true || isMarkingByMxik);
@@ -2940,8 +2942,11 @@ class OrderingProvider4 extends ChangeNotifier {
           Pref.getBool(PrefKeys.markCheckWithOfd, false);
       final bool sellWithMarkingEnabled =
           Pref.getBool(PrefKeys.sellProductsWithMarking, true);
-      final bool isMarkingByMxik =
-          markCheckEnabled && sellWithMarkingEnabled && _isMxikMarking(mxikStr);
+      // `is_marking == false` bo'lsa MXIK ro'yxatda bo'lsa ham markirovka
+      // dialogi chiqmaydi — oddiy mahsulot (qoida: MxikRules).
+      final bool isMarkingByMxik = markCheckEnabled &&
+          sellWithMarkingEnabled &&
+          MxikRules.isMxikAutoDetectCandidate(item);
 
       if (markCheckEnabled && _isAlcoholMxik(mxikStr)) {
         Pref.setBool(PrefKeys.isCashDisableForAlcohol, true);
@@ -3001,8 +3006,6 @@ class OrderingProvider4 extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  bool _isMxikMarking(String mxikStr) => MxikRules.isMxikMarking(mxikStr);
 
   bool _isAlcoholMxik(String mxikStr) => MxikRules.isAlcoholMxik(mxikStr);
 

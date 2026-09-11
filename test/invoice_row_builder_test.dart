@@ -43,12 +43,14 @@ ItemModel product({
   num catalogPrice = 5000,
   String mxik = '01101001001000000',
   String? ownerType = '2',
+  bool? isMarking,
 }) {
   final m = ItemModel();
   m.id = 'suv-id';
   m.name = 'Suv (katalogdan)';
   m.sku = '1001';
   m.mxikCode = mxik;
+  m.isMarking = isMarking;
   m.packageCode = 'PACK-1';
   m.commissionTin = '123456789';
   m.ownerType = ownerType;
@@ -182,6 +184,14 @@ void main() {
       final r = InvoiceRowBuilder.build(
           invoiceItem(), product(mxik: '02202001001000000'));
       expect(r.marking, isTrue);
+    });
+
+    // 2026-09-11: `is_marking=false` — MXIK ro'yxatda bo'lsa ham oddiy qator.
+    test('is_marking = false + MXIK ro\'yxatda -> marking false', () {
+      final r = InvoiceRowBuilder.build(invoiceItem(),
+          product(mxik: '02202001001000000', isMarking: false));
+      expect(r.marking, isFalse);
+      expect(r.mxik, '02202001001000000');
     });
 
     test('markirovkasiz MXIK bo\'lsa marking false', () {

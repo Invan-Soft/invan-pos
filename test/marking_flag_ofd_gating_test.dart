@@ -14,6 +14,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invan2/app_navigation.dart';
+import 'package:invan2/changes/dialogs/alcohol_warning_dialog.dart';
+import 'package:invan2/changes/dialogs/markirovka_dialog.dart';
 import 'package:invan2/changes/models/product/item_model.dart';
 import 'package:invan2/changes/providers/ordering_provider_4.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
@@ -200,6 +202,56 @@ void main() {
     });
   });
 
+  // 2026-09-11: `is_marking=false` — adminka aniq "markirovkali emas" degan.
+  // MXIK 02202 (markirovka ro'yxatida) bo'lsa ham markirovka dialogi
+  // CHIQMAYDI, savatga oddiy qator tushadi (fiskalga esa statik MXIK ketadi —
+  // test/fiscal_mxik_fallback_test.dart).
+  group('OFD YOQIQ, avto-aniqlash YOQIQ, is_marking = false — dialog yo\'q',
+      () {
+    setUp(() async {
+      await Pref.setBool(PrefKeys.markCheckWithOfd, true);
+      await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
+    });
+
+    testWidgets('markirovka dialogi chiqmaydi, qator oddiy (marking = false)',
+        (tester) async {
+      final ctx = await appContext(tester);
+      ItemsSingleton.products = [suv(isMarking: false)];
+      final p = freshProvider();
+
+      p.addProduct(
+          value: 1, product: suv(isMarking: false), where: 'test', context: ctx);
+      await settle(tester);
+
+      expect(find.byType(MarkingDialog), findsNothing);
+      expect(cart(p), hasLength(1));
+      expect(cart(p).first.marking, isFalse);
+      expect(cart(p).first.mark, isNull);
+      expect(cart(p).first.mxik, kSuvMxik,
+          reason: 'savat qatorida asl MXIK qoladi — order_pos o\'zgarmaydi');
+    });
+
+    // Alkogol MXIK (02203) + is_marking=false: markirovka dialogi yo'q, lekin
+    // alkogol naqd-cheklov ogohlantirishi hamon MXIK bo'yicha chiqadi
+    // (o'zgarmagan qoida — CashRestrictionRules).
+    testWidgets('alkogol MXIK: MarkingDialog yo\'q, naqd ogohlantirishi bor',
+        (tester) async {
+      final ctx = await appContext(tester);
+      final pivo = suv(isMarking: false, mxik: '02203001001000000');
+      ItemsSingleton.products = [pivo];
+      final p = freshProvider();
+
+      p.addProduct(value: 1, product: pivo, where: 'test', context: ctx);
+      await settle(tester);
+
+      expect(find.byType(MarkingDialog), findsNothing);
+      expect(find.byType(CashPaymentWarningDialog), findsOneWidget);
+      expect(cart(p), hasLength(1));
+      expect(cart(p).first.marking, isFalse);
+      expect(p.isCashPaymentHidden, isTrue,
+          reason: 'naqd cheklovi MXIK bo\'yicha — o\'zgarmagan');
+    });
+  });
 
 // QAYD: "markirovkasiz MXIK oddiy qator bo'lib qoladi" testi ham yozilgan
 // edi, lekin `addProduct` ni OFD YOQIQ holatda chaqirish test muhitida

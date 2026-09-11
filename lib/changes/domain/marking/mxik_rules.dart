@@ -30,22 +30,40 @@ class MxikRules {
       mxikStr.startsWith('02208') ||
       mxikStr.startsWith('024');
 
+  /// MXIK bo'yicha avto-aniqlash shu mahsulotga qo'llanadimi (sozlamalardan
+  /// qat'i nazar — OFD va "Avto markirovkani aniqlash" ni chaqiruvchi tekshiradi).
+  ///
+  /// `is_marking` (adminka bayrog'i) — markirovkalilikning BIRINCHI mezoni:
+  ///   - `false` — adminka aniq "markirovkali emas" degan. MXIK markirovka
+  ///     ro'yxatida bo'lsa ham (adminkada MXIK xato kiritilgan) mahsulot
+  ///     markirovkali deb HISOBLANMAYDI: markirovka dialogi chiqmaydi, savatga
+  ///     oddiy qator tushadi; fiskalga statik MXIK ketadi (`FiscalMxikFallback`).
+  ///     (2026-09-11, foydalanuvchi talabi)
+  ///   - `null` — bayroq kelmagan: eski xatti-harakat, MXIK bo'yicha aniqlanadi.
+  ///   - `true` — bu yerga kelmaydi (`isProductMarkable` avvalroq true qaytaradi).
+  static bool isMxikAutoDetectCandidate(ItemModel product) =>
+      product.isMarking != false &&
+      isMxikMarking((product.mxikCode ?? '').trim());
+
   /// Mahsulot markirovkali deb hisoblanadimi.
   /// Qoidalar:
   ///   0) Adminkada OFD o'chiq bo'lsa — hech narsa markirovkali emas
   ///   1) `product.isMarking == true` → markirovkali (sozlamadan qat'iy nazar, OFD ON bo'lsa)
-  ///   2) Aks holda "Avto markirovkani aniqlash" sozlamasi yoqilgan bo'lsa
-  ///      va MXIK kod ro'yxatda bo'lsa (`isMxikMarking`) → markirovkali
-  ///   3) "Avto markirovkani aniqlash" o'chirilgan bo'lsa MXIK umuman tekshirilmaydi
+  ///   2) `product.isMarking == false` → markirovkali EMAS (MXIK tekshirilmaydi)
+  ///   3) Aks holda (`null`) "Avto markirovkani aniqlash" sozlamasi yoqilgan
+  ///      bo'lsa va MXIK kod ro'yxatda bo'lsa (`isMxikMarking`) → markirovkali
+  ///   4) "Avto markirovkani aniqlash" o'chirilgan bo'lsa MXIK umuman tekshirilmaydi
   ///
   /// Savat qatorining `marking` bayrog'i ham shu qarorni ishlatadi
   /// (`SoldItemBuilder`) — aks holda OFD o'chiq bo'lsa ham qator markirovka
   /// guruhi bo'lib qolib, qty tahriri bloklanardi.
+  /// `addProduct` va skaner yo'li (`OrderingProvider4`) ham xuddi shu
+  /// [isMxikAutoDetectCandidate] ni ishlatadi — qoida bitta joyda.
   static bool isProductMarkable(ItemModel product) {
     if (!OfdAdminSetting.isEnabled) return false;
     if (product.isMarking ?? false) return true;
     if (!MarkingSettingHelper.isAutoDetectEnabled) return false;
-    return isMxikMarking((product.mxikCode ?? '').trim());
+    return isMxikAutoDetectCandidate(product);
   }
 
   /// Mahsulot uchun product_type ni aniqlaydi.
