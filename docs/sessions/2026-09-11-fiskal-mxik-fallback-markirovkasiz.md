@@ -79,7 +79,16 @@ mezon: MXIK tekshirilmaydi (dialog yo'q, oddiy qator). `is_marking=null`
     to'lov yo'li yiqilmaydi (`_isMarkingInCatalog`)
   → Hujjatlashtirilgan (o'zgartirilmagan) xatti-harakatlar: pastda "Ochiq savollar"
 
+- [x] Soxta fiskal modul (Node, 127.0.0.1:3448, FiscalDriveAPI formati) bilan Mac'da haqiqiy
+  sotuv + vozvrat o'tkazildi: ListFiscalDrives → GetInfo → SendSaleReceipt → order_pos;
+  vozvratda RefundInfo sotuv javobidagi pasport bilan keldi, §10.2.1 balans to'g'ri
+  → test/fiscal_wire_format_test.dart (modulga ketadigan aynan JSON, 9 test)
+  → Kuzatuv: vozvratda `PackageCode=""` ketadi (server package_code bermaydi) — eski holat
+- [x] Reliz: kommitlar 347813b (feat) + f0eefff (release), tag v1.1.2+125, GitLab + GitHub push
+  → Sabab: foydalanuvchi "prodda chiqaraver" dedi (2026-09-11)
+
 ## Keyingi qadamlar (prioritet bo'yicha)
+- [ ] GitHub Actions build → .exe ni PRO backend'ga yuklash → `GET api.7i.uz/file` tekshiruvi
 - [ ] Do'kon sinovi (Windows, OFD yoqiq, "Avto markirovkani aniqlash" YOQIQ):
       adminkada `is_marking=false` va MXIK `02202...` bo'lgan mahsulot skanerlanadi →
       markirovka dialogi CHIQMAYDI, oddiy qator → to'lov → Alice'da fiskal so'rovda
@@ -139,6 +148,7 @@ mezon: MXIK tekshirilmaydi (dialog yo'q, oddiy qator). `is_marking=null`
 
 ## Test / Verifikatsiya
 - `flutter test test/fiscal_mxik_fallback_test.dart` — 24/24
+- `flutter test test/fiscal_wire_format_test.dart` — 9/9 (modul wire-format)
 - `flutter test test/fiscal_mxik_fallback_scenarios_test.dart` — 20/20 (blok, invoice,
   DataMatrix skan, is_marking=null, katalog bo'sh/buzilgan/o'zgargan, vozvrat, alkogol,
   20k katalog tezligi)
