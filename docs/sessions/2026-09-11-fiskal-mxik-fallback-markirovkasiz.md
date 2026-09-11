@@ -88,7 +88,8 @@ mezon: MXIK tekshirilmaydi (dialog yo'q, oddiy qator). `is_marking=null`
   → Sabab: foydalanuvchi "prodda chiqaraver" dedi (2026-09-11)
 
 ## Keyingi qadamlar (prioritet bo'yicha)
-- [ ] GitHub Actions build → .exe ni PRO backend'ga yuklash → `GET api.7i.uz/file` tekshiruvi
+- [x] GitHub Actions build (run 34598947194) → `pos_1.1.2+125.exe` PRO backend'ga yuklandi
+      (HTTP 201), `GET api.7i.uz/file` = 1.1.2+125, CDN 200 — 2026-09-11
 - [ ] Do'kon sinovi (Windows, OFD yoqiq, "Avto markirovkani aniqlash" YOQIQ):
       adminkada `is_marking=false` va MXIK `02202...` bo'lgan mahsulot skanerlanadi →
       markirovka dialogi CHIQMAYDI, oddiy qator → to'lov → Alice'da fiskal so'rovda
