@@ -31,6 +31,33 @@ class RefundUploadQueue {
 
   static bool _inProgress = false;
 
+  /// Ayni paytda serverga ketayotgan cheklar (`externalId`). Onlayn vozvrat
+  /// (`ReturnBloc`) chekni ObjectBox'ga `uploaded=false` bilan yozib, darhol
+  /// o'zi yuboradi; xuddi shu lahzada tarmoq hodisasi `flush` ni ishga
+  /// tushirsa, o'sha chek ikki marta POST bo'lardi. Shu to'plam buni to'sadi.
+  static final Set<String> _inFlight = <String>{};
+
+  /// Serverga so'rov (testda soxtasi qo'yiladi).
+  static Future<HttpResult> Function(ReceiptModel4 refund) sendRequest =
+      ReceiptApi4.receiptCreateGrouppForRefund;
+
+  /// `uploaded`/`rejected` bayroqlarini saqlash (testda soxtasi qo'yiladi).
+  static void Function(ReceiptModel4 refund) persist = _persistDefault;
+
+  static void _persistDefault(ReceiptModel4 refund) {
+    MyObjectbox.saleStore
+        .box<ReceiptModel4>()
+        .put(refund, mode: PutMode.update);
+  }
+
+  /// Testlar uchun: bog'liqliklarni ishlab chiqarish holatiga qaytarish.
+  static void resetForTest() {
+    sendRequest = ReceiptApi4.receiptCreateGrouppForRefund;
+    persist = _persistDefault;
+    _inFlight.clear();
+    _inProgress = false;
+  }
+
   /// Navbatda kutayotgan qaytarishlar soni.
   static int get pendingCount {
     final query = _pendingQuery();
@@ -72,61 +99,113 @@ class RefundUploadQueue {
     if (pending.isEmpty) return;
 
     _inProgress = true;
-    final box = MyObjectbox.saleStore.box<ReceiptModel4>();
     try {
       for (final ReceiptModel4 refund in pending) {
-        final HttpResult res =
-            await ReceiptApi4.receiptCreateGrouppForRefund(refund);
+        // Onlayn vozvrat shu lahzada o'zi yuborayotgan chek — tegilmaydi.
+        if (_inFlight.contains(refund.externalId)) continue;
+        final RefundUploadResult result =
+            await uploadOne(refund, reason: reason);
 
-        // 409 — server "bu qaytarish menda bor" dedi, ya'ni muvaffaqiyat.
-        if (res.statusCode == 200 ||
-            res.statusCode == 201 ||
-            res.statusCode == 409) {
-          refund.uploaded = true;
-          refund.rejected = false;
-          box.put(refund, mode: PutMode.update);
-          if (kDebugMode) {
-            debugPrint('RefundUploadQueue: ${refund.externalId} yuborildi '
-                '($reason)');
-          }
-          continue;
-        }
-
-        // Sotuv cheklaridagi bilan bir xil qoida: 5xx bo'lsa serverning
-        // o'zidan so'raymiz — tirik bo'lsa ayb hujjatda, o'lgan bo'lsa
-        // navbatda qoldiramiz.
-        final bool rejected =
-            await BackendHealth.isDocumentRejection(res.statusCode);
-
-        if (!rejected) {
-          // Server yiqilgan yoki tarmoq uzilgan — bu rad etish EMAS.
-          // Chekni navbatda qoldiramiz va butun tsiklni to'xtatamiz:
-          // qolganlari ham xuddi shu xatoga uchraydi.
-          if (kDebugMode) {
-            debugPrint('RefundUploadQueue: to\'xtatildi, server javob '
-                'bermayapti (status ${res.statusCode})');
-          }
-          break;
-        }
-
-        // Server tirik va hujjatni qabul qilmadi — qayta yuborish foydasiz,
-        // chek qo'lda ko'rib chiqilishi kerak.
-        refund.rejected = true;
-        box.put(refund, mode: PutMode.update);
-        LogRepository.addLog(
-          "Qaytarish server tomonidan rad etildi: ${res.getError}",
-          where: "RefundUploadQueue.flush",
-          file: "refund_upload_queue.dart",
-          method: "POST",
-          path: "api/v1/refund_for_pos_new",
-          statusCode: res.statusCode,
-          checkNo: refund.externalId,
-          createdDate: refund.createdDate,
-          success: false,
-        );
+        // Server yiqilgan yoki tarmoq uzilgan — bu rad etish EMAS.
+        // Chekni navbatda qoldiramiz va butun tsiklni to'xtatamiz:
+        // qolganlari ham xuddi shu xatoga uchraydi.
+        if (result.status == RefundUploadStatus.pending) break;
       }
     } finally {
       _inProgress = false;
     }
   }
+
+  /// Bitta qaytarish chekini serverga yuboradi va natijani ObjectBox'ga
+  /// yozadi. `flush` (navbat) va `ReturnBloc` (onlayn vozvrat) ikkalasi shu
+  /// metoddan foydalanadi — qoida bitta joyda:
+  ///
+  /// * 200/201/409 → `uploaded`; 409 — server "bu qaytarish menda bor" dedi.
+  /// * 5xx / tarmoq / darvoza → `pending`; chek navbatda qoladi.
+  /// * 4xx (yoki 5xx-u server tirik) → `rejected`; qayta yuborish foydasiz,
+  ///   kassir cheklar ekranidan qo'lda ko'rib chiqadi.
+  ///
+  /// Chek ObjectBox'da allaqachon saqlangan bo'lishi kerak (`id != 0`).
+  static Future<RefundUploadResult> uploadOne(
+    ReceiptModel4 refund, {
+    required String reason,
+  }) async {
+    final String key = refund.externalId;
+    if (_inFlight.contains(key)) {
+      // Boshqa yo'l (navbat yoki bloc) aynan shu chekni yuborayotgan
+      // bo'lsa ikkinchi POST qilinmaydi. Natijani o'sha yo'l DB'ga yozadi;
+      // bu chaqiruvchi uchun chek hozircha "navbatda".
+      return const RefundUploadResult(RefundUploadStatus.pending);
+    }
+    _inFlight.add(key);
+    try {
+      return await _send(refund, reason: reason);
+    } finally {
+      _inFlight.remove(key);
+    }
+  }
+
+  static Future<RefundUploadResult> _send(
+    ReceiptModel4 refund, {
+    required String reason,
+  }) async {
+    final HttpResult res = await sendRequest(refund);
+
+    if (res.statusCode == 200 ||
+        res.statusCode == 201 ||
+        res.statusCode == 409) {
+      refund.uploaded = true;
+      refund.rejected = false;
+      persist(refund);
+      if (kDebugMode) {
+        debugPrint('RefundUploadQueue: ${refund.externalId} yuborildi '
+            '($reason)');
+      }
+      return const RefundUploadResult(RefundUploadStatus.uploaded);
+    }
+
+    // Sotuv cheklaridagi bilan bir xil qoida: 5xx bo'lsa serverning
+    // o'zidan so'raymiz — tirik bo'lsa ayb hujjatda, o'lgan bo'lsa
+    // navbatda qoldiramiz.
+    final bool rejected =
+        await BackendHealth.isDocumentRejection(res.statusCode);
+
+    if (!rejected) {
+      if (kDebugMode) {
+        debugPrint('RefundUploadQueue: ${refund.externalId} navbatda qoldi, '
+            'server javob bermayapti (status ${res.statusCode}, $reason)');
+      }
+      return RefundUploadResult(RefundUploadStatus.pending,
+          error: res.getError);
+    }
+
+    // Server tirik va hujjatni qabul qilmadi — qayta yuborish foydasiz,
+    // chek qo'lda ko'rib chiqilishi kerak.
+    refund.rejected = true;
+    persist(refund);
+    LogRepository.addLog(
+      "Qaytarish server tomonidan rad etildi: ${res.getError}",
+      where: "RefundUploadQueue.uploadOne ($reason)",
+      file: "refund_upload_queue.dart",
+      method: "POST",
+      path: "api/v1/refund_for_pos_new",
+      statusCode: res.statusCode,
+      checkNo: refund.externalId,
+      createdDate: refund.createdDate,
+      success: false,
+    );
+    return RefundUploadResult(RefundUploadStatus.rejected,
+        error: res.getError);
+  }
+}
+
+enum RefundUploadStatus { uploaded, pending, rejected }
+
+class RefundUploadResult {
+  final RefundUploadStatus status;
+
+  /// Server xabari (`pending`/`rejected` da), kassirga ko'rsatish uchun.
+  final String? error;
+
+  const RefundUploadResult(this.status, {this.error});
 }

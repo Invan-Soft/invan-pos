@@ -5,13 +5,13 @@ import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
 import 'package:invan2/changes/services/health/backend_health.dart';
 import 'package:invan2/changes/services/local_selling_service.dart';
+import 'package:invan2/changes/services/receipt/refund_upload_queue.dart';
 import 'package:invan2/features/checks/return_page/right/return_dialog/return_dialog.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/utils/util_functions.dart';
 import 'package:invan2/utils/utils.dart';
 
 import '../../../../../../changes/services/api.dart';
-import '../../../../../../changes/services/api/result_http_model.dart';
 import '../../../../../../utils/l10n/app_localizations.dart';
 
 part 'return_event.dart';
@@ -19,14 +19,22 @@ part 'return_event.dart';
 part 'return_state.dart';
 
 class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
-  ReturnBloc() : super(ReturnInitial()) {
+  /// [deps] — tashqi bog'liqliklar (internet, server holati, fiskal modul,
+  /// ObjectBox, server API). Ishlab chiqarishda `null` qoldiriladi; testda
+  /// soxtasi beriladi — shunda vozvrat oqimining tartibi va holatlari
+  /// tarmoqsiz, fiskal modulsiz va ObjectBox'siz tekshiriladi.
+  ReturnBloc({ReturnBlocDeps? deps})
+      : _deps = deps ?? ReturnBlocDeps.production(),
+        super(ReturnInitial()) {
     on<ReturnReturnEvent>(_return);
   }
+
+  final ReturnBlocDeps _deps;
 
   _return(ReturnReturnEvent event, Emitter<ReturnState> emit) async {
     Log.d(event, name: 'return_bloc');
 
-    bool ofd = Pref.getBool(PrefKeys.withOFD, false);
+    final bool ofd = _deps.withOfd();
 
     final newReceiptModel41 = ReceiptModel4(
       supplierId: event.receiptModel4.supplierId,
@@ -118,126 +126,139 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
 
     newReceiptModel41.soldItemList.addAll(event.rightList);
 
-    // Qolgan kod o'zgarmadi...
     emit(ReturnLoadingState(message: ReturnMessage.internet));
 
-    // Internet va SERVER holati endi alohida tekshiriladi.
+    // Internet va SERVER holati alohida tekshiriladi.
     //
     // Internet yo'q bo'lsa qaytarishni umuman bajarib bo'lmaydi: fiskal chek
-    // OFD (soliq) ga yozilishi kerak, u esa internetsiz ishlamaydi — bu
-    // holat o'zgarmadi.
+    // OFD (soliq) ga yozilishi kerak, u esa internetsiz ishlamaydi.
     //
     // Internet BOR, lekin BIZNING server javob bermayotgan bo'lsa —
-    // qaytarish endi lokal bajariladi (fiskal chek chiqadi, ObjectBox'ga
-    // yoziladi), serverga yuborish esa `RefundUploadQueue` navbatiga
-    // qo'yiladi. Ilgari bu holatda qaytarish umuman ishlamasdi: kassir
-    // "internet yo'q" degan xabarni ko'rar, holbuki internet bor edi.
-    final bool internet = await InternetConnectionChecker().hasConnection;
-    final bool serverUp = internet && BackendHealth.isUp;
+    // qaytarish lokal bajariladi (fiskal chek chiqadi, ObjectBox'ga
+    // yoziladi), serverga yuborish esa `RefundUploadQueue` navbatida qoladi.
+    final bool internet = await _deps.hasInternet();
+    final bool serverUp = internet && _deps.isServerUp();
     if (event.isRetry) {
       await Future.delayed(const Duration(milliseconds: 500));
     }
 
-    /// Fiskal qism va lokal saqlash — onlayn va oflayn yo'l uchun bir xil.
-    ///
-    /// [uploaded] `false` bo'lsa chek `RefundUploadQueue` navbatida qoladi
-    /// va server tiklangach avtomatik yuboriladi.
-    Future<void> finishRefund({required bool uploaded}) async {
-      newReceiptModel41.uploaded = uploaded;
-
-      if (ofd) {
-          // Sotuv OFDga ro'yxatdan o'tganligini tekshiramiz:
-          // 1) URL bo'lishi kerak
-          // 2) Fiskal ma'lumotlar (terminalId, fiscalSign, dateTimeOFD) bo'lishi kerak
-          final urlValue = newReceiptModel41.url;
-          final terminalId = newReceiptModel41.terminalId;
-          final fiscalSign = newReceiptModel41.fiscalSign;
-          final dateTimeOFD = newReceiptModel41.dateTimeOFD;
-
-          final bool wasRegisteredOnOfd =
-              (urlValue != null && urlValue.isNotEmpty) &&
-              (terminalId != null && terminalId.isNotEmpty) &&
-              (fiscalSign != null && fiscalSign.isNotEmpty) &&
-              (dateTimeOFD != null &&
-                  dateTimeOFD.isNotEmpty &&
-                  dateTimeOFD != "0");
-
-          if (!wasRegisteredOnOfd) {
-            // OFDda sotuv yo'q — fiskal refund shart emas
-            await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
-
-        emit(ReturnSuccedState());
-          } else {
-            await LocalService.sell(
-                    loc: event.loc, receiptData: newReceiptModel41)
-                .then(
-              (CommunicatorRESPONSE response) async {
-                if (!(response.error ?? true) && response.info != null) {
-                  newReceiptModel41.refundInfo =
-                      jsonEncode(response.info?.toJson());
-                  newReceiptModel41.url = response.info?.qrCodeUrl ?? '';
-                  final refundInfoValue = newReceiptModel41.refundInfo;
-                  if (refundInfoValue != null && refundInfoValue.isNotEmpty) {
-                    Info info = Info.fromJson(jsonDecode(refundInfoValue));
-                    newReceiptModel41.terminalId = info.terminalId;
-                    newReceiptModel41.receiptSeq =
-                        int.tryParse(info.receiptSeq ?? "0") ?? 0;
-                    newReceiptModel41.dateTimeOFD = info.dateTime ?? "0";
-                    newReceiptModel41.fiscalSign = info.fiscalSign;
-                  }
-                  await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41,
-                      communicatorRECEIPT: response);
-                  emit(ReturnSuccedState());
-                } else {
-                  await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
-                  emit(ReturnFailedState(error: response.paycheck.toString()));
-                }
-              },
-            ).catchError((err) async {
-              await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
-              emit(ReturnFailedState(error: err.toString()));
-            });
-          }
-
-          //////////ofd
-      } else {
-        await ReceiptSingleton4.toOBJECTBOX(newReceiptModel41);
-        emit(ReturnSuccedState());
-      }
-    }
-
-    if (newReceiptModel41.isRefund == true && internet) {
-      emit(ReturnLoadingState(message: ReturnMessage.returnig));
-
-      // Yangi check raqami generate qilib APIga ham, local DBga ham bir xil
-      // yuboramiz. Raqam lokal hisoblagichdan olinadi — serverga bog'liq emas.
-      newReceiptModel41.externalId = await ReceiptSingleton4.getCheckNo();
-
-      if (!serverUp) {
-        // Server yiqilgani allaqachon ma'lum — so'rov yuborib kassirni
-        // kutdirishning ma'nosi yo'q.
-        await finishRefund(uploaded: false);
-        return;
-      }
-
-      HttpResult? refundResponse =
-          await ReceiptApi4.receiptCreateGrouppForRefund(newReceiptModel41);
-
-      if (refundResponse.statusCode == 200) {
-        await finishRefund(uploaded: true);
-      } else if (BackendHealth.isServerFailureStatus(
-          refundResponse.statusCode)) {
-        // Server aynan shu so'rov paytida yiqildi — qaytarish yo'qolmasin,
-        // lokal bajarib navbatga qo'yamiz.
-        await finishRefund(uploaded: false);
-      } else {
-        // Server tirik va so'rovni rad etdi (masalan chek allaqachon
-        // qaytarilgan) — bu haqiqiy xato, yashirmaymiz.
-        emit(ReturnFailedState(error: refundResponse.getError));
-      }
-    } else {
+    if (!internet) {
       emit(ReturnNoInternetState());
+      return;
     }
+
+    emit(ReturnLoadingState(message: ReturnMessage.returnig));
+
+    // Yangi check raqami generate qilib APIga ham, local DBga ham bir xil
+    // yuboramiz. Raqam lokal hisoblagichdan olinadi — serverga bog'liq emas.
+    newReceiptModel41.externalId = await _deps.nextCheckNo();
+    newReceiptModel41.uploaded = false;
+
+    // TARTIB: 1) fiskal → 2) ObjectBox + chek chop → 3) server.
+    //
+    // Ilgari server fiskaldan OLDIN chaqirilardi va serverga vozvrat
+    // modelidagi `url` — ya'ni asl SOTUV chekining QR URL'i ketardi.
+    // Endi server fiskal javobidan keyin chaqiriladi, shuning uchun
+    // `refund_for_pos_new` ga vozvratning o'z `QRCodeURL`i boradi. Oflayn
+    // navbat (`RefundUploadQueue`) allaqachon shu tartibda ishlaydi.
+    //
+    // Server "bu chek allaqachon qaytarilgan" deb rad etishi lokalda
+    // to'silgan: return_page qoldiqni shu kassadagi va admin paneldagi
+    // vozvratlarni hisobga olib chiqaradi, qoldiq 0 bo'lsa mahsulot
+    // ro'yxatga chiqmaydi. Shunga qaramay server rad etsa — chek `rejected`
+    // belgilanadi va kassir cheklar ekranidan qo'lda yuboradi (oflayn
+    // navbatdagi bilan bir xil qoida).
+    final _FiscalOutcome fiscal = await _fiscalRefund(
+      newReceiptModel41,
+      ofd: ofd,
+      loc: event.loc,
+    );
+
+    if (fiscal.error != null) {
+      // Fiskal vozvrat bo'lmadi — hali hech narsa (na lokal, na server)
+      // o'zgarmagan, shuning uchun hech narsa saqlanmaydi. Kassir "Qayta
+      // urinish" bossa oqim boshidan toza boshlanadi.
+      //
+      // Eski tartibda (server birinchi) bu holatda chek baribir lokalga
+      // yozilardi, chunki server allaqachon qabul qilgan edi — endi bunga
+      // hojat yo'q; aksincha, saqlash qoldiqni ikki marta kamaytirardi
+      // (retry'da ikkinchi yozuv).
+      emit(ReturnFailedState(error: fiscal.error!));
+      return;
+    }
+
+    await _deps.saveLocal(newReceiptModel41, fiscal.response);
+
+    String? warning;
+    if (serverUp) {
+      final RefundUploadResult upload =
+          await _deps.uploadToServer(newReceiptModel41);
+      if (upload.status == RefundUploadStatus.rejected) {
+        warning = event.loc.qaytarish_server_rad_etdi(upload.error ?? '');
+      }
+    }
+    // serverUp == false yoki `pending` → chek navbatda, server tiklangach
+    // avtomatik yuboriladi.
+
+    emit(ReturnSuccedState(warning: warning));
+  }
+
+  /// Fiskal (OFD) vozvrat. Muvaffaqiyatda modelga vozvratning o'z
+  /// `url`/`refundInfo`/fiskal maydonlari yoziladi. Fiskal kerak bo'lmasa yoki
+  /// xato bersa — asl sotuvdan nusxalangan fiskal maydonlar TOZALANADI,
+  /// aks holda qayta chop etishda va serverda sotuv chekining QR'i chiqadi.
+  Future<_FiscalOutcome> _fiscalRefund(
+    ReceiptModel4 refund, {
+    required bool ofd,
+    required AppLocalizations loc,
+  }) async {
+    if (!ofd || !_wasRegisteredOnOfd(refund)) {
+      // OFDda sotuv yo'q — fiskal refund shart emas
+      _clearFiscalFields(refund);
+      return const _FiscalOutcome();
+    }
+
+    try {
+      final CommunicatorRESPONSE response =
+          await _deps.fiscalSell(loc, refund);
+      final Info? info = response.info;
+      if ((response.error ?? true) || info == null) {
+        _clearFiscalFields(refund);
+        return _FiscalOutcome(error: response.paycheck.toString());
+      }
+      refund.refundInfo = jsonEncode(info.toJson());
+      refund.url = info.qrCodeUrl ?? '';
+      refund.terminalId = info.terminalId;
+      refund.receiptSeq = int.tryParse(info.receiptSeq ?? "0") ?? 0;
+      refund.dateTimeOFD = info.dateTime ?? "0";
+      refund.fiscalSign = info.fiscalSign;
+      return _FiscalOutcome(response: response);
+    } catch (err) {
+      _clearFiscalFields(refund);
+      return _FiscalOutcome(error: err.toString());
+    }
+  }
+
+  /// Sotuv OFDga ro'yxatdan o'tganmi: URL va fiskal ma'lumotlar
+  /// (terminalId, fiscalSign, dateTimeOFD) bo'lishi kerak.
+  static bool _wasRegisteredOnOfd(ReceiptModel4 r) {
+    final urlValue = r.url;
+    final terminalId = r.terminalId;
+    final fiscalSign = r.fiscalSign;
+    final dateTimeOFD = r.dateTimeOFD;
+    return (urlValue != null && urlValue.isNotEmpty) &&
+        (terminalId != null && terminalId.isNotEmpty) &&
+        (fiscalSign != null && fiscalSign.isNotEmpty) &&
+        (dateTimeOFD != null && dateTimeOFD.isNotEmpty && dateTimeOFD != "0");
+  }
+
+  static void _clearFiscalFields(ReceiptModel4 r) {
+    r.url = '';
+    r.refundInfo = null;
+    r.terminalId = null;
+    r.receiptSeq = null;
+    r.dateTimeOFD = null;
+    r.fiscalSign = null;
   }
 
   double _getRightTotalPrice(List<ReceiptModelSoldItem4> v) {
@@ -248,4 +269,60 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
 
     return t;
   }
+}
+
+/// Fiskal vozvrat natijasi. [response] — muvaffaqiyatli fiskal javob (chek
+/// chop etish uchun), [error] — fiskal xato matni. Ikkalasi ham `null` bo'lsa
+/// fiskal kerak bo'lmagan (OFDsiz sotuv).
+class _FiscalOutcome {
+  final CommunicatorRESPONSE? response;
+  final String? error;
+
+  const _FiscalOutcome({this.response, this.error});
+}
+
+/// [ReturnBloc] tashqi bog'liqliklari. Har biri sof funksiya: ishlab
+/// chiqarishda [ReturnBlocDeps.production] statik xizmatlarga ulaydi, testda
+/// soxtalari beriladi (qarang: test/return_bloc_flow_test.dart).
+class ReturnBlocDeps {
+  final Future<bool> Function() hasInternet;
+  final bool Function() isServerUp;
+  final bool Function() withOfd;
+  final Future<String> Function() nextCheckNo;
+
+  /// Fiskal modulga vozvrat cheki (`LocalService.sell`).
+  final Future<CommunicatorRESPONSE> Function(
+      AppLocalizations loc, ReceiptModel4 refund) fiscalSell;
+
+  /// ObjectBox'ga yozish + chek chop etish (`ReceiptSingleton4.toOBJECTBOX`).
+  final Future<void> Function(ReceiptModel4 refund, CommunicatorRESPONSE? response)
+      saveLocal;
+
+  /// Serverga yuborish (`RefundUploadQueue.uploadOne`).
+  final Future<RefundUploadResult> Function(ReceiptModel4 refund) uploadToServer;
+
+  const ReturnBlocDeps({
+    required this.hasInternet,
+    required this.isServerUp,
+    required this.withOfd,
+    required this.nextCheckNo,
+    required this.fiscalSell,
+    required this.saveLocal,
+    required this.uploadToServer,
+  });
+
+  factory ReturnBlocDeps.production() => ReturnBlocDeps(
+        hasInternet: () => InternetConnectionChecker().hasConnection,
+        isServerUp: () => BackendHealth.isUp,
+        withOfd: () => Pref.getBool(PrefKeys.withOFD, false),
+        nextCheckNo: ReceiptSingleton4.getCheckNo,
+        fiscalSell: (loc, refund) =>
+            LocalService.sell(loc: loc, receiptData: refund),
+        saveLocal: (refund, response) => ReceiptSingleton4.toOBJECTBOX(
+          refund,
+          communicatorRECEIPT: response,
+        ),
+        uploadToServer: (refund) =>
+            RefundUploadQueue.uploadOne(refund, reason: 'return_bloc'),
+      );
 }

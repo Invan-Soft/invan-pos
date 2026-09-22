@@ -573,6 +573,14 @@
   "bekor_qilish": "Отмена",
   "qaytarish_amalga_oshirilmoqda": "Возвращение...",
   "qaytarish_muvaffaqiyatli_yakunlandi": "Возврат успешно завершен",
+  "qaytarish_server_rad_etdi": "Внимание: сервер не принял возврат ({error}). Чек помечен как «отклонённый» — отправьте повторно через «Обновить» на экране чеков.",
+  "@qaytarish_server_rad_etdi": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "qaytarish_amalga_oshirilmadi": "Возврата не было",
   "check_qidirilmoqda": "Ищу чек...",
   "belgiga_tegishli_check_topilmadi": "Не найдено чеков, соответствующих символу",

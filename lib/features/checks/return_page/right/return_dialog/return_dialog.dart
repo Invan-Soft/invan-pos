@@ -197,13 +197,30 @@ class ReturnDialog extends StatelessWidget {
                     return Column(
                       children: [
                         Expanded(
-                          child: Align(
-                            alignment: Alignment.center,
-                            child: Text(
-                              loc.qaytarish_muvaffaqiyatli_yakunlandi,
-                              style: MyThemes.txtStyle(
-                                  fontSize: 4,
-                                  color: Theme.of(context).canvasColor),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  loc.qaytarish_muvaffaqiyatli_yakunlandi,
+                                  textAlign: TextAlign.center,
+                                  style: MyThemes.txtStyle(
+                                      fontSize: 4,
+                                      color: Theme.of(context).canvasColor),
+                                ),
+                                if (state.warning != null) ...[
+                                  SizedBox(height: SizeConfig.v * 2),
+                                  Text(
+                                    state.warning!,
+                                    textAlign: TextAlign.center,
+                                    style: MyThemes.txtStyle(
+                                        fontSize: 3,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .error),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                         ),

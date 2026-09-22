@@ -713,6 +713,11 @@ class AppLocalizationsUz extends AppLocalizations {
       'Qaytarish muvaffaqiyatli yakunlandi';
 
   @override
+  String qaytarish_server_rad_etdi(String error) {
+    return 'Diqqat: server qaytarishni qabul qilmadi ($error). Chek \"rad etilgan\" deb belgilandi — cheklar ekranidagi \"Yangilash\" orqali qayta yuboring.';
+  }
+
+  @override
   String get qaytarish_amalga_oshirilmadi => 'Qaytarish amalga oshirilmadi';
 
   @override

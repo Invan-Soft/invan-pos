@@ -1448,6 +1448,12 @@ abstract class AppLocalizations {
   /// **'Возврат успешно завершен'**
   String get qaytarish_muvaffaqiyatli_yakunlandi;
 
+  /// No description provided for @qaytarish_server_rad_etdi.
+  ///
+  /// In ru, this message translates to:
+  /// **'Внимание: сервер не принял возврат ({error}). Чек помечен как «отклонённый» — отправьте повторно через «Обновить» на экране чеков.'**
+  String qaytarish_server_rad_etdi(String error);
+
   /// No description provided for @qaytarish_amalga_oshirilmadi.
   ///
   /// In ru, this message translates to:

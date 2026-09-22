@@ -703,6 +703,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get qaytarish_muvaffaqiyatli_yakunlandi => 'Возврат успешно завершен';
 
   @override
+  String qaytarish_server_rad_etdi(String error) {
+    return 'Внимание: сервер не принял возврат ($error). Чек помечен как «отклонённый» — отправьте повторно через «Обновить» на экране чеков.';
+  }
+
+  @override
   String get qaytarish_amalga_oshirilmadi => 'Возврата не было';
 
   @override

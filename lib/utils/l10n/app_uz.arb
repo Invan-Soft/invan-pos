@@ -224,6 +224,7 @@
   "bekor_qilish": "Bekor qilish",
   "qaytarish_amalga_oshirilmoqda": "Qaytarish amalga oshirilmoqda...",
   "qaytarish_muvaffaqiyatli_yakunlandi": "Qaytarish muvaffaqiyatli yakunlandi",
+  "qaytarish_server_rad_etdi": "Diqqat: server qaytarishni qabul qilmadi ({error}). Chek \"rad etilgan\" deb belgilandi — cheklar ekranidagi \"Yangilash\" orqali qayta yuboring.",
   "qaytarish_amalga_oshirilmadi": "Qaytarish amalga oshirilmadi",
   "check_qidirilmoqda": "Check qidirilmoqda...",
   "belgiga_tegishli_check_topilmadi": "Belgiga tegishli checklar topilmadi",
