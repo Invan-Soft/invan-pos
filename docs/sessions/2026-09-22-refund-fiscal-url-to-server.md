@@ -76,7 +76,9 @@ vozvratning o'z `QRCodeURL`i ketadi. Oflayn navbat allaqachon shu tartibda ishla
 - [x] `flutter test` to'liq: 1184 test o'tdi (2026-09-22)
 
 ## Keyingi qadamlar (prioritet bo'yicha)
-- [ ] Reliz (foydalanuvchi: "hammasi muammosiz bo'lsa versiya chiqaramiz") → /release
+- [x] Reliz 1.1.2+126: commit fa2d395 (fix) + release commit, tag v1.1.2+126, GitLab + GitHub push,
+      GitHub Actions run 35692912238 (success, 6m47s), `pos_1.1.2+126.exe` PRO backend'ga yuklandi
+      (HTTP 201), `GET api.7i.uz/file` = 1.1.2+126, CDN 200 — 2026-09-22
 - [ ] Do'konda haqiqiy fiskal modul bilan: onlayn vozvrat → admin panelda vozvrat URL'i vozvratniki
 - [ ] Do'konda: server o'chirilgan holda vozvrat → navbat → server tiklangach URL to'g'ri ketishi
 
