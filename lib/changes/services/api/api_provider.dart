@@ -8,6 +8,7 @@ import 'package:invan2/changes/services/api.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/services/health/backend_health.dart';
 import 'package:invan2/changes/services/log_out_service.dart';
+import 'package:invan2/changes/services/sync/server_clock.dart';
 import '../../../alice_service.dart';
 import '../log_helper.dart';
 
@@ -45,12 +46,8 @@ class ApiProvider {
   /// qachon tugamasdi va ilova startup'da splash ekranda muzlab qolardi.
   /// POST/PUT dan qisqaroq: GET'lar odatda ma'lumot o'qish uchun va ular
   /// kutilishi kassirni to'g'ridan-to'g'ri to'sib qo'yadi.
+ 
   static const Duration _getDuration = Duration(seconds: 15);
-
-  /// Server yiqilgani aniqlangani uchun tarmoqqa umuman chiqarilmagan so'rov.
-  ///
-  /// Bu javob darhol qaytadi — kassir 15-30 soniya kutib o'tirmaydi va
-  /// chaqiruvchi kod mavjud oflayn shoxiga tushadi.
   static HttpResult _serverDownResult(String path) {
     LogHelper.logRequest(
       method: "GATE",
@@ -60,7 +57,7 @@ class ApiProvider {
     );
     return HttpResult(
       reBytes: "",
-      isSuccess: false,
+      isSuccess: false, 
       result: "Server bilan aloqa yo'q",
       statusCode: BackendHealth.serverDownStatusCode,
     );
@@ -84,13 +81,9 @@ class ApiProvider {
           )
           .timeout(_duration);
       BackendHealth.recordStatusCode(response.statusCode, path: path);
+      // Server soati — sinxron kursori uchun (qarang: server_clock.dart).
+      ServerClock.observeHeaders(response.headers, host: ServerClock.hostApi);
 
-      // 409 ham yoziladi. Ilgari u o'tkazib yuborilardi va natijada
-      // "server chekni allaqachon qabul qilgan" degan MUHIM holat na
-      // jurnalda, na tashxisda ko'rinmasdi — 2026-09-03 da cheklar serverda
-      // turgani holda kassada qizil (!) bo'lib qolganini aniqlash shu sabab
-      // qiyin bo'ldi. Telegramga esa baribir ketmaydi (LogRepository 409 ni
-      // filtrlaydi) — u yerda shovqin bo'lardi.
       await LogHelper.logRequest(
         method: "POST",
         path: path,
@@ -191,6 +184,8 @@ class ApiProvider {
           )
           .timeout(seconds != null ? Duration(seconds: seconds) : _getDuration);
       BackendHealth.recordStatusCode(response.statusCode, path: path);
+      // Server soati — sinxron kursori uchun (qarang: server_clock.dart).
+      ServerClock.observeHeaders(response.headers, host: ServerClock.hostApi);
       await LogHelper.logRequest(
           method: "GET",
           path: path,
@@ -251,6 +246,8 @@ class ApiProvider {
           )
           .timeout(_duration);
       BackendHealth.recordStatusCode(response.statusCode, path: path);
+      // Server soati — sinxron kursori uchun (qarang: server_clock.dart).
+      ServerClock.observeHeaders(response.headers, host: ServerClock.hostApi);
       await LogHelper.logRequest(
         method: "PUT",
         path: path,
