@@ -32,6 +32,19 @@ docs/sessions/2026-09-22-refund-fiscal-url-to-server.md (vozvrat tartibi, hali a
 - `CommissionInfo.TIN` ikkala yo'lda ham `""` (pastga qarang) — "0" soliq sahifasining bo'sh qiymatni
   ko'rsatishi yoki OwnerType 0 ta'siri; sotuv chekining soliq sahifasi bilan solishtirish kerak.
 
+## Rasmiy manbalar (2026-09-24)
+- VM qarori №943 (23.11.2019), Nizom 7-band 8-kichik band: chek majburiy rekvizitlari ichida
+  "Komitent (vositachi) STIRi/(JSHSHIRi)" — https://lex.uz/acts/-4603329
+- NRM.uz sharhi (Nizom 5-bob): "При реализации товаров по договорам комиссии комиссионер в чеках
+  онлайн-ККМ ... под наименованием товара должен указать ИНН/ПИНФЛ комитента, на основании чего
+  система онлайн-ККМ будет автоматически включать стоимость товара в налоговую отчетность комитента"
+- Buxgalter.uz: komitent yuridik shaxs → STIR, YaTT → JSHSHIR, norezident/jismoniy shaxs → 9 xonali ID;
+  komitent my3.soliq.uz "Vositachilar" bo'limida vositachini ro'yxatga oladi
+- FiscalDriveService README (NIC NT, GitHub qo0p/fiscal-drive-service): `OwnerType uint8 — Тип владельца
+  продукта/услуги (см. справочник)`; `CommissionInfo — Признак комиссионного товара/услуги {TIN, PINFL}`.
+  Справочник OCHIQ MANBADA YO'Q. Misolda: OwnerType 1 + CommissionInfo.TIN, OwnerType 0 — CommissionInfo'siz;
+  Artix hujjatida OwnerType 3 misoli. → OwnerType qiymatlari ma'nosi tasdiqlanmagan (ochiq savol).
+
 ## Bajarilgan
 - [x] `RefundItemOrigin` — vozvrat qatori uchun OwnerType va STIR'ni katalogdan, sotuv qoidasi bilan
     → lib/changes/domain/receipt/refund_item_origin.dart
@@ -54,6 +67,9 @@ docs/sessions/2026-09-22-refund-fiscal-url-to-server.md (vozvrat tartibi, hali a
   maydonlar yo'q; sotuv ham katalogdan oladi — bir xil manba, bir xil natija.
 
 ## Ochiq savollar
+- OwnerType справочник (0/1/2/3 ma'nosi) rasmiy ochiq manbada yo'q. Adminkada "Owner type" dropdown
+  qiymati 1 — uning variantlari (label) nima? Fiskal modul yetkazuvchisi (NIC NT / YT.UZ) dan so'rash kerak.
+  Hozirgi holat: sotuv ham, vozvrat ham adminkadagi qiymatni yuboradi (bir xil) — soliq qabul qiladi.
 - **Sotuvda adminkadagi komitent STIR fiskalga KETMAYDI**: `SoldItemBuilder` uni `tin` ga yozadi,
   `saleOnOFD` esa `e.commissionTIN` (hech qayerda to'ldirilmaydi, `null`) ni o'qiydi →
   `CommissionInfo.TIN` doim `""`. Komissiya tovari (adminkada owner_type=2 + STIR) bo'lsa soliqqa
