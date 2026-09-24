@@ -6,6 +6,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:invan2/changes/models/product/item_model.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/services/get_items_service.dart';
+import 'package:invan2/changes/services/sync/catch_up_sync.dart';
+import 'package:invan2/changes/services/sync/server_clock.dart';
 import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'package:invan2/features/get_categories/get_categories.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
@@ -37,11 +39,20 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
   }
 
   static _sync(SyncSyncEvent event, Emitter<SyncState> emit) async {
+    emit(SyncLoadingState());
+    // Sinxron qulfi ostida: davriy CatchUpSync bilan bir vaqtda
+    // `clearAndPutItems` bo'lmasligi uchun (yuklash o'rtasida kelgan
+    // mahsulot o'chib, kursor esa o'tib ketishi mumkin edi).
+    await CatchUpSync.exclusive(() => _syncLocked(emit),
+        reason: 'drawer-sync');
+  }
+
+  static Future<void> _syncLocked(Emitter<SyncState> emit) async {
     DateTime time = DateTime.now();
     // Kursor yuklash BOSHLANGAN vaqtga suriladi — yuklash davomida bo'lgan
-    // o'zgarishlar notification orqali kelishi kerak.
+    // o'zgarishlar notification orqali kelishi kerak. Server vaqtiga
+    // yuklashdan KEYIN o'tkaziladi (ServerClock shu paytda aniq).
     final DateTime startedAt = DateTime.now().toUtc();
-    emit(SyncLoadingState());
     List<ItemModel> allProducts = [];
     String getError = '';
     await TasnifService.setPackageCode();
@@ -50,14 +61,12 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
 
     if (httpResult.isSuccess) {
       try {
-        var decodedJson = json.decode(httpResult.result);
+        final dynamic decodedJson = httpResult.result is String
+            ? json.decode(httpResult.result)
+            : httpResult.result;
 
         if (decodedJson is List) {
-          List<ItemModel> i = List<ItemModel>.from(
-            decodedJson.map((e) {
-              return ItemModel.fromJson(e);
-            }),
-          ).toList();
+          List<ItemModel> i = (await ItemsSingleton.parseCatalog(decodedJson)).items;
           i = ItemsSingleton.addPackageCodeAndMxikCode(
             i,
             Pref.getString(PrefKeys.mxikCode, ''),
@@ -82,7 +91,8 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
       // qolmadi. Kategoriya kursoriga tegilmaydi: `toHive` ichidagi
       // `_category()` xatoni yutib yuboradi, ya'ni muvaffaqiyatiga
       // ishonib bo'lmaydi.
-      await SyncCursor.commit(SyncStream.products, startedAt);
+      await SyncCursor.commit(
+          SyncStream.products, ServerClock.toServer(startedAt));
       // Katalog to'liq qayta yuklandi — "baza yangilanmagan" ogohlantirishi
       // qaysi yo'l bilan yangilanganidan qat'i nazar to'xtashi kerak.
       await CatalogRefreshNotice.markFresh();
@@ -138,7 +148,6 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
     if (httpResult.isSuccess) {
       Category category = Category.fromJson(httpResult.result);
       final box = HiveBoxes.getCategories();
-      await box.clear();
       final categoryList = category.data ?? <CategoryData>[];
       CategoryData noneCategory = CategoryData(
         children: [],
@@ -146,7 +155,11 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
         name: "None",
       );
       categoryList.add(noneCategory);
+      // Avval yangilari yoziladi, keyin eskilar o'chiriladi — clear+addAll
+      // o'rtasida ilova o'lsa kategoriyalar bo'sh qolmasin.
+      final List<dynamic> oldKeys = box.keys.toList();
       if (categoryList.isNotEmpty) await box.addAll(categoryList);
+      if (oldKeys.isNotEmpty) await box.deleteAll(oldKeys);
     }
     return;
   }

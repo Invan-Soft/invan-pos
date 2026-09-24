@@ -186,11 +186,71 @@ class ItemModel extends HiveObject {
     packageCode = json['package_code'];
     packageType = json['package_type'];
     packageName = json['package_name'];
-    ownerType = json['owner_type'];
+    ownerType = json['owner_type']?.toString();
     boxBarcode = json['box_barcode'];
     boxBarcodeQuantity = json['box_barcode_quantity'];
     hasBoxBarcode = json['has_box_barcode'];
     cashsale = ((json['cash_sale'] as num?) ?? 1).toInt();
+  }
+
+  /// Notification payload'idagi `images` ro'yxatidan birinchi rasm URL'i.
+  ///
+  /// Ilgari `json['images'][0]` to'g'ridan-to'g'ri o'qilardi: rasmsiz
+  /// mahsulotda server `images: []` yuborsa RangeError chiqar va bu
+  /// notification (u bilan butun oyna) qo'llanmay qolardi.
+  static String? firstImageUrl(dynamic images) {
+    if (images is List && images.isNotEmpty) {
+      final dynamic first = images.first;
+      final dynamic url = first is Map ? first['image_url'] : null;
+      if (url is String && url.isNotEmpty) return ApiProvider.imageUrl + url;
+    }
+    return null;
+  }
+
+  /// Notification payload'idan o'lchov birligi: ichki obyekt bo'lsa undan
+  /// (to'liq katalog kabi), bo'lmasa lokal box'dan id bo'yicha. Topilmasa
+  /// null — bo'sh obyekt EMAS: `putItems(mergeWithExisting)` mavjud
+  /// yozuvdagi qiymatni saqlab qoladi (adminkada yangi birlik yaratilib,
+  /// lokal box hali yangilanmagan bo'lsa ham).
+  static MeasurementUnit? resolveMeasurementUnit(dynamic nested, dynamic id) {
+    if (nested is Map) {
+      try {
+        final MeasurementUnit m =
+            MeasurementUnit.fromJson(Map<String, dynamic>.from(nested));
+        if ((m.id ?? '').isNotEmpty) return m;
+      } catch (_) {}
+    }
+    if (id == null) return null;
+    try {
+      for (final MesUnitModel m in HiveBoxes.mesUnitBox().values) {
+        if (m.id == id) {
+          return MeasurementUnit(
+            id: m.id ?? "",
+            longName: m.longName ?? "",
+            shortName: m.shortName ?? "",
+          );
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  static Vat? resolveVat(dynamic nested, dynamic id) {
+    if (nested is Map) {
+      try {
+        final Vat v = Vat.fromJson(Map<String, dynamic>.from(nested));
+        if ((v.id ?? '').isNotEmpty) return v;
+      } catch (_) {}
+    }
+    if (id == null) return null;
+    try {
+      for (final VatUnitModel v in HiveBoxes.vatUnitBox().values) {
+        if (v.id == id) {
+          return Vat(id: v.id, name: v.name, percentage: v.percentage);
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   ItemModel.fromWebSocketJson(Map<String, dynamic> json) {
@@ -201,13 +261,14 @@ class ItemModel extends HiveObject {
     id = json['id'] ?? json['product_id'];
     sku = json['sku'];
     name = json['name'];
-    image = json['images'] != null
-        ? ApiProvider.imageUrl + json['images'][0]['image_url']
-        : null;
+    image = firstImageUrl(json['images']);
     isMarking = json['is_marking'];
     isActive = json['is_active'];
     mxikCode = json['mxik_code'];
     parentId = json['parent_id'];
+    // Ilgari faqat update parserida bor edi — yangi (type 1) mahsulot
+    // ownerType'siz qolib, fiskal chekda OwnerType noto'g'ri ketardi.
+    ownerType = json['owner_type']?.toString();
     companyId = json['company_id'];
     description = json['description'];
     productTypeId = json['product_type_id'];
@@ -239,37 +300,12 @@ class ItemModel extends HiveObject {
     }
 
     {
-      List<MesUnitModel> mesUnits = [];
-      final Box<MesUnitModel> mesUnitModel = HiveBoxes.mesUnitBox();
-      mesUnits = mesUnitModel.values.toList().where((e) {
-        return e.id == json['measurement_unit_id'];
-      }).toList();
-      MeasurementUnit mess = MeasurementUnit();
-      if (mesUnits.isNotEmpty) {
-        mess = MeasurementUnit(
-          id: mesUnits.first.id ?? "",
-          longName: mesUnits.first.longName ?? "",
-          shortName: mesUnits.first.shortName ?? "",
-        );
-      }
-      measurementUnit = json['measurement_unit_id'] != null ? mess : null;
+      measurementUnit = resolveMeasurementUnit(
+          json['measurement_unit'], json['measurement_unit_id']);
     }
 
     {
-      List<VatUnitModel> vatUnits = [];
-      final Box<VatUnitModel> vatUnitModel = HiveBoxes.vatUnitBox();
-      vatUnits = vatUnitModel.values.toList().where((e) {
-        return e.id == json['vat_id'];
-      }).toList();
-      Vat vatt = Vat();
-      if (vatUnits.isNotEmpty) {
-        vatt = Vat(
-          id: vatUnits.first.id,
-          name: vatUnits.first.name,
-          percentage: vatUnits.first.percentage,
-        );
-      }
-      vat = json['vat_id'] != null ? vatt : null;
+      vat = resolveVat(json['vat'], json['vat_id']);
     }
 
     packageCode = json['package_code'];
@@ -285,14 +321,12 @@ class ItemModel extends HiveObject {
     id = json['id'];
     sku = json['sku'];
     name = json['name'];
-    image = json['images'] != null
-        ? ApiProvider.imageUrl + json['images'][0]['image_url']
-        : null;
+    image = firstImageUrl(json['images']);
     isMarking = json['is_marking'];
     isActive = json['is_active'];
     mxikCode = json['mxik_code'];
     parentId = json['parent_id'];
-    ownerType = json['owner_type'];
+    ownerType = json['owner_type']?.toString();
     companyId = json['company_id'];
     description = json['description'];
     productTypeId = json['product_type_id'];
@@ -327,38 +361,12 @@ class ItemModel extends HiveObject {
     }
 
     {
-      List<MesUnitModel> mesUnits = [];
-      final Box<MesUnitModel> mesUnitModel = HiveBoxes.mesUnitBox();
-      mesUnits = mesUnitModel.values.toList().where((e) {
-        return e.id == json['measurement_unit_id'];
-      }).toList();
-
-      MeasurementUnit mess = MeasurementUnit();
-      if (mesUnits.isNotEmpty) {
-        mess = MeasurementUnit(
-          id: mesUnits.first.id ?? "",
-          shortName: mesUnits.first.shortName ?? "",
-          longName: mesUnits.first.longName ?? "",
-        );
-      }
-      measurementUnit = json['measurement_unit_id'] != null ? mess : null;
+      measurementUnit = resolveMeasurementUnit(
+          json['measurement_unit'], json['measurement_unit_id']);
     }
 
     {
-      List<VatUnitModel> vatUnits = [];
-      final Box<VatUnitModel> vatUnitModel = HiveBoxes.vatUnitBox();
-      vatUnits = vatUnitModel.values.toList().where((e) {
-        return e.id == json['vat_id'];
-      }).toList();
-      Vat vatt = Vat();
-      if (vatUnits.isNotEmpty) {
-        vatt = Vat(
-          id: vatUnits.first.id,
-          name: vatUnits.first.name,
-          percentage: vatUnits.first.percentage,
-        );
-      }
-      vat = json['vat_id'] != null ? vatt : null;
+      vat = resolveVat(json['vat'], json['vat_id']);
       packageCode = json['package_code'];
       packageType = json['package_type'];
       packageName = json['package_name'];
@@ -480,8 +488,23 @@ class ShopPriceTiers extends HiveObject {
   ShopPriceTiers({this.minQuantity, this.retailPrice});
 
   ShopPriceTiers.fromJson(Map<String, dynamic> json) {
-    minQuantity = json['min_quantity'];
-    retailPrice = json['retail_price'];
+    // `1.0` (double) yoki "1" (satr) kelsa ham yiqilmasin — bitta buzuq
+    // yozuv butun katalog importini to'xtatardi.
+    minQuantity = _toInt(json['min_quantity']);
+    retailPrice = _toNum(json['retail_price']);
+  }
+
+  static int? _toInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return num.tryParse(v)?.toInt();
+    return null;
+  }
+
+  static num? _toNum(dynamic v) {
+    if (v is num) return v;
+    if (v is String) return num.tryParse(v);
+    return null;
   }
 
   Map<String, dynamic> toJson() {

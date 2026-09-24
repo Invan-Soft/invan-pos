@@ -16,7 +16,11 @@ class TasnifService {
     String url =
         'https://tasnif.soliq.uz/api/cl-api/integration-mxik/get/information?mxikCode=${Pref.getString(PrefKeys.mxikCode, '')}';
     try {
-      http.Response response = await http.get(Uri.parse(url));
+      // Timeoutsiz edi: tasnif.soliq.uz javob bermay qo'ysa har to'liq
+      // yuklash (u shu chaqiruvdan boshlanadi) abadiy osilib qolardi.
+      http.Response response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 15));
       await LogHelper.logRequest(method: "Get", path: url, statusCode: response.statusCode,response: response.body);
 
       alice.onHttpResponse(response);

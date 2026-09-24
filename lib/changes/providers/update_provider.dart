@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
+import 'package:invan2/changes/services/log_helper.dart';
 import 'package:invan2/changes/services/sync/catch_up_sync.dart';
 import 'package:invan2/utils/util_functions.dart';
 import 'package:invan2/utils/utils.dart';
@@ -14,6 +15,11 @@ class UpdateProvider extends ChangeNotifier {
   /// NetworkSuccess har safar kelganda chaqirilishi mumkin, shuning uchun
   /// bir vaqtda bittadan ortiq halqa ishlamasligi ta'minlangan (ilgari har
   /// bir qayta ulanishda yangi cheksiz halqa qo'shilib borardi).
+  ///
+  /// Halqa HECH QACHON o'lmasligi kerak: u faqat NetworkSuccess'da (internet
+  /// holati O'ZGARGANDA) ishga tushadi. Ilgari bitta istisno (masalan
+  /// Windows'da antivirus ushlab turgan Hive faylga yozuv) halqani yiqitar
+  /// va internet barqaror kassada sinxron restartgacha to'xtab qolardi.
   Future<void> autoUpdate(BuildContext context, bool mounted) async {
     if (_autoUpdateRunning) return;
 
@@ -26,7 +32,12 @@ class UpdateProvider extends ChangeNotifier {
     try {
       while (true) {
         await Future.delayed(period);
-        await startPeriodicRequest(context, mounted);
+        try {
+          await startPeriodicRequest(context, mounted);
+        } catch (e, stack) {
+          await LogHelper.activity(
+              'SYNC_LOOP_ERROR', {'error': e, 'stack': stack});
+        }
       }
     } finally {
       _autoUpdateRunning = false;

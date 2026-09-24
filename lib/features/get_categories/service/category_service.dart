@@ -68,8 +68,11 @@ class CategoryService {
         _flattenCategories([noneCategory]);
         if (flatCategories.isNotEmpty) {
           final box = HiveBoxes.getCategories();
-          await box.clear();
+          // Avval yangilari yoziladi, keyin eskilar o'chiriladi — clear+addAll
+          // o'rtasida ilova o'lsa kategoriyalar bo'sh qolmasin.
+          final List<dynamic> oldKeys = box.keys.toList();
           await box.addAll(flatCategories);
+          if (oldKeys.isNotEmpty) await box.deleteAll(oldKeys);
         }
       } else {
         throw Exception(
@@ -81,85 +84,83 @@ class CategoryService {
     return error;
   }
 
+  /// Notification (type 10): kategoriya yaratish — id bo'yicha UPSERT.
+  ///
+  /// Ilgari `box.addAll` edi: sinxron oynalari 2 daqiqa overlap bilan
+  /// qayta so'ralgani uchun bir xil kategoriya ikki-uch marta qo'shilib
+  /// ketardi (gridda dublikat, keyin update faqat birinchisini o'zgartirardi).
   static Future<String?> categoriesCreateForWebSocket(
       List<CategoryData> categoryList) async {
-    final box = HiveBoxes.getCategories();
+    if (categoryList.isEmpty) return 'Category list empty';
     flatCategories = [];
-    String? error;
-    if (categoryList.isNotEmpty) {
-      _flattenCategoriesCreate(categoryList);
-      if (flatCategories.isNotEmpty) {
-        await box.addAll(flatCategories);
-      }
-    } else {
-      error = 'Category list empty';
-    }
-    return error;
+    _flattenCategoriesCreate(categoryList);
+    await upsertCategories(flatCategories);
+    return null;
   }
 
+  /// Notification (type 11): yangilash; lokalda bo'lmasa yaratiladi.
   static Future<String?> categoriesUpdateForWebSocket(
       CategoryData? categoryData) async {
-    String? error;
-    if (categoryData != null) {
-      final box = HiveBoxes.getCategories();
-      List<CategoryData> categoryListLocal = box.values.toList();
-      bool isUpdated = false;
-      for (int i = 0; i < categoryListLocal.length; i++) {
-        if (categoryListLocal[i].id == categoryData.id) {
-          box.putAt(
-            i,
-            CategoryData(
-              id: categoryData.id,
-              name: categoryData.name,
-              parentId: categoryData.parentId,
-              children: [],
-            ),
-          );
-          isUpdated = true;
-          break;
-        }
-      }
-      if (!isUpdated) {
-        flatCategories = [];
-        _flattenCategoriesCreate([categoryData]);
-        if (flatCategories.isNotEmpty) {
-          await box.addAll(flatCategories);
-        }
-      }
-    } else {
-      error = 'Category list empty';
+    if (categoryData == null) return 'Category list empty';
+    flatCategories = [];
+    _flattenCategoriesCreate([categoryData]);
+    if (flatCategories.isEmpty) {
+      flatCategories = [
+        CategoryData(
+          id: categoryData.id,
+          name: categoryData.name,
+          parentId: categoryData.parentId,
+          children: [],
+        ),
+      ];
     }
-    return error;
+    await upsertCategories(flatCategories);
+    return null;
   }
 
-  static Future<String?> categoriesDeleteForWebSocket(String categoryId) async {
-    String? error;
-    if (categoryId.isNotEmpty) {
-      bool isDeleted = false;
-      final box = HiveBoxes.getCategories();
-      final itemBox = HiveBoxes.getProducts();
-      List<CategoryData> categoryList = box.values.toList();
-      List<ItemModel> itemList = itemBox.values.toList();
-      for (int i = 0; i < categoryList.length; i++) {
-        if (categoryList[i].id == categoryId) {
-          box.deleteAt(i);
-          isDeleted = true;
-        }
+  /// Har bir kategoriya id bo'yicha bitta yozuv: bor bo'lsa ustidan
+  /// yoziladi (dublikatlar ham yig'ishtiriladi), yo'q bo'lsa qo'shiladi.
+  static Future<void> upsertCategories(List<CategoryData> list) async {
+    final box = HiveBoxes.getCategories();
+    for (final CategoryData c in list) {
+      final String? id = c.id;
+      final CategoryData row = CategoryData(
+        id: id,
+        name: c.name,
+        parentId: c.parentId,
+        children: [],
+      );
+      final List<dynamic> keys = id == null
+          ? const <dynamic>[]
+          : box.keys.where((k) => box.get(k)?.id == id).toList();
+      if (keys.isEmpty) {
+        await box.add(row);
+      } else {
+        await box.put(keys.first, row);
+        if (keys.length > 1) await box.deleteAll(keys.skip(1).toList());
       }
-      if (isDeleted) {
-        for (int i = 0; i < itemList.length; i++) {
-          if (itemList[i].categories != null &&
-              itemList[i].categories!.isNotEmpty) {
-            if (itemList[i].categories![0].id == categoryId) {
-              itemList[i].categories = null;
-              itemBox.putAt(i, itemList[i]);
-            }
-          }
-        }
-      }
-    } else {
-      error = 'Category list empty';
     }
-    return error;
+  }
+
+  /// Notification (type 12): o'chirish. Yozuvlar kalit bo'yicha o'chiriladi
+  /// (ilgari snapshot indeksi bilan `deleteAt` va `await`siz — ikkinchi
+  /// dublikatda noto'g'ri qator o'chib, xato esa yutilardi).
+  static Future<String?> categoriesDeleteForWebSocket(String categoryId) async {
+    if (categoryId.isEmpty) return 'Category list empty';
+    final box = HiveBoxes.getCategories();
+    final List<dynamic> keys =
+        box.keys.where((k) => box.get(k)?.id == categoryId).toList();
+    if (keys.isEmpty) return null;
+    await box.deleteAll(keys);
+
+    final itemBox = HiveBoxes.getProducts();
+    for (final ItemModel item in itemBox.values.toList()) {
+      final List<CategoriesFromProducts>? cats = item.categories;
+      if (cats != null && cats.isNotEmpty && cats[0].id == categoryId) {
+        item.categories = null;
+        await itemBox.put(item.id, item);
+      }
+    }
+    return null;
   }
 }

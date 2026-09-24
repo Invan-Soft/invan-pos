@@ -1,3 +1,4 @@
+import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'dart:io';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -84,6 +85,9 @@ Future<void> main() async {
   await _hiveInit();
   await hiveOpen();
   await _healPrintersIfNeeded();
+  // Kursor ma'nosi o'zgargan relizda (kassa soati → server soati) bir
+  // martalik migratsiya — sinxronning har qanday chaqiruvidan oldin.
+  await SyncCursor.migrateIfNeeded();
   // birinchi kirishda ofd
   // await Pref.setBool(PrefKeys.withOFD, true);
   // Printer required

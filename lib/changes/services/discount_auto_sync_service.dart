@@ -1,3 +1,4 @@
+import 'package:invan2/changes/services/sync/catch_up_sync.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -48,7 +49,24 @@ class DiscountAutoSyncService {
     _timer = null;
   }
 
+  /// Sinxron qulfi bo'sh bo'lsagina ishlaydi (kutmaydi — keyingi 10
+  /// daqiqada yana uriniladi). Ilgari CatchUpSync bilan parallel ishlar,
+  /// to'liq ro'yxat olinayotgan paytda notification orqali kelgan yangi
+  /// diskontni "serverda yo'q" deb o'chirib yuborardi.
   Future<void> _syncNow() async {
+    final bool? ran = await CatchUpSync.tryExclusive(
+      () async {
+        await _syncNowUnlocked();
+        return true;
+      },
+      reason: 'discount-auto-sync',
+    );
+    if (ran == null) {
+      debugPrint('🔖 DISKONT AVTO-SYNC: sinxron qulfi band — skip');
+    }
+  }
+
+  Future<void> _syncNowUnlocked() async {
     if (_syncing) {
       debugPrint('🔖 DISKONT AVTO-SYNC: oldingi tsikl hali tugamagan — skip');
       return;

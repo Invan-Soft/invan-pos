@@ -20,6 +20,7 @@ import 'package:invan2/utils/helpers/auth_backup.dart';
 import 'package:invan2/utils/helpers/auth_reset.dart';
 import 'package:invan2/changes/services/catalog_refresh_notice.dart';
 import 'package:invan2/changes/services/startup_progress.dart';
+import 'package:invan2/changes/services/sync/catch_up_sync.dart';
 import 'package:invan2/changes/services/discount_auto_sync_service.dart';
 import 'package:invan2/changes/services/health/backend_health.dart';
 import 'package:invan2/changes/services/cash_limit/bhm_service.dart';
@@ -150,15 +151,19 @@ class _WrapperState extends State<Wrapper> {
           /// bosqichi) ham yangilaydi. Fonda ketadi, startup'ni kutdirmaydi.
           unawaited(BhmService.refreshIfStale(reason: 'startup'));
 
-          // Startup yuklashi davomida "baza yangilanmagan" dialogi
-          // chiqmasligi kerak — u yuklanish ekranining ustiga tushib qolardi.
-          CatalogRefreshNotice.beginLoad();
+          final UpdateProvider updateProvider =
+              Provider.of<UpdateProvider>(context, listen: false);
           if (!kDebugMode || kDebugStartupCatalogSync) {
-            await _syncCatalogOnStartup(
-                Provider.of<UpdateProvider>(context, listen: false));
+            await _syncCatalogOnStartup(updateProvider);
           }
 
-          CatalogRefreshNotice.endLoad();
+          /// Davriy sinxron ilgari FAQAT NetworkSuccess'dan boshlanardi, u
+          /// esa internet_connection_checker'ning 1.1.1.1:53 kabi
+          /// probe'lariga bog'liq — do'kon tarmog'ida probe bloklansa (API
+          /// ishlasa ham) halqa umuman ishga tushmasdi. Idempotent
+          /// (`_autoUpdateRunning`), NetworkSuccess'dagi chaqiruv qoladi.
+          unawaited(updateProvider.autoUpdate(context, mounted));
+
           // Shkala 100% ga to'lib, keyin sahifa almashadi — kassir
           // "yarmida uzilib qoldi" degan taassurot olmasligi kerak.
           StartupProgress.done();
@@ -207,16 +212,45 @@ class _WrapperState extends State<Wrapper> {
       await CatalogRefreshNotice.markFailed();
       return;
     }
-    try {
-      await Future(() async {
+    final int startedAt = DateTime.now().millisecondsSinceEpoch;
+
+    // Yuklash davomida "baza yangilanmagan" dialogi chiqmasin. `endLoad`
+    // ish HAQIQATAN tugaganda chaqiriladi — budjet tugasa ham fon ishi
+    // davom etadi (ilgari budjet tugashi bilan bayroq olinib, dialog
+    // yuklanayotgan katalog ustiga chiqib qolardi).
+    CatalogRefreshNotice.beginLoad();
+    final Future<void> work = Future(() async {
+      try {
         StartupProgress.set(StartupPhase.employees);
         await updateProvider.fullUpdateEmployee();
-        await updateProvider.fullUpdateItems();
-      }).timeout(_startupSyncBudget);
+        // Sinxron qulfi ostida: NetworkSuccess bilan deyarli bir vaqtda
+        // boshlanadigan CatchUpSync yuklash o'rtasida mahsulot yozib,
+        // `clearAndPutItems` uni o'chirib yuborishi (kursor esa o'tib
+        // ketishi) mumkin edi. Startup odam kutmaydigan ish — qulfni
+        // majburan olmaydi, bo'shashini kutadi.
+        await CatchUpSync.exclusive(() async {
+          // NetworkSuccess'dagi catch-up (kursor yo'q bo'lsa) katalogni
+          // allaqachon to'liq yuklagan bo'lishi mumkin — ikkinchi 43 MB
+          // shart emas. Kursor commit `fullUpdateProduct` ichida.
+          if (Pref.getInt(PrefKeys.lastFullCatalogSyncAt, 0) >= startedAt) {
+            return;
+          }
+          final String? error = await updateProvider.fullUpdateItems();
+          if (error != null) await CatalogRefreshNotice.markFailed();
+        }, reason: 'startup-full-update', forceAfterWait: false);
+      } catch (_) {
+        await CatalogRefreshNotice.markFailed();
+      } finally {
+        CatalogRefreshNotice.endLoad();
+      }
+    });
+
+    try {
+      await work.timeout(_startupSyncBudget);
     } catch (_) {
-      // Yiqildi yoki budjetga sig'madi — eski katalog bilan ochilaveramiz,
+      // Budjetga sig'madi — eski katalog bilan ochilaveramiz, yuklash
+      // fonda davom etadi; yiqilsa `markFailed` ichkarida qo'yiladi va
       // kassirga ogohlantirish `CatalogRefreshNotice` orqali chiqadi.
-      await CatalogRefreshNotice.markFailed();
     }
   }
 

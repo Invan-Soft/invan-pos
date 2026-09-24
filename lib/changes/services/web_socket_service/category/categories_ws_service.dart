@@ -1,113 +1,70 @@
 // ignore_for_file: use_build_context_synchronously, invalid_use_of_protected_member
 
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
-import '../../../../alice_service.dart';
 import '../../../../features/features.dart';
-import '../../../../features/get_products/singletons/items_singleton.dart';
-import '../../../../utils/constants/constants.dart';
-import '../../../../utils/helpers/helpers.dart';
 import '../../log_helper.dart';
+import '../../sync/notification_fetch.dart';
 import '../../sync/sync_cursor.dart';
-import '../urls/urls.dart';
+import '../product/products_ws_service.dart';
 
+/*
+    Kategoriya oqimi: 10 — yaratish, 11 — yangilash, 12 — o'chirish.
+    So'rov/tartiblash/xatoga chidamlilik NotificationFetch'da.
+*/
 class CategoriesWsService {
   CategoriesWsService._();
 
-  static const int limit = 1000;
+  static const int limit = NotificationFetch.limit;
+
+  static const String types = '10,11,12';
 
   static Future<SyncFetchResult> getReceivedWS(bool mounted,
       BuildContext context, String startDate, String endDate) async {
     try {
-      return await _fetch(startDate, endDate);
-    } catch (e) {
+      return await NotificationFetch.run(
+        label: 'Category',
+        types: types,
+        startDate: startDate,
+        endDate: endDate,
+        apply: _apply,
+        afterBatch: ProductsWsService.refreshCaches,
+      );
+    } catch (e, stack) {
       if (kDebugMode) {
         print('❌ Category notification xatosi: $e');
       }
+      await LogHelper.activity('SYNC_FETCH_CRASH',
+          {'stream': 'Category', 'error': e, 'stack': stack});
       return const SyncFetchResult.failed();
     }
   }
 
-  static Future<SyncFetchResult> _fetch(
-      String startDate, String endDate) async {
-    final token = Pref.getString(PrefKeys.token, 'not initialized');
+  static Future<NotifyApply> _apply(Map<String, dynamic> ws) async {
+    final dynamic rawType = ws['type'];
+    final int? type = rawType is int ? rawType : int.tryParse('$rawType');
+    final dynamic data = ws['data'];
 
-    if (token.isEmpty || token == 'not initialized') {
-      return const SyncFetchResult.failed();
+    switch (type) {
+      case 10:
+        await CategorySingleton.putCategories([CategoryData.fromJson(_asMap(data))]);
+        return NotifyApply.applied;
+      case 11:
+        await CategorySingleton.editCategory(CategoryData.fromJson(_asMap(data)));
+        return NotifyApply.applied;
+      case 12:
+        final String id = data is Map ? (data['id']?.toString() ?? '') : '';
+        if (id.isEmpty) throw const FormatException('kategoriya id yo\'q');
+        await CategorySingleton.deleteCategories(id);
+        return NotifyApply.applied;
+      default:
+        return NotifyApply.ignored;
     }
+  }
 
-    String comId = Pref.getString(PrefKeys.orgID, "");
-    final headers = <String, String>{
-      "timezone": "-300",
-      "Vary": "Origin",
-      "Strict-Transport-Security": "Strict-Transport-Security",
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Authorization": "Bearer $token"
-    };
-    final String path =
-        "${Urls.baseNotificationUrl}notifications?company_id=$comId&limit=$limit&offset=1&type=10,11,12&is_read=false&start_date=$startDate&end_date=$endDate";
-    http.Response response = await http
-        .get(
-          Uri.parse(path),
-          headers: headers,
-        )
-        .timeout(const Duration(seconds: 20));
-    await LogHelper.logRequest(
-        method: "GET",
-        path: path,
-        statusCode: response.statusCode,
-        response: response.body);
-
-    alice.onHttpResponse(response);
-    if (kDebugMode) {
-      print('☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️ - Category Get - ☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️');
-    }
-    if (response.statusCode != 200) {
-      return const SyncFetchResult.failed();
-    }
-    {
-      if (jsonDecode(utf8.decode(response.bodyBytes))['notifications'] !=
-          null) {
-        List<String> deleteIds = [];
-        List notification =
-            jsonDecode(utf8.decode(response.bodyBytes))['notifications'];
-
-        for (var ws in notification) {
-          if (ws['id'] != null) {
-            if (ws['type'] == 10) {
-              CategoryData categoryData = CategoryData.fromJson(ws['data']);
-              await CategorySingleton.putCategories([categoryData]);
-              await ItemsSingleton.storeProducts();
-              CategorySingleton.init();
-              deleteIds.add(ws['id']);
-            }
-            if (ws['type'] == 11) {
-              CategoryData? categoryData = CategoryData.fromJson(ws['data']);
-              await CategorySingleton.editCategory(categoryData);
-              CategorySingleton.init();
-              await ItemsSingleton.storeProducts();
-              deleteIds.add(ws['id']);
-            }
-            if (ws['type'] == 12) {
-              await CategorySingleton.deleteCategories(ws['data']['id']);
-              await ItemsSingleton.storeProducts();
-              CategorySingleton.init();
-              deleteIds.add(ws['id']);
-            }
-          }
-        }
-        if (deleteIds.isNotEmpty) {
-          // await sendReceivedWS(deleteIds);
-          deleteIds = [];
-        }
-        return SyncFetchResult.done(notification.length,
-            truncated: notification.length >= limit);
-      }
-    }
-    return const SyncFetchResult.done(0);
+  static Map<String, dynamic> _asMap(dynamic v) {
+    if (v is Map) return Map<String, dynamic>.from(v);
+    throw const FormatException('notification data bo\'sh');
   }
 }

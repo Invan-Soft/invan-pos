@@ -2,6 +2,8 @@
     @author Suxrob Sattorov, 3/17/2025, 10:00 AM
 */
 
+import 'package:invan2/changes/services/sync/server_clock.dart';
+import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'dart:convert';
 import 'package:invan2/changes/services/catalog_refresh_notice.dart';
 import 'package:invan2/changes/services/startup_progress.dart';
@@ -229,22 +231,20 @@ static Future<String?> _fullUpdateProduct({bool apd = false}) async {
 
   if (httpResult.isSuccess) {
     try {
-      var decodedJson = json.decode(httpResult.result);
+      final dynamic decodedJson = httpResult.result is String
+          ? json.decode(httpResult.result)
+          : httpResult.result;
 
       if (decodedJson is List) {
-
-        final i = <ItemModel>[];
-        for (final e in decodedJson) {
-          i.add(ItemModel.fromJson(e));
-        }
+        // Har yozuv alohida himoyada — bitta buzuq yozuv butun importni
+        // yiqitmaydi (ItemsSingleton.parseCatalog).
+        final i = (await ItemsSingleton.parseCatalog(decodedJson)).items;
 
         allProducts = ItemsSingleton.addPackageCodeAndMxikCode(
           i,
           Pref.getString(PrefKeys.mxikCode, ''),
           Pref.getString(PrefKeys.packageCode, ''),
         );
-
-       // print('📦 Jami mahsulotlar soni: ${allProducts.length}');
       } else {
         getError = "Ma'lumotlar formati noto'g'ri.";
       }
@@ -258,10 +258,10 @@ static Future<String?> _fullUpdateProduct({bool apd = false}) async {
     print('❌ API xatosi: $getError');
   }
 
-  // Vaqtni saqlash
-  await Pref.setInt(PrefKeys.lastSyncTime, time.millisecondsSinceEpoch);
-
   if (allProducts.isNotEmpty) {
+    // Faqat haqiqiy muvaffaqiyatda — ilgari yiqilgan yuklash ham
+    // "oxirgi yangilanish" vaqtini surib qo'yardi.
+    await Pref.setInt(PrefKeys.lastSyncTime, time.millisecondsSinceEpoch);
     print('💾 Mahsulotlar localga saqlanmoqda...');
 
     // Yozish bosqichi uch qadamga bo'linadi — shkala qotib qolmasligi uchun.
@@ -286,6 +286,16 @@ static Future<String?> _fullUpdateProduct({bool apd = false}) async {
 
     print('✅ Mahsulotlar muvaffaqiyatli yangilandi!');
     allProducts = [];
+    // Katalog to'liq yuklandi — notification tarixiga ehtiyoj qolmadi.
+    // Kursor yuklash BOSHLANGAN server vaqtiga suriladi (yagona nuqta —
+    // barcha chaqiruvchilar: startup, UPD dialogi, "baza yangilanmagan"
+    // dialogi, aktivatsiya). `force`: soat sakragan bo'lsa ham qayta
+    // o'rnatilsin.
+    await SyncCursor.commit(
+      SyncStream.products,
+      ServerClock.toServer(time.toUtc()),
+      force: true,
+    );
     // Katalog to'liq yangilandi — "baza yangilanmagan" ogohlantirishi olinadi.
     await CatalogRefreshNotice.markFresh();
     return null;

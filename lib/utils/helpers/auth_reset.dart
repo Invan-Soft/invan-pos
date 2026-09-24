@@ -1,5 +1,7 @@
 import 'package:invan2/changes/services/api/api_provider.dart';
 import 'package:invan2/changes/services/log_service.dart';
+import 'package:invan2/changes/services/sync/catch_up_sync.dart';
+import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/utils/constants/constants.dart';
@@ -21,19 +23,30 @@ class AuthReset {
   ///
   /// Navigatsiya qilmaydi: chaqiruvchi tomon o'zi login sahifasiga o'tkazadi.
   static Future<void> clearAuthAndCache() async {
-    await Pref.setBool(PrefKeys.authenticationBool, false);
-    await AuthBackup.delete();
+    // Sinxron qulfi ostida: hozir ketayotgan catch-up/to'liq yuklash boxlar
+    // tozalangandan KEYIN eski kompaniya ma'lumotini/kursorini yozib
+    // qo'ymasin. Epoch oshirilgani uchun eski run `shouldContinue` orqali
+    // to'xtaydi.
+    CatchUpSync.bumpEpoch();
+    await CatchUpSync.exclusive(() async {
+      await Pref.setBool(PrefKeys.authenticationBool, false);
+      await AuthBackup.delete();
 
-    // prefBox ham shu yerda tozalanadi — token, shop/pos ma'lumotlari
-    // hammasi shu box ichida.
-    await HiveBoxes.clearAllBoxes();
-    ItemsSingleton.clearTheProducts();
+      // prefBox ham shu yerda tozalanadi — token, shop/pos ma'lumotlari
+      // hammasi shu box ichida.
+      await HiveBoxes.clearAllBoxes();
+      ItemsSingleton.clearTheProducts();
 
-    // clearAllBoxes prefBox'ni ham tozalagani uchun login sahifasigacha
-    // kerak bo'ladigan qiymatlar qayta yoziladi.
-    await Pref.setString(PrefKeys.mxikCode, '01905012001000000');
-    await Pref.setString(PrefKeys.version, await LogService.getAppVersion() ?? '');
-    await Pref.setString(PrefKeys.apiEnv, ApiProvider.currentEnv);
+      // clearAllBoxes prefBox'ni ham tozalagani uchun login sahifasigacha
+      // kerak bo'ladigan qiymatlar qayta yoziladi.
+      await Pref.setString(PrefKeys.mxikCode, '01905012001000000');
+      await Pref.setString(
+          PrefKeys.version, await LogService.getAppVersion() ?? '');
+      await Pref.setString(PrefKeys.apiEnv, ApiProvider.currentEnv);
+      // Kursor sxemasi ham tozalandi — qayta yozamiz, aks holda keyingi
+      // startup yana migratsiya qiladi (zararsiz, lekin ortiqcha).
+      await Pref.setInt(PrefKeys.syncCursorSchema, SyncCursor.schemaVersion);
+    }, reason: 'logout');
   }
 
   /// Build API muhiti (dev↔pro) oldingi ishga tushirishdagidan farq qilsa

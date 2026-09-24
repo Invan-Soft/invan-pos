@@ -1,19 +1,18 @@
-// ignore_for_file: use_build_context_synchronously, invalid_use_of_protected_member
+// ignore_for_file: use_build_context_synchronously, invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:hive/hive.dart';
-import 'package:http/http.dart' as http;
 import 'package:invan2/changes/services/log_helper.dart';
 import 'package:invan2/changes/services/catalog_refresh_notice.dart';
+import 'package:invan2/changes/services/sync/catch_up_sync.dart';
+import 'package:invan2/changes/services/sync/notification_fetch.dart';
 import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'package:invan2/changes/services/web_socket_service/product/model/mxik_updates.dart';
 import 'package:invan2/changes/services/web_socket_service/product/model/product_price_edit_response.dart';
-import 'package:invan2/changes/services/web_socket_service/urls/urls.dart';
 import 'package:provider/provider.dart';
-import '../../../../alice_service.dart';
 import '../../../../features/features.dart';
 import '../../../../features/get_products/singletons/items_singleton.dart';
 import '../../../../features/get_products/soliq/tasnif_service.dart';
@@ -26,216 +25,213 @@ import '../../../singletons/organization_singleton.dart';
 import '../../api/result_http_model.dart';
 import '../../get_items_service.dart';
 
+/*
+    Mahsulot oqimi: notification'lardan lokal katalogni yangilash.
+
+    Turlari: 0 — hammasini qayta yukla, 1 — yangi mahsulot, 2 — yangilash,
+    3 — o'chirish, 13 — narx, 20/21 — MXIK, 40 — to'lov turi (CLICK/UZUM/
+    PAYME), 6 — e'tiborsiz.
+
+    So'rov/tartiblash/xatoga chidamlilik NotificationFetch'da; bu yerda
+    faqat bitta notification'ni qanday qo'llash yozilgan.
+*/
 class ProductsWsService {
   ProductsWsService._();
 
-  /*static sendReceivedWS(List<String> ids) async {
-    final token = Pref.getString(PrefKeys.token, 'not initialized');
+  static const int limit = NotificationFetch.limit;
 
-    if (token.isEmpty || token == 'not initialized') {
-      return;
-    }
-
-    final headers = <String, String>{
-      "timezone": "-300",
-      "Vary": "Origin",
-      "Strict-Transport-Security": "Strict-Transport-Security",
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Authorization": "Bearer $token"
-    };
-
-    final body = jsonEncode({"ids": ids});
-
-    http.Response response = await http
-        .delete(
-          Uri.parse("${Urls.baseNotificationUrl}notifications"),
-          body: body,
-          headers: headers,
-        )
-        .timeout(const Duration(seconds: 20));
-    alice.onHttpResponse(response);
-    await Pref.setInt(
-        PrefKeys.lastSyncTime, DateTime.now().millisecondsSinceEpoch);
-    await Pref.setBool(PrefKeys.lastSyncTimeChanged, true);
-  }*/
-
-  static const int limit = 1000;
+  /// Mahsulot oqimi qamrab oladigan notification turlari.
+  static const String types = '1,2,3,0,6,13,20,21,40';
 
   static Future<SyncFetchResult> getReceivedWS(bool mounted,
       BuildContext context, String startDate, String endDate) async {
     try {
-      return await _fetch(mounted, context, startDate, endDate);
-    } catch (e) {
-      // Timeout / tarmoq / parse xatosi. Kursor surilmasligi uchun
-      // muvaffaqiyatsiz deb qaytaramiz — oyna keyingi urinishda
-      // qaytadan so'raladi.
+      // Bitta oynada avval o'chirilgan mahsulotni keyinroq (yoki xuddi shu
+      // soniyada) kelgan create/update qayta tiriltirmasin — id → o'chirish
+      // vaqti.
+      final Map<String, DateTime?> deletedInBatch = <String, DateTime?>{};
+      return await NotificationFetch.run(
+        label: 'Product',
+        types: types,
+        startDate: startDate,
+        endDate: endDate,
+        apply: (ws) => _apply(ws, context, mounted, deletedInBatch),
+        afterBatch: refreshCaches,
+      );
+    } catch (e, stack) {
+      // NotificationFetch o'zi hamma narsani ushlaydi; bu faqat oxirgi
+      // himoya — kursor surilmasligi uchun muvaffaqiyatsiz qaytaramiz.
       if (kDebugMode) {
         print('❌ Product notification xatosi: $e');
       }
+      await LogHelper.activity(
+          'SYNC_FETCH_CRASH', {'stream': 'Product', 'error': e, 'stack': stack});
       return const SyncFetchResult.failed();
     }
   }
 
-  static Future<SyncFetchResult> _fetch(bool mounted, BuildContext context,
-      String startDate, String endDate) async {
-    final token = Pref.getString(PrefKeys.token, 'not initialized');
+  /// Hive'dagi katalogni xotira keshiga qayta yuklaydi.
+  ///
+  /// Oyna oxirida BIR marta chaqiriladi. Ilgari har notification'dan keyin
+  /// chaqirilardi: 500 ta narx o'zgarishi = 57 000 mahsulotni 500 marta
+  /// qayta yuklash — UI o'nlab soniya qotardi.
+  static Future<void> refreshCaches() async {
+    await ItemsSingleton.storeProducts();
+    CategorySingleton.init();
+  }
 
-    if (token.isEmpty || token == 'not initialized') {
-      return const SyncFetchResult.failed();
-    }
+  static Future<NotifyApply> _apply(Map<String, dynamic> ws, BuildContext context,
+      bool mounted, Map<String, DateTime?> deletedInBatch) async {
+    final int? type = _asInt(ws['type']);
+    final Map<String, dynamic> data = _asMap(ws['data']);
 
-    String comId = Pref.getString(PrefKeys.orgID, "");
-    final headers = <String, String>{
-      "timezone": "-300",
-      "Vary": "Origin",
-      "Strict-Transport-Security": "Strict-Transport-Security",
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Authorization": "Bearer $token"
-    };
-    final String path =
-        "${Urls.baseNotificationUrl}notifications?company_id=$comId&limit=$limit&offset=1&type=1,2,3,0,6,13,20,21,40&is_read=false&start_date=$startDate&end_date=$endDate";
-    http.Response response = await http
-        .get(
-          Uri.parse(path),
-          headers: headers,
-        )
-        .timeout(const Duration(seconds: 20));
-    await LogHelper.logRequest(
-        method: "GET",
-        path: path,
-        statusCode: response.statusCode,
-        response: response.body);
+    switch (type) {
+      case 21:
+        await ItemsSingleton.deleteMxik(_asList(data['mxik_codes']));
+        return NotifyApply.applied;
 
-    alice.onHttpResponse(response);
-    if (kDebugMode) {
-      print(
-          '☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️ - Product  Get - ☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️☑️');
-      print(
-          'Response: ${response.statusCode} - ${response.body} - Product Get - ${DateTime.now()}');
-    }
-    if (response.statusCode != 200) {
-      return const SyncFetchResult.failed();
-    }
-    
-    {
-      if (jsonDecode(utf8.decode(response.bodyBytes))['notifications'] !=
-          null) {
-        List<String> deleteIds = [];
-        List notification =
-            jsonDecode(utf8.decode(response.bodyBytes))['notifications'];
+      case 20:
+        await ItemsSingleton.editMxik(MxikUpdates.fromJson(data).mxikCodes ?? []);
+        return NotifyApply.applied;
 
-        for (var ws in notification) {
-    
-          if (ws['id'] != null) {
-            if (ws['type'] == 21) {
-              await ItemsSingleton.deleteMxik(ws['data']['mxik_codes']);
-              await ItemsSingleton.storeProducts();
-              CategorySingleton.init();
-              deleteIds.add(ws['id']);
-            }
-            if (ws['type'] == 20) {
-              await ItemsSingleton.editMxik(
-                  MxikUpdates.fromJson(ws['data']).mxikCodes ?? []);
-              await ItemsSingleton.storeProducts();
-              CategorySingleton.init();
-              deleteIds.add(ws['id']);
-            }
-            if (ws['type'] == 13) {
-              await ItemsSingleton.editItem(ProductPriceEdit.fromJson(ws));
-              await ItemsSingleton.storeProducts();
-              CategorySingleton.init();
-              deleteIds.add(ws['id']);
-            }
-            if (ws['type'] == 0) {
-              bool isSuccess = await import(context);
-              if (isSuccess) {
-                deleteIds.add(ws['id']);
-              }
-            }
-            if (ws['type'] == 2) {
-              ItemModel item = ItemModel.fromWebSocketJsonUpdate(ws['data']);
-              if ((ws['data']['category_ids'] as List<dynamic>).isNotEmpty) {
-                item.categories ??=
-                    getCategories(ws['data']['category_ids'][0]);
-              }
-              await ItemsSingleton.putItems([item]);
-              await ItemsSingleton.storeProducts();
-              CategorySingleton.init();
-              deleteIds.add(ws['id']);
-            }
-            if (ws['type'] == 1) {
-              ItemModel item = ItemModel.fromWebSocketJson(ws['data']);
-              if ((ws['data']['category_ids'] as List<dynamic>).isNotEmpty) {
-                item.categories ??=
-                    getCategories(ws['data']['category_ids'][0]);
-              }
-              await ItemsSingleton.putItems([item]);
-              await ItemsSingleton.storeProducts();
-              CategorySingleton.init();
-              deleteIds.add(ws['id']);
-            }
-            if (ws['type'] == 3) {
-              if (ws['data']['ids'] != null) {
-                // await ItemsSingleton.deleteProduct(
-                //   ws['data']['ids'].cast<String?>());
-                await ItemsSingleton.deleteProduct(
-                  (ws['data']['ids'] as List<dynamic>)
-                      .map((e) => e.toString())
-                      .toList(),
-                );
-              }
-              await ItemsSingleton.storeProducts();
-              CategorySingleton.init();
-              deleteIds.add(ws['id']);
-            }
-            if (ws['type'] == 6) {
-              deleteIds.add(ws['id']);
-            }
-            if (ws['type'] == 40) {
-              final data = ws['data'];
-              final String name = data['name'];
-              final bool isUsed = data['is_used'];
-              final String id = data['id'];
-
-              if (name == 'CLICK') {
-                await Pref.setBool(PrefKeys.clickEnable, isUsed);
-                await Pref.setString(PrefKeys.clickId, id);
-              } else if (name == 'UZUM') {
-                await Pref.setBool(PrefKeys.uzumEnable, isUsed);
-                await Pref.setString(PrefKeys.uzumId, id);
-              } else if (name == 'PAYME') {
-                await Pref.setBool(PrefKeys.paymeEnable, isUsed);
-                await Pref.setString(PrefKeys.paymeId, id);
-              }
-
-              final box = await Hive.openBox<Payment>('other_payments');
-              final payments = box.values.toList();
-              for (int i = 0; i < payments.length; i++) {
-                if (payments[i].name == name) {
-                  payments[i].isAdded = isUsed;
-                  await box.putAt(i, payments[i]);
-                  break;
-                }
-              }
-
-              await OrganizationSingleton.setOtherPayments();
-              if (mounted) {
-                Provider.of<OrderingProvider4>(context, listen: false).notifyListeners();
-              }
-            }
-          }
+      case 13:
+        final ProductPriceEdit edit = ProductPriceEdit.fromJson(ws);
+        if (data.isNotEmpty && edit.data?.productsValues == null) {
+          // Payload bor-u, biz kutgan `product_values` yo'q — shakl
+          // o'zgargan. Jimgina "qo'llandi" deyish narxni yo'qotardi.
+          throw const FormatException('type 13: product_values yo\'q');
         }
-        if (deleteIds.isNotEmpty) {
-          // await sendReceivedWS(deleteIds);
-          deleteIds = [];
+        await ItemsSingleton.editItem(edit);
+        return NotifyApply.applied;
+
+      case 0:
+        // Serverning "hammasini qayta yukla" buyrug'i — oyna ichida emas,
+        // runner'ning yagona to'liq yuklash yo'li orqali (backoff, timeout,
+        // kursor commit hammasi o'sha yerda).
+        return NotifyApply.fullReload;
+
+      case 1:
+      case 2:
+        return _upsert(ws, data, isUpdate: type == 2, deletedInBatch: deletedInBatch);
+
+      case 3:
+        final List<String> ids = _asList(data['ids'])
+            .map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        if (ids.isEmpty) {
+          throw const FormatException('type 3: ids bo\'sh yoki noto\'g\'ri shakl');
         }
-        return SyncFetchResult.done(notification.length,
-            truncated: notification.length >= limit);
+        await ItemsSingleton.deleteProduct(ids);
+        final DateTime? at = NotificationFetch.parseCreatedAt(ws['created_at']);
+        for (final String id in ids) {
+          deletedInBatch[id] = at;
+        }
+        return NotifyApply.applied;
+
+      case 40:
+        await _paymentToggle(data, context, mounted);
+        return NotifyApply.ignored;
+
+      default:
+        return NotifyApply.ignored;
+    }
+  }
+
+  /// Yangi mahsulot (type 1) yoki yangilash (type 2).
+  ///
+  /// Parse xatosi istisno bo'lib chiqadi — NotificationFetch uni faqat shu
+  /// notification uchun belgilaydi, oyna qolgan qismi qo'llanadi va oqim
+  /// to'liq yuklash bilan tenglashtiriladi.
+  static Future<NotifyApply> _upsert(
+    Map<String, dynamic> ws,
+    Map<String, dynamic> data, {
+    required bool isUpdate,
+    required Map<String, DateTime?> deletedInBatch,
+  }) async {
+    if (data.isEmpty) {
+      throw const FormatException('notification data bo\'sh');
+    }
+    if (data['is_active'] != null && data['is_active'] is! bool) {
+      throw FormatException('is_active bool emas: ${data['is_active']}');
+    }
+    final ItemModel item = isUpdate
+        ? ItemModel.fromWebSocketJsonUpdate(data)
+        : ItemModel.fromWebSocketJson(data);
+    final String? id = item.id;
+    if (id == null || id.isEmpty) {
+      throw const FormatException('mahsulot id yo\'q');
+    }
+
+    // Shu oynada allaqachon o'chirilgan mahsulot: create/update o'chirishdan
+    // qat'iy KEYIN yaratilgan bo'lsagina qo'llanadi. Bir soniya ichidagi
+    // juftlik (server yangi-birinchi qaytarsa) o'chirilganini tiriltirmasin.
+    if (deletedInBatch.containsKey(id)) {
+      final DateTime? deletedAt = deletedInBatch[id];
+      final DateTime? at = NotificationFetch.parseCreatedAt(ws['created_at']);
+      if (deletedAt == null || at == null || !at.isAfter(deletedAt)) {
+        await LogHelper.activity('SYNC_SKIP_RESURRECT', {'id': id});
+        return NotifyApply.ignored;
       }
     }
-    return const SyncFetchResult.done(0);
+
+    item.categories ??= categoriesFromIds(data['category_ids']);
+
+    // Notification payload'i to'liq katalogdan kambag'alroq: narxi yo'q
+    // (yoki shu do'kon uchun 0) kelsa mavjud narx, parser bilmaydigan
+    // maydonlar (ownerType, commissionTin, o'lchov birligi/QQS lokalda
+    // topilmasa) mavjud yozuvdan saqlanadi — ilgari mahsulot to'liq
+    // ustidan yozilib narxsiz qolar, skanerda topilmay qolardi.
+    await ItemsSingleton.putItems([item], mergeWithExisting: true);
+    return NotifyApply.applied;
+  }
+
+  static Future<void> _paymentToggle(
+      Map<String, dynamic> data, BuildContext context, bool mounted) async {
+    final String name = data['name']?.toString() ?? '';
+    final bool isUsed = data['is_used'] == true;
+    final String id = data['id']?.toString() ?? '';
+
+    if (name == 'CLICK') {
+      await Pref.setBool(PrefKeys.clickEnable, isUsed);
+      await Pref.setString(PrefKeys.clickId, id);
+    } else if (name == 'UZUM') {
+      await Pref.setBool(PrefKeys.uzumEnable, isUsed);
+      await Pref.setString(PrefKeys.uzumId, id);
+    } else if (name == 'PAYME') {
+      await Pref.setBool(PrefKeys.paymeEnable, isUsed);
+      await Pref.setString(PrefKeys.paymeId, id);
+    }
+
+    final box = await Hive.openBox<Payment>('other_payments');
+    final payments = box.values.toList();
+    for (int i = 0; i < payments.length; i++) {
+      if (payments[i].name == name) {
+        payments[i].isAdded = isUsed;
+        await box.putAt(i, payments[i]);
+        break;
+      }
+    }
+
+    await OrganizationSingleton.setOtherPayments();
+    if (mounted && context.mounted) {
+      Provider.of<OrderingProvider4>(context, listen: false).notifyListeners();
+    }
+  }
+
+  static int? _asInt(dynamic v) =>
+      v is int ? v : (v is num ? v.toInt() : int.tryParse('$v'));
+
+  static Map<String, dynamic> _asMap(dynamic v) =>
+      v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};
+
+  static List<dynamic> _asList(dynamic v) => v is List ? v : const <dynamic>[];
+
+  /// `category_ids` dan mahsulot kategoriyasi. null yoki bo'sh bo'lsa null —
+  /// ilgari `as List` bilan cast qilinib, null kelganda butun oyna yiqilardi.
+  static List<CategoriesFromProducts>? categoriesFromIds(dynamic ids) {
+    if (ids is! List || ids.isEmpty) return null;
+    return getCategories(ids.first);
   }
 
   static Future<bool> import(BuildContext context) async {
@@ -254,18 +250,16 @@ class ProductsWsService {
 
     HttpResult httpResult = await OrdersService.getItems();
 
-
-
     if (httpResult.isSuccess) {
       try {
-        var decodedJson = json.decode(httpResult.result);
+        final dynamic decodedJson = httpResult.result is String
+            ? json.decode(httpResult.result)
+            : httpResult.result;
 
         if (decodedJson is List) {
-          List<ItemModel> i = List<ItemModel>.from(
-            decodedJson.map((e) {
-              return ItemModel.fromJson(e);
-            }),
-          ).toList();
+          // Bitta buzuq yozuv butun 43 MB importni yiqitmasin — u
+          // o'tkazib yuboriladi va log'ga yoziladi (parseCatalog).
+          List<ItemModel> i = (await ItemsSingleton.parseCatalog(decodedJson)).items;
           i = ItemsSingleton.addPackageCodeAndMxikCode(
             i,
             Pref.getString(PrefKeys.mxikCode, ''),
@@ -277,16 +271,20 @@ class ProductsWsService {
           return false;
         }
       } catch (e) {
+        await LogHelper.activity('SYNC_CATALOG_PARSE_FAILED', {'error': e});
         return false;
       }
     }
 
-    await Pref.setInt(PrefKeys.lastSyncTime, time.millisecondsSinceEpoch);
     if (allProducts.isNotEmpty) {
+      // Faqat haqiqiy muvaffaqiyatda — ilgari yiqilgan yuklash ham
+      // "oxirgi yangilanish" vaqtini surib qo'yardi.
+      await Pref.setInt(PrefKeys.lastSyncTime, time.millisecondsSinceEpoch);
       await ItemsSingleton.clearAndPutItems(allProducts);
       CategorySingleton.init();
       await ItemsSingleton.storeProducts();
       SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
         Provider.of<OrderingProvider4>(context, listen: false).pressAllPath();
       });
       allProducts.clear();
@@ -297,21 +295,26 @@ class ProductsWsService {
     return false;
   }
 
+  /// Kategoriya id'sidan mahsulot uchun kategoriya yozuvi.
+  ///
+  /// Kategoriya hali lokalga kelmagan bo'lsa ham id SAQLANADI: UI mahsulotni
+  /// kategoriya bo'yicha aynan id orqali filtrlaydi, nomi kategoriya oqimi
+  /// bilan keladi (u darhol so'raladi — `requestCategoriesRefresh`). Ilgari
+  /// bunday mahsulot kategoriyasiz qolar va to'liq yuklashgacha o'z
+  /// kategoriyasida ko'rinmasdi.
   static List<CategoriesFromProducts>? getCategories(dynamic message) {
-    List<CategoriesFromProducts> categories = [];
+    final String id = message?.toString() ?? '';
+    if (id.isEmpty) return null;
+
+    CategoryData? local;
     final Box<CategoryData> categoriesModel = HiveBoxes.getCategories();
-    CategoryData categoryData = CategoryData();
-    for (CategoryData c in categoriesModel.values.toList()) {
-      if (c.id != null && c.id == message) {
-        categoryData = c;
+    for (CategoryData c in categoriesModel.values) {
+      if (c.id == id) {
+        local = c;
         break;
       }
     }
-    categories.add(
-        CategoriesFromProducts(id: categoryData.id, name: categoryData.name));
-    if (categoryData.id == null || categoryData.id!.isEmpty) {
-      return null;
-    }
-    return categories;
+    if (local == null) CatchUpSync.requestCategoriesRefresh();
+    return [CategoriesFromProducts(id: id, name: local?.name)];
   }
 }

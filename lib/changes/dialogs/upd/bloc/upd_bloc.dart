@@ -6,6 +6,8 @@ import 'package:invan2/changes/models/organization_model.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/services/cash_limit/bhm_service.dart';
 import 'package:invan2/changes/services/get_items_service.dart';
+import 'package:invan2/changes/services/sync/catch_up_sync.dart';
+import 'package:invan2/changes/services/sync/server_clock.dart';
 import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'package:invan2/changes/services/company_app_service.dart';
 import 'package:invan2/changes/services/organization_service.dart';
@@ -310,35 +312,49 @@ class UpdBloc extends Bloc<UpdEvent, UpdState> {
   ///
   /// [startedAt] — yuklash **boshlangan** vaqt. Ataylab tugagan vaqt emas:
   /// yuklash davomida bo'lgan o'zgarishlar notification orqali kelishi kerak.
+  ///
+  /// [startedAt] mahalliy UTC; kursorga SERVER vaqtida yoziladi — yuklash
+  /// davomida (ApiProvider javoblaridan) server soati farqi aniqlanib
+  /// bo'lgan bo'ladi. Kassa soati oldinda bo'lsa ham kursor kelajakka ketmaydi.
+  ///
+  /// Yuklashning o'zi `CatchUpSync.exclusive` ostida — davriy sinxron bilan
+  /// bir vaqtda `clearAndPutItems` bo'lmasligi uchun.
   Future<void> _advanceCursor(
     SyncStream stream,
     DateTime startedAt,
     String? error,
   ) async {
     if (error != null) return;
-    await SyncCursor.commit(stream, startedAt);
+    await SyncCursor.commit(stream, ServerClock.toServer(startedAt));
   }
 
   Future<String?> _category(Emitter<UpdState> emit) async {
-    final DateTime startedAt = DateTime.now().toUtc();
-    final String? error = await CategoryService.category();
-    await _advanceCursor(SyncStream.categories, startedAt, error);
-    return error;
+    return CatchUpSync.exclusive(() async {
+      final DateTime startedAt = DateTime.now().toUtc();
+      final String? error = await CategoryService.category();
+      await _advanceCursor(SyncStream.categories, startedAt, error);
+      return error;
+    }, reason: 'upd-dialog-categories');
   }
 
   Future<String?> _discounts(Emitter<UpdState> emit) async {
-    final DateTime startedAt = DateTime.now().toUtc();
-    final String? error = await DiscountService.discounts();
-    await _advanceCursor(SyncStream.discounts, startedAt, error);
-    return error;
+    return CatchUpSync.exclusive(() async {
+      final DateTime startedAt = DateTime.now().toUtc();
+      final String? error = await DiscountService.discounts();
+      await _advanceCursor(SyncStream.discounts, startedAt, error);
+      return error;
+    }, reason: 'upd-dialog-discounts');
   }
 
   Future<String?> _items(Emitter<UpdState> emit) async {
     String? error;
-    final DateTime startedAt = DateTime.now().toUtc();
 
-    error = await UtilFunctions.fullUpdateProduct();
-    await _advanceCursor(SyncStream.products, startedAt, error);
+    error = await CatchUpSync.exclusive(() async {
+      final DateTime startedAt = DateTime.now().toUtc();
+      final String? e = await UtilFunctions.fullUpdateProduct();
+      await _advanceCursor(SyncStream.products, startedAt, e);
+      return e;
+    }, reason: 'upd-dialog-products');
 
     if (error == null) {
       final bool isMarkingSyncEnabled = Pref.getBool('switchMarking', false);

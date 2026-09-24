@@ -266,6 +266,15 @@ class BackendHealth {
   ///   ayb hujjatda → rad etilgan; o'lgan bo'lsa navbatda qoladi.
   static Future<bool> isDocumentRejection(int statusCode) async {
     if (statusCode < 400) return false;
+    // Hujjatning o'zi emas, SESSIYA/so'rov holati: token eskirgan (401/403),
+    // so'rov vaqti tugagan (408), cheklov (429). Hujjat rad etilmagan —
+    // navbatda qolib, keyin qayta yuborilishi kerak.
+    if (statusCode == 401 ||
+        statusCode == 403 ||
+        statusCode == 408 ||
+        statusCode == 429) {
+      return false;
+    }
     if (statusCode < 500) return true;
     return isServerAlive();
   }

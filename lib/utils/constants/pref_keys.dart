@@ -91,6 +91,20 @@ class PrefKeys {
   static const String syncCursorCategories = 'sync_cursor_categories';
   static const String syncCursorDiscounts = 'sync_cursor_discounts';
 
+  /// Server soati bilan kassa soati orasidagi farq (server - kassa, ms).
+  /// HTTP `date` sarlavhasidan o'rganiladi — qarang:
+  /// lib/changes/services/sync/server_clock.dart
+  static const String serverClockOffsetMs = 'server_clock_offset_ms';
+
+  /// Kursor sxemasi versiyasi. Kursor ma'nosi o'zgargan relizda (masalan
+  /// kassa soatidan server soatiga o'tish) bir martalik migratsiya uchun.
+  static const String syncCursorSchema = 'sync_cursor_schema';
+
+  /// To'liq katalog yozuvi (clearAndPutItems) boshlanib tugamagan — ilova
+  /// o'rtada o'lgan bo'lsa keyingi ishga tushishda mahsulot kursori
+  /// tashlanib, to'liq yuklash qaytariladi.
+  static const String catalogWriteInProgress = 'catalog_write_in_progress';
+
   ////////// DEBT CLICK ////////////////////////
   static const String debtClick = "debt_click";
 

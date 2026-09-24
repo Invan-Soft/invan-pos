@@ -29,6 +29,7 @@ import '../models/six_client_model.dart';
 import '../providers/ordering_provider_4.dart';
 import '../providers/update_provider.dart';
 import 'package:invan2/changes/services/health/backend_health.dart';
+import 'package:invan2/changes/services/sync/catch_up_sync.dart';
 
 class CatalogRefreshNotice {
   CatalogRefreshNotice._();
@@ -73,6 +74,16 @@ class CatalogRefreshNotice {
 
   static bool get isPending =>
       Pref.getBool(PrefKeys.catalogRefreshPending, false);
+
+  /// Katalog kursordan to'liq yetib olindi (notification yo'li) — startup
+  /// yiqilishi sabab qo'yilgan bayroq endi asossiz. `markFresh`dan farqi:
+  /// "to'liq katalog yuklandi" vaqtiga TEGMAYDI.
+  static Future<void> clearPending() async {
+    _snoozedUntil = null;
+    if (isPending) {
+      await Pref.setBool(PrefKeys.catalogRefreshPending, false);
+    }
+  }
 
   /// Hozir dialog ko'rsatilyaptimi (takroriy ochilishdan himoya).
   static bool get isShowing => _showing;
@@ -229,9 +240,15 @@ class _CatalogStaleDialogState extends State<CatalogStaleDialog> {
       _error = null;
     });
 
-    final String? error =
-        await Provider.of<UpdateProvider>(context, listen: false)
-            .fullUpdateItems();
+    final UpdateProvider provider =
+        Provider.of<UpdateProvider>(context, listen: false);
+    // Sinxron qulfi ostida — davriy catch-up bilan bir vaqtda
+    // `clearAndPutItems` bo'lmasin (bu yagona qulfsiz to'liq yuklash edi).
+    // Kursor commit `fullUpdateProduct` ichida.
+    final String? error = await CatchUpSync.exclusive(
+      () => provider.fullUpdateItems(),
+      reason: 'stale-dialog-full-update',
+    );
 
     if (!mounted) return;
 

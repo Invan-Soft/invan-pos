@@ -10,6 +10,7 @@ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/mo
 import '../../../changes/components/tranlator.dart';
 import '../../../changes/providers/ordering_provider_4.dart';
 import '../../../changes/services/web_socket_service/product/model/product_price_edit_response.dart';
+import '../../../changes/services/log_helper.dart';
 import '../../../utils/util_functions.dart';
 import '../../../utils/utils.dart';
 
@@ -435,11 +436,52 @@ static Future<void> storeProducts() async {
   //   return;
   // }
 
+  /// Katalogni to'liq almashtiradi.
+  ///
+  /// Ilgari `box.clear()` + `putAll` edi: clear faylni 0 baytga qisqartirar,
+  /// putAll o'rtada yiqilsa (fayl qulfi, disk to'lgan, ilova o'ldirildi,
+  /// svet o'chdi) katalog bo'sh/yarim qolar, kursor esa "hammasi bor" deb
+  /// turardi. Endi: avval hammasi ustidan yoziladi (eski fayl butun
+  /// qoladi), keyin serverda yo'q qolgan yozuvlar o'chiriladi, oxirida
+  /// diskka flush. Butun jarayon marker bilan o'raladi — ilova o'rtada
+  /// o'lsa keyingi sinxron kursorni tashlab to'liq yuklashni qaytaradi
+  /// (CatchUpSync.healCatalogState).
   static Future<void> clearAndPutItems(List<ItemModel> items) async {
     final box = HiveBoxes.getProducts();
-    await box.clear();
-    final map = {for (var e in items) (e).key: e};
+    final Map<dynamic, ItemModel> map = {for (var e in items) (e).key: e};
+    final List<dynamic> stale =
+        box.keys.where((k) => !map.containsKey(k)).toList();
+    await Pref.setBool(PrefKeys.catalogWriteInProgress, true);
     await box.putAll(map);
+    if (stale.isNotEmpty) await box.deleteAll(stale);
+    await box.flush();
+    await Pref.setBool(PrefKeys.catalogWriteInProgress, false);
+  }
+
+  /// To'liq katalog JSON ro'yxatini modelga o'tkazadi — har yozuv alohida
+  /// himoyada. Ilgari bitta buzuq yozuv (masalan `min_quantity: 1.0`)
+  /// butun importni yiqitar va sinxron abadiy muzlab qolardi.
+  static Future<CatalogParseResult> parseCatalog(List<dynamic> raw) async {
+    final List<ItemModel> items = <ItemModel>[];
+    int failed = 0;
+    Object? firstError;
+    for (final dynamic e in raw) {
+      try {
+        if (e is! Map) throw FormatException('yozuv obyekt emas: $e');
+        items.add(ItemModel.fromJson(Map<String, dynamic>.from(e)));
+      } catch (err) {
+        failed++;
+        firstError ??= err;
+      }
+    }
+    if (failed > 0) {
+      await LogHelper.activity('SYNC_CATALOG_PARSE_SKIPPED', {
+        'skipped': failed,
+        'total': raw.length,
+        'first_error': firstError,
+      });
+    }
+    return CatalogParseResult(items, failed, firstError);
   }
 
   static Future<void> deleteProduct(List<String> items) async {
@@ -450,7 +492,22 @@ static Future<void> storeProducts() async {
     return;
   }
 
-  static Future<void> putItems(List<ItemModel> items) async {
+  /// Mahsulotlarni lokalga yozadi (id bo'yicha ustidan yozish).
+  ///
+  /// `is_active == false` bo'lsagina o'chiriladi. Ilgari `!(isActive ?? false)`
+  /// edi — payload'da maydon bo'lmasa (null) mahsulot O'CHIRILARDI.
+  ///
+  /// [mergeWithExisting] — notification yo'li uchun: kelgan yozuv to'liq
+  /// katalogdan kambag'alroq bo'lishi mumkin, shuning uchun
+  ///  * shu do'kon uchun musbat narx bo'lmasa, lokaldagi mavjud narx qoladi
+  ///    (ilgari mahsulot narxsiz qolib skanerda topilmasdi);
+  ///  * parser bilmaydigan/lokalda topilmagan maydonlar (ownerType,
+  ///    commissionTin, mark, o'lchov birligi, QQS) mavjud yozuvdan olinadi —
+  ///    aks holda fiskal chekda OwnerType/QQS noto'g'ri ketardi.
+  static Future<void> putItems(
+    List<ItemModel> items, {
+    bool mergeWithExisting = false,
+  }) async {
     items = addPackageCodeAndMxikCode(
       items,
       Pref.getString(PrefKeys.mxikCode, ''),
@@ -460,13 +517,18 @@ static Future<void> storeProducts() async {
     Map<String, ItemModel> map = {};
     for (var item in items) {
       if (item.id == null) continue;
-      if (!(item.isActive ?? false)) {
+      if (item.isActive == false) {
         await deleteProduct([item.id!]);
       } else {
-        // Mavjud productning isMarking qiymatini saqlash
         final existing = box.get(item.id);
-        if (existing != null && (existing.isMarking == true)) {
-          item = item.copyWith(isMarking: true);
+        if (existing != null) {
+          // Mavjud productning isMarking qiymatini saqlash
+          if (existing.isMarking == true) {
+            item = item.copyWith(isMarking: true);
+          }
+          if (mergeWithExisting) {
+            item = _mergeFromExisting(item, existing);
+          }
         }
         map[item.id!] = item;
       }
@@ -475,37 +537,87 @@ static Future<void> storeProducts() async {
     return;
   }
 
-  static Future<void> editItem(ProductPriceEdit priceEdit) async {
-    Box<ItemModel> box = HiveBoxes.getProducts();
-
-    List<ProductsValues>? productsValues = priceEdit.data?.productsValues;
-
-    if (productsValues != null && productsValues.isNotEmpty) {
-      for (ProductsValues p in productsValues) {
-        ItemModel? item = box.get(p.productId);
-        if (item != null) {
-          if (item.shopPrices?.shID?.shopId == p.price?.shopId) {
-            if (p.price != null &&
-                p.price!.shopPriceTiers != null &&
-                item.shopPrices != null &&
-                item.shopPrices!.shID != null &&
-                item.shopPrices!.shID!.shopPriceTiers != null) {
-              item.shopPrices!.shID!.shopPriceTiers!.clear();
-              for (ShopPriceTiersSub sh in p.price!.shopPriceTiers!) {
-                item.shopPrices!.shID!.shopPriceTiers!.add(
-                  ShopPriceTiers(
-                    minQuantity: sh.minQuantity,
-                    retailPrice: sh.retailPrice,
-                  ),
-                );
-              }
-            }
-          }
-          await box.put(item.id, item);
-        }
-      }
+  static ItemModel _mergeFromExisting(ItemModel item, ItemModel existing) {
+    if (onePrice(item.shopPrices) <= 0 && onePrice(existing.shopPrices) > 0) {
+      item = item.copyWith(shopPrices: existing.shopPrices);
+      LogHelper.activity('SYNC_PRICE_KEPT', {'id': item.id});
     }
-    return;
+    // copyWith `??` bilan ishlaydi: faqat kelgan qiymat null bo'lganda
+    // mavjudini beramiz, aks holda kelgan qiymat ustun.
+    if (item.ownerType == null && existing.ownerType != null) {
+      item = item.copyWith(ownerType: existing.ownerType);
+    }
+    if (item.commissionTin == null && existing.commissionTin != null) {
+      item = item.copyWith(commissionTin: existing.commissionTin);
+    }
+    if (item.mark == null && existing.mark != null) {
+      item = item.copyWith(mark: existing.mark);
+    }
+    final bool unitMissing =
+        item.measurementUnit == null || (item.measurementUnit!.id ?? '').isEmpty;
+    if (unitMissing && existing.measurementUnit != null) {
+      item = item.copyWith(measurementUnit: existing.measurementUnit);
+    }
+    final bool vatMissing = item.vat == null || (item.vat!.id ?? '').isEmpty;
+    if (vatMissing && existing.vat != null) {
+      item = item.copyWith(vat: existing.vat);
+    }
+    return item;
+  }
+
+  /// Narx o'zgarishi (notification type 13) — shu do'kon uchun narx
+  /// pog'onalarini almashtiradi.
+  ///
+  /// Mahsulotda hali shu do'kon narxi BO'LMASA ham yaratiladi. Ilgari faqat
+  /// mavjud `shopPriceTiers` ro'yxati yangilanardi: mahsulot avval boshqa
+  /// do'kon uchun yaratilib, keyin shu do'konga narx qo'yilsa (yoki type 1
+  /// payload'ida narx bo'lmasa) narx hech qachon yetib bormas, mahsulot
+  /// to'liq yuklashgacha skanerda topilmasdi.
+  ///
+  /// Qaytadi: nechta mahsulot yangilandi.
+  static Future<int> editItem(ProductPriceEdit priceEdit) async {
+    final Box<ItemModel> box = HiveBoxes.getProducts();
+    final String myShop = Pref.getString(PrefKeys.storeId, '');
+    final List<ProductsValues>? productsValues = priceEdit.data?.productsValues;
+    if (productsValues == null || productsValues.isEmpty) return 0;
+
+    int changed = 0;
+    for (final ProductsValues p in productsValues) {
+      final String? productId = p.productId;
+      if (productId == null || productId.isEmpty) continue;
+      final ItemModel? item = box.get(productId);
+      if (item == null) continue;
+
+      final Price? price = p.price;
+      final String targetShop = price?.shopId ?? '';
+      if (price == null || price.shopPriceTiers == null || targetShop.isEmpty) {
+        continue;
+      }
+
+      // Faqat shu kassaning do'koni (yoki mahsulotda allaqachon turgan
+      // do'kon — eski xulq bilan mos). Boshqa do'kon narxi e'tiborsiz.
+      final bool mine = targetShop == myShop ||
+          targetShop == item.shopPrices?.shID?.shopId;
+      if (!mine) continue;
+
+      final List<ShopPriceTiers> tiers = price.shopPriceTiers!
+          .map((sh) => ShopPriceTiers(
+                minQuantity: sh.minQuantity,
+                retailPrice: sh.retailPrice,
+              ))
+          .toList();
+      final ShID? existing = item.shopPrices?.shID;
+      item.shopPrices = ShopPrices(
+        shID: ShID(
+          shopId: targetShop,
+          supplyPrice: price.supplyPrice ?? existing?.supplyPrice,
+          shopPriceTiers: tiers,
+        ),
+      );
+      await box.put(item.id, item);
+      changed++;
+    }
+    return changed;
   }
 
   static Future<void> editMxik(List<MxikCodes> mxikUpdates) async {
@@ -592,4 +704,13 @@ static Future<void> storeProducts() async {
     }
     return i;
   }
+}
+
+/// To'liq katalogni parse qilish natijasi.
+class CatalogParseResult {
+  final List<ItemModel> items;
+  final int failed;
+  final Object? firstError;
+
+  const CatalogParseResult(this.items, this.failed, this.firstError);
 }
