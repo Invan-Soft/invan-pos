@@ -51,9 +51,21 @@ misoli buni tasdiqlaydi: Price 100000, Discount 50000, VATPercent 12 → VAT 535
     → lib/fiscal_service/base_service.dart
 - [x] Hujjat qoidasi tuzatildi (uz + ru)
     → docs/fiscal-sale-integration.md:217, docs/fiscal-sale-integration.ru.md:217
-- [x] `test/fiscal_vat_base_test.dart` — 18 ta test: foydalanuvchi misoli (50 000/30 000 → 214 285 tiyin),
+- [x] `test/fiscal_vat_base_test.dart` — 16 ta test: foydalanuvchi misoli (50 000/30 000 → 214 285 tiyin),
       rasmiy misol (→ 5357), chegirmasiz regressiya, qty > 1, 100% chegirma, QQS 0%, vozvrat, ko'p qator;
       cashback 100% / qisman / chegirma bilan / ko'p qatorga taqsimot; `_enforce1021Balance` uchala yo'li
+- [x] `test/fiscal_vat_discount_types_test.dart` — 28 ta test, HAQIQIY diskont mexanizmi orqali
+      (SoldItemBuilder → DiscountSingleton.addDiscountOnProduct → findFreeProducts/useFreeProducts/
+      useFreeGiftProducts/useBuyXGetXProducts → setNewClientDiscountPercentage → ReceiptBuilder.build →
+      saleOnOFD → modul JSON): mahsulot foiz/summa, kategoriya, kategoriya+mahsulot zanjiri, mijoz guruhi,
+      QQS 0% tovar, 100%; Buy X Get X 3+1, 1+1 takrorlanuvchi (6 va 5 dona), markirovkali 4 KM, shart
+      bajarilmagan; Buy X Get Y (to'liq va yarim tekin); Free Gift; tepa foiz (yakka va mahsulot % ustiga);
+      utsenka QR, dialogda narx override, dialogda chegirma; tarozi 0.29 kg + 10%, blok 12 dona + 10+2;
+      chegirma+cashback, 3+1 + 100% cashback, sovg'a + cashback, red-delete, 6 qatorli aralash chek.
+      Har holatda har qatorda: Price/Discount/Amount/VATPercent savat bilan mos, VAT net formuladan,
+      chegirmali qatorda VAT < chegirmasiz formula, §10.2.1 balans.
+    → Sabab: foydalanuvchi talabi — "diskont turlari ko'p (1+1, 1+3 ...), hammasida QQS muammosiz ishlashi kerak";
+      Mac'da fiskal modul yo'q, shuning uchun modulga ketadigan JSON'ning o'zi tekshiriladi
 
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] Do'kon sinovi (Windows, haqiqiy fiskal modul): chegirmali tovar sotib, ofd.soliq.uz chekida
@@ -68,6 +80,15 @@ misoli buni tasdiqlaydi: Price 100000, Discount 50000, VATPercent 12 → VAT 535
   rasmiy misolda ham 5357.14 → 5357.
 
 ## Ochiq savollar
+- **Diskont mexanizmi xatosi (QQS'ga aloqasi yo'q, bu branch'da tuzatilmadi):** bir mahsulot bir nechta
+  qatorda bo'lsa (markirovka: har KM value=1, yoki bir nechta blok), takrorlanuvchi Buy X Get X faqat
+  `get` dona tekin beradi, har set uchun emas. Sabab: `getBuyXGetXDiscountsOnly` doim
+  `_getBuyXGetXAsGift(..., forDialogOnly: true)` chaqiradi (lib/changes/singletons/discounts/discount_helpers.dart:192-193),
+  shunda `ReturnedGiftX.getProductAmount` = xom "get" (1), hisoblangan `floor(totalQty/(buy+get))×get` emas;
+  `useBuyXGetXProducts` ning ko'p qatorli yo'li aynan shu sonni ishlatadi
+  (lib/changes/providers/ordering/discount_effects_controller.dart, `freeQtyLeft = gift.getProductAmount`).
+  Bitta qatorda 4 dona → 2 tekin (to'g'ri); 4 ta KM qator → 1 tekin. Test: fiscal_vat_discount_types_test.dart
+  "QAYD: 1+1 markirovkali". Alohida task ochilsin.
 - Click/Payme/Uzum `Other` orqali ketadi (QQS 0) — rasmiy talab `ReceivedCard` + `QRPayment*`.
   Alohida task: docs/fiskal-tolov-turlari-va-qqs.md §6.1
 - Qog'oz chek, ekran va server `order_pos.vat` cashback ulushini ayirmaydi (chegirmani ayiradi).
@@ -75,7 +96,8 @@ misoli buni tasdiqlaydi: Price 100000, Discount 50000, VATPercent 12 → VAT 535
   docs/fiskal-tolov-turlari-va-qqs.md §4.2
 
 ## Test / Verifikatsiya
-- `flutter test test/fiscal_vat_base_test.dart` — 18/18 o'tdi (2026-09-24)
+- `flutter test test/fiscal_vat_base_test.dart` — 16/16 o'tdi (2026-09-24)
+- `flutter test test/fiscal_vat_discount_types_test.dart` — 28/28 o'tdi (2026-09-24)
 - `flutter test` to'liq to'plam — 1212/1212 o'tdi, regressiya yo'q (2026-09-24)
 - `dart analyze` o'zgargan fayllarda: yangi xato yo'q. receipt_singleton_4.dart dagi 3 ta eski
   warning (:265 dead_null_aware, :310 unused `itemsLen`, :299 print) tegilmadi — bu fix'ga aloqasi yo'q
