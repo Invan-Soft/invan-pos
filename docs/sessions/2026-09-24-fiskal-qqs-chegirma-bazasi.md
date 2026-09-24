@@ -102,7 +102,10 @@ misoli buni tasdiqlaydi: Price 100000, Discount 50000, VATPercent 12 → VAT 535
 - [ ] Do'kon sinovi (Windows, haqiqiy fiskal modul): chegirmali tovar sotib, ofd.soliq.uz chekida
       QQS chegirmadan keyingi narxdan ekanini tekshirish; chegirma + cashback aralash chek; vozvrat;
       100% cashback chekini chop etib "sh.j QQS" 0 ekanini ko'rish
-- [ ] Keyingi relizga kiritish (release pipeline)
+- [x] Keyingi relizga kiritish (release pipeline)
+  → `fix/fiskal-qqs-chegirma-bazasi` branch'i `ayyubxon`ga birlashtirildi
+    (7e01ce8) va 1.1.2+127 relizida PRO backendga yuklandi (2026-09-24).
+    To'liq to'plam birga: 1357/1357 o'tdi. Do'kon sinovi hali kutilmoqda.
 
 ## Qabul qilingan qarorlar
 - QQS bazasi `Price − Discount − Other` — rasmiy FiscalDriveService misoli (Price 100000, Discount 50000
