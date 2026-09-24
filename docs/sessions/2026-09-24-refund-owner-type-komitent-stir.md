@@ -59,7 +59,9 @@ docs/sessions/2026-09-22-refund-fiscal-url-to-server.md (vozvrat tartibi, hali a
   `CommissionInfo.TIN` doim `""`. Komissiya tovari (adminkada owner_type=2 + STIR) bo'lsa soliqqa
   STIR'siz ketadi. Tuzatish `saleOnOFD` da `e.commissionTIN ?? e.tin` — lekin bu SOTUV xulqini
   o'zgartiradi (adminkada STIR to'ldirilgan har bir mahsulot uchun), do'kon sinovisiz qilinmadi.
-  — foydalanuvchi qaror qilsin
+  — 2026-09-24 YOPILDI: adminkada bunday maydon YO'Q (faqat "Owner type" dropdown), server product
+  JSON'ida `commission_tin` kaliti yo'q, `ItemModel.fromJson` `commissionTin` ni hech qayerdan o'qimaydi
+  (item_model.dart:160-200) → lokal bazada har doim `null`. Yuboradigan narsa yo'q, tegilmaydi.
 
 ## Test / Verifikatsiya
 - [x] flutter analyze (faqat eski info: checks_singleton.dart:74 `dateTimeOFD == 0`), flutter test to'liq — 2026-09-24
