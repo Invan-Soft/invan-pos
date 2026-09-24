@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
 import 'package:invan2/changes/models/shift/shift_hive_model.dart';
-import 'package:invan2/changes/models/six_client_model.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
@@ -57,45 +56,6 @@ class PrintingMethods {
     }
   }
 
-  static Future<void> printPaymentPageCheck({
-    required SixClientModel4 clientModel3,
-  }) async {
-    final printers =
-        HiveBoxes.getPrinters().values.toList().cast<PrinterModel>();
-
-    PrinterModel? selectedPrinterModel;
-    Printer? selectPrinter;
-
-    final devices = await Printing.listPrinters();
-
-    // ignore: avoid_function_literals_in_foreach_calls
-    printers.forEach((printer) {
-      // ignore: avoid_function_literals_in_foreach_calls
-      devices.forEach((device) {
-        if (device.url == printer.url) {
-          selectedPrinterModel = printer;
-          selectPrinter = device;
-        }
-      });
-    });
-
-    if (selectPrinter != null && selectedPrinterModel != null) {
-      // ignore: unused_local_variable
-      final b = await Printing.directPrintPdf(
-        printer: selectPrinter!,
-        format: selectedPrinterModel!.paperSize == 80
-            ? PdfPageFormat.roll80
-            : PdfPageFormat.roll57,
-        onLayout: (format) {
-          if (selectedPrinterModel!.paperSize == 80) {
-            return PrintPaymentPageApi.generatePdf80(clientModel3);
-          } else {
-            return PrintPaymentPageApi.generatePdf57(clientModel3);
-          }
-        },
-      );
-    }
-  }
 
   static Future<void> printTopCheck() async {
     final printers =

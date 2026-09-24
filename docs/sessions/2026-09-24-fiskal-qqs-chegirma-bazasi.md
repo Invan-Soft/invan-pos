@@ -92,6 +92,12 @@ misoli buni tasdiqlaydi: Price 100000, Discount 50000, VATPercent 12 → VAT 535
       vozvrat/aralash), chek jami QQS = fiskal ΣVAT (cashback 100%/qisman, chegirma, ko'p qator, QQS 0%,
       vozvrat, tarozi kasr), qator raqamlari, blok/dona yig'indisi, Click farqi QAYD
 
+- [x] O'lik kod olib tashlandi: `PrintingMethods.printPaymentPageCheck` (hech qayerdan chaqirilmasdi) va u
+      ishlatgan `PrintPaymentPageApi.generatePdf57/80` + faqat ularga tegishli 7 ta `_build*` yordamchi
+      (ruscha "В том числе НДС" pre-chek). `generatePdfChecking`, `generateHumoRecipt`, `transferGeneratePdf80` qoldi.
+    → lib/features/printing/methods/printing_methods.dart, lib/features/printing/api/print_payment_page_api.dart
+    → Sabab: foydalanuvchi "chiqarib tashla" dedi; chaqiruvchi yo'qligi grep bilan tasdiqlandi
+
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] Do'kon sinovi (Windows, haqiqiy fiskal modul): chegirmali tovar sotib, ofd.soliq.uz chekida
       QQS chegirmadan keyingi narxdan ekanini tekshirish; chegirma + cashback aralash chek; vozvrat;
@@ -117,10 +123,11 @@ misoli buni tasdiqlaydi: Price 100000, Discount 50000, VATPercent 12 → VAT 535
   "QAYD: 1+1 markirovkali". Alohida task ochilsin.
 - Click/Payme/Uzum `Other` orqali ketadi (QQS 0) — rasmiy talab `ReceivedCard` + `QRPayment*`.
   Alohida task: docs/fiskal-tolov-turlari-va-qqs.md §6.1
-- Qog'oz sotuv cheki endi fiskal bilan mos (cashback ham). Hali tegilmagan joylar:
-  (a) to'lovdan OLDINGI chop — payment page ruscha "В том числе НДС" (print_payment_page_api.dart:637) va
-  bosh ekrandagi jami QQS (items_singleton.dart `getNDS`) — bu paytda to'lov/cashback hali yo'q, chegirmadan
-  keyingi narxdan ko'rsatadi; (b) adminka: `order_pos` ga QQS SUMMASI KETMAYDI (receipt_model_4.dart
+- Qog'oz sotuv cheki endi fiskal bilan mos (cashback ham). Qolgan joylar:
+  (a) bosh ekrandagi jami QQS (items_singleton.dart `getNDS`, calculation_part.dart:34) — to'lov hali
+  tanlanmagan, cashback noma'lum, chegirmadan keyingi narxdan ko'rsatadi; hech qayerga ketmaydi. QAROR
+  (2026-09-24, foydalanuvchi): tegilmaydi. Ruscha pre-chek "В том числе НДС" o'lik kod edi — olib tashlandi;
+  (b) adminka: `order_pos` ga QQS SUMMASI KETMAYDI (receipt_model_4.dart
   `toJson`: price = onlyPrice, single_item_discount, vat_percentage, pays; `"vat": vat` faqat `toAllJson` da,
   u hech qayerda chaqirilmaydi — o'lik kod). Adminkadagi QQS backend hisobi. Savol backend'ga: "hisobotda QQS
   `(price − single_item_discount) × value × p/(100+p)` mi va cashback to'lov turi (`pays.payment_type_id`)

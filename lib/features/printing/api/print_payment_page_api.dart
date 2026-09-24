@@ -1,91 +1,11 @@
-import 'dart:io';
 import 'package:flutter/services.dart';
-import 'package:invan2/changes/models/six_client_model.dart';
-import 'package:invan2/features/file_crud/operations/file_printer_image.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart';
 
 class PrintPaymentPageApi {
-  static Future<Uint8List> generatePdf57(SixClientModel4 client) async {
-    File? file = await FilePrinterImage.getPrinterImage();
-    final pos = Pref.getString(PrefKeys.posName, "not initialized");
-    final cashierName = Pref.getString(PrefKeys.cashierName, "not initialized");
-    String checkNo = Pref.getString(PrefKeys.checkId, "");
-    checkNo += (Pref.getInt(PrefKeys.receiptNo, 0) + 1).toString();
-    const mm = PdfPageFormat.mm;
-    final data = await rootBundle.load('assets/fonts/arial.ttf');
-    final myFont = Font.ttf(data);
-    final myStyle = TextStyle(font: myFont, fontSize: mm * 3);
-    final pdf = Document();
-    pdf.addPage(
-      Page(
-        margin: const EdgeInsets.all(0),
-        pageFormat: PdfPageFormat.roll57,
-        build: (Context context) {
-          return Padding(
-            padding: const EdgeInsets.only(left: mm * 2, right: mm * 2),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                file != null ? _buildImage(file, mm) : SizedBox(),
-                SizedBox(height: mm * 3),
-                _buildCompanyName(myStyle),
-                _buildAddress(myStyle),
-                SizedBox(height: mm * 3),
-                _buildTop(myStyle, cashierName, pos, checkNo),
-                _buildDashes(myStyle),
-                _buildProductList(client, myStyle, mm),
-                SizedBox(height: mm * 3),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-    return pdf.save();
-  }
 
-  static Future<Uint8List> generatePdf80(SixClientModel4 client) async {
-    File? file = await FilePrinterImage.getPrinterImage();
-    final pos = Pref.getString(PrefKeys.posName, "not initialized");
-    final cashierName = Pref.getString(PrefKeys.cashierName, "not initialized");
-    String checkNo = Pref.getString(PrefKeys.checkId, "not initialized");
-    checkNo += (Pref.getInt(PrefKeys.receiptNo, 0) + 1).toString();
-    const double mm = PdfPageFormat.mm;
-    final data = await rootBundle.load('assets/fonts/arial.ttf');
-    final myFont = Font.ttf(data);
-    final myStyle = TextStyle(font: myFont, fontSize: mm * 3.4);
-    final pdf = Document();
-    pdf.addPage(
-      Page(
-        margin: const EdgeInsets.all(0),
-        pageFormat: PdfPageFormat.roll80,
-        build: (Context context) {
-          return Padding(
-            padding: const EdgeInsets.only(left: mm * 2, right: mm * 2),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                file != null ? _buildImage(file, mm) : SizedBox(),
-                SizedBox(height: mm * 3),
-                _buildCompanyName(myStyle),
-                _buildAddress(myStyle),
-                SizedBox(height: mm * 3),
-                _buildTop(myStyle, cashierName, pos, checkNo),
-                _buildDashes(myStyle),
-                _buildProductList(client, myStyle, mm),
-                SizedBox(height: mm * 3),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-
-    return pdf.save();
-  }
 
   static Future<Uint8List> generatePdfChecking() async {
     const double mm = PdfPageFormat.mm;
@@ -485,28 +405,7 @@ class PrintPaymentPageApi {
     );
   }
 
-  static Widget _buildImage(File file, double mm) {
-    return Image(
-      MemoryImage(file.readAsBytesSync()),
-      alignment: Alignment.center,
-      fit: BoxFit.cover,
-    );
-  }
 
-  static Widget _buildAddress(TextStyle myStyle) {
-    final address = Pref.getString(PrefKeys.serviceAddress, 'not initialized');
-    if (address != '') {
-      return Center(
-        child: Text(
-          address,
-          style: myStyle,
-          textAlign: TextAlign.center,
-        ),
-      );
-    } else {
-      return SizedBox();
-    }
-  }
 
   static Text _buildDashes(TextStyle myStyle) {
     return Text(
@@ -517,144 +416,8 @@ class PrintPaymentPageApi {
     );
   }
 
-  static Widget _buildCompanyName(TextStyle myStyle) {
-    final companyName = Pref.getString(PrefKeys.storeName, "not initialized");
 
-    return Center(
-      child: Text(
-        companyName,
-        style: myStyle.copyWith(fontWeight: FontWeight.bold),
-      ),
-    );
-  }
 
-  static Widget _buildTop(
-    TextStyle myStyle,
-    String cashierName,
-    String pos,
-    String checkNo,
-  ) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 8,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Кассир:',
-                style: myStyle,
-              ),
-              Text(
-                'ПОС:',
-                style: myStyle,
-              ),
-              Text(
-                'Чек No:',
-                style: myStyle,
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          flex: 10,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                cashierName,
-                style: myStyle,
-              ),
-              Text(
-                pos,
-                style: myStyle,
-              ),
-              Text(
-                checkNo,
-                style: myStyle,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
-  static Widget _buildProductList(
-    SixClientModel4 client,
-    TextStyle myStyle,
-    double mm,
-  ) {
-    return ListView.builder(
-      itemCount: client.orderedProducts.length,
-      itemBuilder: (context, index) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: index < client.orderedProducts.length - 1 ? mm : 0,
-          ),
-          child: _buildProductItem(
-            client.orderedProducts[index],
-            myStyle,
-            mm,
-          ),
-        );
-      },
-    );
-  }
 
-  static Widget _buildProductItem(
-    ReceiptModelSoldItem4 soldItem,
-    TextStyle myStyle,
-    double mm,
-  ) {
-    String value = '';
-    if (soldItem.value % 1 == 0) {
-      value = soldItem.value.toStringAsFixed(0);
-    } else {
-      value = soldItem.value.toString();
-    }
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildProductInnerItem(
-          myStyle.copyWith(fontWeight: FontWeight.bold),
-          soldItem.productName,
-          (soldItem.value * soldItem.price).toStringAsFixed(2),
-        ),
-        Text(
-          '$value * ${soldItem.price.toStringAsFixed(2)}',
-          style: myStyle.copyWith(fontSize: mm * 2.7),
-        ),
-        _buildProductInnerItem(
-          myStyle.copyWith(fontSize: mm * 2.7),
-          'В том числе НДС',
-          MoneyFormatter.formatVat.format(
-            (((soldItem.price * soldItem.value) * soldItem.vatPercent) /
-                (100 + soldItem.vatPercent)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  static Widget _buildProductInnerItem(
-    TextStyle myStyle,
-    String str1,
-    String str2,
-  ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(str1, style: myStyle),
-        Text(str2, style: myStyle),
-      ],
-    );
-  }
 }
