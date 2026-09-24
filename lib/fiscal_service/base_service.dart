@@ -170,11 +170,13 @@ class BaseService {
           problems.writeln(
               '  #$idx ${it['Name']}: ❗OTHER+DISC>PRICE (price=$price, other=$other, disc=$disc)');
         }
-        // 2) НДС tekshiruvi: app formulasi vat = (price - other) * vatP/(100+vatP).
-        //    (price - disc) EMAS — 100% elektronda other=price bo'lib VAT=0
-        //    to'g'ri hisoblanadi, uni bayroqlash false positive edi.
+        // 2) НДС tekshiruvi: app formulasi
+        //    vat = (price - disc - other) * vatP/(100+vatP).
+        //    QQS bazasi chegirmadan KEYINGI va Other'siz summa (rasmiy misol:
+        //    Price 100000, Discount 50000 → VAT 5357). 100% elektronda
+        //    other = price - disc bo'lib VAT=0 to'g'ri chiqadi.
         final num expVat =
-            vatP == 0 ? 0 : ((price - other) * vatP / (100 + vatP));
+            vatP == 0 ? 0 : ((price - disc - other) * vatP / (100 + vatP));
         if ((expVat - vat).abs() > 1) {
           problems.writeln(
               '  #$idx ${it['Name']}: VAT=$vat lekin kut~${expVat.round()} (vatP=$vatP, price=$price, other=$other, disc=$disc)');
