@@ -8,7 +8,9 @@
 Chegirmali tovarda fiskal modulga (soliqqa) QQS chegirmaSIZ narxdan ketardi: 50 000 so'mlik tovar
 30 000 chegirma bilan 20 000 ga sotilsa, `VAT` 50 000 dan (5 357 so'm) hisoblanardi, to'g'risi
 20 000 dan (2 143 so'm). Qog'oz chek va ekran esa 2 143 ko'rsatardi — fiskal va chek mos emas edi.
-Cashback bilan to'langan qism (`Other`) allaqachon bazadan chiqarilgan edi, u shunday qoladi.
+Cashback bilan to'langan qism (`Other`) fiskalda allaqachon bazadan chiqarilgan edi, u shunday qoladi.
+Ikkinchi qism (foydalanuvchi so'rovi): 100% cashback chekida fiskalga VAT 0 ketsa ham qog'oz chek
+"sh.j QQS" ni 12% ko'rsatardi — chek ham fiskal bilan bir qoidadan hisoblansin.
 
 ## Avvalgi implementatsiya
 docs/sessions/archive/2026-06-24-ofd-1021-electronic-payment-rounding.md (Yakunlangan 2026-09-07)
@@ -24,8 +26,14 @@ misoli buni tasdiqlaydi: Price 100000, Discount 50000, VATPercent 12 → VAT 535
 - `lib/fiscal_service/base_service.dart` — `_build1021Diag` kutilgan VAT formulasi (Telegram log)
 - `docs/fiscal-sale-integration.md`, `docs/fiscal-sale-integration.ru.md` — VAT qoidasi
 - `test/fiscal_vat_base_test.dart` — yangi
-- Scope dan tashqari: Click/Payme/Uzum `Other` orqali ketishi; qog'oz chek/ekran/server `vat`
-  maydonida cashback ulushi (pastda "Ochiq savollar")
+- `lib/changes/domain/receipt/receipt_vat.dart` — yangi: `FiscalPaymentSplit` (to'lov tasnifi) va
+  `ReceiptVat` (qator/chek QQS'i, cashback ulushi) — fiskal va qog'oz chek uchun bitta manba
+- `lib/features/printing/api/components/sold_api_components.dart` — "sh.j QQS" (qator) va
+  "shu jumladan QQS" (jami) `ReceiptVat` dan; `lib/features/printing/api/print_sold_api.dart` — receipt uzatiladi
+- `test/receipt_vat_test.dart` — yangi
+- Scope dan tashqari: Click/Payme/Uzum `Other` orqali ketishi; to'lovdan OLDINGI chop (payment page,
+  ruscha "В том числе НДС") va bosh ekrandagi jami QQS (to'lov hali yo'q — cashback noma'lum);
+  serverga ketadigan `order_pos` qator `vat` maydoni (pastda "Ochiq savollar")
 
 ## Tahlil (2026-09-24)
 - Fiskal item: `Price = realPrice × qty` (chegirmasiz, `_countPrice`), `Discount = (realPrice − price) × qty`
@@ -67,9 +75,27 @@ misoli buni tasdiqlaydi: Price 100000, Discount 50000, VATPercent 12 → VAT 535
     → Sabab: foydalanuvchi talabi — "diskont turlari ko'p (1+1, 1+3 ...), hammasida QQS muammosiz ishlashi kerak";
       Mac'da fiskal modul yo'q, shuning uchun modulga ketadigan JSON'ning o'zi tekshiriladi
 
+- [x] `ReceiptVat` / `FiscalPaymentSplit` — to'lov tasnifi (naqd/karta/cashback/Click-Payme-Uzum) va
+      qatorga tushadigan cashback ulushi bitta domain sinfida; `saleOnOFD` shu tasnifdan foydalanadi
+      (`receivedCash/Card` endi butun tiyinga yaxlitlanadi — `.toInt()` kesishida 1 tiyin yo'qolmasin),
+      `_countOtherOFD` → `ReceiptVat.otherShare × 100`
+    → lib/changes/domain/receipt/receipt_vat.dart; receipt_singleton_4.dart (`saleOnOFD`, `_countOtherOFD`)
+    → Sabab: chek va fiskal ikki joyda alohida hisoblanardi va farq qilardi; endi bitta qoida
+- [x] Qog'oz chek: qator "sh.j QQS" = (narx × miqdor − cashback ulushi) × p/(100+p); jami "shu jumladan QQS"
+      = `ReceiptVat.total`. Blok/dona bo'lib chizilganda ulush qism miqdoriga mos. 100% cashback → 0.
+    → sold_api_components.dart `buildProductList` (`receipt:` parametri), `buildProduct` (`otherShare`),
+      `buildBottom`; print_sold_api.dart (57 va 80 mm) `receipt: receiptsCreateGroup`
+    → Qaror: chekda FAQAT cashback ayriladi. Click/Payme/Uzum fiskalda hozircha Other (VAT 0), lekin
+      rasmiy talab karta (QQS to'liq) — chek shu to'g'ri holatni ko'rsatadi, fiskal tuzatilganda mos keladi.
+      Foydalanuvchi: Click/Payme hozircha tegilmasin.
+- [x] `test/receipt_vat_test.dart` — 23 ta test: tasnif fiskal body bilan aynan bir xil (nom/ID/fallback/
+      vozvrat/aralash), chek jami QQS = fiskal ΣVAT (cashback 100%/qisman, chegirma, ko'p qator, QQS 0%,
+      vozvrat, tarozi kasr), qator raqamlari, blok/dona yig'indisi, Click farqi QAYD
+
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] Do'kon sinovi (Windows, haqiqiy fiskal modul): chegirmali tovar sotib, ofd.soliq.uz chekida
-      QQS chegirmadan keyingi narxdan ekanini tekshirish; chegirma + cashback aralash chek; vozvrat
+      QQS chegirmadan keyingi narxdan ekanini tekshirish; chegirma + cashback aralash chek; vozvrat;
+      100% cashback chekini chop etib "sh.j QQS" 0 ekanini ko'rish
 - [ ] Keyingi relizga kiritish (release pipeline)
 
 ## Qabul qilingan qarorlar
@@ -91,13 +117,18 @@ misoli buni tasdiqlaydi: Price 100000, Discount 50000, VATPercent 12 → VAT 535
   "QAYD: 1+1 markirovkali". Alohida task ochilsin.
 - Click/Payme/Uzum `Other` orqali ketadi (QQS 0) — rasmiy talab `ReceivedCard` + `QRPayment*`.
   Alohida task: docs/fiskal-tolov-turlari-va-qqs.md §6.1
-- Qog'oz chek, ekran va server `order_pos.vat` cashback ulushini ayirmaydi (chegirmani ayiradi).
-  Bu fix'dan keyin chegirma bo'yicha fiskal va chek mos; cashback bo'yicha hali farq bor:
-  docs/fiskal-tolov-turlari-va-qqs.md §4.2
+- Qog'oz sotuv cheki endi fiskal bilan mos (cashback ham). Hali tegilmagan joylar:
+  (a) to'lovdan OLDINGI chop — payment page ruscha "В том числе НДС" (print_payment_page_api.dart:637) va
+  bosh ekrandagi jami QQS (items_singleton.dart `getNDS`) — bu paytda to'lov/cashback hali yo'q, chegirmadan
+  keyingi narxdan ko'rsatadi; (b) serverga ketadigan `order_pos` qator `vat` maydoni (receipt_model_4.dart
+  `"vat": vat`) — `SoldItemBuilder` da chegirmasiz narxdan yoziladi va avto-chegirma qo'llanganda
+  YANGILANMAYDI (faqat tier reprice / qo'lda tahrirda), cashback ham hisobga olinmaydi. Backend hisobotlari
+  shu maydonga tayansa noto'g'ri; backend bilan kelishib alohida tuzatish kerak.
 
 ## Test / Verifikatsiya
 - `flutter test test/fiscal_vat_base_test.dart` — 16/16 o'tdi (2026-09-24)
 - `flutter test test/fiscal_vat_discount_types_test.dart` — 28/28 o'tdi (2026-09-24)
+- `flutter test test/receipt_vat_test.dart` — 23/23 o'tdi (2026-09-24)
 - `flutter test` to'liq to'plam — 1212/1212 o'tdi, regressiya yo'q (2026-09-24)
 - `dart analyze` o'zgargan fayllarda: yangi xato yo'q. receipt_singleton_4.dart dagi 3 ta eski
   warning (:265 dead_null_aware, :310 unused `itemsLen`, :299 print) tegilmadi — bu fix'ga aloqasi yo'q

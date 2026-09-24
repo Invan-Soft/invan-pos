@@ -104,6 +104,7 @@ class PrintSoldApi {
                   myBoldStyle,
                   myMiniStyle,
                   crilic,
+                  receipt: receiptsCreateGroup,
                 ),
                 pw.SizedBox(height: mm * 3),
                 SoldApiComponents.buildBottom(
@@ -311,6 +312,7 @@ class PrintSoldApi {
                   myBoldStyle,
                   myMiniStyle,
                   crilic,
+                  receipt: receiptsCreateGroup,
                 ),
                 pw.SizedBox(height: mm * 3),
                 isCut != null && isCut
