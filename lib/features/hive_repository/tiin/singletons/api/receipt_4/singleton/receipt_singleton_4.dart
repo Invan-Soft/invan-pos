@@ -263,7 +263,8 @@ class ReceiptSingleton4 {
           (p) => p.payId.replaceFirst('@', '').trim() == paynetId,
         );
 
-    print('======= saleOnOFD | receivedPaynet: $receivedPaynet | paynetId: "$paynetId" =======');
+    debugPrint(
+        '======= saleOnOFD | receivedPaynet: $receivedPaynet | paynetId: "$paynetId" =======');
 
     String token = "DXJFX32CN1296678504F2";
     String staff = Pref.getString(PrefKeys.cashierName, "not initialized");
@@ -274,7 +275,6 @@ class ReceiptSingleton4 {
       receipt.refundInfo = null;
     }
 
-    int itemsLen = receipt.soldItemList.length;
     String terId = Pref.getString(PrefKeys.terminalID, '');
     double totalPrice = ItemsSingleton.getOfdTotalPrice(receipt.soldItemList);
 

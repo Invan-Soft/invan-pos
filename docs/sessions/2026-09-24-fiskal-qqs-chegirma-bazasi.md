@@ -33,7 +33,7 @@ misoli buni tasdiqlaydi: Price 100000, Discount 50000, VATPercent 12 → VAT 535
 - `test/receipt_vat_test.dart` — yangi
 - Scope dan tashqari: Click/Payme/Uzum `Other` orqali ketishi; to'lovdan OLDINGI chop (payment page,
   ruscha "В том числе НДС") va bosh ekrandagi jami QQS (to'lov hali yo'q — cashback noma'lum);
-  serverga ketadigan `order_pos` qator `vat` maydoni (pastda "Ochiq savollar")
+  adminkadagi QQS hisobi — backend tomonda (pastda "Ochiq savollar")
 
 ## Tahlil (2026-09-24)
 - Fiskal item: `Price = realPrice × qty` (chegirmasiz, `_countPrice`), `Discount = (realPrice − price) × qty`
@@ -120,10 +120,11 @@ misoli buni tasdiqlaydi: Price 100000, Discount 50000, VATPercent 12 → VAT 535
 - Qog'oz sotuv cheki endi fiskal bilan mos (cashback ham). Hali tegilmagan joylar:
   (a) to'lovdan OLDINGI chop — payment page ruscha "В том числе НДС" (print_payment_page_api.dart:637) va
   bosh ekrandagi jami QQS (items_singleton.dart `getNDS`) — bu paytda to'lov/cashback hali yo'q, chegirmadan
-  keyingi narxdan ko'rsatadi; (b) serverga ketadigan `order_pos` qator `vat` maydoni (receipt_model_4.dart
-  `"vat": vat`) — `SoldItemBuilder` da chegirmasiz narxdan yoziladi va avto-chegirma qo'llanganda
-  YANGILANMAYDI (faqat tier reprice / qo'lda tahrirda), cashback ham hisobga olinmaydi. Backend hisobotlari
-  shu maydonga tayansa noto'g'ri; backend bilan kelishib alohida tuzatish kerak.
+  keyingi narxdan ko'rsatadi; (b) adminka: `order_pos` ga QQS SUMMASI KETMAYDI (receipt_model_4.dart
+  `toJson`: price = onlyPrice, single_item_discount, vat_percentage, pays; `"vat": vat` faqat `toAllJson` da,
+  u hech qayerda chaqirilmaydi — o'lik kod). Adminkadagi QQS backend hisobi. Savol backend'ga: "hisobotda QQS
+  `(price − single_item_discount) × value × p/(100+p)` mi va cashback to'lov turi (`pays.payment_type_id`)
+  ulushi chiqariladimi?" POS tomonida ish yo'q (2026-09-24, foydalanuvchi yuborgan real payload bilan tekshirildi).
 
 ## Test / Verifikatsiya
 - `flutter test test/fiscal_vat_base_test.dart` — 16/16 o'tdi (2026-09-24)
