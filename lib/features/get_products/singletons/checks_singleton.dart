@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:invan2/changes/domain/receipt/refund_item_origin.dart';
 import 'package:invan2/changes/models/discount_model.dart';
 import 'package:invan2/changes/models/receipts_get_model.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
@@ -134,6 +135,12 @@ supplierId: "",
 
       double vat = effectiveUnitPrice * (v[i].vatPercentage?.toDouble() ?? 0) / (100 + (v[i].vatPercentage?.toDouble() ?? 0));
 
+      // OwnerType va komitent STIR — server itemida yo'q, katalogdan (sotuv
+      // bilan bir xil manba). Ilgari `ownerType: 0`, `tin: ""` qattiq yozilgan
+      // edi — vozvrat soliqqa sotuvdan boshqa OwnerType bilan ketardi.
+      final RefundItemOrigin origin =
+          RefundItemOrigin.fromCatalog(v[i].productId);
+
       final receipt = ReceiptModelSoldItem4(
         inBox: 0,
         singleDiscount: singleDisc,
@@ -145,7 +152,7 @@ supplierId: "",
         createdTime: 0,
         mxik: v[i].mxikCode ?? "",
         price: effectiveUnitPrice,
-        ownerType: 0,
+        ownerType: origin.ownerType,
         productId: v[i].productId ?? "",
         productName: v[i].productName ?? '',
         sku: int.parse(v[i].sku ?? "0"),
@@ -153,7 +160,7 @@ supplierId: "",
         value: v[i].value?.toDouble() ?? 0,
         vat: vat,
         vatPercent: v[i].vatPercentage?.toDouble() ?? 0,
-        tin: "",
+        tin: origin.tin,
         packageCode: v[i].packageCode,
         packageName: v[i].packageName,
         // mark: ,
