@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
+import 'package:invan2/app_navigation.dart';
 import 'package:invan2/changes/services/log_helper.dart';
 import 'package:invan2/changes/services/sync/catch_up_sync.dart';
 import 'package:invan2/utils/util_functions.dart';
@@ -20,6 +21,15 @@ class UpdateProvider extends ChangeNotifier {
   /// holati O'ZGARGANDA) ishga tushadi. Ilgari bitta istisno (masalan
   /// Windows'da antivirus ushlab turgan Hive faylga yozuv) halqani yiqitar
   /// va internet barqaror kassada sinxron restartgacha to'xtab qolardi.
+  ///
+  /// [context]/[mounted] FAQAT birinchi tekshiruv uchun — halqaning o'zi
+  /// har tsiklda YANGI, doimiy yashovchi context oladi
+  /// (`AppNavigation.navigatorKey`). Sabab: bu metod endi `Wrapper`
+  /// (startup) dan ham chaqiriladi, uning context'i navigatsiyadan bir necha
+  /// qator keyin UNMOUNT bo'ladi — o'sha context bilan halqa umrbod
+  /// "context o'chgan" deb hech narsa qilmay, lekin `_autoUpdateRunning`
+  /// bayrog'ini abadiy band qilib turgan bo'lardi (boshqa — to'g'ri —
+  /// chaqiruv ham ishga tushmasdi).
   Future<void> autoUpdate(BuildContext context, bool mounted) async {
     if (_autoUpdateRunning) return;
 
@@ -33,7 +43,15 @@ class UpdateProvider extends ChangeNotifier {
       while (true) {
         await Future.delayed(period);
         try {
-          await startPeriodicRequest(context, mounted);
+          final BuildContext? liveContext =
+              AppNavigation.navigatorKey.currentContext;
+          if (liveContext == null || !liveContext.mounted) {
+            // Navigator hali qurilmagan (juda erta) yoki ilova yopilayotgan
+            // bo'lishi mumkin — halqa o'lmaydi, keyingi tsiklda qayta
+            // urinadi.
+            continue;
+          }
+          await startPeriodicRequest(liveContext, true);
         } catch (e, stack) {
           await LogHelper.activity(
               'SYNC_LOOP_ERROR', {'error': e, 'stack': stack});
