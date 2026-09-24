@@ -169,17 +169,38 @@ void main() {
   });
 
   group('type 1/2 — putItems va narxni saqlash', () {
-    test('mergeWithExisting: narxsiz yangilash mavjud narxni saqlaydi',
-        () async {
+    test(
+        'mergeWithExisting + priceKeyPresent:false: shop_prices KALITI '
+        'yo\'q bo\'lsa mavjud narx saqlanadi', () async {
       await ItemsSingleton.putItems([product('p1', price: priceOf(3000))]);
 
-      // Adminkada faqat nom o'zgartirildi — payload'da shop_prices yo'q.
+      // Adminkada faqat nom o'zgartirildi — payload'da shop_prices KALITI
+      // umuman yo'q (ProductsWsService `data.containsKey('shop_prices')`
+      // orqali shuni aniqlaydi).
       final update = product('p1')..name = 'Yangi nom';
-      await ItemsSingleton.putItems([update], mergeWithExisting: true);
+      await ItemsSingleton.putItems([update],
+          mergeWithExisting: true, priceKeyPresent: false);
 
       final saved = HiveBoxes.getProducts().get('p1')!;
       expect(saved.name, 'Yangi nom');
       expect(ItemsSingleton.onePrice(saved.shopPrices), 3000);
+    });
+
+    test(
+        'priceKeyPresent:true (standart) — shop_prices KALITI bo\'lsa '
+        'narxsiz yangilash ham narxni O\'CHIRADI (kalit yo\'qligi bilan '
+        'chalkashtirilmaydi)', () async {
+      await ItemsSingleton.putItems([product('p1', price: priceOf(3000))]);
+
+      final update = product('p1')..name = 'Yangi nom';
+      // priceKeyPresent standart bo'yicha true — bu chaqiruvchi shop_prices
+      // KALITI payload'da BOR deb bilishini anglatadi (garchi natija narxi
+      // bo'sh bo'lsa ham).
+      await ItemsSingleton.putItems([update], mergeWithExisting: true);
+
+      expect(HiveBoxes.getProducts().get('p1')!.shopPrices, isNull,
+          reason: 'kalit bor edi — server ataylab narxni olib tashlagan '
+              'deb hurmat qilinadi');
     });
 
     test('bayroqsiz (to\'liq yuklash kabi) narx ustidan yoziladi', () async {
@@ -199,11 +220,15 @@ void main() {
       expect(ItemsSingleton.onePrice(HiveBoxes.getProducts().get('p1')!.shopPrices), 4500);
     });
 
-    test('shop_prices bor-u, shu do\'kon narxi 0 — mavjud narx saqlanadi',
-        () async {
+    test(
+        'shop_prices KALITI bor-u, shu do\'kon narxi 0 (masalan '
+        'retail_price:null) — server signali hurmat qilinadi, narx 0 '
+        'bo\'ladi (eski narx SAQLANMAYDI)', () async {
       await ItemsSingleton.putItems([product('p1', price: priceOf(3000))]);
 
       // Jonli ko'rilgan shakl: tier bor, retail_price yo'q (null → 0).
+      // `shop_prices` KALITI payload'da BOR — bu "narx yo'q" degan bilinch
+      // signal emas, "narx 0/olib tashlangan" degan aniq signal.
       final incoming = product('p1',
           price: ShopPrices(
               shID: ShID(shopId: kShop, shopPriceTiers: [
@@ -211,7 +236,7 @@ void main() {
           ])));
       await ItemsSingleton.putItems([incoming], mergeWithExisting: true);
 
-      expect(ItemsSingleton.onePrice(HiveBoxes.getProducts().get('p1')!.shopPrices), 3000);
+      expect(ItemsSingleton.onePrice(HiveBoxes.getProducts().get('p1')!.shopPrices), 0);
     });
 
     test('is_active YO\'Q (null) bo\'lsa mahsulot O\'CHIRILMAYDI', () async {
@@ -345,6 +370,27 @@ void main() {
       expect(item.vat, isNull);
     });
 
+    test(
+        'categories maydoni ikkala shaklda ham (sof id yoki obyekt '
+        'ro\'yxati) xatosiz o\'qiladi — type 1 parseri ilgari faqat sof '
+        'id\'ni kutar edi', () {
+      final asIds =
+          ItemModel.fromWebSocketJson(payload(images: null)..['categories'] = ['cat-1', 'cat-2']);
+      expect(asIds.categories!.map((c) => c.id), ['cat-1', 'cat-2']);
+
+      final asObjects = ItemModel.fromWebSocketJson(payload(images: null)
+        ..['categories'] = [
+          {'id': 'cat-1', 'name': 'Ichimlik', 'parent_id': null},
+        ]);
+      expect(asObjects.categories!.single.id, 'cat-1');
+      expect(asObjects.categories!.single.name, 'Ichimlik');
+
+      // fromWebSocketJsonUpdate (type 2) ham ikkala shaklga chidamli.
+      final updateAsIds = ItemModel.fromWebSocketJsonUpdate(
+          payload(images: null)..['categories'] = ['cat-9']);
+      expect(updateAsIds.categories!.single.id, 'cat-9');
+    });
+
     test('parseCatalog: buzuq yozuv o\'tkazib yuboriladi, qolgani kiradi',
         () async {
       final raw = <dynamic>[
@@ -357,6 +403,12 @@ void main() {
       expect(r.items.map((e) => e.id), containsAll(['a', 'c']));
       expect(r.failed, greaterThanOrEqualTo(1));
       expect(r.items.length + r.failed, raw.length);
+      // 'b' — Map, id ma'lum, lekin parse bo'lmadi: preserveIds'ga tushadi
+      // (clearAndPutItems bu id'ni "serverda yo'q" deb o'chirmasin).
+      // 'buzuq' — Map emas, id chiqarib olib bo'lmaydi.
+      expect(r.skippedIds, contains('b'));
+      expect(r.skippedIds, isNot(contains('a')));
+      expect(r.skippedIds, isNot(contains('c')));
     });
 
     test('category_ids: null / [] → kategoriya null, xato yo\'q', () {

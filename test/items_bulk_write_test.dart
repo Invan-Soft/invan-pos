@@ -127,6 +127,37 @@ void main() {
     expect(ItemsSingleton.getProductById('prod-49'), isNotNull);
   });
 
+  test(
+      'preserveIds: bu safar parse bo\'lmagan mahsulot "serverda yo\'q" deb '
+      'O\'CHIRILMAYDI', () async {
+    await ItemsSingleton.clearAndPutItems(List.generate(100, makeItem));
+    await ItemsSingleton.storeProducts();
+    expect(ItemsSingleton.getProductById('prod-77'), isNotNull);
+
+    // Keyingi to'liq yuklashda prod-77 buzuq yozuv bo'lgani uchun parse
+    // bo'lmadi (items ro'yxatida yo'q), lekin id'si ma'lum — preserveIds'ga
+    // qo'shiladi. Qolgan 99 tasi muvaffaqiyatli.
+    final items = List.generate(100, makeItem)
+      ..removeWhere((e) => e.id == 'prod-77');
+    await ItemsSingleton.clearAndPutItems(items,
+        preserveIds: {'prod-77'});
+    await ItemsSingleton.storeProducts();
+
+    expect(ItemsSingleton.getProductById('prod-77'), isNotNull,
+        reason: 'ilgari: parse bo\'lmagan = "serverda yo\'q" bilan bir xil '
+            'ko\'rilib o\'chirilardi');
+    expect(HiveBoxes.getProducts().length, 100);
+  });
+
+  test('preserveIds bo\'lmasa (standart) haqiqatan yo\'q mahsulot o\'chadi',
+      () async {
+    await ItemsSingleton.clearAndPutItems(List.generate(10, makeItem));
+    await ItemsSingleton.clearAndPutItems(
+        List.generate(10, makeItem)..removeWhere((e) => e.id == 'prod-5'));
+
+    expect(ItemsSingleton.getProductById('prod-5'), isNull);
+  });
+
   test('notification orqali kelgan katta paket (putItems) qo\'shiladi',
       () async {
     await ItemsSingleton.clearAndPutItems(List.generate(1000, makeItem));

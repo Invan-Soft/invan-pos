@@ -7,6 +7,8 @@
 // ishlatiladi, shuning uchun har xil uzilish stsenariysini aniq
 // takrorlash mumkin.
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invan2/changes/services/sync/server_clock.dart';
 import 'package:invan2/changes/services/sync/stream_sync_runner.dart';
@@ -939,6 +941,54 @@ void main() {
       );
       expect(fullReloadCalls, 1);
       expect(asked, isEmpty);
+    });
+  });
+
+  group('to\'liq yuklash muddati tugashi — ish o\'zi to\'xtatiladi', () {
+    setUp(() {
+      StreamSyncRunner.fullReloadTimeout = const Duration(milliseconds: 50);
+    });
+    tearDown(() {
+      StreamSyncRunner.fullReloadTimeout = const Duration(minutes: 15);
+    });
+
+    test(
+        'muddat tugasa onFullReloadTimeout chaqiriladi (masalan yuklashni '
+        'majburan to\'xtatish uchun)', () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      int cancelCalls = 0;
+
+      final ok = await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.done(0)),
+        // Hech qachon tugamaydigan "yuklash" — Future.timeout uni real
+        // hayotda ham to'xtata olmaydi, shuning uchun onFullReloadTimeout
+        // orqali chaqiruvchi o'zi bekor qilishi kerak.
+        fullReload: () => Completer<bool>().future,
+        onFullReloadTimeout: () => cancelCalls++,
+      );
+
+      expect(ok, isFalse);
+      expect(cancelCalls, 1,
+          reason: '15 daqiqalik Future.timeout to\'xtagach chaqiruvchiga '
+              'xabar berilishi kerak — aks holda yuklash fonda abadiy '
+              'davom etar edi');
+      expect(SyncCursor.has(stream), isFalse);
+    });
+
+    test('muvaffaqiyatli to\'liq yuklashda onFullReloadTimeout chaqirilmaydi',
+        () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      int cancelCalls = 0;
+
+      await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.done(0)),
+        fullReload: reloading(),
+        onFullReloadTimeout: () => cancelCalls++,
+      );
+
+      expect(cancelCalls, 0);
     });
   });
 }

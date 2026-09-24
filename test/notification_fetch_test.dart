@@ -38,14 +38,12 @@ void main() {
     ServerClock.reset();
     NotificationFetch.timeout = const Duration(seconds: 5);
     NotificationFetch.idleTimeout = const Duration(seconds: 5);
-    NotificationFetch.serverRequiresIsRead = null;
   });
 
   tearDown(() {
     NotificationFetch.client = null;
     NotificationFetch.timeout = const Duration(seconds: 30);
     NotificationFetch.idleTimeout = const Duration(seconds: 45);
-    NotificationFetch.serverRequiresIsRead = null;
     ServerClock.localNow = () => DateTime.now().toUtc();
     ServerClock.reset();
   });
@@ -202,36 +200,11 @@ void main() {
       expect(q['end_date'], '2026-09-24 10:00:00');
       expect(q['limit'], '${NotificationFetch.limit}');
       expect(captured.headers['Authorization'], 'Bearer test-token');
-      expect(q.containsKey('is_read'), isFalse,
-          reason: 'boshqa klient "o\'qildi" deb belgilagan notification '
-              'ham kelishi kerak');
+      // `is_read=false` — 2026-08-21'da jonli tekshirilgan YAGONA
+      // konfiguratsiya; ataylab o'zgartirilmagan (notification_fetch.dart
+      // buildPath izohiga qarang).
+      expect(q['is_read'], 'false');
       expect(captured.headers['Cache-Control'], contains('no-store'));
-    });
-
-    test('server is_read\'siz 400 bersa — bir marta is_read=false bilan '
-        'qaytariladi va eslab qolinadi', () async {
-      final List<Uri> urls = <Uri>[];
-      NotificationFetch.client = MockClient((req) async {
-        urls.add(req.url);
-        if (!req.url.queryParameters.containsKey('is_read')) {
-          return http.Response('bad request', 400);
-        }
-        return http.Response(
-            jsonEncode({'notifications': [n('1', 1)], 'total_count': 1}), 200);
-      });
-
-      final r = await run((_) async => NotifyApply.applied);
-
-      expect(r.ok, isTrue);
-      expect(r.received, 1);
-      expect(urls.length, 2);
-      expect(NotificationFetch.serverRequiresIsRead, isTrue);
-
-      // Keyingi so'rov darhol is_read bilan ketadi.
-      urls.clear();
-      await run((_) async => NotifyApply.applied);
-      expect(urls.length, 1);
-      expect(urls.single.queryParameters['is_read'], 'false');
     });
 
     test('401/403 → unauthorized bayrog\'i', () async {
@@ -341,6 +314,40 @@ void main() {
 
       expect(r.ok, isTrue);
       expect(r.truncated, isTrue);
+    });
+
+    test('total_count qaytgan miqdordan ko\'p bo\'lsa ham truncated (server '
+        '`limit`dan kichikroq sahifa cheklovi qo\'ygan bo\'lishi mumkin)',
+        () async {
+      NotificationFetch.client = MockClient((_) async => http.Response(
+          jsonEncode({
+            'notifications':
+                List.generate(200, (i) => n('$i', 1)),
+            'total_count': 950,
+          }),
+          200));
+
+      final r = await run((_) async => NotifyApply.ignored);
+
+      expect(r.ok, isTrue);
+      expect(r.received, 200);
+      expect(r.truncated, isTrue,
+          reason: '200 < total_count(950) — ba\'zi notification\'lar '
+              'yashirin kesilgan bo\'lishi mumkin');
+    });
+
+    test('total_count qaytgan miqdorga teng bo\'lsa truncated emas',
+        () async {
+      NotificationFetch.client = MockClient((_) async => http.Response(
+          jsonEncode({
+            'notifications': [n('1', 1), n('2', 1)],
+            'total_count': 2,
+          }),
+          200));
+
+      final r = await run((_) async => NotifyApply.ignored);
+
+      expect(r.truncated, isFalse);
     });
 
     test('token yo\'q bo\'lsa so\'rov ham ketmaydi', () async {
