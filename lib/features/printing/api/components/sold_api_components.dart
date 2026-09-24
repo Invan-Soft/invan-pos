@@ -1,4 +1,6 @@
 // ignore_for_file: unused_local_variable
+import 'package:invan2/changes/domain/receipt/receipt_vat.dart';
+import 'package:invan2/features/get_products/singletons/items_singleton.dart';
 import 'dart:math';
 import 'package:invan2/changes/models/client_model.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
@@ -272,15 +274,24 @@ class SoldApiComponents {
     );
   }
 
+  /// [receipt] berilsa har qatorning "sh.j QQS" i cashback ulushini ayirib
+  /// hisoblanadi — fiskal `VAT` bilan bir xil (ReceiptVat). Berilmasa
+  /// (to'lov hali yo'q) cashback 0 deb olinadi.
   static pw.Widget buildProductList(
     List<ReceiptModelSoldItem4> soldItems,
     List<ItemInfo>? itemInfo,
     pw.TextStyle myBoldStyle,
     pw.TextStyle myMiniStyle,
-    pw.TextStyle crilic,
-  ) {
+    pw.TextStyle crilic, {
+    ReceiptModel4? receipt,
+  }) {
+    final double otherTotal =
+        receipt == null ? 0 : ReceiptVat.paperOtherTotal(receipt);
+    final double receiptTotal = ItemsSingleton.getOfdTotalPrice(soldItems);
     return pw.ListView(
       children: soldItems.expand((item) {
+        final double otherShare = ReceiptVat.otherShare(item,
+            otherTotal: otherTotal, receiptTotal: receiptTotal);
         // Aralash blok (blok + qolgan dona bitta itemga konsolidatsiyalangan):
         // chekda blok qatori va dona qatori ALOHIDA chiqadi.
         final bool isBlockRaw = item.saleType == 2 &&
@@ -291,13 +302,14 @@ class SoldApiComponents {
         if (isBlockRaw && looseQty > 0) {
           return [
             buildProduct(item, itemInfo, myBoldStyle, myMiniStyle, crilic,
-                portion: ProductPortion.blockOnly),
+                portion: ProductPortion.blockOnly, otherShare: otherShare),
             buildProduct(item, itemInfo, myBoldStyle, myMiniStyle, crilic,
-                portion: ProductPortion.looseOnly),
+                portion: ProductPortion.looseOnly, otherShare: otherShare),
           ];
         }
         return [
-          buildProduct(item, itemInfo, myBoldStyle, myMiniStyle, crilic),
+          buildProduct(item, itemInfo, myBoldStyle, myMiniStyle, crilic,
+              otherShare: otherShare),
         ];
       }).toList(),
     );
@@ -310,6 +322,8 @@ class SoldApiComponents {
     pw.TextStyle myMiniStyle,
     pw.TextStyle crilic, {
     ProductPortion portion = ProductPortion.full,
+    /// Shu qatorga tushgan cashback ulushi (so'mda, butun qator uchun).
+    double otherShare = 0,
   }) {
     String barcode = soldItem.barcode;
     String sku = soldItem.sku == 0 ? "" : soldItem.sku.toString();
@@ -459,10 +473,16 @@ class SoldApiComponents {
               "     sh.j QQS ${soldItem.vatPercent.toStringAsFixed(0)}%",
               style: myMiniStyle,
             ),
+            // Fiskal bilan bir xil: (narx × miqdor − cashback ulushi) × p/(100+p).
+            // Blok/dona bo'lib chizilganda ulush shu qismning miqdoriga mos.
             pw.Text(
-              MoneyFormatter.formatVat.format(
-                  ((soldItem.price * effectiveValue) * soldItem.vatPercent) /
-                      (100 + soldItem.vatPercent)),
+              MoneyFormatter.formatVat.format(ReceiptVat.lineVat(
+                soldItem,
+                qty: effectiveValue,
+                other: soldItem.value > 0
+                    ? otherShare * effectiveValue / soldItem.value
+                    : 0,
+              )),
               style: myMiniStyle,
             ),
           ],
@@ -613,13 +633,9 @@ class SoldApiComponents {
       receiptModel4.soldItemList.clear();
       receiptModel4.soldItemList.addAll(listAll);
     }
-    double vat = 0;
-    for (int i = 0; i < receiptModel4.soldItemList.length; i++) {
-      ReceiptModelSoldItem4 item = receiptModel4.soldItemList[i];
-
-      vat += ((item.price * item.value) * item.vatPercent) /
-          (100 + item.vatPercent);
-    }
+    // "shu jumladan QQS" — fiskal `VAT` yig'indisi bilan bir xil qoida:
+    // cashback bilan to'langan qism QQS bazasiga kirmaydi (ReceiptVat).
+    final double vat = ReceiptVat.total(receiptModel4);
     List<PrintingApiHelperTolovTuri> list = [];
 
     for (var element in receiptModel4.payment) {

@@ -1,6 +1,10 @@
 # Task: OFD §10.2.1 — yarim-so'mli tarozi item + 100% elektron to'lov yaxlitlanishi
 
 **Boshlangan:** 2026-06-24
+> ⚠️ **Superseded by:** docs/sessions/2026-09-24-fiskal-qqs-chegirma-bazasi.md (2026-09-24)
+> Bu hujjat o'sha vaqtdagi qarorni aks ettiradi. Joriy implementatsiya o'zgargan
+> (`_countVat` bazasi endi `Price − Discount − Other`, `_build1021Diag` ham shunga mos).
+
 **Holat:** done
 **Yakunlangan:** 2026-09-07
 **Branch:** ayyubxon

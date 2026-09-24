@@ -214,7 +214,7 @@ Nyuanslar:
 - `Price` — **qatorning to'liq summasi** (dona narxi emas!): `round(qty × narx) × 100`, chegirmasiz.
 - `Discount` — qator bo'yicha **umumiy chegirma summasi**: `(eski narx − yangi narx) × qty × 100`.
 - `Other` — shu itemga to'g'ri keluvchi elektron to'lov ulushi, tiyinda.
-- `VAT` — `(Price − Other) × VATPercent / (100 + VATPercent)`. `Price − Discount` dan **emas**. Manfiy chiqsa `0`.
+- `VAT` — `(Price − Discount − Other) × VATPercent / (100 + VATPercent)`. QQS bazasi **chegirmadan keyingi** summa (rasmiy misol: Price 100000, Discount 50000, VATPercent 12 → VAT 5357). Manfiy chiqsa `0`. 2026-09-24 gacha `Discount` ayrilmasdan hisoblanardi — bu bug edi, chegirmali tovarda QQS chegirmasiz narxdan ketardi.
 - `PackageCode` — qadoq kodi, **satr** (raqamga o'xshasa ham).
 - `OwnerType` — oddiy tovar uchun `1`.
 - `CommissionInfo` — komissiya savdosida `TIN` (9 xona) yoki `PINFL` (14 xona); bo'lmasa ikkalasi ham `""`.

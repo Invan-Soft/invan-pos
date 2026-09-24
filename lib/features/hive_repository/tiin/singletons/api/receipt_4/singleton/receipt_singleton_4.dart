@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:invan2/changes/domain/marking/fiscal_mxik_fallback.dart';
+import 'package:invan2/changes/domain/receipt/receipt_vat.dart';
 import 'package:invan2/changes/models/discount_model.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
 import 'package:invan2/changes/models/product/sale_item_model.dart';
@@ -242,52 +243,18 @@ class ReceiptSingleton4 {
     static Map<String, dynamic> saleOnOFD(ReceiptModel4 incomingReceipt) {
     ReceiptModel4 receipt = ReceiptApi4.func(incomingReceipt);
 
-    final clickId = Pref.getString(PrefKeys.clickId, "");
-    final uzumId = Pref.getString(PrefKeys.uzumId, "");
-    final paymeId = Pref.getString(PrefKeys.paymeId, "");
-    final cashId = Pref.getString(PrefKeys.cashId, "cash");
-    final cashbackId = Pref.getString(PrefKeys.cashbackId, "cash");
     final paynetId = Pref.getString(PrefKeys.paynetId, "");
 
-    double receivedCashValue = 0;
-    double receivedCardValue = 0;
-    double otherValue = 0;
-    double cashbackValue = 0;
-
-    if (receipt.isRefund) {
-      // Vozvrat: to'lov turidan qat'iy nazar hammasi CASH orqali qaytariladi
-      for (var p in receipt.payment) {
-        receivedCashValue += p.value * 100;
-      }
-    } else {
-      // ==================== SOTUV: YANGI KUCHLI TEKSHIRUV ====================
-      for (var p in receipt.payment) {
-        final nameUpper = (p.name ?? '').toUpperCase().trim();
-        final id = p.payId.replaceFirst('@', '').trim();
-
-        if (nameUpper == 'CASH' || id == cashId) {
-          receivedCashValue += p.value * 100;
-        }
-        else if (nameUpper == 'CARD' ||
-                 nameUpper == 'UZCARD' ||
-                 nameUpper == 'HUMO' ||
-                 id == Pref.getString(PrefKeys.cardId, '')) {
-          receivedCardValue += p.value * 100;
-        }
-        else if (id == cashbackId) {
-          cashbackValue += p.value;
-        }
-        else if ((id == clickId && nameUpper.contains('CLICK')) ||
-                 (id == paymeId && nameUpper.contains('PAYME')) ||
-                 (id == uzumId && nameUpper.contains('UZUM'))) {
-          otherValue += p.value;
-        }
-        else {
-          // Boshqa barcha holatlar (xavfsizlik uchun) → CARD
-          receivedCardValue += p.value * 100;
-        }
-      }
-    }
+    // To'lov tasnifi (naqd / karta / cashback / Click-Payme-Uzum) qog'oz chek
+    // QQS'i bilan BIR XIL qoidadan: lib/changes/domain/receipt/receipt_vat.dart
+    // (vozvratda hammasi naqd; sotuvda nom/ID bo'yicha; noma'lum → karta).
+    final FiscalPaymentSplit split = FiscalPaymentSplit.of(receipt);
+    // Tiyinda, butun songa yaxlitlab — float changi FiscalReceiptModel'dagi
+    // `.toInt()` kesishida 1 tiyin yo'qotmasin.
+    final double receivedCashValue = (split.cash * 100).roundToDouble();
+    final double receivedCardValue = (split.card * 100).roundToDouble();
+    final double otherValue = split.epay;
+    final double cashbackValue = split.cashback;
 
     receipt.cashback = cashbackValue.round();
 
@@ -296,7 +263,8 @@ class ReceiptSingleton4 {
           (p) => p.payId.replaceFirst('@', '').trim() == paynetId,
         );
 
-    print('======= saleOnOFD | receivedPaynet: $receivedPaynet | paynetId: "$paynetId" =======');
+    debugPrint(
+        '======= saleOnOFD | receivedPaynet: $receivedPaynet | paynetId: "$paynetId" =======');
 
     String token = "DXJFX32CN1296678504F2";
     String staff = Pref.getString(PrefKeys.cashierName, "not initialized");
@@ -307,7 +275,6 @@ class ReceiptSingleton4 {
       receipt.refundInfo = null;
     }
 
-    int itemsLen = receipt.soldItemList.length;
     String terId = Pref.getString(PrefKeys.terminalID, '');
     double totalPrice = ItemsSingleton.getOfdTotalPrice(receipt.soldItemList);
 
@@ -357,7 +324,7 @@ class ReceiptSingleton4 {
         discount: discount,
         ownerType: e.ownerType,
         other: other,
-        vat: _countVat(price, e.vatPercent, other),
+        vat: _countVat(price, e.vatPercent, discount: discount, other: other),
         vatPercent: e.vatPercent,
         price: price,
         packageCode: e.packageCode,
@@ -477,7 +444,7 @@ class ReceiptSingleton4 {
       final num payable = (p - d) < 0 ? 0 : (p - d);
       if ((it.other ?? 0) > payable) {
         it.other = payable;
-        it.vat = _countVat(p, it.vatPercent ?? 0, payable);
+        it.vat = _countVat(p, it.vatPercent ?? 0, discount: d, other: payable);
       }
     }
 
@@ -514,7 +481,12 @@ class ReceiptSingleton4 {
         if (delta <= 0) break; // kamayish tartibida — davomi ham ≤ 0
         final num take = delta < remaining ? delta : remaining;
         it.price = (it.price ?? 0) - take;
-        it.vat = _countVat(it.price ?? 0, it.vatPercent ?? 0, it.other ?? 0);
+        it.vat = _countVat(
+          it.price ?? 0,
+          it.vatPercent ?? 0,
+          discount: discountOf(it),
+          other: it.other ?? 0,
+        );
         remaining -= take;
       }
     } else {
@@ -530,7 +502,12 @@ class ReceiptSingleton4 {
         if (o <= 0) break; // kamayish tartibida — davomi ham ≤ 0
         final num take = o < remaining ? o : remaining;
         it.other = o - take;
-        it.vat = _countVat(it.price ?? 0, it.vatPercent ?? 0, it.other ?? 0);
+        it.vat = _countVat(
+          it.price ?? 0,
+          it.vatPercent ?? 0,
+          discount: discountOf(it),
+          other: it.other ?? 0,
+        );
         remaining -= take;
       }
     }
@@ -543,9 +520,27 @@ class ReceiptSingleton4 {
     return UtilFunctions.roundToNearest(e.value * e.price) * 100;
   }
 
-  static num _countVat(num priceJson, num nds, num other) {
-    // priceJson and other are both in tiins (already rounded), ensuring price = other + vat
-    num n = (priceJson - other) * nds / (100 + nds);
+  /// Fiskal `VAT` (tiyinda). QQS bazasi = `Price − Discount − Other`.
+  ///
+  /// `Price` chegirmaSIZ qator summasi (`_countPrice`), shuning uchun chegirma
+  /// ALBATTA ayriladi. 2026-09-24 gacha `Discount` ayrilmasdan hisoblanardi:
+  /// 50 000 so'mlik tovar 30 000 chegirma bilan 20 000 ga sotilsa, soliqqa
+  /// QQS 50 000 dan (5 357) ketardi, to'g'risi 20 000 dan (2 143).
+  ///
+  /// Rasmiy FiscalDriveService misoli: Price 100000, Discount 50000,
+  /// VATPercent 12 → VAT 5357 = (100000 − 50000) × 12 / 112.
+  ///
+  /// `Other` — xaridordan olinmagan qism (cashback va h.k., `_countOtherOFD`),
+  /// u ham bazaga kirmaydi: 100% cashback → VAT 0. Baza `_enforce1021Balance`
+  /// dagi δ bilan bir xil, shuning uchun balans tuzatilganda ham mos qoladi.
+  /// Hammasi tiyinda; manfiy chiqsa 0.
+  static num _countVat(
+    num price,
+    num nds, {
+    required num discount,
+    required num other,
+  }) {
+    num n = (price - discount - other) * nds / (100 + nds);
     return n < 0 ? 0 : n;
   }
 
@@ -583,17 +578,19 @@ class ReceiptSingleton4 {
   }
 
 
+  /// Qatorga tushadigan `Other` (tiyinda). Taqsimot qog'oz chek bilan bir
+  /// xil — `ReceiptVat.otherShare` (so'mda) × 100.
   static double _countOtherOFD(
     ReceiptModelSoldItem4 v, {
     num cashback = 0,
     double totalPrice = 0,
   }) {
-    double otherAmount = 0;
-    if (cashback != 0) {
-      otherAmount =
-          cashback * ((((v.price * v.value) * 100) / totalPrice) / 100);
-    }
-    return UtilFunctions.roundToNearest(otherAmount) * 100;
+    return ReceiptVat.otherShare(
+          v,
+          otherTotal: cashback.toDouble(),
+          receiptTotal: totalPrice,
+        ) *
+        100;
   }
   // static Map<String, dynamic> fromReceipt4ToClick({
   //   required Map<String, dynamic> receipt,
