@@ -8,8 +8,10 @@
 // takrorlash mumkin.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/services/sync/server_clock.dart';
 import 'package:invan2/changes/services/sync/stream_sync_runner.dart';
 import 'package:invan2/changes/services/sync/sync_cursor.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 
 import 'support/provider_harness.dart';
@@ -29,8 +31,16 @@ void main() {
 
   setUp(() async {
     await Pref.setInt(stream.prefKey, 0);
+    await Pref.setInt(stream.chunkPrefKey, 0);
+    await Pref.removeWithKey(stream.reloadFailPrefKey);
+    ServerClock.reset();
     asked = [];
     fullReloadCalls = 0;
+  });
+
+  tearDown(() {
+    ServerClock.localNow = () => DateTime.now().toUtc();
+    ServerClock.reset();
   });
 
   FetchWindow recording(
@@ -115,9 +125,13 @@ void main() {
       // Oxirgi so'rov aynan `end` da tugaydi.
       expect(asked.last[1], SyncCursor.format(end));
 
-      // Oynalar orasida bo'shliq yo'q — aks holda notification tushib qoladi.
+      // Oynalar orasida bo'shliq yo'q — har keyingi oyna oldingisining
+      // oxiridan overlap qadar ORTDAN boshlanadi (server chegarani qat'iy
+      // solishtirsa ham chegaradagi soniya tushib qolmasin).
       for (int i = 1; i < asked.length; i++) {
-        expect(asked[i][0], asked[i - 1][1]);
+        final DateTime prevEnd = SyncCursor.fmt.parseUtc(asked[i - 1][1]);
+        expect(asked[i][0],
+            SyncCursor.format(prevEnd.subtract(SyncCursor.overlap)));
       }
 
       expect(SyncCursor.raw(stream, end), end);
@@ -143,8 +157,9 @@ void main() {
 
     test('yangilashga hojat yo\'q bo\'lsa so\'rov ham yubormaydi', () async {
       final end = DateTime.utc(2026, 8, 12, 10);
-      // Kursor `end` dan keyinda — overlap ham hisobga olinsa oyna bo'sh.
-      await SyncCursor.commit(stream, end.add(const Duration(hours: 1)));
+      // Kursor `end` dan aynan overlap qadar keyinda — oyna bo'sh, lekin
+      // bu hali "soat sakragan" emas (chegara), to'liq yuklash ham yo'q.
+      await SyncCursor.commit(stream, end.add(SyncCursor.overlap));
 
       final ok = await runner.run(
         end: end,
@@ -155,6 +170,25 @@ void main() {
       expect(ok, isTrue);
       expect(asked, isEmpty);
       expect(fullReloadCalls, 0);
+    });
+
+    test('kursor `end` dan overlap\'dan ko\'proq keyinda — soat sakragan → '
+        'to\'liq yuklash va kursor server vaqtiga qaytadi', () async {
+      final end = DateTime.utc(2026, 8, 12, 10);
+      // Eski versiya kassaning 2 soat oldinda yurgan soati bilan yozgan.
+      await SyncCursor.commit(stream, end.add(const Duration(hours: 2)));
+
+      final ok = await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.done(0)),
+        fullReload: reloading(),
+      );
+
+      expect(ok, isTrue);
+      expect(asked, isEmpty);
+      expect(fullReloadCalls, 1);
+      expect(SyncCursor.raw(stream, end), end,
+          reason: 'kursor endi kelajakda emas');
     });
   });
 
@@ -453,6 +487,458 @@ void main() {
       expect(fullReloadCalls, 1);
       expect(asked, isEmpty);
       expect(SyncCursor.raw(stream, end), end);
+    });
+  });
+  group('server vaqti — kassa soati oldinda bo\'lsa ham kursor kelajakka ketmaydi',
+      () {
+    test('javobdagi server vaqti `end` dan oldin bo\'lsa kursor unga qisqaradi',
+        () async {
+      // Kassa soati bo'yicha `end` 10:00, server esa aslida 09:57.
+      final end = DateTime.utc(2026, 8, 12, 10);
+      final serverNow = DateTime.utc(2026, 8, 12, 9, 57);
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 9));
+
+      final ok = await runner.run(
+        end: end,
+        fetch: recording(
+            (_) => SyncFetchResult.done(2, serverTime: serverNow)),
+        fullReload: reloading(),
+      );
+
+      expect(ok, isTrue);
+      expect(SyncCursor.raw(stream, end), serverNow,
+          reason: 'keyingi oyna 09:55 dan boshlanadi — 09:57–10:00 '
+              'orasidagi server notification\'lari tushib qolmaydi');
+    });
+
+    test('server vaqti `end` dan keyin bo\'lsa (oddiy holat) kursor `end` da',
+        () async {
+      final end = DateTime.utc(2026, 8, 12, 10);
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 9));
+
+      await runner.run(
+        end: end,
+        fetch: recording((_) => SyncFetchResult.done(0,
+            serverTime: end.add(const Duration(seconds: 1)))),
+        fullReload: reloading(),
+      );
+
+      expect(SyncCursor.raw(stream, end), end);
+    });
+
+    test('oraliq bo\'laklar server vaqtidan ta\'sirlanmaydi', () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      final serverNow = DateTime.utc(2026, 8, 12, 11, 58);
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 0));
+
+      // 3-so'rov yiqiladi: kursor 2-bo'lak oxirida qolishi kerak, server
+      // vaqti (11:58) undan keyin bo'lgani uchun uni qisqartirmaydi.
+      await runner.run(
+        end: end,
+        fetch: recording((i) => i == 2
+            ? const SyncFetchResult.failed()
+            : SyncFetchResult.done(1, serverTime: serverNow)),
+        fullReload: reloading(),
+      );
+
+      final expected = DateTime.utc(2026, 8, 12, 0)
+          .subtract(SyncCursor.overlap)
+          .add(const Duration(hours: 12));
+      expect(SyncCursor.raw(stream, end), expected);
+    });
+
+    test('to\'liq yuklashdan keyin kursor server vaqtida (mahalliy emas)',
+        () async {
+      // Kassa soati 2 soat oldinda: mahalliy 12:00, server 10:00.
+      final end = DateTime.utc(2026, 8, 12, 10);
+      ServerClock.localNow = () => DateTime.utc(2026, 8, 12, 12);
+      ServerClock.observe(DateTime.utc(2026, 8, 12, 10),
+          local: DateTime.utc(2026, 8, 12, 12));
+
+      final ok = await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.done(0)),
+        fullReload: reloading(),
+      );
+
+      expect(ok, isTrue);
+      expect(fullReloadCalls, 1);
+      expect(SyncCursor.raw(stream, end), end,
+          reason: 'mahalliy 12:00 emas, server 10:00');
+    });
+  });
+
+  group('buzuq notification oqimni bloklamaydi', () {
+    // Ilgari bitta parse xatosi butun oynani `failed` qilar, kursor joyida
+    // qolar va har daqiqa o'sha xato takrorlanardi — 14 kungacha yoki
+    // qo'lda to'liq yangilashgacha HECH NARSA yangilanmasdi.
+    test('applyFailed → to\'liq yuklash va kursor oldinga suriladi',
+        () async {
+      final end = DateTime.utc(2026, 8, 12, 10);
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 9));
+
+      final ok = await runner.run(
+        end: end,
+        fetch: recording(
+            (_) => const SyncFetchResult.done(5, applyFailed: true)),
+        fullReload: reloading(),
+      );
+
+      expect(ok, isTrue);
+      expect(fullReloadCalls, 1);
+      expect(SyncCursor.raw(stream, end), end);
+
+      // Keyingi chaqiruv eski (09:00 dan) oynani QAYTA so'ramaydi — faqat
+      // odatdagi 2 daqiqalik overlap.
+      asked = [];
+      await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.done(0)),
+        fullReload: reloading(),
+      );
+      expect(asked.length, 1);
+      expect(asked.single[0],
+          SyncCursor.format(end.subtract(SyncCursor.overlap)));
+    });
+
+    test('to\'liq yuklash ham yiqilsa kursor joyida qoladi', () async {
+      final end = DateTime.utc(2026, 8, 12, 10);
+      final before = DateTime.utc(2026, 8, 12, 9);
+      await SyncCursor.commit(stream, before);
+
+      final ok = await runner.run(
+        end: end,
+        fetch: recording(
+            (_) => const SyncFetchResult.done(5, applyFailed: true)),
+        fullReload: reloading(ok: false),
+      );
+
+      expect(ok, isFalse);
+      expect(SyncCursor.raw(stream, end), before);
+    });
+
+    test('bo\'lingan oynaning birinchi yarmidagi applyFailed yo\'qolmaydi',
+        () async {
+      final end = DateTime.utc(2026, 8, 12, 6);
+      await SyncCursor.commit(
+          stream, DateTime.utc(2026, 8, 12, 0).add(SyncCursor.overlap));
+
+      // To'la oyna limitga uriladi → bo'linadi; birinchi yarimda buzuq
+      // notification bor, ikkinchi yarim toza.
+      final ok = await runner.run(
+        end: end,
+        fetch: recording((i) {
+          if (i == 0) return const SyncFetchResult.done(1000, truncated: true);
+          if (i == 1) return const SyncFetchResult.done(10, applyFailed: true);
+          return const SyncFetchResult.done(10);
+        }),
+        fullReload: reloading(),
+      );
+
+      expect(ok, isTrue);
+      expect(fullReloadCalls, 1, reason: 'applyFailed e\'tiborsiz qolmasin');
+    });
+  });
+
+  group('timeout — sekin internetda katta oyna', () {
+    test('uzun oyna timeout bo\'lsa ikkiga bo\'lib qayta so\'raladi', () async {
+      final end = DateTime.utc(2026, 8, 12, 6);
+      await SyncCursor.commit(
+          stream, DateTime.utc(2026, 8, 12, 0).add(SyncCursor.overlap));
+
+      final ok = await runner.run(
+        end: end,
+        fetch: recording((i) => i == 0
+            ? const SyncFetchResult.failed(timedOut: true)
+            : const SyncFetchResult.done(3)),
+        fullReload: reloading(),
+      );
+
+      expect(ok, isTrue);
+      expect(asked.length, 3, reason: '1 to\'la + 2 yarim');
+      expect(SyncCursor.raw(stream, end), end);
+    });
+
+    test('qisqa oyna (oddiy daqiqalik) timeout bo\'lsa bo\'linmaydi', () async {
+      final end = DateTime.utc(2026, 8, 12, 10);
+      await SyncCursor.commit(stream, end.subtract(const Duration(minutes: 1)));
+
+      final ok = await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.failed(timedOut: true)),
+        fullReload: reloading(),
+      );
+
+      expect(ok, isFalse);
+      expect(asked.length, 1);
+    });
+
+    test('timeout\'dan keyin bo\'lak kichrayadi, muvaffaqiyatdan keyin qaytadi',
+        () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 0));
+
+      // Hamma so'rov timeout: oyna 6 soat → keyingi safar 3 soat.
+      await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.failed(timedOut: true)),
+        fullReload: reloading(),
+      );
+      expect(SyncCursor.chunk(stream, StreamSyncRunner.defaultChunk),
+          const Duration(hours: 3));
+
+      // Endi 3 soatlik bo'laklar bilan so'raladi va muvaffaqiyatli bo'lsa
+      // bo'lak yana o'sadi.
+      asked = [];
+      await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.done(1)),
+        fullReload: reloading(),
+      );
+      final firstWindow = asked.first;
+      final s = SyncCursor.fmt.parseUtc(firstWindow[0]);
+      final e = SyncCursor.fmt.parseUtc(firstWindow[1]);
+      expect(e.difference(s), const Duration(hours: 3));
+      expect(SyncCursor.chunk(stream, StreamSyncRunner.defaultChunk),
+          const Duration(hours: 6));
+    });
+
+    test('bo\'lak hech qachon minChunk dan kichik bo\'lmaydi', () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 0));
+
+      for (int i = 0; i < 10; i++) {
+        await runner.run(
+          end: end,
+          fetch:
+              recording((_) => const SyncFetchResult.failed(timedOut: true)),
+          fullReload: reloading(),
+        );
+      }
+      expect(SyncCursor.chunk(stream, StreamSyncRunner.defaultChunk),
+          StreamSyncRunner.minChunk);
+    });
+  });
+  group('monoton kursor va to\'xtatish (preempt)', () {
+    test('oddiy commit kursorni orqaga surmaydi', () async {
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 12));
+      final moved =
+          await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 10));
+      expect(moved, isFalse);
+      expect(SyncCursor.raw(stream, DateTime.utc(2026, 8, 12, 13)),
+          DateTime.utc(2026, 8, 12, 12));
+    });
+
+    test('force commit (to\'liq yuklash) orqaga ham yozadi', () async {
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 12));
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 10),
+          force: true);
+      expect(SyncCursor.raw(stream, DateTime.utc(2026, 8, 12, 13)),
+          DateTime.utc(2026, 8, 12, 10));
+    });
+
+    test('qulf boshqa egaga o\'tsa run hech narsa yozmaydi', () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      final before = DateTime.utc(2026, 8, 12, 0);
+      await SyncCursor.commit(stream, before);
+
+      int calls = 0;
+      final ok = await runner.run(
+        end: end,
+        // Ikkinchi oynadan boshlab qulf yo'qolgan.
+        shouldContinue: () => calls < 1,
+        fetch: recording((_) {
+          calls++;
+          return const SyncFetchResult.done(1);
+        }),
+        fullReload: reloading(),
+      );
+
+      expect(ok, isFalse);
+      expect(asked.length, 1);
+      expect(SyncCursor.raw(stream, end), before,
+          reason: 'birinchi oyna ham commit qilinmaydi — commit oldidan '
+              'qulf tekshiriladi');
+    });
+
+    test('beforeCommit har commit oldidan chaqiriladi', () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 0));
+      int flushed = 0;
+
+      await runner.run(
+        end: end,
+        beforeCommit: () async => flushed++,
+        fetch: recording((_) => const SyncFetchResult.done(0)),
+        fullReload: reloading(),
+      );
+
+      expect(flushed, asked.length);
+    });
+  });
+
+  group('server hozir, 401, type 0', () {
+    test('server "hozir"iga yetgach qolgan (kelajak) oynalar so\'ralmaydi',
+        () async {
+      // Kassa soati 5 soat oldinda deylik: end 15:00, server aslida 10:00.
+      final end = DateTime.utc(2026, 8, 12, 15);
+      final serverNow = DateTime.utc(2026, 8, 12, 10);
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 3));
+
+      await runner.run(
+        end: end,
+        fetch: recording((_) => SyncFetchResult.done(0, serverTime: serverNow)),
+        fullReload: reloading(),
+      );
+
+      // 03:00→15:00 = 12 soat = 2 oyna; birinchisi (03–09) server
+      // hozirdan oldin, ikkinchisi (09–15) uni qamrab oladi → to'xtaydi.
+      expect(asked.length, 2);
+      expect(SyncCursor.raw(stream, end), serverNow);
+    });
+
+    test('401 → kursor joyida, bo\'lak kichraymaydi', () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      final before = DateTime.utc(2026, 8, 12, 0);
+      await SyncCursor.commit(stream, before);
+
+      final ok = await runner.run(
+        end: end,
+        fetch: recording(
+            (_) => const SyncFetchResult.failed(unauthorized: true)),
+        fullReload: reloading(),
+      );
+
+      expect(ok, isFalse);
+      expect(asked.length, 1);
+      expect(SyncCursor.raw(stream, end), before);
+      expect(SyncCursor.chunk(stream, StreamSyncRunner.defaultChunk),
+          StreamSyncRunner.defaultChunk);
+    });
+
+    test('type 0 (fullReloadRequested) → bitta to\'liq yuklash, kursor end da',
+        () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 0));
+
+      final ok = await runner.run(
+        end: end,
+        fetch: recording((i) => i == 0
+            ? const SyncFetchResult.done(3, fullReloadRequested: true)
+            : const SyncFetchResult.done(0)),
+        fullReload: reloading(),
+      );
+
+      expect(ok, isTrue);
+      expect(fullReloadCalls, 1);
+      expect(asked.length, 1, reason: 'qolgan oynalar so\'ralmaydi');
+      expect(SyncCursor.raw(stream, end), end);
+    });
+  });
+
+  group('eng kichik oyna timeout va backoff', () {
+    test('minChunk oyna ham timeout bo\'lsa to\'liq yuklashga o\'tadi',
+        () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 11));
+      await SyncCursor.setChunk(stream, StreamSyncRunner.minChunk);
+
+      final ok = await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.failed(timedOut: true)),
+        fullReload: reloading(),
+      );
+
+      expect(ok, isTrue);
+      expect(fullReloadCalls, 1);
+      expect(SyncCursor.raw(stream, end), end);
+    });
+
+    test('yiqilgan to\'liq yuklash 5 daqiqa qayta urinilmaydi (backoff)',
+        () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+
+      await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.done(0)),
+        fullReload: reloading(ok: false),
+      );
+      expect(fullReloadCalls, 1);
+
+      // Bir daqiqadan keyin yana — urinilmaydi.
+      await runner.run(
+        end: end.add(const Duration(minutes: 1)),
+        fetch: recording((_) => const SyncFetchResult.done(0)),
+        fullReload: reloading(ok: false),
+      );
+      expect(fullReloadCalls, 1);
+
+      // force (ilova ochilganda / qo'lda) — chetlab o'tadi.
+      await runner.run(
+        end: end.add(const Duration(minutes: 2)),
+        force: true,
+        fetch: recording((_) => const SyncFetchResult.done(0)),
+        fullReload: reloading(ok: false),
+      );
+      expect(fullReloadCalls, 2);
+
+      // 5 daqiqadan keyin — yana uriniladi.
+      await runner.run(
+        end: end.add(const Duration(minutes: 8)),
+        fetch: recording((_) => const SyncFetchResult.done(0)),
+        fullReload: reloading(),
+      );
+      expect(fullReloadCalls, 3);
+      expect(SyncCursor.has(stream), isTrue);
+    });
+
+    test('qisqa (3 daqiqalik) oyna timeout bo\'lsa bo\'lak kichraymaydi',
+        () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      await SyncCursor.commit(stream, end.subtract(const Duration(minutes: 1)));
+
+      await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.failed(timedOut: true)),
+        fullReload: reloading(),
+      );
+
+      expect(SyncCursor.chunk(stream, StreamSyncRunner.defaultChunk),
+          StreamSyncRunner.defaultChunk);
+    });
+  });
+
+  group('migratsiya va tashlash', () {
+    test('sxema versiyasi eski bo\'lsa hamma kursor tashlanadi (bir marta)',
+        () async {
+      for (final SyncStream st in SyncStream.values) {
+        await SyncCursor.commit(st, DateTime.utc(2026, 8, 12, 10));
+      }
+      await Pref.setInt(PrefKeys.syncCursorSchema, 0);
+
+      await SyncCursor.migrateIfNeeded();
+      for (final SyncStream st in SyncStream.values) {
+        expect(SyncCursor.has(st), isFalse);
+      }
+
+      // Ikkinchi marta — tegmaydi.
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 11));
+      await SyncCursor.migrateIfNeeded();
+      expect(SyncCursor.has(stream), isTrue);
+    });
+
+    test('reset → keyingi run to\'liq yuklaydi', () async {
+      final end = DateTime.utc(2026, 8, 12, 12);
+      await SyncCursor.commit(stream, DateTime.utc(2026, 8, 12, 11));
+      await SyncCursor.reset(stream, reason: 'test');
+
+      await runner.run(
+        end: end,
+        fetch: recording((_) => const SyncFetchResult.done(0)),
+        fullReload: reloading(),
+      );
+      expect(fullReloadCalls, 1);
+      expect(asked, isEmpty);
     });
   });
 }

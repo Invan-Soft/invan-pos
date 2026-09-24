@@ -141,8 +141,23 @@ void main() {
     });
 
     test('4xx — rad etish (qayta yuborish foydasiz)', () async {
-      for (final int code in [400, 401, 403, 404, 422]) {
+      // 401/403/408/429 bu yerga KIRMAYDI — pastdagi alohida guruhga
+      // qarang: ular sessiya/so'rov holati, hujjatning o'zi emas.
+      for (final int code in [400, 404, 422]) {
         expect(await BackendHealth.isDocumentRejection(code), isTrue);
+      }
+    });
+
+    // Token eskirgan (401/403), so'rov vaqti tugagan (408) yoki cheklovga
+    // uchragan (429) hujjatning o'zi bilan bog'liq emas — qayta yuborish
+    // (token yangilangach yoki keyinroq) muvaffaqiyatli bo'lishi mumkin.
+    // Ilgari bular ham "rad etilgan" sanalar, natijada masalan qaytarish
+    // (refund) navbatdan abadiy chiqib ketardi va token muammosi
+    // tuzatilgandan keyin ham hech qachon qayta yuborilmasdi.
+    test('401/403/408/429 — rad etish EMAS, navbatda qoladi', () async {
+      for (final int code in [401, 403, 408, 429]) {
+        expect(await BackendHealth.isDocumentRejection(code), isFalse,
+            reason: '$code — sessiya/so\'rov holati, hujjat emas');
       }
     });
 
