@@ -370,6 +370,79 @@ Eng jiddiy (yuqori) topilganlar — HAMMASI shu sessiyada tuzatildi:
   semantikasi, notification tartibi, mahsulotga tegishli boshqa turlar
   bormi.
 
+## 3-bosqich: qo'shimcha fon audit — bugungi tuzatishlarning O'ZIDAGI kamchiliklar (2026-09-24)
+
+Birinchi audit tugagach, xuddi shu workflow foydalanuvchi so'rovi bilan
+tezlashtirilgan holda qayta ishga tushirildi (48 stsenariy + 7 linzali
+kashfiyot). Bu safar maqsad boshqacha edi: 2-bosqichda yozilgan YANGI
+kodning O'ZI xato kiritmaganini tekshirish. Model sessiya limitiga urilib
+sintez (yakuniy hisobot) tugallanmadi, lekin xom topilmalar (find/refute
+jurnali) qo'lda o'qib chiqildi va HAR BIR muhim da'vo kod bo'ylab qayta
+tekshirildi (workflow natijasiga ko'r-ko'rona ishonilmadi).
+
+**Eng jiddiy topilma — KRITIK regressiya:** 2-bosqichda G7 ("avto-sinxron
+NetworkSuccess'ga bog'liq") ni yopish uchun wrapper.dart'ga qo'shilgan
+`unawaited(updateProvider.autoUpdate(context, mounted))` chaqiruvi
+Wrapper'ning TEZDA unmount bo'ladigan context'i bilan ishga tushirilgan
+edi — bu halqani birinchi tsikldayoq abadiy o'ldirar, `_autoUpdateRunning`
+bayrog'i band qolib, TO'G'RI (NetworkSuccess) chaqiruvni ham bloklardi.
+Ya'ni **butun sessiya davomida avtomatik sinxron umuman ishlamasligi**
+mumkin edi — aynan shu hujjatning butun maqsadiga zid. Tuzatildi:
+`update_provider.dart`, halqa endi har tsiklda `AppNavigation.navigatorKey.
+currentContext` orqali yangi, doimiy context oladi.
+
+**Qo'shimcha tasdiqlangan va tuzatilgan:**
+- To'liq katalog yuklashda parse bo'lmagan (bitta buzuq maydonli) yozuv
+  `clearAndPutItems`ning yangi "stale = yo'q bo'lganlarni o'chir" mantig'i
+  tomonidan "serverda yo'q" bilan aralashtirilib O'CHIRILARDI —
+  `parseCatalog` uni shunchaki o'tkazib yuborgani uchun. `preserveIds`
+  bilan tuzatildi (items_singleton.dart + 3 chaqiruv joyi).
+- Narx birlashtirish mezoni QIYMATGA (narx ≤0) emas, `shop_prices`
+  KALITI borligiga asoslanadi — server ataylab narxni 0/olib tashlagan
+  bo'lsa endi hurmat qilinadi.
+- `total_count` javobda o'qiladi (server `limit`dan kichik sahifa
+  cheklovi qo'ygan bo'lsa ham kesilish aniqlanadi).
+- `is_read` parametrini olib tashlash TAJRIBASI BEKOR QILINDI — faqat
+  2026-08-21'da jonli tekshirilgan `is_read=false` qoldirildi (tekshirilmagan
+  so'rov shakli aynan yopmoqchi bo'lgan xato turini qaytarishi mumkin edi).
+- To'liq yuklash 15 daqiqada `Future.timeout` bilan "to'xtatilsa" ham,
+  Dart'da bu asl HttpClient ishini to'xtatmaydi — endi haqiqatan bekor
+  qilinadi (`OrdersService.cancelCatalogDownload`).
+- Type-1 notification parseri `categories` maydonini faqat sof id
+  ro'yxati deb kutgan (type-2/bulk esa obyekt ro'yxati) — mos kelmasa
+  butun notification yiqilardi. Ikkala shakl ham endi xatosiz o'qiladi.
+- Drawer "Sinxronizatsiya" (qo'lda tugma) o'zining kamroq to'g'ri yozuv
+  yo'liga ega edi (eski mahsulot o'chirilmasdi, kategoriya daraxti
+  tekislanmasdi). Endi tekshirilgan umumiy metodlarga delegatsiya qiladi.
+
+**Tasdiqlanmagan/rad etilgan da'volar (qo'lda tekshirilib, real emas yoki
+allaqachon qoplangan deb topildi):** to'liq yuklash backoff vaqti hisobi,
+ServerClock offset o'lchash vaqti, startup reload local-clock taqqoslash,
+manual reload force commit, bo'sh katalogli kompaniya cheksiz reload,
+Hive compaction xavfi, drawer sync stale delete (2-marta topilgan, allaqachon
+tuzatilgan).
+
+**Ataylab tuzatilmagan (past ustuvorlik yoki 2-bosqichdan OLDIN ham mavjud
+bo'lgan xulq, regressiya emas):**
+- `isMarking=true` mahsulotda abadiy "yopishib qoladi" (adminka uni false
+  qilsa ham notification orqali qaytmaydi) — bu 2-bosqichdan OLDIN ham
+  shunday edi (isMarking alohida soliq-MXIK moslashtirish job'iga
+  ishonilgani uchun ataylab qilingan bo'lishi mumkin).
+- Notification yo'lida faqat BITTA kategoriya (`category_ids.first`)
+  saqlanadi, to'liq katalog esa butun ierarxiyani beradi — grid tilida
+  mahsulot to'liq yuklashdan keyin boshqa katakka "sakrashi" mumkin.
+  Bu ham OLDINDAN mavjud xulq.
+- Bir soniya ichida type 13 (narx) type 1 (yaratish)dan OLDIN kelsa (server
+  tartibi noma'lum) narx qo'llanmay qoladi — tor chekka holat.
+- Qulf majburan olinganda (`exclusive` force, stale-lock, logout) eski
+  run'ning JORIY oynasidagi qo'llash tsikli darhol to'xtamaydi (faqat
+  keyingi fetch/commit oldidan tekshiriladi) — kengroq mavjud himoya
+  (monoton kursor, epoch) asosiy xavfni yopadi, qolgani nozik race.
+
+Xulosa: bu 3-bosqich ayni "avtomatik sinxron doim ishlaydi" da'vosini
+tekshirish uchun zarur bo'ldi — 2-bosqichning o'zi bitta jiddiy regressiya
+kiritgan edi. Endi hamma narsa qayta test qilindi (1290/1290).
+
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] Do'kon sinovi (Windows, 2 kassa) — pastdagi "Test / Verifikatsiya" (RELIZDAN KEYIN BIRINCHI TEKSHIRUV)
 - [ ] Backend jamoasidan `is_read` semantikasi va notification tartibi haqida
