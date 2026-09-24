@@ -43,10 +43,11 @@ docs/sessions/2026-09-22-refund-fiscal-url-to-server.md (vozvrat tartibi, hali a
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [x] Testlar: test/refund_item_origin_test.dart — 12 ta (sof qoida, SoldItemBuilder bilan tenglik,
       globalToLocall katalogdan, modul JSON'ida OwnerType 1 / komissiya 2)
-- [ ] Foydalanuvchi: o'sha sotuv chekining soliq sahifasida "Komitent STIR" nima ko'rinadi? (0 bo'lsa —
-      bu bo'sh qiymatning ko'rinishi, sotuv/vozvrat endi bir xil; boshqa qiymat bo'lsa — adminkada
-      commission_tin bor, "Ochiq savollar" 1-band)
-- [ ] Reliz
+- [x] Soliq API (`POST new-ofd.soliq.uz/api/payment`, HMAC `X-Signature`) orqali tekshirildi (2026-09-24):
+      SOTUV 24.09 (LG230110020506/73210) ham, VOZVRAT 22.09 (LG230110020538/38002) ham `comitentTin: 0`
+      (raqamli maydon, bo'sh TIN → 0). "0" = komitent yo'q, o'z tovari — NORMAL, sotuv va vozvrat bir xil.
+      OwnerType soliq API javobida ko'rinmaydi; kodda vozvrat 0 → 1 tuzatildi (spec parity), ko'rinishga ta'siri yo'q.
+- [ ] Reliz — shoshilinch emas (ko'rinish o'zgarmaydi), keyingi versiya bilan
 
 ## Qabul qilingan qarorlar
 - Vozvrat qatori OwnerType/STIR ni serverdan emas, katalogdan oladi. Sabab: server itemida bu
