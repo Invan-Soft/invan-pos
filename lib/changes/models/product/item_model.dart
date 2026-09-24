@@ -173,12 +173,7 @@ class ItemModel extends HiveObject {
     shopPrices = json['shop_prices'] != null
         ? ShopPrices.fromJson(json["shop_prices"])
         : null;
-    if (json['categories'] != null) {
-      categories = <CategoriesFromProducts>[];
-      json['categories'].forEach((v) {
-        categories!.add(CategoriesFromProducts.fromJson(v));
-      });
-    }
+    categories = parseCategoriesField(json['categories']);
     measurementUnit = json['measurement_unit'] != null
         ? MeasurementUnit.fromJson(json['measurement_unit'])
         : null;
@@ -205,6 +200,31 @@ class ItemModel extends HiveObject {
       if (url is String && url.isNotEmpty) return ApiProvider.imageUrl + url;
     }
     return null;
+  }
+
+  /// `categories` maydonini ikkala ma'lum shaklda ham o'qiydi: to'liq
+  /// katalog/type-2 obyekt ro'yxati (`[{id,name,parent_id}, ...]`) HAM
+  /// eski type-1 sof id ro'yxati (`["id1", "id2"]`). Ilgari type-1
+  /// parseri faqat ikkinchi shaklni kutar edi — server obyekt ro'yxati
+  /// yuborsa, `String?` maydonga `Map` yozilib TypeError bilan butun
+  /// notification (oyna) yiqilardi. Elementlar aralash yoki noma'lum
+  /// shaklda bo'lsa xatosiz o'tkazib yuboriladi.
+  static List<CategoriesFromProducts>? parseCategoriesField(dynamic raw) {
+    if (raw is! List || raw.isEmpty) return null;
+    final List<CategoriesFromProducts> result = <CategoriesFromProducts>[];
+    for (final dynamic v in raw) {
+      try {
+        if (v is Map) {
+          result.add(CategoriesFromProducts.fromJson(Map<String, dynamic>.from(v)));
+        } else if (v is String && v.isNotEmpty) {
+          result.add(CategoriesFromProducts(id: v));
+        }
+      } catch (_) {
+        // Bitta elementning shakli noma'lum — shu elementni o'tkazib
+        // yuboramiz, butun mahsulotni yiqitmaymiz.
+      }
+    }
+    return result.isEmpty ? null : result;
   }
 
   /// Notification payload'idan o'lchov birligi: ichki obyekt bo'lsa undan
@@ -292,12 +312,7 @@ class ItemModel extends HiveObject {
       }
     }
 
-    if (json['categories'] != null) {
-      categories = <CategoriesFromProducts>[];
-      json['categories'].forEach((v) {
-        categories!.add(CategoriesFromProducts(id: v));
-      });
-    }
+    categories = parseCategoriesField(json['categories']);
 
     {
       measurementUnit = resolveMeasurementUnit(
@@ -353,12 +368,7 @@ class ItemModel extends HiveObject {
       }
     }
 
-    if (json['categories'] != null) {
-      categories = <CategoriesFromProducts>[];
-      json['categories'].forEach((v) {
-        categories!.add(CategoriesFromProducts.fromJson(v));
-      });
-    }
+    categories = parseCategoriesField(json['categories']);
 
     {
       measurementUnit = resolveMeasurementUnit(

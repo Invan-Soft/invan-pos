@@ -18,6 +18,8 @@
         yozmasdan to'xtaydi.
 */
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../log_helper.dart';
@@ -57,7 +59,9 @@ class StreamSyncRunner {
 
   /// To'liq yuklash (43 MB) shundan uzoq cho'zilsa yiqilgan hisoblanadi —
   /// qulf abadiy band bo'lib qolmasin. `CatchUpSync.staleLock` dan qisqa.
-  static const Duration fullReloadTimeout = Duration(minutes: 15);
+  ///
+  /// Testlar qisqartiradi (const emas).
+  static Duration fullReloadTimeout = const Duration(minutes: 15);
 
   final SyncStream stream;
   final Duration chunk;
@@ -101,6 +105,7 @@ class StreamSyncRunner {
     bool force = false,
     bool Function()? shouldContinue,
     Future<void> Function()? beforeCommit,
+    void Function()? onFullReloadTimeout,
   }) async {
     if (_throttled(end, force)) {
       if (kDebugMode) {
@@ -116,7 +121,8 @@ class StreamSyncRunner {
               : 'kursor yo\'q',
           force: force,
           shouldContinue: shouldContinue,
-          beforeCommit: beforeCommit);
+          beforeCommit: beforeCommit,
+          onFullReloadTimeout: onFullReloadTimeout);
     }
 
     final DateTime start = SyncCursor.start(stream, end);
@@ -158,7 +164,8 @@ class StreamSyncRunner {
               why: 'eng kichik oyna ham timeout',
               force: force,
               shouldContinue: shouldContinue,
-              beforeCommit: beforeCommit);
+              beforeCommit: beforeCommit,
+          onFullReloadTimeout: onFullReloadTimeout);
         }
         // Kursor surilmaydi — shu oyna keyingi urinishda qaytadan olinadi.
         if (kDebugMode) {
@@ -173,7 +180,8 @@ class StreamSyncRunner {
             why: 'server type 0',
             force: true,
             shouldContinue: shouldContinue,
-            beforeCommit: beforeCommit);
+            beforeCommit: beforeCommit,
+          onFullReloadTimeout: onFullReloadTimeout);
       }
 
       if (result.truncated) {
@@ -183,7 +191,8 @@ class StreamSyncRunner {
             why: 'oyna limitga urildi',
             force: force,
             shouldContinue: shouldContinue,
-            beforeCommit: beforeCommit);
+            beforeCommit: beforeCommit,
+          onFullReloadTimeout: onFullReloadTimeout);
       }
 
       if (result.applyFailed) {
@@ -195,7 +204,8 @@ class StreamSyncRunner {
             why: 'notification qo\'llanmadi',
             force: force,
             shouldContinue: shouldContinue,
-            beforeCommit: beforeCommit);
+            beforeCommit: beforeCommit,
+          onFullReloadTimeout: onFullReloadTimeout);
       }
 
       if (!_alive(shouldContinue, 'commit')) return false;
@@ -245,6 +255,7 @@ class StreamSyncRunner {
     bool force = false,
     bool Function()? shouldContinue,
     Future<void> Function()? beforeCommit,
+    void Function()? onFullReloadTimeout,
   }) async {
     if (!force && SyncCursor.fullReloadBackoffActive(stream, end)) {
       // Yaqinda yiqilgan — 43 MB ni har daqiqada tortmaymiz.
@@ -271,6 +282,18 @@ class StreamSyncRunner {
     bool ok;
     try {
       ok = await fullReload().timeout(fullReloadTimeout);
+    } on TimeoutException catch (e) {
+      // `Future.timeout` faqat KUTISHNI to'xtatadi — asl ish (masalan 43 MB
+      // yuklash) fonda davom etadi. Chaqiruvchi shu yerda qulfsiz/kursorsiz
+      // qolgan ishni majburan to'xtatish imkonini beradi (masalan yuklashni
+      // amalga oshirayotgan HttpClient'ni yopish orqali).
+      onFullReloadTimeout?.call();
+      if (kDebugMode) {
+        print('❌ ${stream.label}: to\'liq yuklash muddati tugadi: $e');
+      }
+      await LogHelper.activity(
+          'SYNC_FULL_RELOAD_FAILED', {'stream': stream.label, 'error': e});
+      ok = false;
     } catch (e) {
       if (kDebugMode) {
         print('❌ ${stream.label}: to\'liq yuklash xatosi: $e');

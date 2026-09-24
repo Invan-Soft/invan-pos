@@ -446,11 +446,21 @@ static Future<void> storeProducts() async {
   /// diskka flush. Butun jarayon marker bilan o'raladi — ilova o'rtada
   /// o'lsa keyingi sinxron kursorni tashlab to'liq yuklashni qaytaradi
   /// (CatchUpSync.healCatalogState).
-  static Future<void> clearAndPutItems(List<ItemModel> items) async {
+  ///
+  /// [preserveIds] — bu safar parse bo'lmagan (shuning uchun [items] da
+  /// yo'q) mahsulot id'lari (`parseCatalog().skippedIds`). Ular "serverda
+  /// yo'q" deb O'CHIRILMAYDI — biz shunchaki bu safar ularni o'qiy olmadik.
+  /// Aks holda bitta buzuq maydonli yozuv (masalan noto'g'ri son formati)
+  /// o'sha mahsulotni har to'liq yuklashda kassadan yo'qotib turardi.
+  static Future<void> clearAndPutItems(
+    List<ItemModel> items, {
+    Set<dynamic> preserveIds = const <dynamic>{},
+  }) async {
     final box = HiveBoxes.getProducts();
     final Map<dynamic, ItemModel> map = {for (var e in items) (e).key: e};
-    final List<dynamic> stale =
-        box.keys.where((k) => !map.containsKey(k)).toList();
+    final List<dynamic> stale = box.keys
+        .where((k) => !map.containsKey(k) && !preserveIds.contains(k))
+        .toList();
     await Pref.setBool(PrefKeys.catalogWriteInProgress, true);
     await box.putAll(map);
     if (stale.isNotEmpty) await box.deleteAll(stale);
@@ -463,6 +473,7 @@ static Future<void> storeProducts() async {
   /// butun importni yiqitar va sinxron abadiy muzlab qolardi.
   static Future<CatalogParseResult> parseCatalog(List<dynamic> raw) async {
     final List<ItemModel> items = <ItemModel>[];
+    final Set<String> skippedIds = <String>{};
     int failed = 0;
     Object? firstError;
     for (final dynamic e in raw) {
@@ -472,6 +483,14 @@ static Future<void> storeProducts() async {
       } catch (err) {
         failed++;
         firstError ??= err;
+        // Id'ni bo'lak qismidan ham (kengroq himoyada) olishga urinamiz —
+        // topilsa, `clearAndPutItems` bu mahsulotni o'chirmaydi.
+        try {
+          if (e is Map) {
+            final dynamic id = e['id'];
+            if (id != null) skippedIds.add(id.toString());
+          }
+        } catch (_) {}
       }
     }
     if (failed > 0) {
@@ -479,9 +498,10 @@ static Future<void> storeProducts() async {
         'skipped': failed,
         'total': raw.length,
         'first_error': firstError,
+        'skipped_ids_known': skippedIds.length,
       });
     }
-    return CatalogParseResult(items, failed, firstError);
+    return CatalogParseResult(items, failed, firstError, skippedIds);
   }
 
   static Future<void> deleteProduct(List<String> items) async {
@@ -499,14 +519,19 @@ static Future<void> storeProducts() async {
   ///
   /// [mergeWithExisting] — notification yo'li uchun: kelgan yozuv to'liq
   /// katalogdan kambag'alroq bo'lishi mumkin, shuning uchun
-  ///  * shu do'kon uchun musbat narx bo'lmasa, lokaldagi mavjud narx qoladi
-  ///    (ilgari mahsulot narxsiz qolib skanerda topilmasdi);
+  ///  * `shop_prices` KALITI payload'da umuman bo'lmasa, lokaldagi mavjud
+  ///    narx saqlanadi (ilgari mahsulot narxsiz qolib skanerda topilmasdi).
+  ///    [priceKeyPresent] shu signalni beradi — FAQAT kalit yo'qligida
+  ///    saqlanadi, kalit BOR-U natija 0/topilmadi bo'lsa (server ataylab
+  ///    narxni olib tashlagan/0 qilgan) hurmat qilinadi, eski narx
+  ///    ustidan yozilmasdan qolib ketmaydi;
   ///  * parser bilmaydigan/lokalda topilmagan maydonlar (ownerType,
   ///    commissionTin, mark, o'lchov birligi, QQS) mavjud yozuvdan olinadi —
   ///    aks holda fiskal chekda OwnerType/QQS noto'g'ri ketardi.
   static Future<void> putItems(
     List<ItemModel> items, {
     bool mergeWithExisting = false,
+    bool priceKeyPresent = true,
   }) async {
     items = addPackageCodeAndMxikCode(
       items,
@@ -527,7 +552,8 @@ static Future<void> storeProducts() async {
             item = item.copyWith(isMarking: true);
           }
           if (mergeWithExisting) {
-            item = _mergeFromExisting(item, existing);
+            item = _mergeFromExisting(item, existing,
+                priceKeyPresent: priceKeyPresent);
           }
         }
         map[item.id!] = item;
@@ -537,8 +563,11 @@ static Future<void> storeProducts() async {
     return;
   }
 
-  static ItemModel _mergeFromExisting(ItemModel item, ItemModel existing) {
-    if (onePrice(item.shopPrices) <= 0 && onePrice(existing.shopPrices) > 0) {
+  static ItemModel _mergeFromExisting(ItemModel item, ItemModel existing,
+      {required bool priceKeyPresent}) {
+    if (!priceKeyPresent &&
+        onePrice(item.shopPrices) <= 0 &&
+        onePrice(existing.shopPrices) > 0) {
       item = item.copyWith(shopPrices: existing.shopPrices);
       LogHelper.activity('SYNC_PRICE_KEPT', {'id': item.id});
     }
@@ -712,5 +741,11 @@ class CatalogParseResult {
   final int failed;
   final Object? firstError;
 
-  const CatalogParseResult(this.items, this.failed, this.firstError);
+  /// Parse bo'lmagan, lekin id'si aniqlangan yozuvlar. `clearAndPutItems`
+  /// ga `preserveIds` sifatida uzatilsa, bu mahsulotlar "serverda yo'q"
+  /// deb o'chirilmaydi.
+  final Set<String> skippedIds;
+
+  const CatalogParseResult(
+      this.items, this.failed, this.firstError, this.skippedIds);
 }

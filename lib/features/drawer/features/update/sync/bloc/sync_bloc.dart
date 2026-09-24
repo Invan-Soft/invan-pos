@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:invan2/changes/services/catalog_refresh_notice.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:invan2/changes/models/product/item_model.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/services/get_items_service.dart';
@@ -10,8 +9,8 @@ import 'package:invan2/changes/services/sync/catch_up_sync.dart';
 import 'package:invan2/changes/services/sync/server_clock.dart';
 import 'package:invan2/changes/services/sync/sync_cursor.dart';
 import 'package:invan2/features/get_categories/get_categories.dart';
+import 'package:invan2/features/get_categories/service/category_service.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
-import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/helpers.dart';
 
@@ -54,6 +53,7 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
     // yuklashdan KEYIN o'tkaziladi (ServerClock shu paytda aniq).
     final DateTime startedAt = DateTime.now().toUtc();
     List<ItemModel> allProducts = [];
+    final Set<String> skippedIds = <String>{};
     String getError = '';
     await TasnifService.setPackageCode();
 
@@ -66,9 +66,10 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
             : httpResult.result;
 
         if (decodedJson is List) {
-          List<ItemModel> i = (await ItemsSingleton.parseCatalog(decodedJson)).items;
-          i = ItemsSingleton.addPackageCodeAndMxikCode(
-            i,
+          final parsed = await ItemsSingleton.parseCatalog(decodedJson);
+          skippedIds.addAll(parsed.skippedIds);
+          List<ItemModel> i = ItemsSingleton.addPackageCodeAndMxikCode(
+            parsed.items,
             Pref.getString(PrefKeys.mxikCode, ''),
             Pref.getString(PrefKeys.packageCode, ''),
           );
@@ -85,7 +86,7 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
     }
 
     if (allProducts.isNotEmpty) {
-      await toHive(allProducts);
+      await toHive(allProducts, skippedIds);
       await Pref.setInt(PrefKeys.lastSyncTime, time.millisecondsSinceEpoch);
       // Mahsulotlar to'liq qayta yuklandi — notification tarixiga ehtiyoj
       // qolmadi. Kategoriya kursoriga tegilmaydi: `toHive` ichidagi
@@ -130,37 +131,29 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
     
   }
 
-  static toHive(List<ItemModel> v) async {
-    Box<ItemModel> box = HiveBoxes.getProducts();
-    Map<String, ItemModel> map = {};
-    for (var item in v) {
-      map[item.key] = item;
-    }
-    await box.putAll(map);
+  /// [skippedIds] — bu safar parse bo'lmagan mahsulotlar; "serverda yo'q"
+  /// deb o'chirilmasin (qarang: ItemsSingleton.parseCatalog).
+  static Future<void> toHive(
+      List<ItemModel> v, Set<String> skippedIds) async {
+    // Ilgari bu yerda bevosita `box.putAll` edi: eski (serverda o'chirilgan)
+    // mahsulotlar hech qachon o'chirilmasdi, `catalogWriteInProgress`
+    // markeri va `box.flush()` yo'q edi — boshqa to'liq yuklash yo'llaridan
+    // farqli o'laroq. Endi bitta umumiy, tekshirilgan metod ishlatiladi.
+    await ItemsSingleton.clearAndPutItems(v, preserveIds: skippedIds);
+    // Bu yerdagi kategoriya xatosi yutiladi — `_syncLocked` shu sabab
+    // kategoriya kursoriga tegmaydi (muvaffaqiyatiga ishonib bo'lmaydi).
     await _category();
     await ItemsSingleton.storeProducts();
     CategorySingleton.init();
   }
 
-  static _category() async {
-    HttpResult httpResult = await CategoriesApi.categoryFind();
-
-    if (httpResult.isSuccess) {
-      Category category = Category.fromJson(httpResult.result);
-      final box = HiveBoxes.getCategories();
-      final categoryList = category.data ?? <CategoryData>[];
-      CategoryData noneCategory = CategoryData(
-        children: [],
-        id: "",
-        name: "None",
-      );
-      categoryList.add(noneCategory);
-      // Avval yangilari yoziladi, keyin eskilar o'chiriladi — clear+addAll
-      // o'rtasida ilova o'lsa kategoriyalar bo'sh qolmasin.
-      final List<dynamic> oldKeys = box.keys.toList();
-      if (categoryList.isNotEmpty) await box.addAll(categoryList);
-      if (oldKeys.isNotEmpty) await box.deleteAll(oldKeys);
-    }
-    return;
-  }
+  /// Kategoriyalarni to'liq qayta yuklaydi.
+  ///
+  /// Ilgari bu yerda alohida, tekislamaydigan (`children` ichkarida qolib
+  /// ketadigan) implementatsiya bor edi — pastki kategoriyalar Hive'ga
+  /// TOP-LEVEL qator sifatida yozilmasdi va ular ichidagi mahsulotlar
+  /// keyingi "haqiqiy" kategoriya sinxronigacha katalog to'rida ko'rinmay
+  /// qolardi. Endi boshqa barcha to'liq yuklash yo'llari bilan bir xil,
+  /// tekshirilgan `CategoryService.category()` ishlatiladi.
+  static Future<String?> _category() => CategoryService.category();
 }

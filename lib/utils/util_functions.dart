@@ -220,6 +220,7 @@ static Future<String?> fullUpdateProduct({bool apd = false}) async {
 static Future<String?> _fullUpdateProduct({bool apd = false}) async {
   DateTime time = DateTime.now();
   List<ItemModel> allProducts = [];
+  final Set<String> skippedIds = <String>{};
   String getError = '';
 
   print('🔄 fullUpdateProduct chaqirildi - ${DateTime.now()}');
@@ -238,10 +239,11 @@ static Future<String?> _fullUpdateProduct({bool apd = false}) async {
       if (decodedJson is List) {
         // Har yozuv alohida himoyada — bitta buzuq yozuv butun importni
         // yiqitmaydi (ItemsSingleton.parseCatalog).
-        final i = (await ItemsSingleton.parseCatalog(decodedJson)).items;
+        final parsed = await ItemsSingleton.parseCatalog(decodedJson);
+        skippedIds.addAll(parsed.skippedIds);
 
         allProducts = ItemsSingleton.addPackageCodeAndMxikCode(
-          i,
+          parsed.items,
           Pref.getString(PrefKeys.mxikCode, ''),
           Pref.getString(PrefKeys.packageCode, ''),
         );
@@ -266,7 +268,9 @@ static Future<String?> _fullUpdateProduct({bool apd = false}) async {
 
     // Yozish bosqichi uch qadamga bo'linadi — shkala qotib qolmasligi uchun.
     StartupProgress.saving(0);
-    await ItemsSingleton.clearAndPutItems(allProducts);
+    // `skippedIds`: bu safar parse bo'lmagan mahsulotlar "serverda yo'q"
+    // deb o'chirilmaydi.
+    await ItemsSingleton.clearAndPutItems(allProducts, preserveIds: skippedIds);
     StartupProgress.saving(.5);
 
     if (apd) {

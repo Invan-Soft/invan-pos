@@ -18,10 +18,25 @@ import 'startup_progress.dart';
 class OrdersService {
   // ─── Cancel support ───────────────────────────────────────────────
   static http.Client? _activeClient;
+  static HttpClient? _activeDownloadClient;
 
   static void cancelRequests() {
     _activeClient?.close();
     _activeClient = null;
+  }
+
+  /// 43 MB katalog yuklanishini majburan to'xtatadi.
+  ///
+  /// `Future.timeout()` (StreamSyncRunner'da to'liq yuklash uchun) faqat
+  /// KUTISHNI to'xtatadi — asl `HttpClient` chaqiruvi o'zi to'xtamasdan
+  /// fonda davom etardi (yarim soatgacha, agar link juda sekin bo'lsa-yu
+  /// 90 s sukut chegarasiga urilmasa) va keyin qulfsiz Hive'ga yozardi.
+  /// Runner timeout'ni ushlaganda shu metodni chaqiradi — ulanish darhol
+  /// yopiladi, `downloadFile` ichidagi kutish `SocketException`/xato bilan
+  /// tugaydi.
+  static void cancelCatalogDownload() {
+    _activeDownloadClient?.close(force: true);
+    _activeDownloadClient = null;
   }
   // ──────────────────────────────────────────────────────────────────
 
@@ -147,6 +162,7 @@ class OrdersService {
 
     final HttpClient client = HttpClient()
       ..connectionTimeout = downloadConnectTimeout;
+    _activeDownloadClient = client;
     try {
       final request = await client
           .getUrl(Uri.parse(url))
@@ -179,6 +195,7 @@ class OrdersService {
       return file;
     } finally {
       client.close(force: true);
+      if (identical(_activeDownloadClient, client)) _activeDownloadClient = null;
     }
   }
 

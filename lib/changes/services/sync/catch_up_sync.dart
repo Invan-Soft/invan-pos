@@ -38,6 +38,7 @@ import '../../../utils/constants/pref_keys.dart';
 import '../../../utils/helpers/prefs.dart';
 import '../catalog_refresh_notice.dart';
 import '../discount_service.dart';
+import '../get_items_service.dart';
 import '../log_helper.dart';
 import '../web_socket_service/category/categories_ws_service.dart';
 import '../web_socket_service/discount/discount_ws_service.dart';
@@ -208,6 +209,10 @@ class CatchUpSync {
             fullReload: () => ProductsWsService.import(context),
             shouldContinue: alive,
             beforeCommit: flushCatalogBoxes,
+            // 43 MB yuklash `Future.timeout` bilan to'xtatilmaydi (u faqat
+            // kutishni to'xtatadi) — shuning uchun timeout aynan shu
+            // ulanishni majburan yopadi (qarang: get_items_service.dart).
+            onFullReloadTimeout: OrdersService.cancelCatalogDownload,
           ) &&
           ok;
 

@@ -77,14 +77,6 @@ class NotificationFetch {
   /// diagnostika uchun boshlanishi + `SYNC_WINDOW` hisobi yetarli.
   static const int logBodyLimit = 4000;
 
-  /// Server `is_read` parametrisiz 400 qaytarsa `true` bo'ladi va keyingi
-  /// so'rovlar eski usulda (`is_read=false`) ketadi. null — hali noma'lum.
-  ///
-  /// Nega parametrsiz: kassa notification'ni "o'qildi" deb hech qachon
-  /// belgilamaydi, lekin boshqa klient (admin panel, boshqa ilova) belgilasa
-  /// `is_read=false` filtri o'sha o'zgarishni kassadan yashirardi.
-  static bool? serverRequiresIsRead;
-
   /// Testlar uchun almashtiriladigan HTTP klient.
   static http.Client? client;
 
@@ -100,15 +92,20 @@ class NotificationFetch {
         "Pragma": "no-cache",
       };
 
+  /// `is_read=false` — 2026-08-21'da jonli tekshirilgan YAGONA konfiguratsiya
+  /// (qarang: docs/sessions/archive/2026-08-21-price-sync-missing-on-some-kassas.md).
+  /// Bu parametrni olib tashlash (masalan boshqa klient "o'qildi" deb
+  /// belgilasa ham kassa ko'rishi uchun) jozibali, lekin server buni qanday
+  /// talqin qilishi TEKSHIRILMAGAN — noto'g'ri taxmin aynan bizni
+  /// yo'qotayotgan xato turini (jim, doimiy notification yo'qolishi)
+  /// qaytarishi mumkin. Shuning uchun ataylab O'ZGARTIRILMAGAN.
   static String buildPath({
     required String companyId,
     required String types,
     required String startDate,
     required String endDate,
-    required bool withIsRead,
   }) {
-    final String isRead = withIsRead ? '&is_read=false' : '';
-    return "${Urls.baseNotificationUrl}notifications?company_id=$companyId&limit=$limit&offset=1&type=$types$isRead&start_date=$startDate&end_date=$endDate";
+    return "${Urls.baseNotificationUrl}notifications?company_id=$companyId&limit=$limit&offset=1&type=$types&is_read=false&start_date=$startDate&end_date=$endDate";
   }
 
   /// [types] — vergul bilan ajratilgan notification turlari.
@@ -130,37 +127,11 @@ class NotificationFetch {
     }
 
     final String comId = Pref.getString(PrefKeys.orgID, "");
-    bool withIsRead = serverRequiresIsRead == true;
-    String path = buildPath(
-        companyId: comId,
-        types: types,
-        startDate: startDate,
-        endDate: endDate,
-        withIsRead: withIsRead);
+    final String path = buildPath(
+        companyId: comId, types: types, startDate: startDate, endDate: endDate);
 
-    _Fetched fetched = await _get(path, token, label, startDate, endDate);
+    final _Fetched fetched = await _get(path, token, label, startDate, endDate);
     if (fetched.result != null) return fetched.result!;
-
-    // Server `is_read` parametrisiz so'rovni rad etdi — eski usulga qaytamiz
-    // (bir marta aniqlanadi, keyin doim shunday).
-    if (!withIsRead &&
-        serverRequiresIsRead == null &&
-        fetched.response != null &&
-        (fetched.response!.statusCode == 400 ||
-            fetched.response!.statusCode == 422)) {
-      serverRequiresIsRead = true;
-      await LogHelper.activity('SYNC_FETCH_ISREAD_FALLBACK',
-          {'stream': label, 'status': fetched.response!.statusCode});
-      withIsRead = true;
-      path = buildPath(
-          companyId: comId,
-          types: types,
-          startDate: startDate,
-          endDate: endDate,
-          withIsRead: true);
-      fetched = await _get(path, token, label, startDate, endDate);
-      if (fetched.result != null) return fetched.result!;
-    }
 
     final http.Response response = fetched.response!;
 
@@ -185,11 +156,9 @@ class NotificationFetch {
       return SyncFetchResult.failed(
           serverTime: serverTime, unauthorized: unauthorized);
     }
-    if (serverRequiresIsRead == null && !withIsRead) {
-      serverRequiresIsRead = false;
-    }
 
     List<dynamic> notifications;
+    int? totalCount;
     try {
       final dynamic decoded = jsonDecode(utf8.decode(response.bodyBytes));
       if (decoded is! Map) {
@@ -203,6 +172,8 @@ class NotificationFetch {
         throw FormatException('server xato tanasi: ${_shortBody(response.body, 200)}');
       }
       notifications = raw is List ? raw : const <dynamic>[];
+      final dynamic tc = decoded['total_count'];
+      if (tc is num) totalCount = tc.toInt();
     } catch (e) {
       await LogHelper.activity(
           'SYNC_FETCH_PARSE', {'stream': label, 'error': e});
@@ -283,9 +254,16 @@ class NotificationFetch {
       'server_time': serverTime?.toIso8601String(),
     });
 
+    // `total_count`: server sahifa hajmini `limit`dan kichik cheklagan
+    // bo'lsa ham (masalan 500), qaytgan qator soni ondan kam bo'lib,
+    // faqat `length >= limit` bilan aniqlanmaydigan yashirin kesish
+    // (notification'lar jim yo'qolishi) shu bilan ushlanadi.
+    final bool truncated = notifications.length >= limit ||
+        (totalCount != null && totalCount > notifications.length);
+
     return SyncFetchResult.done(
       notifications.length,
-      truncated: notifications.length >= limit,
+      truncated: truncated,
       serverTime: serverTime,
       applyFailed: applyFailed,
       fullReloadRequested: fullReloadRequested,

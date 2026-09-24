@@ -177,12 +177,19 @@ class ProductsWsService {
 
     item.categories ??= categoriesFromIds(data['category_ids']);
 
-    // Notification payload'i to'liq katalogdan kambag'alroq: narxi yo'q
-    // (yoki shu do'kon uchun 0) kelsa mavjud narx, parser bilmaydigan
-    // maydonlar (ownerType, commissionTin, o'lchov birligi/QQS lokalda
-    // topilmasa) mavjud yozuvdan saqlanadi — ilgari mahsulot to'liq
-    // ustidan yozilib narxsiz qolar, skanerda topilmay qolardi.
-    await ItemsSingleton.putItems([item], mergeWithExisting: true);
+    // Notification payload'i to'liq katalogdan kambag'alroq: `shop_prices`
+    // KALITI umuman yo'q bo'lsa mavjud narx saqlanadi (ilgari mahsulot
+    // to'liq ustidan yozilib narxsiz qolar, skanerda topilmay qolardi).
+    // Kalit BOR-U natija 0 bo'lsa (server ataylab narxni olib
+    // tashlagan/0 qilgan) — bu hurmat qilinadi, eski narx saqlanib
+    // qolmaydi. Parser bilmaydigan/lokalda topilmagan boshqa maydonlar
+    // (ownerType, commissionTin, o'lchov birligi/QQS) mavjud yozuvdan
+    // saqlanadi.
+    await ItemsSingleton.putItems(
+      [item],
+      mergeWithExisting: true,
+      priceKeyPresent: data.containsKey('shop_prices'),
+    );
     return NotifyApply.applied;
   }
 
@@ -246,6 +253,7 @@ class ProductsWsService {
   static Future<bool> _import(BuildContext context) async {
     DateTime time = DateTime.now();
     List<ItemModel> allProducts = [];
+    final Set<String> skippedIds = <String>{};
     await TasnifService.setPackageCode();
 
     HttpResult httpResult = await OrdersService.getItems();
@@ -259,9 +267,11 @@ class ProductsWsService {
         if (decodedJson is List) {
           // Bitta buzuq yozuv butun 43 MB importni yiqitmasin — u
           // o'tkazib yuboriladi va log'ga yoziladi (parseCatalog).
-          List<ItemModel> i = (await ItemsSingleton.parseCatalog(decodedJson)).items;
-          i = ItemsSingleton.addPackageCodeAndMxikCode(
-            i,
+          final CatalogParseResult parsed =
+              await ItemsSingleton.parseCatalog(decodedJson);
+          skippedIds.addAll(parsed.skippedIds);
+          List<ItemModel> i = ItemsSingleton.addPackageCodeAndMxikCode(
+            parsed.items,
             Pref.getString(PrefKeys.mxikCode, ''),
             Pref.getString(PrefKeys.packageCode, ''),
           );
@@ -280,7 +290,10 @@ class ProductsWsService {
       // Faqat haqiqiy muvaffaqiyatda — ilgari yiqilgan yuklash ham
       // "oxirgi yangilanish" vaqtini surib qo'yardi.
       await Pref.setInt(PrefKeys.lastSyncTime, time.millisecondsSinceEpoch);
-      await ItemsSingleton.clearAndPutItems(allProducts);
+      // `skippedIds`: bu safar parse bo'lmagan mahsulotlar "serverda yo'q"
+      // deb o'chirilmaydi (parseCatalog dokumentatsiyasiga qarang).
+      await ItemsSingleton.clearAndPutItems(allProducts,
+          preserveIds: skippedIds);
       CategorySingleton.init();
       await ItemsSingleton.storeProducts();
       SchedulerBinding.instance.addPostFrameCallback((_) {
