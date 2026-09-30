@@ -22,7 +22,7 @@ class OrderListTop extends StatelessWidget {
       width: double.infinity,
       height: SizeConfig.v * 5.17,
       decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.background,
+          color: Colors.purple.shade400, // SHOREBIRD TEST — main ga merge qilinmaydi
           boxShadow: [
             BoxShadow(blurRadius: 4, color: Theme.of(context).highlightColor)
           ]),
