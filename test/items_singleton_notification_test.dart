@@ -13,7 +13,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:invan2/changes/dialogs/creat_product/model/mes_vat_unit_model/mes_unit.dart';
 import 'package:invan2/changes/models/product/item_model.dart';
+import 'package:invan2/changes/models/product/soliq_mxik_model.dart';
 import 'package:invan2/changes/services/api/api_provider.dart';
+import 'package:invan2/changes/services/get_items_service.dart';
 import 'package:invan2/changes/services/web_socket_service/product/model/product_price_edit_response.dart';
 import 'package:invan2/changes/services/web_socket_service/product/products_ws_service.dart';
 import 'package:invan2/features/get_categories/model/category.dart';
@@ -90,7 +92,9 @@ void main() {
     reg(VatAdapter().typeId, VatAdapter());
     reg(MesUnitModelAdapter().typeId, MesUnitModelAdapter());
     reg(VatUnitModelAdapter().typeId, VatUnitModelAdapter());
+    reg(SoliqMxikModelAdapter().typeId, SoliqMxikModelAdapter());
 
+    await Hive.openBox<SoliqMxikModel>(HiveBoxNames.markingProducts);
     await Hive.openBox<ItemModel>(HiveBoxNames.items);
     await Hive.openBox<MesUnitModel>(HiveBoxNames.mesUnit);
     await Hive.openBox<VatUnitModel>(HiveBoxNames.vatUnit);
@@ -292,12 +296,57 @@ void main() {
       expect(saved.measurementUnit?.id, 'u-1');
     });
 
-    test('isMarking saqlanishi buzilmagan', () async {
+    // `is_marking` — birinchi mezon: serverdan kelgan ANIQ qiymat har doim
+    // ustun, mavjud qiymat faqat payload'da bayroq bo'lmaganda (null)
+    // saqlanadi. Eski xulq (lokal true false'ni yutardi) tufayli adminkada
+    // markirovka o'chirilsa kassaga hech qachon yetmasdi (2026-09-30).
+    test('notification aniq false yuborsa false YOZILADI (true→false)',
+        () async {
       await ItemsSingleton.putItems([product('p1')..isMarking = true]);
 
+      // product() helper is_marking: false bilan yaratadi — adminka
+      // "markirovkali emas" degan holat.
       await ItemsSingleton.putItems([product('p1')], mergeWithExisting: true);
 
+      expect(HiveBoxes.getProducts().get('p1')!.isMarking, isFalse);
+    });
+
+    test('payload\'da is_marking BO\'LMASA (null) mavjud true saqlanadi',
+        () async {
+      await ItemsSingleton.putItems([product('p1')..isMarking = true]);
+
+      await ItemsSingleton.putItems([product('p1')..isMarking = null],
+          mergeWithExisting: true);
+
       expect(HiveBoxes.getProducts().get('p1')!.isMarking, isTrue);
+    });
+
+    test('payload\'da is_marking bo\'lmasa mavjud false ham saqlanadi',
+        () async {
+      await ItemsSingleton.putItems([product('p1')]); // isMarking: false
+
+      await ItemsSingleton.putItems([product('p1')..isMarking = null],
+          mergeWithExisting: true);
+
+      expect(HiveBoxes.getProducts().get('p1')!.isMarking, isFalse);
+    });
+
+    test('false→true (adminka markirovkani yoqdi) ham darrov qo\'llanadi',
+        () async {
+      await ItemsSingleton.putItems([product('p1')]); // isMarking: false
+
+      await ItemsSingleton.putItems([product('p1')..isMarking = true],
+          mergeWithExisting: true);
+
+      expect(HiveBoxes.getProducts().get('p1')!.isMarking, isTrue);
+    });
+
+    test('merge\'siz putItems ham aniq false\'ni yozadi', () async {
+      await ItemsSingleton.putItems([product('p1')..isMarking = true]);
+
+      await ItemsSingleton.putItems([product('p1')]); // isMarking: false
+
+      expect(HiveBoxes.getProducts().get('p1')!.isMarking, isFalse);
     });
   });
 
@@ -431,6 +480,52 @@ void main() {
       final cats = ProductsWsService.categoriesFromIds(['cat-1', 'cat-2']);
       expect(cats!.single.id, 'cat-1');
       expect(cats.single.name, 'Ichimliklar');
+    });
+  });
+
+  group('updateMarkingStatusFromSoliq — Soliq ro\'yxati va is_marking', () {
+    SoliqMxikModel soliq(String mxik) => SoliqMxikModel(
+          mxik: mxik,
+          mxikNameUz: '',
+          mxikNameRu: '',
+          mxikNameLat: '',
+          internationalCode: '',
+          usePackage: 0,
+          packages: const [],
+        );
+
+    // `product()` helper mxik/package bermaydi — putItems bo'sh maydonlarni
+    // org default bilan to'ldirmasligi uchun ikkalasi ham beriladi.
+    ItemModel withMxik(String id, String mxik, {bool? marking}) =>
+        product(id)
+          ..isMarking = marking
+          ..mxikCode = mxik
+          ..packageCode = '1';
+
+    test('faqat NULL bayroq to\'ldiriladi; adminka false\'i DAXLSIZ',
+        () async {
+      const inList = '02203001001000000';
+      await HiveBoxes.markingProductsBox().clear();
+      await HiveBoxes.markingProductsBox().put(inList, soliq(inList));
+
+      await ItemsSingleton.putItems([
+        withMxik('pNull', inList, marking: null),
+        withMxik('pFalse', inList, marking: false),
+        withMxik('pTrue', inList, marking: true),
+        withMxik('pOther', '01704001016000000', marking: null),
+      ]);
+
+      await OrdersService().updateMarkingStatusFromSoliq(fromLocal: true);
+
+      final box = HiveBoxes.getProducts();
+      // Bayroq kelmagan + MXIK ro'yxatda → avto-true (eski foydali xulq).
+      expect(box.get('pNull')!.isMarking, isTrue);
+      // Adminka aniq false degan — ro'yxatda bo'lsa ham TEGILMAYDI
+      // (ilgari true qilinar va markirovka qaytib kelardi).
+      expect(box.get('pFalse')!.isMarking, isFalse);
+      expect(box.get('pTrue')!.isMarking, isTrue);
+      // Ro'yxatda yo'q MXIK — o'zgarmaydi.
+      expect(box.get('pOther')!.isMarking, isNull);
     });
   });
 }
