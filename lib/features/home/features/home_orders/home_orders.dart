@@ -19,7 +19,7 @@ class _HomeOrdersState extends State<HomeOrders> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.background,
+        color: Colors.green.shade200, // SHOREBIRD TEST — main ga merge qilinmaydi
       ),
       child: Column(
         children: [

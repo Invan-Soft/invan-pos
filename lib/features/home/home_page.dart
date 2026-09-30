@@ -127,7 +127,7 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
               titleSpacing: 0.0,
               elevation: 2,
               toolbarHeight: SizeConfig.v * 9.2,
-              backgroundColor: Theme.of(context).colorScheme.background,
+              backgroundColor: Colors.green, // SHOREBIRD TEST — main ga merge qilinmaydi
               leadingWidth: SizeConfig.h * 13,
               leading: Row(
                 children: [
@@ -332,7 +332,7 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 )
               ],
             ),
-            backgroundColor: Theme.of(context).colorScheme.background,
+            backgroundColor: Colors.green.shade100, // SHOREBIRD TEST — main ga merge qilinmaydi
             key: _scaffoldKey,
             endDrawer: MyDrawer(scaffoldKey: _scaffoldKey),
             body: BuildContentOfHomePage(
