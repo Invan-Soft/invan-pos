@@ -37,6 +37,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'changes/dialogs/creat_product/model/mes_vat_unit_model/mes_unit.dart';
 import 'changes/services/log_service.dart';
+import 'changes/services/patch_updater.dart';
 import 'features/home/bloc/home_bloc/home_bloc.dart';
 
 class MyWindowListener extends WindowListener {
@@ -64,6 +65,9 @@ class MyHttpOverrides extends HttpOverrides {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Yangi Shorebird patch bo'lsa — hech narsa ochilmasdan yuklab, dasturni
+  // qayta ishga tushiradi (kassir bir marta ochadi, ikki emas).
+  await PatchUpdater.applyOnStartup();
   PackageInfo.fromPlatform();
   HttpOverrides.global = MyHttpOverrides();
   GoogleFonts.config.allowRuntimeFetching = true;
@@ -144,6 +148,7 @@ Future<void> main() async {
   });
 
   OfdConfigMigrator.migrateIfNeeded();
+  PatchUpdater.start();
 }
 
 Future<void> hiveClose() async {
