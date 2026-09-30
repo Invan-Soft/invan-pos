@@ -1,0 +1,51 @@
+name: Shorebird Patch Windows
+
+# Yangi .exe chiqarmasdan o'rnatilgan kassalarga Dart kod o'zgarishini
+# yuboradi. Faqat `shorebird release windows` bilan chiqqan versiyaga
+# tushadi (release.yml). Native o'zgarish (windows/runner, native plugin,
+# Flutter versiyasi) bo'lsa — patch emas, yangi reliz kerak.
+#
+# Kassa patch'ni fonda yuklaydi va KEYINGI ishga tushirishda qo'llaydi.
+# Avval track=staging bilan 1-2 kassada sinang, keyin stable.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Patch qilinadigan reliz (pubspec version, masalan 1.0.2+3) yoki latest'
+        required: true
+        default: 'latest'
+      track:
+        description: 'Kanal'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - beta
+          - stable
+
+jobs:
+  patch-windows:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+        with:
+          cache: true
+
+      # Flutter versiyasi reliz qilingani bilan bir xil bo'lishi SHART.
+      - name: Shorebird patch (Windows)
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          shorebird patch windows `
+            --release-version="${{ inputs.release_version }}" `
+            --track=${{ inputs.track }} `
+            --dart-define=TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}" `
+            --dart-define=TELEGRAM_CHANNEL_ID="${{ secrets.TELEGRAM_CHANNEL_ID }}" `
+            --dart-define=FISCAL_API_TOKEN="${{ secrets.FISCAL_API_TOKEN }}"

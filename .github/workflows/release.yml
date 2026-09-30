@@ -24,22 +24,21 @@ jobs:
           $line = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$').Matches.Groups[1].Value.Trim()
           echo "full=$line" >> $env:GITHUB_OUTPUT
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      # Shorebird o'z Flutter'i bilan build qiladi — versiya shu yerda qotiriladi.
+      # Patch'lar ham aynan shu Flutter bilan yasaladi (patch.yml).
+      - name: Setup Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
         with:
-          channel: stable
-          flutter-version: '3.41.3'
           cache: true
 
-      - name: Flutter info
-        run: flutter --version
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build Windows release
+      # `flutter build windows` o'rniga: shu build Shorebird'da reliz sifatida
+      # ro'yxatga olinadi va keyin `shorebird patch windows` bilan yangilanadi.
+      # Chiqish papkasi o'sha: build\windows\x64\runner\Release (installer.iss).
+      - name: Shorebird release (Windows)
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
-          flutter build windows --release `
+          shorebird release windows --flutter-version=3.41.3 `
             --dart-define=TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}" `
             --dart-define=TELEGRAM_CHANNEL_ID="${{ secrets.TELEGRAM_CHANNEL_ID }}" `
             --dart-define=FISCAL_API_TOKEN="${{ secrets.FISCAL_API_TOKEN }}"
