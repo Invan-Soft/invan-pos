@@ -26,6 +26,11 @@ jobs:
 
       # Shorebird o'z Flutter'i bilan build qiladi — versiya shu yerda qotiriladi.
       # Patch'lar ham aynan shu Flutter bilan yasaladi (patch.yml).
+      # Shorebird Flutter checkout'ida yo'llar 260 belgidan uzun —
+      # Windows'da ruxsatsiz "Filename too long" bilan yiqiladi.
+      - name: Enable git long paths
+        run: git config --system core.longpaths true
+
       - name: Setup Shorebird
         uses: shorebirdtech/setup-shorebird@v1
         with:
