@@ -245,9 +245,10 @@ class ReceiptSingleton4 {
 
     final paynetId = Pref.getString(PrefKeys.paynetId, "");
 
-    // To'lov tasnifi (naqd / karta / cashback / Click-Payme-Uzum) qog'oz chek
+    // To'lov tasnifi (naqd / karta / cashback / QR-Uzum) qog'oz chek
     // QQS'i bilan BIR XIL qoidadan: lib/changes/domain/receipt/receipt_vat.dart
-    // (vozvratda hammasi naqd; sotuvda nom/ID bo'yicha; noma'lum → karta).
+    // (vozvratda hammasi naqd; sotuvda nom/ID bo'yicha; noma'lum → karta;
+    // Click Pass / Payme Go → karta, Click/Payme QR va Uzum → Other).
     final FiscalPaymentSplit split = FiscalPaymentSplit.of(receipt);
     // Tiyinda, butun songa yaxlitlab — float changi FiscalReceiptModel'dagi
     // `.toInt()` kesishida 1 tiyin yo'qotmasin.
@@ -365,9 +366,15 @@ class ReceiptSingleton4 {
         if (!receipt.isRefund) ...{'paycheckNumber': receipt.externalId},
         "receivedCash": receivedCashValue,
         "receivedCard": receivedCardValue,
-        "receivedClick": receipt.hasClick,
-        "receivedUzum": receipt.hasUzum,
-        "receivedPayme": receipt.hasPayme,
+        // Fiskal chek URL'ini provayderga qaytarish bayroqlari — faqat
+        // Pass/Go. `receipt.hasClick/...` QR'da ham true (serverga shunday
+        // ketadi), QR'da esa provayder to'lov ID'si yo'q.
+        "receivedClick": FiscalPaymentSplit.hasPass(
+            receipt, Pref.getString(PrefKeys.clickId, "")),
+        "receivedUzum": FiscalPaymentSplit.hasPass(
+            receipt, Pref.getString(PrefKeys.uzumId, "")),
+        "receivedPayme": FiscalPaymentSplit.hasPass(
+            receipt, Pref.getString(PrefKeys.paymeId, "")),
         "receivedPaynet": receivedPaynet,
         "receivedDept": receipt.hasDept,
         "externalInfo": {

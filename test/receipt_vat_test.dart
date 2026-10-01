@@ -8,8 +8,9 @@
 //   2) chek jami QQS'i fiskal ΣVAT bilan (qator boshiga ≤ 1 so'm yaxlitlash)
 //      mos — cashback, chegirma, ko'p qator, QQS 0%, vozvrat;
 //   3) qator QQS'i aniq raqamlarda; blok/dona bo'linganda yig'indi saqlanadi.
-// Click/Payme/Uzum: fiskalda hozircha Other (VAT 0), chekda ayrilmaydi —
-// ataylab, alohida masala (§6.1). Bu farq ham testda qayd etilgan.
+// Click Pass / Payme Go: fiskalda ReceivedCard (QQS to'liq), chek bilan mos.
+// Click QR / Payme QR / Uzum: fiskalda Other (VAT 0), chekda ayrilmaydi —
+// ataylab (§6.1). Bu farq ham testda qayd etilgan.
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -58,9 +59,14 @@ ReceiptModelPaymentType4 pay(String name, String payId, double v) =>
 ReceiptModelPaymentType4 cash(double v) => pay('CASH', kCashId, v);
 ReceiptModelPaymentType4 card(double v) => pay('CARD', kCardId, v);
 ReceiptModelPaymentType4 cashback(double v) => pay('Cashback', kCashbackId, v);
-ReceiptModelPaymentType4 click(double v) => pay('Click', kClickId, v);
-ReceiptModelPaymentType4 payme(double v) => pay('Payme', kPaymeId, v);
-ReceiptModelPaymentType4 uzum(double v) => pay('Uzum', kUzumId, v);
+// Nomlar/IDlar `ReceiptPayments.build` natijasidagidek: Pass/Go — '@' siz,
+// QR (`type: 1`) — '@id'.
+ReceiptModelPaymentType4 clickPass(double v) => pay('CLICK PASS', kClickId, v);
+ReceiptModelPaymentType4 clickQr(double v) => pay('CLICK QR', '@$kClickId', v);
+ReceiptModelPaymentType4 paymeGo(double v) => pay('PAYME GO', kPaymeId, v);
+ReceiptModelPaymentType4 paymeQr(double v) => pay('PAYME QR', '@$kPaymeId', v);
+ReceiptModelPaymentType4 uzum(double v) => pay('UZUM', kUzumId, v);
+ReceiptModelPaymentType4 uzumQr(double v) => pay('UZUM QR', '@$kUzumId', v);
 
 ReceiptModel4 receiptWith(
   List<ReceiptModelSoldItem4> rows, {
@@ -219,12 +225,33 @@ void main() {
       expectSplitMatchesWire(r);
     });
 
-    test('Click / Payme / Uzum: ID + nom mos bo\'lsa epay', () {
-      for (final p in [click(50000), payme(50000), uzum(50000)]) {
+    test('Click QR / Payme QR / Uzum (Pass ham, QR ham) → epay (Other)', () {
+      for (final p in [clickQr(50000), paymeQr(50000), uzum(50000), uzumQr(50000)]) {
         final r = receiptWith([row(realPrice: 50000)], payments: [p]);
-        expect(FiscalPaymentSplit.of(r).epay, 50000, reason: p.name);
+        final s = FiscalPaymentSplit.of(r);
+        expect(s.epay, 50000, reason: p.name);
+        expect(s.card, 0, reason: p.name);
         expectSplitMatchesWire(r);
       }
+    });
+
+    test('Click Pass / Payme Go → karta (ReceivedCard), Other 0', () {
+      for (final p in [clickPass(50000), paymeGo(50000)]) {
+        final r = receiptWith([row(realPrice: 50000)], payments: [p]);
+        final s = FiscalPaymentSplit.of(r);
+        expect(s.card, 50000, reason: p.name);
+        expect(s.epay, 0, reason: p.name);
+        final w = wireOf(r);
+        expect(receiptPart(w)['ReceivedCard'], 5000000, reason: p.name);
+        expect(sumOf(w, 'Other'), 0, reason: p.name);
+        expectSplitMatchesWire(r);
+      }
+    });
+
+    test('QR: serverdan qaytgan chekda \'@\' yo\'q, lekin nomi QR → epay', () {
+      final r = receiptWith([row(realPrice: 50000)],
+          payments: [pay('CLICK QR', kClickId, 50000)]);
+      expect(FiscalPaymentSplit.of(r).epay, 50000);
     });
 
     test('Click ID bor, lekin nomi mos emas → karta (fallback)', () {
@@ -239,16 +266,28 @@ void main() {
       expectSplitMatchesWire(r);
     });
 
-    test('aralash: naqd + karta + cashback + click', () {
+    test('aralash: naqd + karta + cashback + click QR', () {
       final r = receiptWith(
         [row(realPrice: 100000)],
-        payments: [cash(40000), card(30000), cashback(20000), click(10000)],
+        payments: [cash(40000), card(30000), cashback(20000), clickQr(10000)],
       );
       final s = FiscalPaymentSplit.of(r);
       expect(s.cash, 40000);
       expect(s.card, 30000);
       expect(s.cashback, 20000);
       expect(s.epay, 10000);
+      expectSplitMatchesWire(r);
+    });
+
+    test('aralash: naqd + Click Pass + Payme QR', () {
+      final r = receiptWith(
+        [row(realPrice: 100000)],
+        payments: [cash(40000), clickPass(35000), paymeQr(25000)],
+      );
+      final s = FiscalPaymentSplit.of(r);
+      expect(s.cash, 40000);
+      expect(s.card, 35000);
+      expect(s.epay, 25000);
       expectSplitMatchesWire(r);
     });
 
@@ -342,13 +381,50 @@ void main() {
       expectPaperMatchesFiscal(r);
     });
 
-    test('QAYD: Click bilan to\'langanda chekda QQS to\'liq, fiskalda 0 (hozircha)', () {
-      // Fiskal Click'ni Other'ga yozadi (§6.1 — alohida masala, tegilmadi).
-      // Chek uni ayirmaydi: rasmiy talab bo'yicha Click = karta, QQS to'liq.
-      final r = receiptWith([row(realPrice: 50000)], payments: [click(50000)]);
+    test('Click Pass / Payme Go: chek va fiskal QQS to\'liq, mos', () {
+      for (final p in [clickPass(50000), paymeGo(50000)]) {
+        final r = receiptWith([row(realPrice: 50000)], payments: [p]);
+        expect(ReceiptVat.total(r), closeTo(5357.14, 0.01), reason: p.name);
+        expect(sumOf(wireOf(r), 'VAT'), closeTo(535714, 1), reason: p.name);
+        expectPaperMatchesFiscal(r);
+      }
+    });
+
+    test('QAYD: Click QR bilan to\'langanda chekda QQS to\'liq, fiskalda 0', () {
+      // Fiskal QR'ni Other'ga yozadi (§6.1 — ataylab o'zgartirilmagan).
+      final r = receiptWith([row(realPrice: 50000)], payments: [clickQr(50000)]);
       expect(ReceiptVat.paperOtherTotal(r), 0);
       expect(ReceiptVat.total(r), closeTo(5357.14, 0.01));
       expect(sumOf(wireOf(r), 'VAT'), 0);
+    });
+  });
+
+  group('receivedClick/Payme/Uzum — provayderga fiskal URL faqat Pass/Go da', () {
+    Map<String, dynamic> paramsOf(ReceiptModel4 r) =>
+        ReceiptSingleton4.saleOnOFD(r)['params'] as Map<String, dynamic>;
+
+    test('Pass/Go → true', () {
+      expect(paramsOf(receiptWith([row(realPrice: 50000)],
+          payments: [clickPass(50000)]))['receivedClick'], true);
+      expect(paramsOf(receiptWith([row(realPrice: 50000)],
+          payments: [paymeGo(50000)]))['receivedPayme'], true);
+      expect(paramsOf(receiptWith([row(realPrice: 50000)],
+          payments: [uzum(50000)]))['receivedUzum'], true);
+    });
+
+    test('QR → false (ilgari true edi va eski payment ID bilan yuborilardi)', () {
+      final p = paramsOf(receiptWith([row(realPrice: 90000)],
+          payments: [clickQr(30000), paymeQr(30000), uzumQr(30000)]));
+      expect(p['receivedClick'], false);
+      expect(p['receivedPayme'], false);
+      expect(p['receivedUzum'], false);
+    });
+
+    test('naqd → hammasi false', () {
+      final p = paramsOf(receiptWith([row(realPrice: 50000)]));
+      expect(p['receivedClick'], false);
+      expect(p['receivedPayme'], false);
+      expect(p['receivedUzum'], false);
     });
   });
 
