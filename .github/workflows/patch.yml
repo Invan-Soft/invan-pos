@@ -5,8 +5,10 @@ name: Shorebird Patch Windows
 # tushadi (release.yml). Native o'zgarish (windows/runner, native plugin,
 # Flutter versiyasi) bo'lsa — patch emas, yangi reliz kerak.
 #
-# Kassa patch'ni fonda yuklaydi va KEYINGI ishga tushirishda qo'llaydi.
-# Avval track=staging bilan 1-2 kassada sinang, keyin stable.
+# Kassa patch'ni ochilishda (bir martada) yoki ish vaqtida fonda yuklaydi
+# (PatchUpdater). Kassalar FAQAT stable kanalni o'qiydi — staging/beta
+# patch'i kassaga tushmaydi, uni faqat `shorebird preview --track staging`
+# bilan Windows kompyuterda sinash mumkin.
 
 on:
   workflow_dispatch:
@@ -18,7 +20,7 @@ on:
       track:
         description: 'Kanal'
         required: true
-        default: 'staging'
+        default: 'stable'
         type: choice
         options:
           - staging

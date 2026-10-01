@@ -27,6 +27,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart';
 import 'package:invan2/changes/services/health/backend_health.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 
@@ -45,13 +46,24 @@ class PatchUpdater {
 
   static Timer? _timer;
   static bool _busy = false;
+  static bool _restarting = false;
+
+  /// Qayta ishga tushirilgan jarayonga beriladi — u startup tekshiruvini
+  /// takrorlamaydi (patch "kutilmoqda" bo'lib qolsa cheksiz qayta yonish va
+  /// har safar 8 s yashirin oyna bo'lmasin).
+  static const String _relaunchedEnv = 'INVAN_PATCH_RELAUNCHED';
 
   /// main() boshida chaqiriladi. Patch tayyor bo'lsa QAYTMAYDI (jarayon
   /// yangisi bilan almashadi).
   static Future<void> applyOnStartup() async {
     if (!_updater.isAvailable) return;
+    if (Platform.environment[_relaunchedEnv] == '1') return;
+    _busy = true;
+    // Timeout tsiklni to'xtatmaydi — u tugaguncha fon tekshiruvi boshlanmaydi.
+    final Future<bool> download = _downloadIfAny()
+      ..whenComplete(() => _busy = false).ignore();
     try {
-      final bool ready = await _downloadIfAny().timeout(_startupBudget);
+      final bool ready = await download.timeout(_startupBudget);
       if (ready) await _relaunch();
     } catch (_) {
       // Tarmoq/vaqt xatosi — dastur odatdagidek ochiladi, fon tekshiruvi
@@ -75,6 +87,10 @@ class PatchUpdater {
   /// Kassir tugmani bosganda (savat bo'sh bo'lishi kerak — chaqiruvchi
   /// tekshiradi). Oyna yopilgandagi kabi holat saqlanadi, keyin qayta yonadi.
   static Future<void> restartNow() async {
+    // Ikki marta bosilsa ikkita POS jarayoni bitta bazani ochmasin.
+    if (_restarting) return;
+    _restarting = true;
+    readyToRestart.value = false; // tugma darhol yo'qoladi
     try {
       await Pref.setString(PrefKeys.appClosedTime,
           DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()));
@@ -82,6 +98,17 @@ class PatchUpdater {
       await Hive.close();
     } catch (_) {
       // Saqlash xatosi qayta ishga tushirishni to'xtatmasin.
+    }
+    // Cheklar bazasi (ObjectBox) yangi jarayon ochishidan OLDIN yopiladi.
+    for (final void Function() close in <void Function()>[
+      () => MyObjectbox.saleStore.close(),
+      () => MyObjectbox.storee.close(),
+    ]) {
+      try {
+        close();
+      } catch (_) {
+        // Ochilmagan (late) yoki allaqachon yopilgan — e'tiborsiz.
+      }
     }
     await _relaunch();
   }
@@ -128,6 +155,7 @@ class PatchUpdater {
       const <String>[],
       mode: ProcessStartMode.detached,
       workingDirectory: File(Platform.resolvedExecutable).parent.path,
+      environment: const <String, String>{_relaunchedEnv: '1'},
     );
     exit(0);
   }
