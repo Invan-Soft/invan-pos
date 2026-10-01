@@ -76,7 +76,6 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
   }
 
-  bool deleteTicketAccess = Pref.getDeleteItem('delete_ticket');
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +241,13 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         bool result = Provider.of<OrderingProvider4>(
                           context,
                           listen: false,
-                        ).cancelOrdering(deleteTicketAccess);
+                        )
+                        // Faqat joriy kassirning JONLI deleteS huquqi
+                        // (cancelOrdering ichida). `delete_ticket` prefi
+                        // ishlatilmaydi: uni har qanday PIN (masalan rahbar
+                        // chek tarixiga kirganda) yozadi va keyin ruxsatsiz
+                        // kassir dialogsiz savatni tozalay olardi.
+                        .cancelOrdering(false);
                         if (!result) {
                           blBlocc.add(
                             BlStatusChangedEvent(

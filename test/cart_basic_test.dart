@@ -9,6 +9,8 @@
 // kontekstsiz metodlar chaqiriladi.
 // MUHIM: "to'g'rimi?" emas, "hozir nima bo'lyapti?" yoziladi.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/features/get_employees/model/employees_find_response.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 
@@ -114,16 +116,40 @@ void main() {
       expect(p.getLastAddedIndex, -1);
     });
 
-    test('ruxsatsiz va xodimda deleteS huquqi yo\'q: savat baribir tozalanadi',
-        () {
+    test('ruxsatsiz va xodimda deleteS huquqi yo\'q: savatga TEGILMAYDI', () {
+      // 2026-09-30 fix: avval bu holatda savat dialogsiz tozalanardi
+      // (mantiq teskari edi). Endi false qaytadi — chaqiruvchi
+      // NoAccessDialog ko'rsatadi.
       final p = freshProvider();
       p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'a'));
 
       // Test xodimida access = null, ya'ni deleteS = false
       final result = p.cancelOrdering(false);
 
-      expect(result, isTrue);
-      expect(p.getCurrentClient.orderedProducts, isEmpty);
+      expect(result, isFalse);
+      expect(p.getCurrentClient.orderedProducts.length, 1);
+    });
+
+    test('ruxsat parametrsiz, lekin xodimda deleteS bor: savat tozalanadi',
+        () async {
+      // getCurrentEmployee bir xil id'li yozuvlardan OXIRGISINI oladi —
+      // deleteS'li xodimni vaqtincha qo'shib, testdan keyin o'chiramiz.
+      final box = HiveBoxes.getEmployees();
+      final key = await box.add(Employee(
+        user: EmployeeUser(id: kCashierId, firstName: kCashierName),
+        access: EmployeeAccess(deleteS: true),
+      ));
+      try {
+        final p = freshProvider();
+        p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'a'));
+
+        final result = p.cancelOrdering(false);
+
+        expect(result, isTrue);
+        expect(p.getCurrentClient.orderedProducts, isEmpty);
+      } finally {
+        await box.delete(key);
+      }
     });
   });
 
