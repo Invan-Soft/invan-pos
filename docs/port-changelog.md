@@ -11071,7 +11071,7 @@ InVan 1 da `product()` helper (isMarking: false bilan ItemModel yasaydi), `setUp
 ## 8. Eslatmalar va ochiq savollar
 
 - Foydalanuvchi kuzatuvi "batch (bir nechta notification) kelsa qo'llanmayapti, bittasi kelsa qo'llanyapti" — **tasodif**: qo'llash har notification uchun alohida, batch hajmining ahamiyati yo'q. Farq lokal qiymatda edi (qayta urinish paytida kassa oradagi to'liq yuklashdan false olib bo'lgan).
-- "False ishlab turib keyin yana so'rab qoldi" — `switchMarking` pref'i true qolgan kassada Servis qo'lda yangilash `updateMarkingStatusFromSoliq`ni chaqirib false'ni true qilgan (2-diff buni yopadi). Bu pref'ning UI tugmasi kommentda, lekin eski qiymat saqlanib qolgan bo'lishi mumkin.
+- "False ishlab turib keyin yana so'rab qoldi" — sababi kod bo'yicha ISBOTLANMAGAN. `updateMarkingStatusFromSoliq` (2-diff) — haqiqiy yashirin xato va yopildi, lekin bu hodisaga aloqasi ehtimoldan uzoq: uning Soliq ro'yxati faqat hozir kommentdagi sozlama tugmasi orqali to'ldiriladi, hodisadagi mahsulot esa bo'sh `mxik_code` bilan kelgan. Qolgan nomzodlar server/ma'lumot tomonida (keyingi `is_marking: true` notification, to'liq katalogdagi qiymat, dublikat barcode'li kartochka) — do'kon sinovida aniqlanadi.
 - Bo'sh `mxik_code` kelganda org default MXIK bilan to'ldirish (`addPackageCodeAndMxikCode`) ATAYLAB o'zgartirilmadi: to'liq yuklash ham xuddi shunday qiladi — ikkala yo'l izchil.
 
 ---

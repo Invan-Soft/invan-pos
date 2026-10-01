@@ -357,6 +357,7 @@ Foydalanuvchi *"task tugadi"* / *"yakunlandi"* / *"arxivla"* desa yoki task haqi
    ## Oqibatlar
    ```
 6. Foydalanuvchiga ayt: *"Task arxivlandi va INDEX yangilandi. Muhim qarorlar ADR sifatida saqlandi (agar bo'lsa)."*
+7. **`docs/port-changelog.md` ga taskning port bo'limini qo'sh** (qarang: quyidagi "PORT HUJJATI" bo'limi). Bo'lim allaqachon qo'shilgan bo'lsa — jadvaldagi holat/reliz ustunini yangila.
 
 ### Arxivdan task qidirish (foydalanuvchi tabiiy tilda tasvirlasa)
 
@@ -409,3 +410,26 @@ shunda:
 | Arxivdagi bug | YANGI bug-fix hujjati och, eskisi tegilmaydi |
 
 Qoida: **Arxiv = read-only. Yozish faqat yangi faylga.**
+
+---
+
+## PORT HUJJATI — `docs/port-changelog.md` (boshqa nusxa / ERP integratsiyasi uchun)
+
+Bu loyihaning ikkinchi nusxasi bor (boshqa ERP bilan integratsiya qilinayotgan nusxa — "InVan 1"). U InVan 2 dagi o'zgarishlarni **faqat shu bitta fayl** orqali oladi: foydalanuvchi faylni o'sha loyihaga tashlaydi va u yerdagi Claude shu fayl asosida kodni bir xil holatga keltiradi. O'quvchida InVan 2 repo'si YO'Q deb hisoblanadi.
+
+**Qoida (majburiy):** 2026-09-10 (BHM naqd chegarasi taski) dan boshlab har bir task `docs/port-changelog.md` ga bo'lim sifatida yoziladi. Bu task yakunlash tartibining 7-qadami.
+
+**Qachon yoziladi:**
+- Task **commit qilinganda** (reliz'dan oldin ham) — to'liq bo'lim, holat: "commit bor, relizda emas".
+- **Reliz** chiqqanda (`/release`) — `## Tasklar ro'yxati` jadvalidagi "InVan 2 reliz" ustuni va commit xronologiyasi yangilanadi.
+- Commit qilinmagan **WIP** ishlar — faqat qisqa bo'lim: `**WIP**` belgisi, "PORT QILINMASIN", tahlil/qarorlar, kodsiz yoki "snapshot" deb belgilangan kod. Commit bo'lgach to'liq bo'limga aylantiriladi.
+
+**Bo'lim tarkibi** (shablon hujjat oxirida, "Hujjatni yangilash qoidasi"): nima va nima uchun; qanday ishlaydi; o'zgarishlar ro'yxati (fayl | tur | nima); bog'liqliklar (InVan 1 da bo'lmasligi mumkin bo'lgan sinflar + minimal variant); qo'llash tartibi; kod (yangi fayl TO'LIQ, o'zgargan fayl DIFF — `git show <commit> -- lib/ test/`; testlar `<details>` ichida); tekshirish; ochiq savollar. Boshqa fayllarga havola faqat qo'shimcha ma'lumot uchun — havolaning o'zi kod o'rnini bosmaydi.
+
+**Yozilmaydi:** pubspec versiya bump, `api_provider.dart` DEV/PRO almashinuvi, faqat `docs/` o'zgargan commitlar (ular "Kod o'zgarishisiz hujjatlar" jadvalida bir qator).
+
+**Per-task port hujjatlari** (`docs/*-port.md`) ixtiyoriy; yozilsa mazmuni `port-changelog.md` ga ham to'liq kiritiladi (faqat havola yetarli emas).
+
+**Sessiya boshida:** `docs/port-changelog.md` dagi WIP bo'limlar (6-task va keyingilar) uchun tegishli commit paydo bo'lgan bo'lsa — bo'limni to'liq bo'limga aylantirishni taklif qil.
+
+**Odoo forki (`../odoo-pos-invan-2`):** shu kod bazasidan Odoo ERP bilan ishlaydigan fork. U InVan 2 o'zgarishlarini o'zidagi `/port-invan` buyrug'i bilan (shu repo'ning git tarixi + `port-changelog.md` dan) oladi — bu yerda Odoo kodiga TEGILMAYDI. Shu loyihada har task yakunlanganda (`port-changelog` bo'limi bilan birga) bitta qaror yoz: **"Odoo forkiga: kerak"** (bug fix, savat/diskont/fiskal/markirovka/UI mantig'i) yoki **"Odoo forkiga: kerak emas — <sabab>"** (faqat InVan backend'i: `api.7i.uz` endpoint, WS/notification formati, `upload/build`). Commit xabarida yoki bo'limning "Eslatmalar" qismida — Odoo tomonda Claude shunga qarab saralaydi.
