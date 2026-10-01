@@ -11,10 +11,11 @@
 // Ulush fiskal `_countOtherOFD` bilan aynan bir xil taqsimlanadi (chegirmali
 // qator summasining chek jamisidagi nisbati, so'mga yaxlitlab).
 //
-// Click / Payme / Uzum: fiskalda hozircha `Other` (QQS 0) — bu alohida
-// masala (docs/fiskal-tolov-turlari-va-qqs.md §6.1, rasmiy talab: karta
-// to'lovi, QQS to'liq). Qog'oz chekda ular ayrilMAYDI — fiskal tuzatilganda
-// ikkisi o'z-o'zidan mos keladi.
+// Click Pass / Payme Go (2026-09-30): ilova integratsiyasi orqali olingan
+// haqiqiy beznal pul → fiskal `ReceivedCard`, QQS to'liq (rasmiy talab,
+// docs/fiskal-tolov-turlari-va-qqs.md §2.2). Qog'oz chek bilan mos.
+// Click QR / Payme QR (qo'lda belgilanadigan, `@id`) va Uzum (Pass ham, QR
+// ham) — o'zgarishsiz `Other` (QQS 0). Qog'oz chekda ular ayrilMAYDI.
 //
 // Testlar: test/receipt_vat_test.dart
 
@@ -35,7 +36,8 @@ class FiscalPaymentSplit {
   /// Do'kon bonusi (cashback) — xaridordan olinmagan pul → fiskal `Other`.
   final double cashback;
 
-  /// Click / Payme / Uzum — hozircha fiskal `Other` (yuqoridagi izoh).
+  /// Click QR / Payme QR / Uzum — fiskal `Other` (yuqoridagi izoh).
+  /// Click Pass / Payme Go bu yerga emas, [card] ga tushadi.
   final double epay;
 
   const FiscalPaymentSplit({
@@ -45,9 +47,24 @@ class FiscalPaymentSplit {
     required this.epay,
   });
 
-  /// `saleOnOFD` dagi qoida (o'zgartirilmagan, shu yerga ko'chirildi):
-  /// vozvratda hammasi naqd; sotuvda avval nom, keyin adminka ID bo'yicha;
-  /// hech qaysiga tushmasa — karta.
+  /// QR varianti: to'lov ekranida qo'lda belgilangan (`type: 1` → payId
+  /// '@id', nomi 'CLICK QR' / 'PAYME QR' / 'UZUM QR'). Serverdan qaytgan
+  /// chekda '@' olib tashlangan bo'lishi mumkin — shuning uchun nom ham.
+  static bool isQr(ReceiptModelPaymentType4 p) =>
+      p.payId.trim().startsWith('@') || p.name.toUpperCase().contains('QR');
+
+  /// Chekda [providerId] ning Pass/Go (integratsiya orqali) to'lovi bormi.
+  /// Fiskal chek URL'i provayderga (Click/Payme/Uzum) faqat shunda qaytariladi:
+  /// QR variantida provayder to'lov ID'si yo'q (yoki oldingi to'lovdan qolgan).
+  static bool hasPass(ReceiptModel4 receipt, String providerId) {
+    if (providerId.isEmpty) return false;
+    return receipt.payment.any(
+      (p) => p.payId.replaceFirst('@', '').trim() == providerId && !isQr(p),
+    );
+  }
+
+  /// `saleOnOFD` dagi qoida: vozvratda hammasi naqd; sotuvda avval nom,
+  /// keyin adminka ID bo'yicha; hech qaysiga tushmasa — karta.
   static FiscalPaymentSplit of(ReceiptModel4 receipt) {
     double cash = 0, card = 0, cashback = 0, epay = 0;
 
@@ -80,8 +97,14 @@ class FiscalPaymentSplit {
       } else if (id == cashbackId) {
         cashback += p.value;
       } else if ((id == clickId && nameUpper.contains('CLICK')) ||
-          (id == paymeId && nameUpper.contains('PAYME')) ||
-          (id == uzumId && nameUpper.contains('UZUM'))) {
+          (id == paymeId && nameUpper.contains('PAYME'))) {
+        // Pass / Go — beznal (karta), QR — Other
+        if (isQr(p)) {
+          epay += p.value;
+        } else {
+          card += p.value;
+        }
+      } else if (id == uzumId && nameUpper.contains('UZUM')) {
         epay += p.value;
       } else {
         // Boshqa barcha holatlar (xavfsizlik uchun) → CARD

@@ -299,8 +299,12 @@ class OrdersService {
         final mxik = (p.mxikCode ?? '').trim();
         if (mxik.isEmpty) continue;
 
-        final bool currentMarking = p.isMarking ?? false;
-        if (markingMxikSet.contains(mxik) && !currentMarking) {
+        // `is_marking` — birinchi mezon (2026-09-11 qarori): adminka aniq
+        // FALSE degan mahsulot MXIK Soliq ro'yxatida bo'lsa ham markirovkali
+        // qilinMAYDI. Avto-true faqat bayroq umuman kelmagan (null)
+        // mahsulotlarga. Ilgari false ham true qilinardi — adminkada
+        // o'chirilgan markirovka keyingi qo'lda yangilashda qaytib kelardi.
+        if (markingMxikSet.contains(mxik) && p.isMarking == null) {
           updates[p.key] = p.copyWith(isMarking: true);
         }
       }

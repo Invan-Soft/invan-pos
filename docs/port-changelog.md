@@ -12,8 +12,8 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 
 ## Boshqa nusxada (InVan 1) Claude uchun ko'rsatma
 
-1. Avval shu hujjatni boshidan oxirigacha o'qing. Tasklar tartibda qo'llanadi: 1 → 2 → 3 → 4 → 5 → 6. 3-task 1-2 ga bog'liq emas; 4-task 3-taskdagi vozvrat oqimiga tegishli (lekin undan mustaqil qo'llasa ham bo'ladi); 5-task fiskal item quruvchiga tegishli, 2-task bilan bir faylda (`receipt_singleton_4.dart`); 6-task boshqalardan MUSTAQIL (notification/sinxron qatlami) — istalgan tartibda, hatto birinchi bo'lib qo'llash mumkin, lekin o'zining ICHIDA 2026-08-12 taskiga (undan TASHQARIDA) bog'liq — 6-taskning "4. Bog'liqliklar" bo'limiga qarang.
-2. Barcha 6 ta task commit qilingan va 1.1.2+127 relizida PRO backendga yuklangan (2026-09-24) — hech biri WIP emas. Hech biri do'konda haqiqiy tarmoq/fiskal modul bilan sinalmagan (pastda har taskning "Holat"iga qarang) — port qilsa bo'ladi, lekin bu bilib qo'llanadi.
+1. Avval shu hujjatni boshidan oxirigacha o'qing. Tasklar tartibda qo'llanadi: 1 → 2 → 3 → 4 → 5 → 6 → 7. 3-task 1-2 ga bog'liq emas; 4-task 3-taskdagi vozvrat oqimiga tegishli (lekin undan mustaqil qo'llasa ham bo'ladi); 5-task fiskal item quruvchiga tegishli, 2-task bilan bir faylda (`receipt_singleton_4.dart`); 6-task boshqalardan MUSTAQIL (notification/sinxron qatlami) — istalgan tartibda, hatto birinchi bo'lib qo'llash mumkin, lekin o'zining ICHIDA 2026-08-12 taskiga (undan TASHQARIDA) bog'liq — 6-taskning "4. Bog'liqliklar" bo'limiga qarang. 7-task 6-taskdan keyin qo'llanadi (o'sha qatlam; 2-task qoidasining yozish tomoni).
+2. 1–6-tasklar commit qilingan va 1.1.2+127 relizida PRO backendga yuklangan (2026-09-24) — hech biri WIP emas. 7-task (2026-09-30) commit qilingan (`a83668c`, branch `fix/is-marking-false-sinxron`), lekin hali relizda EMAS. Hech biri do'konda haqiqiy tarmoq/fiskal modul bilan sinalmagan (pastda har taskning "Holat"iga qarang) — port qilsa bo'ladi, lekin bu bilib qo'llanadi. 7-task 6-taskning davomi: 6-task oxiridagi "Ataylab tuzatilmagan" ro'yxatidagi `isMarking` bandi 7-taskda bekor qilinadi.
 3. Har taskning "Qo'llash tartibi" bo'limida InVan 1 da nimani qidirish kerakligi yozilgan. InVan 1 da InVan 2 dagi domen sinflari (`CashRestrictionRules`, `MxikRules`, `SoldItemBuilder`, `RefundUploadQueue`, `BackendHealth`, `SyncCursor`) bo'lmasligi mumkin — bunday holatlar har bo'limda alohida ko'rsatilgan.
 4. **Port qilinMAYdigan** narsalar: `pubspec.yaml` versiya bump'lari, `api_provider.dart` dagi DEV/PRO almashinuvi (release commitlarida bo'ladi), `docs/` fayllari.
 5. Testlar `test/support/provider_harness.dart` ga tayanadi (`setUpPosTestEnv`, `tearDownPosTestEnv`, `kCashierId`, `kUserId`, `kCashierName`, `makeSoldItem`). InVan 1 da bo'lmasa — InVan 2 dan nusxa oling (203 qator: Hive + Pref + ObjectBox test muhiti, adapterlar) yoki testlarni moslang. Testsiz port ham mumkin, lekin tavsiya etilmaydi: har taskning testi aynan "nima buzilmasligi kerak"ni mixlaydi.
@@ -21,7 +21,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 
 ## Tasklar ro'yxati
 
-| # | Sana | Task | InVan 2 reliz | Holat (2026-09-24) | Commit |
+| # | Sana | Task | InVan 2 reliz | Holat (2026-09-30) | Commit |
 |---|---|---|---|---|---|
 | 1 | 2026-09-10 | Naqd chegarasi: 25 mln statik → Soliq API'dan `400 × BHM` (hozir 176 mln) | 1.1.2+123, +124 | Relizda; do'kon sinovi kutilmoqda | `cc66526`, `c0ae23a` |
 | 2 | 2026-09-11 | `is_marking=false`: markirovka dialogi yo'q, fiskalga statik MXIK + bo'sh barcode | 1.1.2+125 | Relizda; do'kon sinovi kutilmoqda | `347813b` |
@@ -29,6 +29,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 4 | 2026-09-24 | Vozvrat fiskal chekida `OwnerType` va komitent STIR sotuv bilan bir xil (katalogdan) | **1.1.2+127** | Relizda; do'kon sinovi kutilmoqda | `c853b27` |
 | 5 | 2026-09-24 | Fiskal QQS bazasi chegirmadan keyin: `VAT = (Price − Discount − Other) × p / (100 + p)` | **1.1.2+127** | Relizda (`fix/fiskal-qqs-chegirma-bazasi` → `ayyubxon`ga birlashtirildi); do'kon sinovi kutilmoqda | `85199e6` (merge `7e01ce8`) |
 | 6 | 2026-09-24 | Notification (polling) sinxron tirqichlari: server soati, buzuq notification, timeout, qulf | **1.1.2+127** | Relizda; do'kon sinovi kutilmoqda | `bfc4929`..`80f88d7` |
+| 7 | 2026-09-30 | `is_marking` true→false o'zgarishi kassaga o'tmasligi: `putItems` sticky + Soliq avto-true endi aniq false'ni yengmaydi | — (relizda emas) | Commit bor (branch `fix/is-marking-false-sinxron`, `ayyubxon`ga birlashtirilmagan); reliz va do'kon sinovi kutilmoqda | `a83668c` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili).
 
@@ -58,6 +59,9 @@ c264890 2026-09-24 fix(sync): qo'shimcha audit topilmalari — parse/narx/katego
 36a2f6f 2026-09-24 release: 1.1.2+127 (pubspec)                                              (port qilinmaydi)
 7e01ce8 2026-09-24 merge: fix/fiskal-qqs-chegirma-bazasi → ayyubxon (5-task shu yerda qo'shildi)
 7e2d6e9 2026-09-24 docs: 1.1.2+127 PRO backend'ga yuklandi                                   (port qilinmaydi)
+44f3888 2026-09-24 docs(port): 6-task to'liq yozildi                                         (port qilinmaydi)
+a83668c 2026-09-30 fix(sync): is_marking — server qiymati lokal true'ni yengadi              ← 7-task
+                            [branch fix/is-marking-false-sinxron, ayyubxon'ga hali birlashtirilmagan]
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -10815,11 +10819,260 @@ index 18be045..d0c2c92 100644
 **Ataylab tuzatilmagan (past ustuvorlik yoki kattaroq refaktor talab qiladi — InVan 1'ga portlashda ham shu holicha qoldirilishi mumkin):**
 - DNS-only internet uzilishi `BackendHealth`da "server o'chgan" deb noto'g'ri tasniflanishi mumkin (`_defaultProbe` hostname orqali so'raydi). **Mahsulot/narx sinxroniga (bu taskning predmeti) TA'SIRI YO'Q** — notification yo'li `BackendHealth`dan butunlay mustaqil, raw HTTP client ishlatadi. Faqat chiquvchi so'rovlarga (chek, qaytarish, smena) tegishli, va u yerda ham eng ko'pi ~30s kechikish, ma'lumot yo'qolishi emas.
 - Drawer "Sinxronizatsiya" (qo'lda tugma) kategoriya kursorini commit qilmaydi — samaradorlik masalasi (keyingi avto-sinxron ortiqcha oyna so'raydi), ma'lumot yo'qolmaydi.
-- `isMarking=true` mahsulotda "yopishib qoladi" (`putItems` merge) — admin uni `false` qilsa ham notification orqali qaytmaydi. Bu **taskdan OLDIN ham shunday edi** (regressiya emas) — alohida soliq-MXIK moslashtirish job'iga ishonilgani uchun ataylab qilingan bo'lishi mumkin.
+- `isMarking=true` mahsulotda "yopishib qoladi" (`putItems` merge) — admin uni `false` qilsa ham notification orqali qaytmaydi. Bu **taskdan OLDIN ham shunday edi** (regressiya emas) — alohida soliq-MXIK moslashtirish job'iga ishonilgani uchun ataylab qilingan bo'lishi mumkin. **→ 2026-09-30: do'konda jonli muammo chiqardi va 7-TASKDA TUZATILDI** (bu bandni endi qo'llamang, 7-task diffini qo'llang).
 - Notification yo'lida mahsulot faqat BITTA kategoriyaga (`category_ids.first`) bog'lanadi, to'liq katalog esa butun ierarxiyani beradi — bu ham OLDINDAN mavjud xulq, tuzatilmadi.
 - Bir soniya ichida type 13 (narx) type 1 (yaratish)dan OLDIN kelsa (server tartibi noma'lum bo'lgan holatda) narx qo'llanmay qolishi mumkin — juda tor chekka holat.
 - Qulf majburan olinganda (`exclusive` force, stale-lock, logout) eski jarayonning JORIY oynadagi qo'llash tsikli darhol to'xtamaydi (faqat keyingi fetch/commit oldidan tekshiriladi) — kengroq himoya (monoton kursor, epoch) asosiy xavfni (kursor orqaga surilishi) yopadi, qolgani nozik race.
 - Hive (2.2.3) haqiqiy `fsync` qilmaydi — `box.flush()` shu kutubxonaning eng yaxshi vositasi. Qattiq svet o'chishida nazariy jihatdan bir necha soniyalik oyna qoladi; `beforeCommit` orqali ma'lumot kursordan OLDIN yoziladi — bu asosiy xavfni yopadi, lekin OS darajasidagi to'liq kafolat yo'q.
+
+---
+
+# 7-TASK — `is_marking` true→false o'zgarishi kassaga o'tmasligi: sticky isMarking (relizda emas)
+
+> **Commit:** `a83668c` (2026-09-30), branch `fix/is-marking-false-sinxron` — `ayyubxon`ga hali birlashtirilmagan, relizda emas.
+> **Sessiya hujjati:** docs/sessions/2026-09-30-is-marking-notification-sticky.md
+> **Holat 2026-09-30:** commit bor, relizda emas; do'kon sinovi kutilmoqda.
+
+## 1. Nima va nima uchun
+
+**Simptom (jonli, 2026-09-30, Tiin Optom):** adminkada mahsulot markirovkasi o'chirildi (`is_marking` true→false). Notification (type 2) kassalarga yetib keldi — Alice'da `"is_marking": false` ko'rinib turibdi, narx/nom qo'llandi — lekin kassalar baribir markirovka (KM) so'rayverdi. Qo'lda to'liq yangilashdan keyingina to'g'rilanardi; bir kassada keyinroq (Servis'da qo'lda yangilashdan so'ng) muammo QAYTIB keldi.
+
+**Sabab — 2 ta joy serverning aniq `false` qiymatini ustidan yozadi:**
+
+1. `ItemsSingleton.putItems` (har notification shu orqali yoziladi): "lokalda `isMarking == true` bo'lsa — kelgan qiymatdan qat'i nazar true'ga qaytarish" (sticky). Adminka true→false qilsa, notification orqali HECH QACHON o'tmaydi — barcha kassada, deterministik. 6-task oxiridagi "Ataylab tuzatilmagan" ro'yxatida qayd etilgan edi; jonli hodisa uni haqiqiy bug ekanini isbotladi.
+2. `OrdersService.updateMarkingStatusFromSoliq` (Servis'dagi qo'lda yangilashdan keyin, `switchMarking` pref true bo'lsa): MXIK Soliq markirovka ro'yxatida bo'lsa `false`ni ham `true` qilib qo'yardi (`p.isMarking ?? false` — false'ni null'dan ajratmasdi). Shu tufayli to'liq yuklab to'g'rilangan mahsulot keyingi qo'lda yangilashda yana markirovkali bo'lib qolardi; keyin 1-band uni qulflab qo'yardi.
+
+**Yechim:** ikkala joyda ham qoida "2-TASK: is_marking — birinchi mezon"ga moslashtirildi: **serverdan kelgan aniq true/false har doim ustun; mavjud lokal qiymat faqat payload'da bayroq umuman bo'lmaganda (null) saqlanadi;** Soliq ro'yxati bo'yicha avto-true faqat `isMarking == null` mahsulotlarga.
+
+## 2. Qanday ishlaydi (eski vs yangi)
+
+`putItems`da mavjud mahsulot ustiga yozishda:
+
+| Kelgan `is_marking` | Lokal qiymat | ESKI natija | YANGI natija |
+|---|---|---|---|
+| `false` | `true` | **`true` (bug)** | `false` |
+| `true` | `false`/`null` | `true` | `true` |
+| `null` (payload'da yo'q) | `true`/`false` | `true` faqat true'da | lokal qiymat saqlanadi |
+| `false`/`true` | teng emas | — | yoziladi + `SYNC_MARKING_CHANGED` log (id, from, to) |
+
+`updateMarkingStatusFromSoliq`da (MXIK Soliq ro'yxatida bo'lsa):
+
+| Lokal `isMarking` | ESKI | YANGI |
+|---|---|---|
+| `null` | `true` qilinadi | `true` qilinadi (foydali eski xulq saqlandi) |
+| `false` | **`true` qilinadi (bug)** | TEGILMAYDI |
+| `true` | tegilmaydi | tegilmaydi |
+
+To'liq yuklash (`clearAndPutItems`) ilgari ham sticky'siz to'g'ri yozardi — o'zgartirilmagan.
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/features/get_products/singletons/items_singleton.dart` | o'zgargan | `putItems`: sticky isMarking → null-only saqlash + `SYNC_MARKING_CHANGED` log |
+| `lib/changes/services/get_items_service.dart` | o'zgargan | `updateMarkingStatusFromSoliq`: avto-true faqat `isMarking == null` ga |
+| `test/items_singleton_notification_test.dart` | o'zgargan | 6 yangi/yangilangan test (eski "isMarking saqlanishi buzilmagan" testi buggy xulqni qulflagan edi — teskarisiga o'zgartirildi) |
+
+## 4. Bog'liqliklar (InVan 1 uchun)
+
+- **`LogHelper.activity`** — diagnostika logi (6-taskda kiritilgan). InVan 1 da bo'lmasa: `SYNC_MARKING_CHANGED` blokini oddiy log/print bilan almashtiring yoki butunlay tashlab keting — funksional emas.
+- **`updateMarkingStatusFromSoliq`** InVan 1 da umuman bo'lmasligi mumkin (Soliq MXIK ro'yxatidan avto-markirovka job'i). Bo'lmasa — 2-qadam kerak emas.
+- InVan 1 da `putItems` analogi boshqacha nomlanishi mumkin: **notification/WS orqali kelgan mahsulotni lokal bazaga yozadigan JOYNI toping** va "mavjud isMarking'ni saqlash" kodi bor-yo'qligini tekshiring. Printsip bitta: serverdan kelgan aniq qiymat lokalni yengishi shart.
+- 2-TASK (is_marking birinchi mezon, MxikRules) qo'llangan bo'lishi kerak — 7-task o'sha qoidaning YOZISH tomonini tuzatadi.
+
+## 5. Qo'llash tartibi
+
+1. `putItems` (yoki analogi)dagi sticky blokni 6.1-diff bo'yicha almashtiring.
+2. Soliq avto-markirovka job'i bo'lsa, shartini 6.2-diff bo'yicha `isMarking == null` ga toraytiring.
+3. Testlarni qo'shing (6.3, `<details>`).
+4. `dart analyze` + `flutter test`.
+
+## 6. Kod
+
+### 6.1 `lib/features/get_products/singletons/items_singleton.dart` (diff)
+
+```diff
+       } else {
+         final existing = box.get(item.id);
+         if (existing != null) {
+-          // Mavjud productning isMarking qiymatini saqlash
+-          if (existing.isMarking == true) {
+-            item = item.copyWith(isMarking: true);
++          // `is_marking` payload'da bo'lmasa (null) mavjud qiymat qoladi;
++          // kelgan ANIQ true/false esa har doim ustun. Ilgari lokal true
++          // serverning false'ini yutib yuborardi: adminkada markirovka
++          // o'chirilsa notification kassaga yetib kelsa ham hech qachon
++          // qo'llanmasdi, faqat to'liq yuklash yordam berardi (2026-09-30).
++          if (item.isMarking == null && existing.isMarking != null) {
++            item = item.copyWith(isMarking: existing.isMarking);
++          } else if (existing.isMarking != item.isMarking) {
++            LogHelper.activity('SYNC_MARKING_CHANGED', {
++              'id': item.id,
++              'from': existing.isMarking,
++              'to': item.isMarking,
++            });
+           }
+           if (mergeWithExisting) {
+             item = _mergeFromExisting(item, existing,
+```
+
+Eslatma: `copyWith` `??` bilan ishlaydi — `copyWith(isMarking: false)` false'ni yozadi (faqat null "tegma" degani), shuning uchun `existing.isMarking` (true ham, false ham) to'g'ri ko'chadi.
+
+### 6.2 `lib/changes/services/get_items_service.dart` (diff, `updateMarkingStatusFromSoliq` ichida)
+
+```diff
+         final mxik = (p.mxikCode ?? '').trim();
+         if (mxik.isEmpty) continue;
+ 
+-        final bool currentMarking = p.isMarking ?? false;
+-        if (markingMxikSet.contains(mxik) && !currentMarking) {
++        // `is_marking` — birinchi mezon (2026-09-11 qarori): adminka aniq
++        // FALSE degan mahsulot MXIK Soliq ro'yxatida bo'lsa ham markirovkali
++        // qilinMAYDI. Avto-true faqat bayroq umuman kelmagan (null)
++        // mahsulotlarga. Ilgari false ham true qilinardi — adminkada
++        // o'chirilgan markirovka keyingi qo'lda yangilashda qaytib kelardi.
++        if (markingMxikSet.contains(mxik) && p.isMarking == null) {
+           updates[p.key] = p.copyWith(isMarking: true);
+         }
+       }
+```
+
+### 6.3 Testlar
+
+<details>
+<summary>test/items_singleton_notification_test.dart (diff)</summary>
+
+```diff
+@@ imports @@
+ import 'package:invan2/changes/models/product/item_model.dart';
++import 'package:invan2/changes/models/product/soliq_mxik_model.dart';
+ import 'package:invan2/changes/services/api/api_provider.dart';
++import 'package:invan2/changes/services/get_items_service.dart';
+@@ setUpAll @@
+     reg(MesUnitModelAdapter().typeId, MesUnitModelAdapter());
+     reg(VatUnitModelAdapter().typeId, VatUnitModelAdapter());
++    reg(SoliqMxikModelAdapter().typeId, SoliqMxikModelAdapter());
+ 
++    await Hive.openBox<SoliqMxikModel>(HiveBoxNames.markingProducts);
+     await Hive.openBox<ItemModel>(HiveBoxNames.items);
+@@ "type 1/2 — putItems va narxni saqlash" guruhida eski test almashtirildi @@
+-    test('isMarking saqlanishi buzilmagan', () async {
++    // `is_marking` — birinchi mezon: serverdan kelgan ANIQ qiymat har doim
++    // ustun, mavjud qiymat faqat payload'da bayroq bo'lmaganda (null)
++    // saqlanadi. Eski xulq (lokal true false'ni yutardi) tufayli adminkada
++    // markirovka o'chirilsa kassaga hech qachon yetmasdi (2026-09-30).
++    test('notification aniq false yuborsa false YOZILADI (true→false)',
++        () async {
+       await ItemsSingleton.putItems([product('p1')..isMarking = true]);
+ 
++      // product() helper is_marking: false bilan yaratadi — adminka
++      // "markirovkali emas" degan holat.
+       await ItemsSingleton.putItems([product('p1')], mergeWithExisting: true);
+ 
++      expect(HiveBoxes.getProducts().get('p1')!.isMarking, isFalse);
++    });
++
++    test('payload\'da is_marking BO\'LMASA (null) mavjud true saqlanadi',
++        () async {
++      await ItemsSingleton.putItems([product('p1')..isMarking = true]);
++
++      await ItemsSingleton.putItems([product('p1')..isMarking = null],
++          mergeWithExisting: true);
++
++      expect(HiveBoxes.getProducts().get('p1')!.isMarking, isTrue);
++    });
++
++    test('payload\'da is_marking bo\'lmasa mavjud false ham saqlanadi',
++        () async {
++      await ItemsSingleton.putItems([product('p1')]); // isMarking: false
++
++      await ItemsSingleton.putItems([product('p1')..isMarking = null],
++          mergeWithExisting: true);
++
++      expect(HiveBoxes.getProducts().get('p1')!.isMarking, isFalse);
++    });
++
++    test('false→true (adminka markirovkani yoqdi) ham darrov qo\'llanadi',
++        () async {
++      await ItemsSingleton.putItems([product('p1')]); // isMarking: false
++
++      await ItemsSingleton.putItems([product('p1')..isMarking = true],
++          mergeWithExisting: true);
++
+       expect(HiveBoxes.getProducts().get('p1')!.isMarking, isTrue);
+     });
++
++    test('merge\'siz putItems ham aniq false\'ni yozadi', () async {
++      await ItemsSingleton.putItems([product('p1')..isMarking = true]);
++
++      await ItemsSingleton.putItems([product('p1')]); // isMarking: false
++
++      expect(HiveBoxes.getProducts().get('p1')!.isMarking, isFalse);
++    });
+   });
+@@ fayl oxiriga yangi guruh @@
++  group('updateMarkingStatusFromSoliq — Soliq ro\'yxati va is_marking', () {
++    SoliqMxikModel soliq(String mxik) => SoliqMxikModel(
++          mxik: mxik,
++          mxikNameUz: '',
++          mxikNameRu: '',
++          mxikNameLat: '',
++          internationalCode: '',
++          usePackage: 0,
++          packages: const [],
++        );
++
++    // `product()` helper mxik/package bermaydi — putItems bo'sh maydonlarni
++    // org default bilan to'ldirmasligi uchun ikkalasi ham beriladi.
++    ItemModel withMxik(String id, String mxik, {bool? marking}) =>
++        product(id)
++          ..isMarking = marking
++          ..mxikCode = mxik
++          ..packageCode = '1';
++
++    test('faqat NULL bayroq to\'ldiriladi; adminka false\'i DAXLSIZ',
++        () async {
++      const inList = '02203001001000000';
++      await HiveBoxes.markingProductsBox().clear();
++      await HiveBoxes.markingProductsBox().put(inList, soliq(inList));
++
++      await ItemsSingleton.putItems([
++        withMxik('pNull', inList, marking: null),
++        withMxik('pFalse', inList, marking: false),
++        withMxik('pTrue', inList, marking: true),
++        withMxik('pOther', '01704001016000000', marking: null),
++      ]);
++
++      await OrdersService().updateMarkingStatusFromSoliq(fromLocal: true);
++
++      final box = HiveBoxes.getProducts();
++      // Bayroq kelmagan + MXIK ro'yxatda → avto-true (eski foydali xulq).
++      expect(box.get('pNull')!.isMarking, isTrue);
++      // Adminka aniq false degan — ro'yxatda bo'lsa ham TEGILMAYDI
++      // (ilgari true qilinar va markirovka qaytib kelardi).
++      expect(box.get('pFalse')!.isMarking, isFalse);
++      expect(box.get('pTrue')!.isMarking, isTrue);
++      // Ro'yxatda yo'q MXIK — o'zgarmaydi.
++      expect(box.get('pOther')!.isMarking, isNull);
++    });
++  });
+ }
+```
+
+InVan 1 da `product()` helper (isMarking: false bilan ItemModel yasaydi), `setUpPosTestEnv` va `HiveBoxNames.markingProducts` (`marking_products`, typeId 131, `SoliqMxikModel`) bo'lmasa — 5-band umumiy ko'rsatmaga qarang (hujjat boshi).
+
+</details>
+
+## 7. Tekshirish
+
+- `flutter test` — **1365/1365 o'tdi** (2026-09-30); `flutter analyze` yangi issue qo'shmadi.
+- Do'kon sinovi (reliz chiqqach): (a) adminkada `is_marking` true→false → kassada TO'LIQ YANGILASHSIZ 1-2 daqiqada barcode urilganda markirovka so'ramasligi; (b) shundan keyin Servis'da qo'lda yangilash → false SAQLANIB qolishi (qaytib true bo'lmasligi); (c) logda `SYNC_MARKING_CHANGED` qatori.
+
+## 8. Eslatmalar va ochiq savollar
+
+- Foydalanuvchi kuzatuvi "batch (bir nechta notification) kelsa qo'llanmayapti, bittasi kelsa qo'llanyapti" — **tasodif**: qo'llash har notification uchun alohida, batch hajmining ahamiyati yo'q. Farq lokal qiymatda edi (qayta urinish paytida kassa oradagi to'liq yuklashdan false olib bo'lgan).
+- "False ishlab turib keyin yana so'rab qoldi" — sababi kod bo'yicha ISBOTLANMAGAN. `updateMarkingStatusFromSoliq` (2-diff) — haqiqiy yashirin xato va yopildi, lekin bu hodisaga aloqasi ehtimoldan uzoq: uning Soliq ro'yxati faqat hozir kommentdagi sozlama tugmasi orqali to'ldiriladi, hodisadagi mahsulot esa bo'sh `mxik_code` bilan kelgan. Qolgan nomzodlar server/ma'lumot tomonida (keyingi `is_marking: true` notification, to'liq katalogdagi qiymat, dublikat barcode'li kartochka) — do'kon sinovida aniqlanadi.
+- Bo'sh `mxik_code` kelganda org default MXIK bilan to'ldirish (`addPackageCodeAndMxikCode`) ATAYLAB o'zgartirilmadi: to'liq yuklash ham xuddi shunday qiladi — ikkala yo'l izchil.
 
 ---
 

@@ -62,7 +62,9 @@ class Pref {
     return _box.get(key) ?? defValue;
   }
 
-  ///
-  static bool getDeleteItem(String key) => _box.get(key) ?? true;
+  /// Default `false` (default-deny): kalit hali yozilmagan bo'lsa (PIN
+  /// login'dan oldin) o'chirish ruxsati YO'Q deb hisoblanadi. Ruxsati bor
+  /// xodim uchun cancelOrdering jonli deleteS tekshiruvi bilan baribir ochiq.
+  static bool getDeleteItem(String key) => _box.get(key) ?? false;
   static Future removeWithKey(String removedKey) => _box.delete(removedKey);
 }

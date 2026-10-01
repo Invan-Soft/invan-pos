@@ -547,9 +547,19 @@ static Future<void> storeProducts() async {
       } else {
         final existing = box.get(item.id);
         if (existing != null) {
-          // Mavjud productning isMarking qiymatini saqlash
-          if (existing.isMarking == true) {
-            item = item.copyWith(isMarking: true);
+          // `is_marking` payload'da bo'lmasa (null) mavjud qiymat qoladi;
+          // kelgan ANIQ true/false esa har doim ustun. Ilgari lokal true
+          // serverning false'ini yutib yuborardi: adminkada markirovka
+          // o'chirilsa notification kassaga yetib kelsa ham hech qachon
+          // qo'llanmasdi, faqat to'liq yuklash yordam berardi (2026-09-30).
+          if (item.isMarking == null && existing.isMarking != null) {
+            item = item.copyWith(isMarking: existing.isMarking);
+          } else if (existing.isMarking != item.isMarking) {
+            LogHelper.activity('SYNC_MARKING_CHANGED', {
+              'id': item.id,
+              'from': existing.isMarking,
+              'to': item.isMarking,
+            });
           }
           if (mergeWithExisting) {
             item = _mergeFromExisting(item, existing,

@@ -257,15 +257,11 @@ class OrderingProvider4 extends ChangeNotifier {
 
   bool cancelOrdering(bool access) {
     if (_currentClient.orderedProducts.isEmpty) return true;
-    if (!access) {
-      if (!(currentEmployee.access?.deleteS ?? false)) {
-        _currentClient.orderedProducts = [];
-        _currentClient.lastAddedIndex = -1;
-        notifyListeners();
-        return true;
-      } else {
-        return false;
-      }
+    // Ruxsat: dialog/sozlamadan kelgan `access` YOKI joriy xodimning jonli
+    // deleteS huquqi. Ikkalasi ham yo'q bo'lsa — savatga tegilmaydi, false
+    // qaytadi va chaqiruvchi NoAccessDialog ko'rsatadi.
+    if (!access && !(currentEmployee.access?.deleteS ?? false)) {
+      return false;
     }
     _currentClient.orderedProducts = [];
     _currentClient.lastAddedIndex = -1;
@@ -1528,7 +1524,10 @@ class OrderingProvider4 extends ChangeNotifier {
         orderedProducts: [],
         discountAmountFromNewClient: 0,
       );
-      if (_sixClient4List.isEmpty) {
+      // Joriy klient ro'yxatda bo'lmasa (bitta-klient rejimi yoki har qanday
+      // uzilgan holat) — savati bilan ro'yxatga qo'shiladi, aks holda undagi
+      // mahsulotlar izsiz yo'qoladi.
+      if (!_sixClient4List.contains(_currentClient)) {
         _sixClient4List.add(_currentClient);
       }
 
@@ -1543,8 +1542,11 @@ class OrderingProvider4 extends ChangeNotifier {
   void selectClient(int i) {
     LogHelper.activity('CLIENT_SELECT', {'index': i});
     _currentClient = _sixClient4List[i];
-    _index = i;
-    _clearEmptyClients();
+    // Tanlangan klient bo'sh bo'lsa ham ro'yxatdan chiqarilmaydi (keep) —
+    // aks holda _currentClient ro'yxatdan uzilib, _index dangling qoladi va
+    // keyingi to'lovda boshqa klientning savati access-siz o'chib ketadi.
+    _clearEmptyClients(keep: _currentClient);
+    _index = _sixClient4List.indexOf(_currentClient);
     _syncReceiptCompanyPrefsFromCurrentClient();
     notifyListeners();
   }
@@ -1575,15 +1577,15 @@ class OrderingProvider4 extends ChangeNotifier {
     _syncReceiptCompanyPrefsFromCurrentClient();
   }
 
-  void _clearEmptyClients() {
-    List<int> clientNumbers = [];
-    for (int i = 0; i < _sixClient4List.length; i++) {
-      if (_sixClient4List[i].orderedProducts.isEmpty) {
-        clientNumbers.add(_sixClient4List[i].clientNumber);
-        _harvestDeletedItems(_sixClient4List[i]);
+  void _clearEmptyClients({SixClientModel4? keep}) {
+    for (final client in _sixClient4List) {
+      if (client.orderedProducts.isEmpty && !identical(client, keep)) {
+        _harvestDeletedItems(client);
       }
     }
-    _sixClient4List.removeWhere((e) => e.orderedProducts.isEmpty);
+    _sixClient4List.removeWhere(
+      (e) => e.orderedProducts.isEmpty && !identical(e, keep),
+    );
   }
 
   void _harvestDeletedItems(SixClientModel4 client) {
@@ -1603,6 +1605,13 @@ class OrderingProvider4 extends ChangeNotifier {
     _cashsaleWarningShown = false;
     _bigTotalWarningShown = false;
     _harvestDeletedItems(_currentClient);
+    // To'lagan klient DOIM _currentClient — savat identity bo'yicha
+    // tozalanadi. Indeks (_sixClient4List[_index]) bo'yicha tozalash mumkin
+    // emas: indeks siljigan bo'lsa boshqa klientning savati o'chib ketadi
+    // yoki RangeError beradi.
+    _currentClient.orderedProducts = [];
+    _currentClient.lastAddedIndex = -1;
+    _clearEmptyClients();
     if (_sixClient4List.isEmpty) {
       _clientNumber = 1;
       _currentClient = SixClientModel4(
@@ -1611,19 +1620,8 @@ class OrderingProvider4 extends ChangeNotifier {
         orderedProducts: [],
         discountAmountFromNewClient: 0,
       );
-    } else if (_sixClient4List.length == 1) {
-      _clientNumber = 1;
-      _currentClient = SixClientModel4(
-        clientNumber: _clientNumber,
-        lastAddedIndex: -1,
-        orderedProducts: [],
-        discountAmountFromNewClient: 0,
-      );
-      _sixClient4List[0].orderedProducts = [];
-      _clearEmptyClients();
+      _index = 0;
     } else {
-      _sixClient4List[_index].orderedProducts = [];
-      _clearEmptyClients();
       _index = 0;
       _currentClient = _sixClient4List.first;
     }
