@@ -112,7 +112,16 @@ class ShiftApi4 {
   /////                   OPEN SHIFT                     /////
   /////                                                   /////
   /////////////////////////////////////////////////////////////
-  static Future<HttpResult> openShift() async {
+
+  /// [openedAt] — smena ochilgan vaqt (`yyyy-MM-dd HH:mm:ss`, UTC),
+  /// [userId] — ochgan kassir, [cashboxId] — kassa. Hammasi chaqiruvchidan
+  /// keladi: navbatdan yuborilganda ular yuborish paytidagi emas, ochish
+  /// paytidagi qiymatlar bo'lishi shart (qarang: `ShiftSyncQueue`).
+  static Future<HttpResult> openShift({
+    required String openedAt,
+    required String userId,
+    required String cashboxId,
+  }) async {
     final token = Pref.getString(PrefKeys.token, "not initialized");
     final headers = <String, String>{
       'Accept-Version': '2.0.0',
@@ -125,16 +134,15 @@ class ShiftApi4 {
       'timezone': "-300",
       'Accept-Service': _acceptService,
     };
-    String cashBoxId = Pref.getString(PrefKeys.activatedPosId, "");
 
     var body = {
-      "opened_at": Pref.getString(PrefKeys.openedDate, ""),
+      "opened_at": openedAt,
       "closed_at": "",
       "method": "open",
       "opened_by_pos": true,
       "opened_by_web": false,
-      "cashbox_id": cashBoxId,
-      "user_id": Pref.getString(PrefKeys.userId, "")
+      "cashbox_id": cashboxId,
+      "user_id": userId
     };
 
     return ApiProvider.postResponse(
@@ -143,6 +151,14 @@ class ShiftApi4 {
       body: jsonEncode(body),
     );
   }
+
+  /// `shift_statuses` ro'yxatidagi kassa TO'LIQ yopiqmi (hech kim — na POS,
+  /// na web — ochmagan).
+  static bool isCashboxFullyClosed(Map<dynamic, dynamic> cashBox) =>
+      cashBox['opened_by_web'] == false &&
+      cashBox['opened_by_pos'] == false &&
+      cashBox['opened_by_user_id'] == '' &&
+      (cashBox['status'] == 'closed' || cashBox['status'] == 'close');
 
   static Future<HttpResult> shiftStatusInvan2({String? token}) async {
     // Aktivatsiyadan oldin (kassa tanlash) PrefKeys.token hali bo'sh bo'ladi,
@@ -166,7 +182,17 @@ class ShiftApi4 {
   /////                                                   /////
   /////////////////////////////////////////////////////////////
 
-  static Future<ShiftingModel> closeShift() async {
+  /// [closedAt] — smena yopilgan vaqt (`yyyy-MM-dd HH:mm:ss`, UTC),
+  /// [userId] — yopgan kassir, [cashboxId] — kassa (qarang: [openShift]).
+  ///
+  /// Muvaffaqiyatsiz javobda ham `statusCode` haqiqiy HTTP kodi bo'ladi:
+  /// navbat u bo'yicha "server rad etdi" va "server javob bermadi" ni
+  /// ajratadi. Istisno bo'lsa `statusCode` — `null`.
+  static Future<ShiftingModel> closeShift({
+    required String closedAt,
+    required String userId,
+    required String cashboxId,
+  }) async {
     final token = Pref.getString(PrefKeys.token, "not initialized");
     ShiftingModel result = ShiftingModel();
     var headers = {
@@ -176,15 +202,14 @@ class ShiftApi4 {
       'timezone': "-300",
       'Content-Type': 'application/json'
     };
-    String cashId = Pref.getString(PrefKeys.activatedPosId, "");
     final body = {
       "opened_at": '',
-      "closed_at": Pref.getString(PrefKeys.closedDate, ""),
-      "cashbox_id": cashId,
+      "closed_at": closedAt,
+      "cashbox_id": cashboxId,
       "opened_by_pos": false,
       "opened_by_web": false,
       "method": "close",
-      "user_id": Pref.getString(PrefKeys.userId, "")
+      "user_id": userId
     };
     try {
       var response = await ApiProvider.postResponse(
@@ -193,9 +218,12 @@ class ShiftApi4 {
         headers: headers,
       );
       _statusCode = response.statusCode;
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         result.statusCode = response.statusCode;
-        result.message = response.result['message'];
+        // Javob tanasi Map bo'lmasa ham yopish muvaffaqiyatli — ilgari bu
+        // yerdagi istisno tasdiqlangan yopishni "xato" qilib qo'yardi.
+        final dynamic data = response.result;
+        result.message = data is Map ? data['message']?.toString() : null;
 
         LogRepository.addLog(
           """ HEADERS: => $headers, 
@@ -220,7 +248,9 @@ class ShiftApi4 {
           url: ApiProvider.baseUrlINVAN2,
           statusCode: _statusCode,
         );
-        return ShiftingModel()..message = "Failed";
+        return ShiftingModel()
+          ..statusCode = response.statusCode
+          ..message = "Failed";
       }
     } catch (e) {
       Log.e(e, name: 'shift_api_4.dart');

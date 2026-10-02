@@ -102,28 +102,50 @@ Win32Window::~Win32Window() {
   Destroy();
 }
 
+// Jarayonni dasturning O'ZI qayta ishga tushirganmi: Shorebird patch
+// qo'llangach (PatchUpdater startup'i yoki "Yangilanish tayyor" tugmasi -
+// INVAN_PATCH_RELAUNCHED=1) yoki ishga tushish xato ekranidagi "Qayta ishga
+// tushirish" (INVAN_RESTART=1). Bunda eski nusxa hali yopilayotgan bo'ladi.
+static bool IsSelfRestart() {
+    const wchar_t* names[] = {L"INVAN_PATCH_RELAUNCHED", L"INVAN_RESTART"};
+    for (const wchar_t* name : names) {
+        wchar_t value[8];
+        if (GetEnvironmentVariableW(name, value, 8) == 1u && value[0] == L'1') {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Dastur bitta nusxada ishlaydi: ikkinchi nusxa oyna ochmasdan chiqadi.
+// O'zi qayta yongan jarayon esa eski nusxa yopilishini 10 s gacha kutadi:
+// eski nusxa Process.start dan keyin exit(0) qiladi va yangi nusxa undan
+// oldin shu tekshiruvga yetsa, "ikkinchi nusxa" deb jim yopilib qolardi -
+// kassir dasturni qo'lda qayta ochishi kerak bo'lardi.
 bool CheckOneInstance()
 {
+    const int attempts = IsSelfRestart() ? 100 : 1;  // 100 x 100 ms
 
-    HANDLE  m_hStartEvent = CreateEventW( NULL, FALSE, FALSE, L"Global\\yourpackage" );
+    for (int i = 0; i < attempts; ++i) {
+        HANDLE m_hStartEvent = CreateEventW( NULL, FALSE, FALSE, L"Global\\yourpackage" );
 
-    if(m_hStartEvent == NULL)
-    {
-        CloseHandle( m_hStartEvent );
-        return false;
-    }
+        if (m_hStartEvent == NULL) {
+            return false;
+        }
 
+        if (GetLastError() != ERROR_ALREADY_EXISTS) {
+            // the only instance, start in a usual way (handle jarayon
+            // yopilguncha ochiq qoladi - boshqa nusxalar shuni ko'radi)
+            return true;
+        }
 
-    if (GetLastError() == ERROR_ALREADY_EXISTS) {
-
-        CloseHandle( m_hStartEvent );
-        m_hStartEvent = NULL;
         // already exist
-        // send message from here to existing copy of the application
-        return false;
+        CloseHandle( m_hStartEvent );
+        if (i + 1 < attempts) {
+            Sleep(100);
+        }
     }
-    // the only instance, start in a usual way
-    return true;
+    return false;
 }
 
 bool Win32Window::CreateAndShow(const std::wstring& title,

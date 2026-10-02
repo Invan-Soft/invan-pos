@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:invan2/changes/domain/receipt/receipt_epay.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
 import 'package:invan2/changes/models/ofd/incom_response_model.dart';
 import 'package:invan2/changes/repository/log_repository.dart';
@@ -109,9 +110,22 @@ static String cleanMarkForFiscal(String rawMark) {
 
       if (!data['error']) {
         CommunicatorRESPONSE res = CommunicatorRESPONSE.fromJson(data);
+        // Fiskal chek URL'i provayderlarga — faqat SHU chekning to'lov
+        // ID'lari bilan (ReceiptEpay). Ilgari xotiradagi oxirgi to'lov ID'si
+        // ishlatilardi: cheklar ro'yxatidan qayta yuborilganda boshqa
+        // to'lovga (yoki bo'sh ID bilan) ketardi.
+        final ReceiptEpay epay = receiptData is ReceiptModel4 &&
+                !receiptData.isRefund
+            ? ReceiptEpay.decode(receiptData.epayJson)
+            : ReceiptEpay.empty;
+        final Set<EpayTarget> targets = epay.targets(body['params']);
+
         // Agar to'lovda CLICK PASSdan foydalanilsa, Receiptni CLICK ka jo'natish kerak
-        if (body['params']['receivedClick']) {
-          var clickData = ReceiptSingleton4.fromReceipt4ToClick(receipt: body);
+        if (targets.contains(EpayTarget.click)) {
+          var clickData = ReceiptSingleton4.fromReceipt4ToClick(
+            receipt: body,
+            clickPaymentId: epay.clickPaymentId,
+          );
           ClickService.sendFiscalReceipt({
             'service_id': clickData['service_id'],
             'payment_id': clickData['payment_id'],
@@ -120,16 +134,16 @@ static String cleanMarkForFiscal(String rawMark) {
         }
 
         // Agar to'lovda Uzum Passdan foydalanilsa, Receiptni Uzumga ka jo'natish kerak
-        if (body['params']['receivedUzum']) {
+        if (targets.contains(EpayTarget.uzum)) {
           await UzumService.sendFiscalReceipt({
-            'payment_id': UzumService.paymentId.toString(),
+            'payment_id': epay.uzumPaymentId,
             'fiscal_url': res.info?.qrCodeUrl,
           });
         }
 
         // Agar to'lovda Paynet (Pass yoki QR) dan foydalanilsa, fiskal chekni Paynетга jo'natish kerak
-        if (body['params']['receivedPaynet'] == true) {
-          final pid = PaynetService.paymentId ?? 0;
+        if (targets.contains(EpayTarget.paynet)) {
+          final int pid = epay.paynetPaymentId!;
           final qrcode = res.info?.qrCodeUrl ?? '';
           final address = Pref.getString(PrefKeys.serviceAddress, "");
           print('======= Paynet sendFiscalReceipt | pid: $pid | qrcode: $qrcode | address: $address =======');
@@ -142,10 +156,11 @@ static String cleanMarkForFiscal(String rawMark) {
         }
 
         // Agar to'lovda Payme Godan foydalanilsa, Receiptni Paymega ka jo'natish kerak
-        if (body['params']['receivedPayme']) {
+        if (targets.contains(EpayTarget.payme)) {
           PaymeGOService.setFiscalData2(
             info: res.info,
             statusCode: 0,
+            paymeReceiptId: epay.paymeReceiptId,
           );
         }
         LogRepository.addLog(
@@ -225,6 +240,30 @@ static String cleanMarkForFiscal(String rawMark) {
     }
   }
 
+  /// `saleOnOFD` body'sidagi `externalInfo` → fiskal `ExtraInfo`
+  /// (`saleWithOutIncom` dan ajratildi — tana o'zgarmagan; testlar uchun).
+  static ExtraInfo extraInfoFromBody(Map<String, dynamic> body) {
+    return ExtraInfo(
+      carNumber: "",
+      phoneNumber: body['params']['externalInfo']['phoneNumber'] ?? '',
+      cardType: body['params']['externalInfo']['cardType'],
+      pinfl: "",
+      tin: "",
+      qrPaymentID: body['params']['externalInfo']['qrPaymentID'] ?? '',
+      qrPaymentProvider: int.tryParse(
+        body['params']['externalInfo']['qrPaymentProvider']?.toString() ?? '0',
+      ) ?? 0,
+
+      // ==================== YANGI QO‘SHILGAN MAYDONLAR ====================
+      cardNumber: body['params']['externalInfo']['cardNumber'] ?? '',
+      pptId: body['params']['externalInfo']['pptId'] ??
+          body['params']['externalInfo']['RRN'] ??
+          body['params']['externalInfo']['PPTID'] ?? '',                     // RRN / PPTID
+      cashedOutFromCard: body['params']['externalInfo']['cashedOutFromCard'] ?? 0,
+      // ==================================================================
+    );
+  }
+
   /// Sale Method
   static Future saleWithOutIncom({var body}) async {
     final RequestSaleModel model = RequestSaleModel.fromJson(body);
@@ -263,25 +302,7 @@ static String cleanMarkForFiscal(String rawMark) {
     //     body['params']['externalInfo']['qrPaymentProvider'] ?? 0,
     //   ),
     // );
-    var extraInfo = ExtraInfo(
-      carNumber: "",
-      phoneNumber: body['params']['externalInfo']['phoneNumber'] ?? '',
-      cardType: body['params']['externalInfo']['cardType'],
-      pinfl: "",
-      tin: "",
-      qrPaymentID: body['params']['externalInfo']['qrPaymentID'] ?? '',
-      qrPaymentProvider: int.tryParse(
-        body['params']['externalInfo']['qrPaymentProvider']?.toString() ?? '0',
-      ) ?? 0,
-
-      // ==================== YANGI QO‘SHILGAN MAYDONLAR ====================
-      cardNumber: body['params']['externalInfo']['cardNumber'] ?? '',
-      pptId: body['params']['externalInfo']['pptId'] ??
-          body['params']['externalInfo']['RRN'] ??
-          body['params']['externalInfo']['PPTID'] ?? '',                     // RRN / PPTID
-      cashedOutFromCard: body['params']['externalInfo']['cashedOutFromCard'] ?? 0,
-      // ==================================================================
-    );
+    var extraInfo = extraInfoFromBody(body);
     FiscalReceiptModel receiptModel = FiscalReceiptModel.fromRequest(
       model,
       dataModel,

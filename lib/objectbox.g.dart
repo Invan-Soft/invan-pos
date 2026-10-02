@@ -106,7 +106,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
       id: const obx_int.IdUid(3, 3601186149013975851),
       name: 'ReceiptModel4',
-      lastPropertyId: const obx_int.IdUid(50, 2389010119767467965),
+      lastPropertyId: const obx_int.IdUid(51, 4416640865664854334),
       flags: 0,
       properties: <obx_int.ModelProperty>[
         obx_int.ModelProperty(
@@ -348,6 +348,11 @@ final _entities = <obx_int.ModelEntity>[
             id: const obx_int.IdUid(50, 2389010119767467965),
             name: 'serviceDurationSeconds',
             type: 6,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(51, 4416640865664854334),
+            name: 'epayJson',
+            type: 9,
             flags: 0)
       ],
       relations: <obx_int.ModelRelation>[
@@ -1035,7 +1040,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
               fbb.writeString(object.serviceStartedTime);
           final serviceClosedTimeOffset =
               fbb.writeString(object.serviceClosedTime);
-          fbb.startTable(51);
+          final epayJsonOffset = object.epayJson == null
+              ? null
+              : fbb.writeString(object.epayJson!);
+          fbb.startTable(52);
           fbb.addInt64(0, object.id);
           fbb.addOffset(1, newidOffset);
           fbb.addOffset(2, cashierIdOffset);
@@ -1084,6 +1092,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fbb.addOffset(47, serviceStartedTimeOffset);
           fbb.addOffset(48, serviceClosedTimeOffset);
           fbb.addInt64(49, object.serviceDurationSeconds);
+          fbb.addOffset(50, epayJsonOffset);
           fbb.finish(fbb.endTable());
           return object.id;
         },
@@ -1238,7 +1247,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
             ..hasDept =
                 const fb.BoolReader().vTableGet(buffer, rootOffset, 80, false)
             ..deletedItemsJson = const fb.StringReader(asciiOptimization: true)
-                .vTableGet(buffer, rootOffset, 96, '');
+                .vTableGet(buffer, rootOffset, 96, '')
+            ..epayJson = const fb.StringReader(asciiOptimization: true)
+                .vTableGetNullable(buffer, rootOffset, 104);
           obx_int.InternalToManyAccess.setRelInfo<ReceiptModel4>(
               object.soldItemList,
               store,
@@ -2006,6 +2017,10 @@ class ReceiptModel4_ {
   /// see [ReceiptModel4.serviceDurationSeconds]
   static final serviceDurationSeconds =
       obx.QueryIntegerProperty<ReceiptModel4>(_entities[2].properties[47]);
+
+  /// see [ReceiptModel4.epayJson]
+  static final epayJson =
+      obx.QueryStringProperty<ReceiptModel4>(_entities[2].properties[48]);
 
   /// see [ReceiptModel4.soldItemList]
   static final soldItemList =

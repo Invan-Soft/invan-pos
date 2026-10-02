@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -5,6 +7,7 @@ import 'package:invan2/changes/models/shift/shift_hive_model.dart';
 import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/services/shift/shift_diagnostics.dart';
+import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
 import 'package:invan2/changes/services/shift_api_4.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
@@ -18,6 +21,11 @@ import '../../../../../../../changes/models/shift/shifting_model.dart';
 import 'package:invan2/changes/services/health/backend_health.dart';
 
 class ShiftSingleton4 {
+  /// Smena ochilish/yopilish vaqti shu soatdan olinadi. Testlarda ketma-ket
+  /// amallarga aniq, farqli vaqt berish uchun almashtiriladi.
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
+
   static void updateTheShift(List<ReceiptModelPaymentType4> payments,
       double zdachaToCashBack, double discountAmount) async {
     num card = 0;
@@ -116,26 +124,46 @@ class ShiftSingleton4 {
     sh.iV = i;
     bool? isReturn = true;
 
-    await Pref.setString(PrefKeys.openedDate,
-        DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()));
+    // Ochilish vaqti, kassir va kassa BIR MARTA olinadi: onlayn yuborilsa
+    // ham, navbatga tushsa ham serverga aynan shu qiymatlar ketadi.
+    final String openedAt =
+        DateFormat('yyyy-MM-dd HH:mm:ss').format(clock().toUtc());
+    final String userId = Pref.getString(PrefKeys.userId, '');
+    final String cashboxId = Pref.getString(PrefKeys.activatedPosId, '');
     await Pref.setInt(PrefKeys.currentShiftKey, i);
     // Har urinishdan oldin oldingi sababni tozalaymiz — UI faqat shu
     // urinishning sababini ko'rsatishi kerak.
     ShiftDiagnostics.resetOpenIssue();
 
-    /// Smenani serversiz (lokal) ochish — navbatga qo'yiladi.
+    /// Smenani serversiz (lokal) ochish — ochilish navbatga qo'yiladi.
     ///
-    /// Ikki holatda ishlatiladi: internet yo'q va server yiqilgan. Ikkalasi
-    /// ham kassa uchun bir xil: serverdagi holatni tekshirib bo'lmaydi,
-    /// lekin kassir sotishi kerak.
+    /// Internet yo'q, server yiqilgan yoki navbatda serverga yetmagan eski
+    /// voqealar bor — kassa uchun hammasi bir xil: kassir sotishi kerak,
+    /// ochilish esa navbat orqali o'z tartibida yetadi.
+    ///
+    /// Har ochilish navbatga alohida yoziladi. Ilgari navbatda ochish uchun
+    /// bitta joy bor edi va ikkinchi oflayn ochilish birinchisining vaqtini
+    /// o'chirib yuborardi (qarang: `ShiftSyncQueue`).
     Future<void> openOffline() async {
-      if (Pref.getInt(PrefKeys.openedCount, 0) == 0) {
-        isReturn = true;
-        await Pref.setInt(PrefKeys.openedCount, 1);
-      }
+      isReturn = true;
+      await ShiftSyncQueue.enqueueOpen(openedAt,
+          userId: userId, cashboxId: cashboxId);
     }
 
     if (await BackendHealth.isUsable()) {
+      // Serverga yetmagan eski voqealar (masalan oldingi smenaning yopilishi)
+      // avval ketsin — serverdagi kassa holati shundan keyingina to'g'ri.
+      await ShiftSyncQueue.flush(reason: 'before-open');
+
+      // Ular baribir ketmagan bo'lsa, serverdagi holat ESKIRGAN: masalan
+      // server kassani "ochiq" deb ko'rsatadi, chunki bizning yopilishimiz
+      // unga hali yetmagan. Unga ishonib ochishni bloklash noto'g'ri —
+      // smena lokal ochiladi va navbatda ularning ortidan turadi.
+      if (ShiftSyncQueue.hasPending) {
+        await openOffline();
+        return isReturn;
+      }
+
       await ShiftApi4.shiftStatusInvan2().then((HttpResult status) async {
         // 1a) Server yiqilgan (5xx / timeout / ulanmadi) — bu "smena
         // ochilmasin" degani EMAS. Internet uzilgandagi kabi lokal ochamiz
@@ -194,10 +222,7 @@ class ShiftSingleton4 {
         }
 
         // 4) Kassa serverda to'liq yopiqmi?
-        final bool isFullyClosed = myCashBox['opened_by_web'] == false &&
-            myCashBox['opened_by_pos'] == false &&
-            myCashBox['opened_by_user_id'] == '' &&
-            (myCashBox['status'] == 'closed' || myCashBox['status'] == 'close');
+        final bool isFullyClosed = ShiftApi4.isCashboxFullyClosed(myCashBox);
 
         if (!isFullyClosed) {
           ShiftDiagnostics.lastOpenIssue = myCashBox['opened_by_web'] == true
@@ -214,46 +239,61 @@ class ShiftSingleton4 {
           return;
         }
 
-        // 5) Hammasi joyida — smenani serverda ochamiz.
-        ShiftApi4.openShift().then(
-          (HttpResult value) async {
-            if (value.isSuccess) {
-              String localSUuid = const Uuid().v4();
-              sh
-                ..shiftId = localSUuid
-                ..iV = i;
-              await box.put(
-                i,
-                sh,
-              );
-            } else {
-              await box.put(i, sh);
-              // Smena kassada ochildi, lekin server tasdiqlamadi — keyinchalik
-              // yopishda "kassa serverda ochiq emas" muammosi chiqadi.
-              await ShiftDiagnostics.report(
-                issue: ShiftIssue.pendingOpenNotSynced,
-                action: ShiftAction.open,
-                detail: 'POST api/v1/shift_pos (open) → '
-                    'status ${value.statusCode}',
-              );
-            }
-          },
-        ).catchError(
-          (err) {
-            LogRepository.addLog(
-              err.toString(),
-              file: "ShiftSingleton_4 / openShift / catchError",
-              method: "OPEN SHIFT",
-              where: "SHIFT SINGLETON / CATCH ERROR",
-              path: "ShiftSingleton_4.dart",
-              statusCode: 0,
-              url: '-',
+        // 5) Hammasi joyida. Lekin navbatda hali ketmagan eski voqealar
+        // qolgan bo'lsa, bu ochilish ularning ORTIDAN ketishi kerak —
+        // to'g'ridan-to'g'ri yuborilsa server ularni noto'g'ri tartibda oladi.
+        if (ShiftSyncQueue.hasPending) {
+          await openOffline();
+          unawaited(ShiftSyncQueue.flush(reason: 'after-open'));
+          return;
+        }
+
+        // Navbat bo'sh — smenani serverda to'g'ridan-to'g'ri ochamiz.
+        //
+        // Javob KUTILADI: yiqilsa ochilish shu zahoti navbatga tushishi
+        // kerak. Ilgari so'rov kutilmasdi — kassir smenani ochib darhol
+        // yopsa, yopilish ochilishdan oldin serverga yetib bekor ketishi
+        // (server yopiq kassani yopishga 200 qaytaradi) va smena serverda
+        // ochiq qolishi mumkin edi.
+        try {
+          final HttpResult value = await ShiftApi4.openShift(
+              openedAt: openedAt, userId: userId, cashboxId: cashboxId);
+          if (value.isSuccess) {
+            String localSUuid = const Uuid().v4();
+            sh
+              ..shiftId = localSUuid
+              ..iV = i;
+            await box.put(
+              i,
+              sh,
             );
-          },
-        );
+          } else {
+            await box.put(i, sh);
+            // Server ochilishni tasdiqlamadi — navbatga qo'yamiz: server
+            // yiqilgan bo'lsa keyin yetadi, rad etgan bo'lsa navbat uni
+            // hisobot bilan olib tashlaydi. Ilgari bu ochilish yo'qolardi
+            // va kechqurun "kassa serverda ochiq emas" muammosi chiqardi.
+            await ShiftSyncQueue.enqueueOpen(openedAt,
+                userId: userId, cashboxId: cashboxId);
+            await ShiftDiagnostics.report(
+              issue: ShiftIssue.pendingOpenNotSynced,
+              action: ShiftAction.open,
+              detail: 'POST api/v1/shift_pos (open) → '
+                  'status ${value.statusCode}',
+            );
+          }
+        } catch (err) {
+          LogRepository.addLog(
+            err.toString(),
+            file: "ShiftSingleton_4 / openShift / catchError",
+            method: "OPEN SHIFT",
+            where: "SHIFT SINGLETON / CATCH ERROR",
+            path: "ShiftSingleton_4.dart",
+            statusCode: 0,
+            url: '-',
+          );
+        }
         isReturn = true;
-        await Pref.setInt(PrefKeys.openedCount, 0);
-        await Pref.setString(PrefKeys.openedDate, '');
       });
     } else {
       await openOffline();
@@ -273,50 +313,70 @@ class ShiftSingleton4 {
       ..isClosed = true;
     shift.closingTime = closingTime;
 
-    await Pref.setString(PrefKeys.closedDate,
-        DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()));
     await box.put(currentShiftKey, shift);
     //-------------
 
-    /// Smenani serversiz yopish — yopish NAVBATGA qo'yiladi.
-    ///
-    /// `ShiftSyncQueue` navbatni ikki shart bo'yicha topadi: `closedDate`
-    /// bo'sh emas VA `closedCount == 1`. Shuning uchun hisoblagichni
-    /// qo'ymaslik yopishni butunlay yo'qotishga olib keladi.
+    final bool delivered = await syncCloseToServer(
+      // Yopilish vaqti, kassir va kassa BIR MARTA olinadi: onlayn yuborilsa
+      // ham, navbatga tushsa ham serverga aynan shu qiymatlar ketadi.
+      closedAt: DateFormat('yyyy-MM-dd HH:mm:ss').format(clock().toUtc()),
+      userId: Pref.getString(PrefKeys.userId, ''),
+      cashboxId: Pref.getString(PrefKeys.activatedPosId, ''),
+    );
+    if (delivered) uploadHiveShifts();
+    return returnedShift;
+  }
+
+  /// Smena yopilishini serverga yetkazadi. `true` — server darhol tasdiqladi.
+  ///
+  /// Smena kassada HAR DOIM yopiladi (`shiftsOpened = false`). Server bilan
+  /// aloqa bo'lmasa, navbatda serverga yetmagan eski voqealar bo'lsa yoki
+  /// server tasdiqlamasa — yopilish navbatga tushadi. Navbat ro'yxat, har
+  /// yopilish alohida yoziladi: ilgari navbatda yopish uchun bitta joy bor
+  /// edi va internetsiz ikkinchi marta yopib bo'lmasdi.
+  ///
+  /// ObjectBox'ga tegmaydi (cheklar `closeShift` da) — shuning uchun
+  /// testlarda haqiqiy so'rovlar bilan alohida sinaladi.
+  @visibleForTesting
+  static Future<bool> syncCloseToServer({
+    required String closedAt,
+    required String userId,
+    required String cashboxId,
+  }) async {
     Future<void> closeOffline() async {
-      // Ochish navbatda turgani yopishga TO'SIQ EMAS: `ShiftSyncQueue` endi
-      // ikkalasini vaqt tartibida yuboradi (avval ochish, keyin yopish).
-      // Ilgari bu shart `openedCount == 0` ni ham talab qilardi — natijada
-      // server o'chgan kunda ertalab oflayn ochilgan smenani kechqurun
-      // umuman yopib bo'lmasdi.
-      //
-      // `closedCount == 0` sharti qoladi: navbatda bitta yopish uchungina
-      // joy bor, ikkinchisi birinchisining sanasini yo'q qilib yuborardi.
-      if (Pref.getInt(PrefKeys.closedCount, 0) == 0) {
-        await Pref.setBool(PrefKeys.shiftsOpened, false);
-        await Pref.setInt(PrefKeys.closedCount, 1);
-      }
+      await Pref.setBool(PrefKeys.shiftsOpened, false);
+      await ShiftSyncQueue.enqueueClose(closedAt,
+          userId: userId, cashboxId: cashboxId);
     }
 
-    if (await BackendHealth.isUsable()) {
-      ShiftingModel shiftingModel = await ShiftApi4.closeShift();
-      if (shiftingModel.statusCode != null && shiftingModel.statusCode == 200) {
-        uploadHiveShifts();
-        await Pref.setBool(PrefKeys.shiftsOpened, false);
-        await Pref.setString(PrefKeys.closedDate, '');
-        await Pref.setInt(PrefKeys.closedCount, 0);
-      } else if (BackendHealth.isServerFailureStatus(
-          shiftingModel.statusCode ?? 0)) {
-        // Server yiqilgan — internet uzilgandagi kabi navbatga qo'yamiz.
-        // Ilgari bu shox umuman yo'q edi: Hive'da smena "yopilgan" bo'lib
-        // qolar, `closedCount` esa 0 bo'lgani uchun navbat ham hosil
-        // bo'lmasdi — ya'ni yopilish serverga HECH QACHON yetmasdi.
-        await closeOffline();
-      }
-    } else {
+    if (!await BackendHealth.isUsable()) {
       await closeOffline();
+      return false;
     }
-    return returnedShift;
+
+    if (ShiftSyncQueue.hasPending) {
+      // Navbatda serverga yetmagan eski voqealar bor — bu yopilish ularning
+      // ORTIDAN ketishi kerak. To'g'ridan-to'g'ri yuborilsa, masalan,
+      // oflayn ochilgan smenaning yopilishi ochilishidan OLDIN yetib bekor
+      // ketardi (server yopiq kassani yopishga 200 qaytaradi), keyin
+      // yetgan ochilish esa kassani serverda ochiq qoldirardi.
+      await closeOffline();
+      unawaited(ShiftSyncQueue.flush(reason: 'after-close'));
+      return false;
+    }
+
+    final ShiftingModel shiftingModel = await ShiftApi4.closeShift(
+        closedAt: closedAt, userId: userId, cashboxId: cashboxId);
+    if (shiftingModel.statusCode == 200 || shiftingModel.statusCode == 201) {
+      await Pref.setBool(PrefKeys.shiftsOpened, false);
+      return true;
+    }
+
+    // Server yopilishni tasdiqlamadi — smena baribir kassada yopiladi,
+    // yopilish navbatga tushadi: server yiqilgan bo'lsa keyin yetadi,
+    // rad etgan bo'lsa navbat uni hisobot bilan olib tashlaydi.
+    await closeOffline();
+    return false;
   }
 
 //////////////////////////////////////////////////////////////////////////////

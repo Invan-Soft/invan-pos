@@ -1,23 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invan2/changes/services/shift/shift_diagnostics.dart';
 
-/// Smenani yopish mumkinmi — `ShiftSingleton4.closeShift` ning oflayn
-/// shoxidagi shart bilan bir xil bo'lishi kerak:
+/// Smena yopishdagi ogohlantirishlar va kassirga ko'rsatiladigan matnlar.
 ///
-/// ```dart
-/// if (closedCount == 0) { ...yopiladi... }
-/// ```
-///
-/// 2026-08-17 da UI shu shartni bilmasdi: kassirga "Smena yopildi" deb xabar
-/// berilardi, kod esa smenani yopmasdi.
-///
-/// 2026-09-02 da shart YUMSHATILDI (BackendHealth taski): ilgari u
-/// `openedCount == 0` ni ham talab qilardi. Oqibati og'ir edi — server
-/// o'chgan kunda ertalab oflayn ochilgan smenani kechqurun UMUMAN yopib
-/// bo'lmasdi. Endi `ShiftSyncQueue` ochish va yopishni vaqt tartibida
-/// yuboradi (avval ochish, keyin yopish), shuning uchun navbatdagi ochish
-/// to'siq emas. Navbatda YOPISH turgani esa hamon to'siq: unda bitta
-/// yopish uchungina joy bor.
+/// Tarix: 2026-08-17 da oflayn yopish uchun shart (`closedCount == 0`,
+/// keyin `openedCount == 0` ham) va uni UI'da oldindan tekshiradigan
+/// `blockingCloseIssue` qo'shilgan edi — navbatda ochish va yopish uchun
+/// bittadan joy bor edi. 2026-10-02 dan navbat ro'yxat (`ShiftSyncQueue`):
+/// internetsiz ham istalgancha yopish mumkin, to'siq yo'q. Navbatning o'zi
+/// test/server_down_behaviour_test.dart da sinaladi.
 ShiftSnapshot _snapshot({
   bool internet = false,
   int openedCount = 0,
@@ -44,63 +35,6 @@ ShiftSnapshot _snapshot({
 }
 
 void main() {
-  group('canCloseOffline — ShiftSingleton4 sharti bilan bir xil', () {
-    test('ikkala hisoblagich 0 bo\'lsa yopish mumkin', () {
-      expect(_snapshot().canCloseOffline, isTrue);
-    });
-
-    test('oflayn ochilgan smena (openedCount=1) — YOPISH MUMKIN', () {
-      expect(_snapshot(openedCount: 1).canCloseOffline, isTrue,
-          reason: 'server o\'chgan kunda ochilgan smena kechqurun '
-              'yopilishi shart — navbat ikkalasini tartib bilan yuboradi');
-    });
-
-    test('navbatda yopish turibdi (closedCount=1) — yopib bo\'lmaydi', () {
-      expect(_snapshot(closedCount: 1).canCloseOffline, isFalse);
-    });
-  });
-
-  group('blockingCloseIssue', () {
-    test('internet bor — hech qachon bloklamaydi (server hal qiladi)', () {
-      expect(
-        ShiftDiagnostics.blockingCloseIssue(
-          _snapshot(internet: true, openedCount: 1, closedCount: 1),
-        ),
-        isNull,
-      );
-    });
-
-    test('oflayn, hisoblagichlar toza — bloklamaydi', () {
-      expect(ShiftDiagnostics.blockingCloseIssue(_snapshot()), isNull);
-    });
-
-    test('oflayn ochilgan smena — BLOKLANMAYDI', () {
-      expect(
-        ShiftDiagnostics.blockingCloseIssue(_snapshot(openedCount: 1)),
-        isNull,
-        reason: 'ochish navbatda tursa ham yopish navbatga qo\'shiladi',
-      );
-    });
-
-    test('navbatdagi yopish — pendingClose sababi bilan bloklanadi', () {
-      expect(
-        ShiftDiagnostics.blockingCloseIssue(_snapshot(closedCount: 1)),
-        ShiftIssue.offlineCloseBlockedByPendingClose,
-      );
-    });
-
-    test('ikkalasi ham 1 bo\'lsa — yopish navbati band, bloklanadi', () {
-      expect(
-        ShiftDiagnostics.blockingCloseIssue(
-          _snapshot(openedCount: 1, closedCount: 1),
-        ),
-        ShiftIssue.offlineCloseBlockedByPendingClose,
-        reason: 'navbatda allaqachon yopish bor — ikkinchisi birinchisining '
-            'sanasini o\'chirib yuborardi',
-      );
-    });
-  });
-
   group('Kassirga ko\'rsatiladigan matn', () {
     test('bloklovchi sabab — nima bo\'ldi / sabab / nima qilish kerak', () {
       final String uz = ShiftDiagnostics.explain(
@@ -117,19 +51,33 @@ void main() {
     });
 
     test('bloklovchi sabab sarlavhasi "yopilmadi" deyishi shart', () {
-      for (final issue in [
-        ShiftIssue.offlineCloseBlockedByPendingOpen,
-        ShiftIssue.offlineCloseBlockedByPendingClose,
-      ]) {
-        expect(
-          ShiftDiagnostics.title(issue, isUz: true).toLowerCase(),
-          contains('yopilmadi'),
-        );
-        expect(
-          ShiftDiagnostics.title(issue, isUz: false).toLowerCase(),
-          contains('не закрыта'),
-        );
-      }
+      const ShiftIssue issue = ShiftIssue.offlineCloseBlockedByPendingOpen;
+      expect(
+        ShiftDiagnostics.title(issue, isUz: true).toLowerCase(),
+        contains('yopilmadi'),
+      );
+      expect(
+        ShiftDiagnostics.title(issue, isUz: false).toLowerCase(),
+        contains('не закрыта'),
+      );
+    });
+
+    test(
+        'internet yo\'q — "keyingi smenani yopib bo\'lmaydi" deb '
+        'ogohlantirmaydi (navbat ro\'yxat, cheklov yo\'q)', () {
+      final String uz = ShiftDiagnostics.explain(
+        ShiftIssue.noInternet,
+        _snapshot(closedCount: 1, pendingCloseAt: '2026-10-02 09:00:00'),
+        isUz: true,
+      );
+      final String ru = ShiftDiagnostics.explain(
+        ShiftIssue.noInternet,
+        _snapshot(closedCount: 1, pendingCloseAt: '2026-10-02 09:00:00'),
+        isUz: false,
+      );
+      expect(uz, isNot(contains('yopib bo\'lmaydi')));
+      expect(ru, isNot(contains('не получится')));
+      expect(uz, contains('navbatiga tushadi'));
     });
 
     test(

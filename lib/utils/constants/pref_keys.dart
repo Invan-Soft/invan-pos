@@ -195,6 +195,13 @@ class PrefKeys {
   static const String mxikCode = 'mxik_code';
   static const String packageCode = 'package_code';
 
+  /// Smena navbati — serverga yetmagan ochish/yopishlar ro'yxati (JSON).
+  /// Qarang: `ShiftSyncQueue`.
+  static const String shiftSyncQueue = 'shift_sync_queue';
+
+  /// ESKI navbat kalitlari (2026-10-02 gacha). Yangi kod ularga yozmaydi —
+  /// faqat yangilangan kassada qolib ketgan navbatni `ShiftSyncQueue`
+  /// ro'yxatiga ko'chirish uchun o'qiladi.
   static const String openedDate = 'opened_date';
   static const String closedDate = 'closed_date';
   static const String openedCount = 'opened_count';
@@ -229,6 +236,17 @@ class PrefKeys {
 
   /// [bhmAmount] oxirgi marta qachon olingan (ms since epoch).
   static const String bhmFetchedAt = 'bhm_fetched_at';
+
+  /// Telegram kanaliga "build olindi" deb oxirgi yuborilgan build kaliti
+  /// (`<versiya>#<patch>`). Qarang: `PatchReporter`.
+  static const String patchReportedBuild = 'patch_reported_build';
+
+  /// Diskda yuklangan, hali ishga tushmagan patch kaliti. Keyingi ochilishda
+  /// u ishlamasa — "patch ishga tushmadi" xabari.
+  static const String patchPendingBuild = 'patch_pending_build';
+
+  /// Shorebird xato hisobotlari takrori/kunlik chegarasi holati (Map).
+  static const String patchReportErrors = 'patch_report_errors';
 
 
 

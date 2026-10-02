@@ -1,5 +1,8 @@
 # Task: Smena (ochish/yopish) diagnostikasi — tushunarli ogohlantirish va Telegram xabarlari
 
+> ⚠️ **Superseded by:** docs/sessions/2026-10-02-smena-navbat-fifo.md (2026-10-02)
+> Bu hujjat o'sha vaqtdagi qarorni aks ettiradi. Joriy implementatsiya o'zgargan.
+
 **Boshlangan:** 2026-08-13
 **Holat:** done
 **Yakunlangan:** 2026-09-07

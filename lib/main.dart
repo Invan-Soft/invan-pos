@@ -36,8 +36,11 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:window_manager/window_manager.dart';
 import 'changes/dialogs/creat_product/model/mes_vat_unit_model/mes_unit.dart';
+import 'app/startup_error_app.dart';
+import 'changes/services/log_helper.dart';
 import 'changes/services/log_service.dart';
 import 'changes/services/patch_updater.dart';
+import 'features/home/components/patch_restart_button.dart';
 import 'features/home/bloc/home_bloc/home_bloc.dart';
 
 class MyWindowListener extends WindowListener {
@@ -84,6 +87,49 @@ Future<void> main() async {
 
   await windowManager.ensureInitialized();
   windowManager.addListener(MyWindowListener());
+
+  // Bazalar va sozlamalar. Biror qadam xato bersa, ilgari dastur birinchi
+  // ekranni umuman chizmasdi: Mac'da qora oyna, Windows'da (oyna startup'da
+  // yashirin) dastur "ochilmasdi". Endi sabab ko'rsatiladi.
+  try {
+    await _initData();
+  } catch (e, st) {
+    await LogHelper.write(
+        LogLevel.error, '[STARTUP] dastur ishga tushmadi: $e\n$st');
+    runApp(StartupErrorApp(error: e));
+    _showWindow();
+    return;
+  }
+
+  runApp(
+    MultiProvider(
+      providers: [
+        BlocProvider(create: (context) => HomeBloc()),
+        BlocProvider(create: (context) => InvoiceBloc()),
+      ],
+      child: const App(),
+    ),
+  );
+  _showWindow();
+
+  OfdConfigMigrator.migrateIfNeeded();
+  PatchUpdater.start();
+  // Yangilanish uchun o'zi qayta ochilgan bo'lsa — kassirga aytamiz
+  // (aks holda oynaning bir zum yopilib-ochilishi xatoga o'xshaydi).
+  if (PatchUpdater.relaunchedForUpdate) showPatchUpdatedMessage();
+}
+
+void _showWindow() {
+  doWhenWindowReady(() async {
+    final win = appWindow;
+    win.maximize();
+    win.title = "InVan 2";
+    win.show();
+  });
+}
+
+/// runApp'gacha tayyorlanadigan bazalar va sozlamalar.
+Future<void> _initData() async {
   // await Prefs.init();
   await MyObjectbox.init();
   await _hiveInit();
@@ -130,25 +176,6 @@ Future<void> main() async {
   CategorySingleton.init();
   await OrganizationSingleton.setOtherPayments();
   await SettingsInnerSingleton().intiDeviceData();
-
-  runApp(
-    MultiProvider(
-      providers: [
-        BlocProvider(create: (context) => HomeBloc()),
-        BlocProvider(create: (context) => InvoiceBloc()),
-      ],
-      child: const App(),
-    ),
-  );
-  doWhenWindowReady(() async {
-    final win = appWindow;
-    win.maximize();
-    win.title = "InVan 2";
-    win.show();
-  });
-
-  OfdConfigMigrator.migrateIfNeeded();
-  PatchUpdater.start();
 }
 
 Future<void> hiveClose() async {

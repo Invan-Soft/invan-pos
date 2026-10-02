@@ -13,10 +13,13 @@ name: Shorebird Patch Windows
 on:
   workflow_dispatch:
     inputs:
+      # Standart qiymat YO'Q — har safar aniq yoziladi. `latest` Shorebird'da
+      # "eng oxirgi yangilangan reliz" degani: u Windows'niki bo'lmasligi
+      # mumkin (masalan Mac sinov relizi 1.1.2+9128, 2026-10-02).
       release_version:
-        description: 'Patch qilinadigan reliz (pubspec version, masalan 1.0.2+3) yoki latest'
+        description: 'Patch qilinadigan Windows reliz versiyasi (pubspec version, masalan 1.1.2+128)'
         required: true
-        default: 'latest'
+        default: ''
       track:
         description: 'Kanal'
         required: true

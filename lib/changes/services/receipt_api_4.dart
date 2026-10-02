@@ -253,6 +253,8 @@ class ReceiptApi4 {
 
     receipt.soldItemList.addAll(r.soldItemList);
     receipt.payment.addAll(paymentMap.values);
+    // Fiskal ExtraInfo va provayder ID'lari (saleOnOFD shu nusxadan o'qiydi).
+    receipt.epayJson = r.epayJson;
     // Savatda o'chirilgan mahsulotlar ro'yxati serverga ketadigan nusxada
     // ham saqlanadi ("deleted_items" massivi).
     receipt.deletedItemsJson =
