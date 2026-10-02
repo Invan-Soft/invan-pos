@@ -1,7 +1,7 @@
 # Task: Multi-klient orqali access-siz mahsulot o'chirish (kassir hiylasi) fix
 
 **Boshlangan:** 2026-09-30
-**Holat:** in-progress
+**Holat:** in-progress (relizda — 1.1.2+129, PRO, 2026-10-02, commit `a3a69a9`; do'kon sinovi kutilmoqda)
 **Branch:** ayyubxon (DIQQAT: ish paytida working tree `fix/is-marking-false-sinxron`
 branch'ida edi — commit'dan oldin qaysi branch'ga yozilishini foydalanuvchi hal qiladi)
 

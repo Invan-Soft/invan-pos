@@ -1,7 +1,7 @@
 # Task: Click Pass / Payme Go — fiskalda ReceivedCard, QQS to'liq
 
 **Boshlangan:** 2026-09-30
-**Holat:** in-progress (1.1.2+129 relizi bilan; qurilmada haqiqiy Click Pass / Payme Go + fiskal sinovi kutilmoqda)
+**Holat:** in-progress (relizda — 1.1.2+129, PRO, 2026-10-02, commit `f007377` + `e5ba429`; qurilmada haqiqiy Click Pass / Payme Go + fiskal sinovi kutilmoqda)
 **Branch:** `f007377` (fix/is-marking-false-sinxron → ayyubxon, 2026-10-01); ePay ID davomi — fix/smena-navbat-fifo → ayyubxon (2026-10-02)
 
 ## Maqsad

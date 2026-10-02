@@ -1,7 +1,7 @@
 # Port hujjati: BHM taskidan boshlab qilingan barcha o'zgarishlar
 
-**Manba loyiha:** InVan 2 POS — `pos-invan-2`, branch `ayyubxon`, versiya `1.1.2+127` (2026-09-24)
-**Hujjat holati:** 2026-09-24 (1-6 tasklarning barchasi 1.1.2+127 relizida, PRO backendga yuklangan)
+**Manba loyiha:** InVan 2 POS — `pos-invan-2`, branch `ayyubxon`, versiya `1.1.2+129` (2026-10-02)
+**Hujjat holati:** 2026-10-02 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan)
 **Kimga:** shu loyihaning boshqa nusxasini (boshqa ERP bilan integratsiya qilinayotgan nusxa — "InVan 1") InVan 2 bilan bir xil holatga keltiradigan dasturchi yoki Claude.
 
 ## Bu hujjat nima
@@ -12,8 +12,8 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 
 ## Boshqa nusxada (InVan 1) Claude uchun ko'rsatma
 
-1. Avval shu hujjatni boshidan oxirigacha o'qing. Tasklar tartibda qo'llanadi: 1 → 2 → 3 → 4 → 5 → 6 → 7. 3-task 1-2 ga bog'liq emas; 4-task 3-taskdagi vozvrat oqimiga tegishli (lekin undan mustaqil qo'llasa ham bo'ladi); 5-task fiskal item quruvchiga tegishli, 2-task bilan bir faylda (`receipt_singleton_4.dart`); 6-task boshqalardan MUSTAQIL (notification/sinxron qatlami) — istalgan tartibda, hatto birinchi bo'lib qo'llash mumkin, lekin o'zining ICHIDA 2026-08-12 taskiga (undan TASHQARIDA) bog'liq — 6-taskning "4. Bog'liqliklar" bo'limiga qarang. 7-task 6-taskdan keyin qo'llanadi (o'sha qatlam; 2-task qoidasining yozish tomoni).
-2. 1–6-tasklar commit qilingan va 1.1.2+127 relizida PRO backendga yuklangan (2026-09-24) — hech biri WIP emas. 7-task (2026-09-30) commit qilingan (`a83668c`, branch `fix/is-marking-false-sinxron`), lekin hali relizda EMAS. Hech biri do'konda haqiqiy tarmoq/fiskal modul bilan sinalmagan (pastda har taskning "Holat"iga qarang) — port qilsa bo'ladi, lekin bu bilib qo'llanadi. 7-task 6-taskning davomi: 6-task oxiridagi "Ataylab tuzatilmagan" ro'yxatidagi `isMarking` bandi 7-taskda bekor qilinadi.
+1. Avval shu hujjatni boshidan oxirigacha o'qing. Tasklar tartibda qo'llanadi: 1 → 2 → … → 12. 3-task 1-2 ga bog'liq emas; 4-task 3-taskdagi vozvrat oqimiga tegishli (lekin undan mustaqil qo'llasa ham bo'ladi); 5-task fiskal item quruvchiga tegishli, 2-task bilan bir faylda (`receipt_singleton_4.dart`); 6-task boshqalardan MUSTAQIL (notification/sinxron qatlami) — istalgan tartibda, hatto birinchi bo'lib qo'llash mumkin, lekin o'zining ICHIDA 2026-08-12 taskiga (undan TASHQARIDA) bog'liq — 6-taskning "4. Bog'liqliklar" bo'limiga qarang. 7-task 6-taskdan keyin qo'llanadi (o'sha qatlam; 2-task qoidasining yozish tomoni). 8-task (Shorebird code push) mustaqil; 12-task (Telegram hisobot) faqat 8-taskdan keyin. 9-task 5-taskdagi `FiscalPaymentSplit` ga tayanadi va **ObjectBox sxemasini o'zgartiradi** (faqat to'liq reliz bilan; InVan 1 ObjectBox'ni o'zi generatsiya qiladi). 10-task (savat, multi-klient) va 11-task (smena navbati) boshqalardan mustaqil.
+2. 1–6-tasklar commit qilingan va 1.1.2+127 relizida PRO backendga yuklangan (2026-09-24) — hech biri WIP emas. 7–12-tasklar (2026-09-30 — 2026-10-02) commit qilingan va 1.1.2+129 relizida PRO backendga yuklangan (2026-10-02). Hech biri do'konda haqiqiy tarmoq/fiskal modul bilan sinalmagan (pastda har taskning "Holat"iga qarang) — port qilsa bo'ladi, lekin bu bilib qo'llanadi. 7-task 6-taskning davomi: 6-task oxiridagi "Ataylab tuzatilmagan" ro'yxatidagi `isMarking` bandi 7-taskda bekor qilinadi.
 3. Har taskning "Qo'llash tartibi" bo'limida InVan 1 da nimani qidirish kerakligi yozilgan. InVan 1 da InVan 2 dagi domen sinflari (`CashRestrictionRules`, `MxikRules`, `SoldItemBuilder`, `RefundUploadQueue`, `BackendHealth`, `SyncCursor`) bo'lmasligi mumkin — bunday holatlar har bo'limda alohida ko'rsatilgan.
 4. **Port qilinMAYdigan** narsalar: `pubspec.yaml` versiya bump'lari, `api_provider.dart` dagi DEV/PRO almashinuvi (release commitlarida bo'ladi), `docs/` fayllari.
 5. Testlar `test/support/provider_harness.dart` ga tayanadi (`setUpPosTestEnv`, `tearDownPosTestEnv`, `kCashierId`, `kUserId`, `kCashierName`, `makeSoldItem`). InVan 1 da bo'lmasa — InVan 2 dan nusxa oling (203 qator: Hive + Pref + ObjectBox test muhiti, adapterlar) yoki testlarni moslang. Testsiz port ham mumkin, lekin tavsiya etilmaydi: har taskning testi aynan "nima buzilmasligi kerak"ni mixlaydi.
@@ -21,7 +21,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 
 ## Tasklar ro'yxati
 
-| # | Sana | Task | InVan 2 reliz | Holat (2026-09-30) | Commit |
+| # | Sana | Task | InVan 2 reliz | Holat (2026-10-02) | Commit |
 |---|---|---|---|---|---|
 | 1 | 2026-09-10 | Naqd chegarasi: 25 mln statik → Soliq API'dan `400 × BHM` (hozir 176 mln) | 1.1.2+123, +124 | Relizda; do'kon sinovi kutilmoqda | `cc66526`, `c0ae23a` |
 | 2 | 2026-09-11 | `is_marking=false`: markirovka dialogi yo'q, fiskalga statik MXIK + bo'sh barcode | 1.1.2+125 | Relizda; do'kon sinovi kutilmoqda | `347813b` |
@@ -29,9 +29,14 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 4 | 2026-09-24 | Vozvrat fiskal chekida `OwnerType` va komitent STIR sotuv bilan bir xil (katalogdan) | **1.1.2+127** | Relizda; do'kon sinovi kutilmoqda | `c853b27` |
 | 5 | 2026-09-24 | Fiskal QQS bazasi chegirmadan keyin: `VAT = (Price − Discount − Other) × p / (100 + p)` | **1.1.2+127** | Relizda (`fix/fiskal-qqs-chegirma-bazasi` → `ayyubxon`ga birlashtirildi); do'kon sinovi kutilmoqda | `85199e6` (merge `7e01ce8`) |
 | 6 | 2026-09-24 | Notification (polling) sinxron tirqichlari: server soati, buzuq notification, timeout, qulf | **1.1.2+127** | Relizda; do'kon sinovi kutilmoqda | `bfc4929`..`80f88d7` |
-| 7 | 2026-09-30 | `is_marking` true→false o'zgarishi kassaga o'tmasligi: `putItems` sticky + Soliq avto-true endi aniq false'ni yengmaydi | — (relizda emas) | Commit bor (branch `fix/is-marking-false-sinxron`, `ayyubxon`ga birlashtirilmagan); reliz va do'kon sinovi kutilmoqda | `a83668c` |
+| 7 | 2026-09-30 | `is_marking` true→false o'zgarishi kassaga o'tmasligi: `putItems` sticky + Soliq avto-true endi aniq false'ni yengmaydi | **1.1.2+129** | Relizda; do'kon sinovi kutilmoqda | `a83668c`, `d31e4df` (merge `1e96fc5`) |
+| 8 | 2026-09-30 | Shorebird code push: patch `.exe` siz, kassir bir ochilishda; "Yangilanish tayyor" tugmasi; xato ekrani; Windows qayta yonish | 1.1.2+128 (CI), **1.1.2+129** | Relizda; Mac'da sinalgan, Windows prod sinovi kutilmoqda | `7db61a9`, `3154158`, `df6ef7c`, `919e601`, `d16df8a`, `40bc8c2`, `5112b2b` |
+| 9 | 2026-10-01 | Click Pass / Payme Go → `ReceivedCard` (QQS to'liq) + elektron to'lov ID'lari chekda (**ObjectBox +1**) | **1.1.2+129** | Relizda; qurilmada (haqiqiy Pass/Go + fiskal) sinov kutilmoqda | `f007377`, `e5ba429` |
+| 10 | 2026-10-01 | Multi-klient orqali access-siz mahsulot o'chirish yopildi | **1.1.2+129** | Relizda; do'kon sinovi kutilmoqda | `a3a69a9` |
+| 11 | 2026-10-02 | Smena navbati FIFO: server/internet yo'qligida har ochish/yopish serverga tartib bilan | **1.1.2+129** | Relizda; Mac + jonli dev API'da sinalgan, Windows sinovi kutilmoqda | `a24d0c9` |
+| 12 | 2026-10-02 | Shorebird build/patch olingani Telegram kanalga hisobot | **1.1.2+129** | Relizda; Mac sinov relizida kanalga yetgani tasdiqlangan | `f21c8d8` (+ `40bc8c2`) |
 
-Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili).
+Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
 ## Commit xronologiyasi (`ayyubxon`, `cc66526..HEAD`)
 
@@ -60,8 +65,26 @@ c264890 2026-09-24 fix(sync): qo'shimcha audit topilmalari — parse/narx/katego
 7e01ce8 2026-09-24 merge: fix/fiskal-qqs-chegirma-bazasi → ayyubxon (5-task shu yerda qo'shildi)
 7e2d6e9 2026-09-24 docs: 1.1.2+127 PRO backend'ga yuklandi                                   (port qilinmaydi)
 44f3888 2026-09-24 docs(port): 6-task to'liq yozildi                                         (port qilinmaydi)
+7db61a9 2026-09-30 release: 1.1.3+128 — Shorebird CI (release.yml → shorebird, patch.yml)   ← 8-task (CI)
+3154158 2026-09-30 ci(shorebird): Windows runner'da git long paths                          ← 8-task (CI)
+84a262e 2026-09-30 release: 1.1.2+128 — Shorebird code push                                 (port qilinmaydi)
+df6ef7c 2026-09-30 feat(shorebird): patch bir ochilishda + "Yangilanish tayyor" tugmasi     ← 8-task
+919e601 2026-09-30 fix(shorebird): tugma faqat 6 ta savat bo'sh bo'lganda                   ← 8-task
 a83668c 2026-09-30 fix(sync): is_marking — server qiymati lokal true'ni yengadi              ← 7-task
-                            [branch fix/is-marking-false-sinxron, ayyubxon'ga hali birlashtirilmagan]
+b938f5c 2026-09-30 docs(port): 7-task to'liq yozildi                                        (port qilinmaydi)
+f007377 2026-10-01 fix(fiskal): Click Pass / Payme Go → ReceivedCard, QR → Other            ← 9-task
+a3a69a9 2026-10-01 fix(savat): multi-klient orqali access-siz o'chirish yopildi             ← 10-task
+d31e4df 2026-10-01 test(sync): is_marking true→false e2e stsenariy                          ← 7-task
+b59d371 2026-10-01 docs: sessiya hujjatlari, fiskal to'lov turlari tahlili                  (port qilinmaydi)
+1e96fc5 2026-10-01 merge: fix/is-marking-false-sinxron → ayyubxon (7, 9, 10-task shu yerda qo'shildi)
+d16df8a 2026-10-01 fix(shorebird): qayta ishga tushirish himoyasi                           ← 8-task
+a24d0c9 2026-10-02 fix(smena): navbat FIFO ro'yxat                                          ← 11-task
+f21c8d8 2026-10-02 feat(shorebird): Telegram kanalga hisobot (PatchReporter)                ← 12-task
+40bc8c2 2026-10-02 fix(shorebird): bir ochilishda, tez ochilish, xato ekrani                ← 8-task (+12 ulanishi)
+5112b2b 2026-10-02 fix(windows): o'zi qayta yongan nusxa eski nusxani kutadi                ← 8-task
+e5ba429 2026-10-02 fix(fiskal): elektron to'lov ID'lari chekda (ObjectBox +1)               ← 9-task
+7b3d01b 2026-10-02 merge: fix/smena-navbat-fifo → ayyubxon (8, 9, 11, 12-task)
+c4e42e1 2026-10-02 release: 1.1.2+129                                                       (port qilinmaydi)
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -10827,11 +10850,11 @@ index 18be045..d0c2c92 100644
 
 ---
 
-# 7-TASK — `is_marking` true→false o'zgarishi kassaga o'tmasligi: sticky isMarking (relizda emas)
+# 7-TASK — `is_marking` true→false o'zgarishi kassaga o'tmasligi: sticky isMarking (1.1.2+129)
 
-> **Commit:** `a83668c` (2026-09-30), branch `fix/is-marking-false-sinxron` — `ayyubxon`ga hali birlashtirilmagan, relizda emas.
+> **Commit:** `a83668c` (2026-09-30) + e2e test `d31e4df` (2026-10-01); `ayyubxon`ga `1e96fc5` da birlashtirilgan; reliz `c4e42e1` 1.1.2+129.
 > **Sessiya hujjati:** docs/sessions/2026-09-30-is-marking-notification-sticky.md
-> **Holat 2026-09-30:** commit bor, relizda emas; do'kon sinovi kutilmoqda.
+> **Holat 2026-10-02:** relizda (1.1.2+129, PRO backendga yuklangan); do'kon sinovi kutilmoqda. Odoo forkiga: `a83668c` — kerak; `d31e4df` — kerak emas (InVan notification feed'iga bog'liq e2e test).
 
 ## 1. Nima va nima uchun
 
@@ -11076,6 +11099,7623 @@ InVan 1 da `product()` helper (isMarking: false bilan ItemModel yasaydi), `setUp
 
 ---
 
+# 8-TASK — Shorebird code push: Dart tuzatishlari `.exe` siz, kassir bir ochilishda (1.1.2+128 / +129)
+
+> **Commitlar:** `7db61a9`, `3154158` (CI — 1.1.2+128), `df6ef7c`, `919e601` (2026-09-30), `d16df8a` (2026-10-01), `40bc8c2`, `5112b2b` (2026-10-02). Reliz: CI va Shorebird relizi — 1.1.2+128; to'liq mantiq — **1.1.2+129** (`c4e42e1`).
+> **Sessiya hujjati:** docs/sessions/2026-10-02-shorebird-mac-test.md; doimiy qoidalar: `docs/shorebird-qoidalari.md` (InVan 2 ichki hujjati).
+> **Holat 2026-10-02:** Mac'da sinalgan (alohida sinov relizi `1.1.2+9128`, patch 1–5): bir ochilishda yangilanish, tugma, rollback, xato ekrani, ochilish vaqtlari. **Windows'da qayta yonish sinalmagan** — 1.1.2+129 dan keyingi birinchi prod patch bilan tekshiriladi.
+
+## 1. Nima va nima uchun
+
+Ilgari har Dart tuzatishi uchun yangi `.exe` (reliz → backendga yuklash → kassir drawer'dagi "Yangilanish"ni bosadi) kerak edi. Shorebird code push bilan Dart kodi o'zgarishi o'rnatilgan kassalarga **patch** sifatida yetadi; yangi reliz faqat native o'zgarishda (windows/, native plagin, Flutter versiyasi, assets, ObjectBox sxemasi) kerak.
+
+Shorebird'ning odatiy xulqi: patch fonda yuklanadi va faqat **keyingi** ishga tushirishda qo'llanadi — kassir dasturni ikki marta yopib ochishi kerak. Bu task:
+
+1. **Ochilishda bir martada:** `main()` boshida (oyna yashirin, bazalar ochilmagan) yangi patch bo'lsa yuklab, dastur o'zini qayta ishga tushiradi.
+2. **Ish vaqtida:** davriy tekshiruv; patch tayyor bo'lsa yuqorida yashil **"Yangilanish tayyor"** tugmasi — faqat 6 ta savatning hammasi bo'sh bo'lganda (sotuv o'rtasida qayta yonmaslik uchun). Dastur hech qachon O'ZI qayta yonmaydi.
+3. **Qayta yongandan keyin** "✓ Dastur yangilandi" xabari (oynaning bir zum yopilib-ochilishi xatoga o'xshamasin).
+4. **Ishga tushish xato ekrani:** `main()` dagi bazalar/sozlamalar xato bersa (masalan ObjectBox sxemasi dastur versiyasiga mos emas — rollback yoki eski installer'dan keyin) ilgari Mac'da qora oyna, Windows'da (oyna startup'da yashirin) "ochilmaydigan" dastur qolardi. Endi sabab ikki tilda ko'rsatiladi.
+5. **Windows runner:** dastur o'zini qayta ishga tushirganda yangi nusxa eski nusxa yopilishini kutadi ("bitta nusxa" tekshiruvi uni jim yopib qo'ymasin).
+
+Tuzatilgan poyga (Mac sinovi, 2026-10-02): dastur ochilganda Shorebird'ning O'Z avtomatik yuklovchisi (`auto_update`) xuddi shu patch'ni parallel yuklaydi. Birinchi versiyada (`df6ef7c`) tekshiruv shu poygada birinchi muvaffaqiyatsiz chaqiruvdayoq to'xtardi — patch yuklanardi-yu, dastur qayta yonmasdi. Yana: Shorebird 3.41.3 dvigateli "Update already in progress" ni xato kodi bilan qaytaradi (`shorebird_code_push` 2.0.7 uni zararsiz deb kutadi).
+
+## 2. Qanday ishlaydi
+
+**Reliz va patch (CI):**
+- `release.yml`: `flutter build windows` o'rniga `shorebird release windows --flutter-version=3.41.3` — build Shorebird'da reliz sifatida ro'yxatga olinadi; `.exe` (Inno Setup) avvalgidek.
+- `patch.yml` (qo'lda, workflow_dispatch): `release_version` — **aniq** versiya (standart qiymat yo'q: `latest` boshqa platforma relizini tanlab qo'yishi mumkin), `track` — staging/beta/stable. Kassalar faqat `stable` ni o'qiydi. `--dart-define` qiymatlari `release.yml` bilan **bir xil** bo'lishi shart.
+
+**Kassada — ochilishda (`PatchUpdater.applyOnStartup`, `main()` ning birinchi `await`i):**
+
+```
+INVAN_PATCH_RELAUNCHED=1 ?  → tekshiruvsiz (qayta yongan jarayon), odatdagidek ochiladi
+byudjet 8 s ichida tsikl:
+  1) lokal: readNextPatch != readCurrentPatch ? → QAYTA YONISH
+  2) checkForUpdate (har chaqiruv ≤ 3 s):
+       restartRequired → QAYTA YONISH
+       outdated        → update() (avtomatik yuklovchi ishlayotgan bo'lsa darhol qaytadi), qayta so'rash
+       upToDate        → 300 ms kutib lokal tekshiruv → ochiladi
+       xato            → vaqt tugagan bo'lsa (tarmoq osilgan) darhol ochiladi; ketma-ket 2-xatoda ochiladi
+QAYTA YONISH = Process.start(o'zi, env INVAN_PATCH_RELAUNCHED=1, detached) + exit(0)
+```
+
+O'lchov (Mac, patch 5): yangi patch bor — ~2 s yuklash, +3.2 s da yangi patch'da; patch yo'q — ~0.7 s; internet yo'q — ~0.3 s; Wi-Fi bor, internet "osilgan" — ~3 s. Sekin internetda 8 s ichida yuklanib ulgurmasa — odatdagidek ochiladi, yuklash fonda davom etadi.
+
+**Kassada — ish vaqtida (`PatchUpdater.start`, `runApp` dan keyin):** 1 daqiqadan keyin, keyin har 10 daqiqada va `BackendHealth` `up` ga o'tganda (oflayn → onlayn) `_downloadIfAny` → patch diskda bo'lsa `readyToRestart = true` → `PatchRestartButton` (AppBar) 6 ta savatning hammasi bo'sh bo'lsa ko'rinadi → bosilsa `restartNow()`: `appClosedTime`/`isFirstTime` saqlanadi, `Hive.close()`, ObjectBox store'lari yopiladi, qayta yonish. Tugma bosilmasa — keyingi ochilishda baribir qo'llanadi.
+
+**Xato ekrani:** `main()` dagi bazalar/sozlamalar `_initData()` ga ajratilgan; `try/catch` → `[STARTUP]` log + `runApp(StartupErrorApp(error))` + oynani ko'rsatish (`doWhenWindowReady`). Ekran Hive/Pref/tarjimaga bog'liq emas (ular ochilmagan bo'lishi mumkin). "Qayta ishga tushirish" yangi jarayonni `INVAN_RESTART=1` bilan ochadi va meros `INVAN_PATCH_RELAUNCHED` ni olib tashlaydi — yangi jarayon patch tekshiruvini (rollback'ni) o'tkazib yubormasin.
+
+**Windows runner (`CheckOneInstance`):** ilgari ikkinchi nusxa darhol jim chiqardi. Endi `INVAN_PATCH_RELAUNCHED=1` yoki `INVAN_RESTART=1` bo'lsa 100 × 100 ms (10 s) eski nusxa yopilishini kutadi; kassir o'zi ochganda xulq o'zgarmagan.
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `shorebird.yaml` | YANGI | Shorebird `app_id` (InVan 1 o'zinikini oladi — `shorebird init`) |
+| `.github/workflows/release.yml` | o'zgargan | `shorebird release windows --flutter-version=3.41.3`, git long paths |
+| `.github/workflows/patch.yml` | YANGI | Qo'lda patch: aniq `release_version`, `track` |
+| `pubspec.yaml` | o'zgargan | `shorebird_code_push: ^2.0.7` |
+| `lib/changes/services/patch_updater.dart` | YANGI | Ochilishda bir martada qo'llash, fon tekshiruvi, qayta yonish |
+| `lib/features/home/components/patch_restart_button.dart` | YANGI | "Yangilanish tayyor" tugmasi (6 savat bo'sh), "Dastur yangilandi" xabari |
+| `lib/app/startup_error_app.dart` | YANGI | Ishga tushish xato ekrani |
+| `lib/main.dart` | o'zgargan | `applyOnStartup` birinchi; `_initData()` + try/catch; `_showWindow()`; `PatchUpdater.start()`; xabar |
+| `lib/features/home/home_page.dart` | o'zgargan | AppBar'ga `PatchRestartButton` |
+| `windows/runner/win32_window.cpp` | o'zgargan | `CheckOneInstance`: o'zi qayta yonganda eski nusxani kutadi |
+| `test/patch_updater_test.dart` | YANGI | "Update already in progress" filtri |
+| `test/startup_error_app_test.dart` | YANGI | Xato ekrani matnlari, qayta ishga tushirish muhiti |
+
+## 4. Bog'liqliklar (InVan 1 uchun)
+
+- **Shorebird hisobi va O'Z `app_id`:** `shorebird init` — InVan 2 ning `app_id` sini KO'CHIRMANG (patch'lar InVan 2 kassalariga tushadi). CI uchun `SHOREBIRD_TOKEN` secret.
+- **Flutter versiyasi** reliz va patch uchun bir xil (`--flutter-version`). Patch faqat o'sha `shorebird release` bilan chiqqan versiyaga tushadi.
+- `BackendHealth` (2026-09-02 taski, bu hujjatdan tashqarida) — `PatchUpdater.start` dagi `_onConnectivityChanged`. Bo'lmasa: listener'ni olib tashlang (10 daqiqalik davr qoladi).
+- `PatchReporter` — **12-TASK**. `patch_updater.dart` unga 6 joyda murojaat qiladi (`import`, `PatchReporter.start`, `PatchReporter.error`). 12-TASK ni qo'llamasangiz — shu qatorlarni olib tashlang.
+- `restartNow()`: `Pref`, `PrefKeys.appClosedTime`, `PrefKeys.isFirstTime`, `MyObjectbox.saleStore/storee` — InVan 1 dagi nomlarga moslang (ma'no: dastur yopilgandagi kabi holatni saqlash, bazalarni yopish).
+- `PatchRestartButton`: savatlar ro'yxati `OrderingProvider4.sixClient4List` + `currentClient` — InVan 1 dagi savat modeliga moslang; `AppNavigation.navigatorKey` (xabar uchun).
+- `bitsdojo_window` (`appWindow`, `doWhenWindowReady`, `BDW_HIDE_ON_STARTUP`) — `main()` dagi `_showWindow()`.
+- Windows runner'dagi `CheckOneInstance` — InVan 2 ning o'z qo'shimchasi (Flutter shablonida yo'q). InVan 1 da bo'lmasa — 6.10 kerak emas.
+
+## 5. Qo'llash tartibi
+
+1. `shorebird init` (o'z `app_id`), `pubspec.yaml` ga `shorebird_code_push: ^2.0.7` (6.4).
+2. CI: `release.yml` ni `shorebird release windows` ga o'tkazing (6.2), `patch.yml` qo'shing (6.3). GitHub secrets: `SHOREBIRD_TOKEN` + mavjud `--dart-define` lar.
+3. Yangi fayllar: `patch_updater.dart` (6.5), `patch_restart_button.dart` (6.6), `startup_error_app.dart` (6.7).
+4. `main.dart` (6.8): `applyOnStartup()` — `WidgetsFlutterBinding.ensureInitialized()` dan keyin BIRINCHI `await`; bazalar `_initData()` ga, try/catch; oxirida `PatchUpdater.start()` va xabar.
+5. `home_page.dart` AppBar `actions` ga `const PatchRestartButton()` (6.9).
+6. Windows runner (6.10) — faqat `CheckOneInstance` bo'lsa.
+7. Testlar (6.11), `flutter test`.
+8. Birinchi `shorebird release windows` → kassalarga odatiy yo'l bilan; keyingi Dart tuzatishlari — `patch.yml`.
+
+## 6. Kod
+
+### 6.1. YANGI: `shorebird.yaml` (InVan 2 niki — `app_id` ni o'zingizniki bilan almashtiring)
+
+```yaml
+# This file is used to configure the Shorebird updater used by your app.
+# Learn more at https://docs.shorebird.dev
+# This file does not contain any sensitive information and should be checked into version control.
+
+# Your app_id is the unique identifier assigned to your app.
+# It is used to identify your app when requesting patches from Shorebird's servers.
+# It is not a secret and can be shared publicly.
+app_id: c36a12bc-72fe-4c53-8887-1c7a435f27d8
+
+# auto_update controls if Shorebird should automatically update in the background on launch.
+# If auto_update: false, you will need to use package:shorebird_code_push to trigger updates.
+# https://pub.dev/packages/shorebird_code_push
+# Uncomment the following line to disable automatic updates.
+# auto_update: false
+```
+
+### 6.2. `.github/workflows/release.yml`
+
+```diff
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index ab6774f..19deaa3 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -24,22 +24,26 @@ jobs:
+           $line = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$').Matches.Groups[1].Value.Trim()
+           echo "full=$line" >> $env:GITHUB_OUTPUT
+ 
+-      - name: Setup Flutter
+-        uses: subosito/flutter-action@v2
++      # Shorebird o'z Flutter'i bilan build qiladi — versiya shu yerda qotiriladi.
++      # Patch'lar ham aynan shu Flutter bilan yasaladi (patch.yml).
++      # Shorebird Flutter checkout'ida yo'llar 260 belgidan uzun —
++      # Windows'da ruxsatsiz "Filename too long" bilan yiqiladi.
++      - name: Enable git long paths
++        run: git config --system core.longpaths true
++
++      - name: Setup Shorebird
++        uses: shorebirdtech/setup-shorebird@v1
+         with:
+-          channel: stable
+-          flutter-version: '3.41.3'
+           cache: true
+ 
+-      - name: Flutter info
+-        run: flutter --version
+-
+-      - name: Install dependencies
+-        run: flutter pub get
+-
+-      - name: Build Windows release
++      # `flutter build windows` o'rniga: shu build Shorebird'da reliz sifatida
++      # ro'yxatga olinadi va keyin `shorebird patch windows` bilan yangilanadi.
++      # Chiqish papkasi o'sha: build\windows\x64\runner\Release (installer.iss).
++      - name: Shorebird release (Windows)
++        env:
++          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+         run: |
+-          flutter build windows --release `
++          shorebird release windows --flutter-version=3.41.3 `
+             --dart-define=TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}" `
+             --dart-define=TELEGRAM_CHANNEL_ID="${{ secrets.TELEGRAM_CHANNEL_ID }}" `
+             --dart-define=FISCAL_API_TOKEN="${{ secrets.FISCAL_API_TOKEN }}"
+```
+
+### 6.3. YANGI: `.github/workflows/patch.yml`
+
+```yaml
+name: Shorebird Patch Windows
+
+# Yangi .exe chiqarmasdan o'rnatilgan kassalarga Dart kod o'zgarishini
+# yuboradi. Faqat `shorebird release windows` bilan chiqqan versiyaga
+# tushadi (release.yml). Native o'zgarish (windows/runner, native plugin,
+# Flutter versiyasi) bo'lsa — patch emas, yangi reliz kerak.
+#
+# Kassa patch'ni ochilishda (bir martada) yoki ish vaqtida fonda yuklaydi
+# (PatchUpdater). Kassalar FAQAT stable kanalni o'qiydi — staging/beta
+# patch'i kassaga tushmaydi, uni faqat `shorebird preview --track staging`
+# bilan Windows kompyuterda sinash mumkin.
+
+on:
+  workflow_dispatch:
+    inputs:
+      # Standart qiymat YO'Q — har safar aniq yoziladi. `latest` Shorebird'da
+      # "eng oxirgi yangilangan reliz" degani: u Windows'niki bo'lmasligi
+      # mumkin (masalan Mac sinov relizi 1.1.2+9128, 2026-10-02).
+      release_version:
+        description: 'Patch qilinadigan Windows reliz versiyasi (pubspec version, masalan 1.1.2+128)'
+        required: true
+        default: ''
+      track:
+        description: 'Kanal'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - staging
+          - beta
+          - stable
+
+jobs:
+  patch-windows:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Shorebird Flutter checkout'ida yo'llar 260 belgidan uzun —
+      # Windows'da ruxsatsiz "Filename too long" bilan yiqiladi.
+      - name: Enable git long paths
+        run: git config --system core.longpaths true
+
+      - name: Setup Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+        with:
+          cache: true
+
+      # Flutter versiyasi reliz qilingani bilan bir xil bo'lishi SHART.
+      - name: Shorebird patch (Windows)
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          shorebird patch windows `
+            --release-version="${{ inputs.release_version }}" `
+            --track=${{ inputs.track }} `
+            --dart-define=TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}" `
+            --dart-define=TELEGRAM_CHANNEL_ID="${{ secrets.TELEGRAM_CHANNEL_ID }}" `
+            --dart-define=FISCAL_API_TOKEN="${{ secrets.FISCAL_API_TOKEN }}"
+```
+
+### 6.4. `pubspec.yaml`
+
+```yaml
+dependencies:
+  # ...
+  shorebird_code_push: ^2.0.7
+```
+
+### 6.5. YANGI: `lib/changes/services/patch_updater.dart`
+
+```dart
+/*
+    Shorebird patch'larini BITTA ochilishda qo'llash.
+
+    Nima uchun kerak: Shorebird o'zi patch'ni fonda yuklaydi va faqat KEYINGI
+    ishga tushirishda qo'llaydi — kassir dasturni ikki marta yopib ochishi
+    kerak bo'lardi. Bu servis:
+
+    1. `applyOnStartup` — main() boshida, oyna ko'rinmasidan va bazalar
+       ochilmasidan OLDIN: yangi patch (yoki rollback) bo'lsa yuklab oladi va
+       dasturni darhol qayta ishga tushiradi. Vaqt chegaralangan — internet
+       yo'q/sekin bo'lsa dastur odatdagidek ochiladi.
+    2. `start` — ish vaqtida davriy tekshiradi, internet (server) qaytgan
+       zahoti ham — startup'da oflayn bo'lib o'tkazib yuborilgan patch shu
+       yerda ushlanadi. Patch tayyor bo'lsa dastur
+       O'ZI qayta yonmaydi (sotuv o'rtasida xavfli) — `readyToRestart` orqali
+       yuqorida tugma chiqadi, kassir savat bo'shligida bosadi.
+
+    Debug yoki `shorebird release` siz build'da `isAvailable == false` —
+    hech narsa qilmaydi.
+*/
+
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:shorebird_code_push/shorebird_code_push.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
+import 'package:invan2/changes/services/log_helper.dart';
+import 'package:invan2/changes/services/patch_reporter.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+
+class PatchUpdater {
+  PatchUpdater._();
+
+  static final ShorebirdUpdater _updater = ShorebirdUpdater();
+
+  /// Ish vaqtida patch yuklab bo'lindi — qayta ishga tushirish tugmasi.
+  static final ValueNotifier<bool> readyToRestart = ValueNotifier<bool>(false);
+
+  /// Startup'da kutishning yuqori chegarasi. Oyna shu vaqt ko'rinmaydi
+  /// (BDW_HIDE_ON_STARTUP), shuning uchun qisqa bo'lishi shart.
+  static const Duration _startupBudget = Duration(seconds: 8);
+
+  /// Startup'dagi bitta server tekshiruvining chegarasi. Odatda ~0.4 s;
+  /// shundan uzoq — tarmoq osilgan (Wi-Fi bor, internet yo'q).
+  static const Duration _checkCap = Duration(seconds: 3);
+  static const Duration _interval = Duration(minutes: 10);
+
+  static Timer? _timer;
+  static bool _busy = false;
+  static bool _restarting = false;
+
+  /// Qayta ishga tushirilgan jarayonga beriladi — u startup tekshiruvini
+  /// takrorlamaydi (patch "kutilmoqda" bo'lib qolsa cheksiz qayta yonish va
+  /// har safar 8 s yashirin oyna bo'lmasin).
+  static const String relaunchedEnv = 'INVAN_PATCH_RELAUNCHED';
+
+  /// Shu jarayon yangilanish uchun O'ZI qayta ishga tushirilganmi (startup'da
+  /// patch qo'llanganda yoki "Yangilanish tayyor" tugmasi bosilganda) —
+  /// kassirga "Dastur yangilandi" deb aytish uchun.
+  static bool get relaunchedForUpdate =>
+      Platform.environment[relaunchedEnv] == '1';
+
+  /// main() boshida chaqiriladi. Patch tayyor bo'lsa QAYTMAYDI (jarayon
+  /// yangisi bilan almashadi).
+  ///
+  /// Muhim: dastur ochilganda Shorebird'ning O'Z avtomatik yuklovchisi ham
+  /// (shorebird.yaml `auto_update`) xuddi shu patch'ni parallel yuklaydi.
+  /// Ilgari bu poyga paytida tekshiruv tsikli birinchi muvaffaqiyatsiz
+  /// chaqiruvdayoq to'xtardi — patch yuklanardi-yu, dastur qayta yonmasdi
+  /// (Mac sinovi, 2026-10-02: kassir ikki marta ochishi yoki tugmani bosishi
+  /// kerak bo'lardi). Endi tsikl vaqt chegarasigacha davom etadi, har bir
+  /// chaqiruv xatosi qayta urinish bilan o'tkaziladi va diskdagi tayyor patch
+  /// tarmoqsiz aniqlanadi.
+  static Future<void> applyOnStartup() async {
+    if (!_updater.isAvailable) {
+      _log('startup: Shorebird updater mavjud emas');
+      return;
+    }
+    if (Platform.environment[relaunchedEnv] == '1') {
+      _log('startup: qayta ishga tushirilgan jarayon — tekshiruv yo\'q, '
+          'boot patch=${await _bootPatchText()}');
+      return;
+    }
+    final Stopwatch sw = Stopwatch()..start();
+    _busy = true;
+    try {
+      _log('startup: boshlandi, boot patch=${await _bootPatchText()}');
+      final bool ready = await _waitForPatchOnStartup(sw);
+      _log('startup: ${ready ? "patch tayyor — QAYTA ISHGA TUSHIRILADI" : "yangi patch yo'q"} '
+          '(${sw.elapsedMilliseconds} ms)');
+      if (ready) await _relaunch();
+    } catch (e) {
+      // Kutilmagan xato — dastur odatdagidek ochiladi, fon tekshiruvi
+      // keyinroq qayta urinadi.
+      _log('startup: xato $e (${sw.elapsedMilliseconds} ms)');
+      PatchReporter.error('startup', e);
+    } finally {
+      _busy = false;
+    }
+  }
+
+  /// Startup byudjeti ichida patch'ni kutadi. `true` — patch diskda,
+  /// qayta ishga tushirish kerak.
+  static Future<bool> _waitForPatchOnStartup(Stopwatch sw) async {
+    int errorsInARow = 0;
+    while (sw.elapsed < _startupBudget) {
+      // 1) Tarmoqsiz: avtomatik yuklovchi patch'ni allaqachon diskka
+      //    yozib bo'lganmi.
+      if (await _restartNeededLocally()) return true;
+
+      // 2) Server bilan. Har tekshiruv [_checkCap] bilan cheklanadi: Wi-Fi
+      //    bor-u internet "osilgan" bo'lsa so'rov javobsiz qoladi — startup
+      //    byudjet oxirigacha kutmasin.
+      final Duration left = _startupBudget - sw.elapsed;
+      final Duration cap = left < _checkCap ? left : _checkCap;
+      final Stopwatch call = Stopwatch()..start();
+      final UpdateStatus? status = await _safeCheck(timeout: cap);
+      _log('startup: holat=${status?.name ?? "xato"} '
+          '(${sw.elapsedMilliseconds} ms)');
+      switch (status) {
+        case UpdateStatus.restartRequired:
+          return true;
+        case UpdateStatus.unavailable:
+          return false;
+        case UpdateStatus.outdated:
+          errorsInARow = 0;
+          // Avtomatik yuklovchi ishlayotgan bo'lsa darhol qaytadi.
+          await _safeUpdate(timeout: _startupBudget - sw.elapsed);
+          break;
+        case UpdateStatus.upToDate:
+          // Yangi patch yo'q (internet yo'q bo'lsa ham Shorebird shunday
+          // deydi). Avtomatik yuklovchi patch'ni hozirgina diskka yozgan
+          // bo'lishi mumkin — ikkinchi TARMOQ so'rovi o'rniga qisqa lokal
+          // tekshiruv (oddiy ochilish ~0.8 s tezroq).
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          return await _restartNeededLocally();
+        case null:
+          // Vaqt tugadi — tarmoq osilgan: qayta urinish ma'nosiz.
+          if (call.elapsed >= cap) return await _restartNeededLocally();
+          // Chaqiruv xatosi. Bittasi — avtomatik yuklovchi bilan poyga
+          // bo'lishi mumkin, qayta urinamiz. Ketma-ket ikkinchisi — kutish
+          // ma'nosiz, kassa darhol ochilsin.
+          if (++errorsInARow >= 2) return await _restartNeededLocally();
+          break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    }
+    return await _restartNeededLocally();
+  }
+
+  /// Diskdagi keyingi patch joriysidan farq qiladimi (yangi patch yuklangan
+  /// yoki joriy patch bekor qilingan). Tarmoqqa chiqmaydi.
+  static Future<bool> _restartNeededLocally() async {
+    try {
+      final Patch? current = await _updater.readCurrentPatch();
+      final Patch? next = await _updater.readNextPatch();
+      return current?.number != next?.number;
+    } catch (e) {
+      _log('lokal patch holatini o\'qib bo\'lmadi: $e');
+      PatchReporter.error('readPatch', e);
+      return false;
+    }
+  }
+
+  /// [timeout] — startup byudjetidan qolgan vaqt (fon tekshiruvida yo'q).
+  /// Vaqt tugasa xato deb hisoblanadi.
+  static Future<UpdateStatus?> _safeCheck({Duration? timeout}) async {
+    try {
+      final Future<UpdateStatus> check = _updater.checkForUpdate();
+      return timeout == null ? await check : await check.timeout(timeout);
+    } catch (e) {
+      _log('checkForUpdate xatosi: $e');
+      // Startup'dagi xato odatda avtomatik yuklovchi bilan poyga — kanalga
+      // faqat fon tekshiruvidagisi.
+      if (_timer != null) PatchReporter.error('checkForUpdate', e);
+      return null;
+    }
+  }
+
+  static Future<void> _safeUpdate({Duration? timeout}) async {
+    try {
+      final Future<void> update = _updater.update();
+      await (timeout == null ? update : update.timeout(timeout));
+    } catch (e) {
+      _log('update xatosi: $e');
+      // Avtomatik yuklovchi shu patch'ni yuklayapti — kutilgan poyga, xato
+      // emas: kanalga yuborilmaydi.
+      if (!isUpdateInProgress(e)) PatchReporter.error('update', e);
+    }
+  }
+
+  /// Shorebird'ning o'z yuklovchisi ishlayotgan paytdagi `update()` javobi.
+  /// shorebird_code_push 2.0.7 buni zararsiz deb qaytarishi kerak edi, lekin
+  /// Flutter 3.41.3 dvigateli uni umumiy xato kodi bilan beradi:
+  /// `UpdateException: Update already in progress (unknown)` (Mac, 2026-10-02).
+  @visibleForTesting
+  static bool isUpdateInProgress(Object error) =>
+      error is UpdateException &&
+      error.message.toLowerCase().contains('already in progress');
+
+  static Future<String> _bootPatchText() async {
+    try {
+      final Patch? current = await _updater.readCurrentPatch();
+      final Patch? next = await _updater.readNextPatch();
+      return '${current?.number ?? "-"} (keyingi: ${next?.number ?? "-"})';
+    } catch (_) {
+      return '?';
+    }
+  }
+
+  static void _log(String message) {
+    // Konsolga ham — dasturni terminaldan ishga tushirib kuzatish uchun
+    // (macOS'da Documents'dagi log faylini boshqa dastur o'qiy olmaydi).
+    debugPrint('[PATCH] $message');
+    unawaited(LogHelper.write(LogLevel.info, '[PATCH] $message'));
+  }
+
+  /// runApp() dan keyin — fon tekshiruvini boshlaydi.
+  static void start() {
+    if (!_updater.isAvailable || _timer != null) return;
+    _timer = Timer.periodic(_interval, (_) => _checkInBackground());
+    Timer(const Duration(minutes: 1), _checkInBackground);
+    BackendHealth.status.addListener(_onConnectivityChanged);
+    PatchReporter.start(_updater);
+  }
+
+  /// Oflayn → onlayn: 10 daqiqalik davrni kutmasdan darhol tekshiradi.
+  static void _onConnectivityChanged() {
+    if (BackendHealth.status.value == BackendStatus.up) _checkInBackground();
+  }
+
+  /// Kassir tugmani bosganda (savat bo'sh bo'lishi kerak — chaqiruvchi
+  /// tekshiradi). Oyna yopilgandagi kabi holat saqlanadi, keyin qayta yonadi.
+  static Future<void> restartNow() async {
+    // Ikki marta bosilsa ikkita POS jarayoni bitta bazani ochmasin.
+    if (_restarting) return;
+    _restarting = true;
+    readyToRestart.value = false; // tugma darhol yo'qoladi
+    try {
+      await Pref.setString(PrefKeys.appClosedTime,
+          DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()));
+      await Pref.setBool(PrefKeys.isFirstTime, true);
+      await Hive.close();
+    } catch (_) {
+      // Saqlash xatosi qayta ishga tushirishni to'xtatmasin.
+    }
+    // Cheklar bazasi (ObjectBox) yangi jarayon ochishidan OLDIN yopiladi.
+    for (final void Function() close in <void Function()>[
+      () => MyObjectbox.saleStore.close(),
+      () => MyObjectbox.storee.close(),
+    ]) {
+      try {
+        close();
+      } catch (_) {
+        // Ochilmagan (late) yoki allaqachon yopilgan — e'tiborsiz.
+      }
+    }
+    await _relaunch();
+  }
+
+  static Future<void> _checkInBackground() async {
+    if (_busy || readyToRestart.value) return;
+    _busy = true;
+    try {
+      if (await _downloadIfAny()) {
+        _log('fon: patch tayyor — "Yangilanish tayyor" tugmasi ko\'rsatiladi');
+        readyToRestart.value = true;
+      }
+    } catch (e) {
+      // Keyingi davrda qayta uriniladi.
+      _log('fon: xato $e');
+      PatchReporter.error('fon tekshiruvi', e);
+    } finally {
+      _busy = false;
+    }
+  }
+
+  /// `true` — yangi patch diskda (yoki joriy patch rollback qilingan) va
+  /// qayta ishga tushirish kerak.
+  ///
+  /// Shorebird'ning avtomatik yuklovchisi ishga tushganda parallel ishlaydi;
+  /// u holda `update()` darhol qaytadi (UPDATE_IN_PROGRESS), shuning uchun
+  /// holat `outdated` dan chiqquncha qayta so'raladi.
+  static Future<bool> _downloadIfAny() async {
+    if (await _restartNeededLocally()) return true;
+    // ~40 × 0.7 s — avtomatik yuklovchi osilib qolsa ham cheksiz aylanmaydi.
+    for (int attempt = 0; attempt < 40; attempt++) {
+      final UpdateStatus? status = await _safeCheck();
+      switch (status) {
+        case UpdateStatus.restartRequired:
+          return true;
+        case UpdateStatus.upToDate:
+        case UpdateStatus.unavailable:
+          return false;
+        case UpdateStatus.outdated:
+          if (attempt == 0) _log('fon: yangi patch topildi — yuklanmoqda');
+          await _safeUpdate();
+          break;
+        case null:
+          // Chaqiruv xatosi — qayta urinamiz.
+          break;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+    }
+    return await _restartNeededLocally();
+  }
+
+  static Future<void> _relaunch() async {
+    // Jarayon darhol tugaydi — log diskka yozilishini kutamiz.
+    await LogHelper.write(LogLevel.info,
+        '[PATCH] qayta ishga tushirilmoqda, boot patch=${await _bootPatchText()}');
+    await Process.start(
+      Platform.resolvedExecutable,
+      const <String>[],
+      mode: ProcessStartMode.detached,
+      workingDirectory: File(Platform.resolvedExecutable).parent.path,
+      environment: const <String, String>{relaunchedEnv: '1'},
+    );
+    exit(0);
+  }
+}
+```
+
+### 6.6. YANGI: `lib/features/home/components/patch_restart_button.dart`
+
+```dart
+/*
+    "Yangilanish tayyor" tugmasi — ish vaqtida Shorebird patch yuklangach
+    (PatchUpdater.readyToRestart) yuqori panelda chiqadi.
+
+    Dastur o'zi qayta yonmaydi: sotuv o'rtasida bu savatni yo'qotadi. Tugma
+    faqat 6 ta mijoz savatining HAMMASI bo'sh bo'lganda ko'rinadi — bittasida
+    ham mahsulot tursa yashirin, bo'shagan zahoti (OrderingProvider4
+    notifyListeners) paydo bo'ladi.
+*/
+
+import 'package:flutter/material.dart';
+import 'package:invan2/app_navigation.dart';
+import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/changes/services/patch_updater.dart';
+import 'package:invan2/utils/l10n/app_localizations.dart';
+import 'package:invan2/utils/utils.dart';
+import 'package:provider/provider.dart';
+
+/// Dastur yangilanish uchun o'zi qayta ochilgandan keyin birinchi ekranda
+/// "Dastur yangilandi" xabari — oynaning bir zum yopilib-ochilishi kassirga
+/// xato kabi ko'rinmasligi uchun.
+///
+/// runApp() dan keyin chaqiriladi. Birinchi sahifa chizilguncha bir necha
+/// marta urinadi; `mySnackBar` ishlatilmaydi — u SizeConfig'ga bog'liq,
+/// ilova endigina ochilganda u hali sozlanmagan bo'lishi mumkin.
+void showPatchUpdatedMessage() {
+  int attempts = 0;
+
+  void tryShow() {
+    attempts++;
+    final BuildContext? context = AppNavigation.navigatorKey.currentContext;
+    final ScaffoldMessengerState? messenger =
+        context == null ? null : ScaffoldMessenger.maybeOf(context);
+    if (context == null || messenger == null) {
+      if (attempts < 10) {
+        Future<void>.delayed(const Duration(seconds: 1), tryShow);
+      }
+      return;
+    }
+    final AppLocalizations? loc = AppLocalizations.of(context);
+    final bool isUz = loc == null || loc.ha.toLowerCase() == 'ha';
+    messenger.showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      width: 420,
+      backgroundColor: const Color(0xFF2E7D32),
+      duration: const Duration(seconds: 4),
+      content: Row(
+        children: [
+          const Icon(Icons.check_circle, color: Colors.white),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              isUz ? 'Dastur yangilandi' : 'Программа обновлена',
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+    ));
+  }
+
+  // Oyna ko'rinishi va birinchi sahifa chizilishi uchun biroz kutamiz.
+  Future<void>.delayed(const Duration(seconds: 2), tryShow);
+}
+
+class PatchRestartButton extends StatelessWidget {
+  const PatchRestartButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: PatchUpdater.readyToRestart,
+      builder: (context, ready, _) {
+        if (!ready) return const SizedBox.shrink();
+
+        return Consumer<OrderingProvider4>(
+          builder: (context, ordering, _) {
+            final bool allCartsEmpty =
+                ordering.getCurrentClient.orderedProducts.isEmpty &&
+                    ordering.getSixClient4List
+                        .every((c) => c.orderedProducts.isEmpty);
+            if (!allCartsEmpty) return const SizedBox.shrink();
+
+            final AppLocalizations? loc = AppLocalizations.of(context);
+            final bool isUz = loc == null || loc.ha.toLowerCase() == 'ha';
+            const Color green = Color(0xFF2E7D32);
+
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: SizeConfig.h * 0.6),
+              child: OutlinedButton.icon(
+                focusNode: FocusNode(skipTraversal: true),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: green,
+                  side: const BorderSide(color: green),
+                  backgroundColor: const Color(0xFFE8F5E9),
+                ),
+                onPressed: PatchUpdater.restartNow,
+                icon: Icon(Icons.system_update_alt,
+                    size: SizeConfig.v * 2.4, color: green),
+                label: Text(
+                  isUz
+                      ? 'Yangilanish tayyor — qayta ishga tushirish'
+                      : 'Обновление готово — перезапустить',
+                  style: MyThemes.txtStyle(fontSize: 1.8, color: green),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+```
+
+### 6.7. YANGI: `lib/app/startup_error_app.dart`
+
+```dart
+/*
+    Dastur ishga tushmasa — sabab ko'rsatiladigan ekran.
+
+    main() runApp'gacha bazalar va sozlamalarni tayyorlaydi. Shu qadamlardan
+    biri xato bersa, ilgari dastur birinchi ekranni umuman chizmasdi: Mac'da
+    qora oyna qolardi, Windows'da esa oyna startup'da yashirin bo'lgani uchun
+    dastur "ochilmasdi" — kassir sababini bilmasdi.
+
+    Qachon bo'ladi (misollar):
+    - cheklar bazasi (ObjectBox) dastur versiyasiga mos emas: dastur eski
+      versiyaga qaytarilgan (patch rollback, eski installer) yoki shu
+      kompyuterda boshqa InVan dasturi bazani o'z sxemasiga yangilagan
+      (Mac sinovi, 2026-10-02: "DB's last property ID 61 is higher than the
+      incoming one 50 in entity ReceiptModel4");
+    - baza fayli buzilgan (kompyuter to'satdan o'chgan), disk to'la;
+    - Hive fayli boshqa nusxa tomonidan band (dastur ikki marta ochilgan).
+
+    Bu ekran Hive/Pref/tarjimaga BOG'LIQ EMAS (ular ochilmagan bo'lishi
+    mumkin) — matn ikki tilda.
+*/
+
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:invan2/changes/services/patch_updater.dart';
+
+class StartupErrorApp extends StatelessWidget {
+  const StartupErrorApp({super.key, required this.error});
+
+  final Object error;
+
+  /// Cheklar bazasi sxemasi dastur versiyasiga mos emasmi.
+  bool get _isDbSchemaMismatch {
+    final String text = '$error';
+    return text.contains('last property ID') ||
+        text.contains('last entity ID') ||
+        text.contains('last index ID') ||
+        text.contains('last relation ID');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const Color bg = Color(0xFF111A22);
+    const Color red = Color(0xFFE53935);
+    const TextStyle title =
+        TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold);
+    const TextStyle body = TextStyle(color: Colors.white70, fontSize: 17, height: 1.4);
+
+    final String uz = _isDbSchemaMismatch
+        ? 'Kassadagi ma\'lumotlar bazasi dasturning bu versiyasiga mos emas. '
+            'Odatda dastur eski versiyaga qaytarilganda yoki shu kompyuterda '
+            'boshqa InVan dasturi ishlatilganda bo\'ladi.\n'
+            'Cheklar o\'chirilmagan — ular bazada saqlanib turibdi. '
+            'Administratorga murojaat qiling.'
+        : 'Dasturni ishga tushirishda xato yuz berdi. Qayta ishga tushirib '
+            'ko\'ring. Takrorlansa — administratorga murojaat qiling va '
+            'pastdagi matnni yuboring.';
+    final String ru = _isDbSchemaMismatch
+        ? 'База данных кассы не подходит к этой версии программы. Обычно это '
+            'бывает, когда программу откатили на старую версию или на этом '
+            'компьютере использовалась другая программа InVan.\n'
+            'Чеки не удалены — они сохранены в базе. Обратитесь к '
+            'администратору.'
+        : 'При запуске программы произошла ошибка. Попробуйте перезапустить. '
+            'Если повторится — обратитесь к администратору и отправьте текст '
+            'ниже.';
+
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: bg,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline, color: red, size: 56),
+                  const SizedBox(height: 16),
+                  const Text('Dastur ishga tushmadi', style: title),
+                  const SizedBox(height: 8),
+                  Text(uz, style: body),
+                  const SizedBox(height: 24),
+                  const Text('Программа не запустилась', style: title),
+                  const SizedBox(height: 8),
+                  Text(ru, style: body),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: SelectableText(
+                      '$error',
+                      style: const TextStyle(
+                          color: Colors.white54, fontSize: 13, height: 1.3),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _restart,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text(
+                            'Qayta ishga tushirish / Перезапустить'),
+                      ),
+                      OutlinedButton(
+                        onPressed: () => exit(0),
+                        child: const Text('Yopish / Закрыть',
+                            style: TextStyle(color: Colors.white70)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Dasturni qayta ochadi. Startup'dagi patch tekshiruvi ATAYLAB
+  /// o'tkazib yuborilmaydi: muammoni tuzatuvchi patch chiqqan bo'lsa,
+  /// qayta ochilishda u qo'llanadi.
+  static Future<void> _restart() async {
+    try {
+      await Process.start(
+        Platform.resolvedExecutable,
+        const <String>[],
+        mode: ProcessStartMode.detached,
+        workingDirectory: File(Platform.resolvedExecutable).parent.path,
+        environment: restartEnvironment(Platform.environment),
+        includeParentEnvironment: false,
+      );
+    } catch (_) {
+      // Ochib bo'lmasa ham joriy jarayon yopiladi — kassir qo'lda ochadi.
+    }
+    exit(0);
+  }
+
+  /// Windows runner (`windows/runner/win32_window.cpp` `CheckOneInstance`)
+  /// shu belgini ko'rsa eski nusxa yopilishini kutadi — aks holda yangi
+  /// nusxa "ikkinchi nusxa" deb jim yopilib qolishi mumkin.
+  static const String restartEnv = 'INVAN_RESTART';
+
+  /// Yangi jarayon muhiti. Joriy jarayon patch uchun o'zi qayta yongan
+  /// bo'lsa (masalan yangi patch bazani ochmadi), uning yangilanish belgisi
+  /// meros bo'lib o'tmasin: aks holda yangi jarayon patch tekshiruvini
+  /// o'tkazib yuborardi (rollback'ni ushlamasdi) va "Dastur yangilandi"
+  /// derdi.
+  @visibleForTesting
+  static Map<String, String> restartEnvironment(Map<String, String> current) =>
+      Map<String, String>.of(current)
+        ..remove(PatchUpdater.relaunchedEnv)
+        ..[restartEnv] = '1';
+}
+```
+
+### 6.8. `lib/main.dart`
+
+```diff
+diff --git a/lib/main.dart b/lib/main.dart
+index a2e8fe3..8ab42d5 100644
+--- a/lib/main.dart
++++ b/lib/main.dart
+@@ -36,7 +36,11 @@ import 'package:provider/provider.dart';
+ import 'package:google_fonts/google_fonts.dart';
+ import 'package:window_manager/window_manager.dart';
+ import 'changes/dialogs/creat_product/model/mes_vat_unit_model/mes_unit.dart';
++import 'app/startup_error_app.dart';
++import 'changes/services/log_helper.dart';
+ import 'changes/services/log_service.dart';
++import 'changes/services/patch_updater.dart';
++import 'features/home/components/patch_restart_button.dart';
+ import 'features/home/bloc/home_bloc/home_bloc.dart';
+ 
+ class MyWindowListener extends WindowListener {
+@@ -64,6 +68,9 @@ class MyHttpOverrides extends HttpOverrides {
+ 
+ Future<void> main() async {
+   WidgetsFlutterBinding.ensureInitialized();
++  // Yangi Shorebird patch bo'lsa — hech narsa ochilmasdan yuklab, dasturni
++  // qayta ishga tushiradi (kassir bir marta ochadi, ikki emas).
++  await PatchUpdater.applyOnStartup();
+   PackageInfo.fromPlatform();
+   HttpOverrides.global = MyHttpOverrides();
+   GoogleFonts.config.allowRuntimeFetching = true;
+@@ -80,6 +87,49 @@ Future<void> main() async {
+ 
+   await windowManager.ensureInitialized();
+   windowManager.addListener(MyWindowListener());
++
++  // Bazalar va sozlamalar. Biror qadam xato bersa, ilgari dastur birinchi
++  // ekranni umuman chizmasdi: Mac'da qora oyna, Windows'da (oyna startup'da
++  // yashirin) dastur "ochilmasdi". Endi sabab ko'rsatiladi.
++  try {
++    await _initData();
++  } catch (e, st) {
++    await LogHelper.write(
++        LogLevel.error, '[STARTUP] dastur ishga tushmadi: $e\n$st');
++    runApp(StartupErrorApp(error: e));
++    _showWindow();
++    return;
++  }
++
++  runApp(
++    MultiProvider(
++      providers: [
++        BlocProvider(create: (context) => HomeBloc()),
++        BlocProvider(create: (context) => InvoiceBloc()),
++      ],
++      child: const App(),
++    ),
++  );
++  _showWindow();
++
++  OfdConfigMigrator.migrateIfNeeded();
++  PatchUpdater.start();
++  // Yangilanish uchun o'zi qayta ochilgan bo'lsa — kassirga aytamiz
++  // (aks holda oynaning bir zum yopilib-ochilishi xatoga o'xshaydi).
++  if (PatchUpdater.relaunchedForUpdate) showPatchUpdatedMessage();
++}
++
++void _showWindow() {
++  doWhenWindowReady(() async {
++    final win = appWindow;
++    win.maximize();
++    win.title = "InVan 2";
++    win.show();
++  });
++}
++
++/// runApp'gacha tayyorlanadigan bazalar va sozlamalar.
++Future<void> _initData() async {
+   // await Prefs.init();
+   await MyObjectbox.init();
+   await _hiveInit();
+@@ -126,24 +176,6 @@ Future<void> main() async {
+   CategorySingleton.init();
+   await OrganizationSingleton.setOtherPayments();
+   await SettingsInnerSingleton().intiDeviceData();
+-
+-  runApp(
+-    MultiProvider(
+-      providers: [
+-        BlocProvider(create: (context) => HomeBloc()),
+-        BlocProvider(create: (context) => InvoiceBloc()),
+-      ],
+-      child: const App(),
+-    ),
+-  );
+-  doWhenWindowReady(() async {
+-    final win = appWindow;
+-    win.maximize();
+-    win.title = "InVan 2";
+-    win.show();
+-  });
+-
+-  OfdConfigMigrator.migrateIfNeeded();
+ }
+ 
+ Future<void> hiveClose() async {
+```
+
+### 6.9. `lib/features/home/home_page.dart` (faqat tugma; shu fayldagi `cancelOrdering` o'zgarishi — 10-TASK)
+
+```diff
+diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
+index f7600f4..549b884 100644
+--- a/lib/features/home/home_page.dart
++++ b/lib/features/home/home_page.dart
+@@ -12,6 +12,7 @@ import 'package:invan2/features/home/bloc/home_bloc/home_bloc.dart';
+ import 'package:invan2/features/home/bloc/invoice/invoice_bloc.dart';
+ import 'package:invan2/features/home/build_content.dart';
+ import 'package:invan2/features/home/components/offline_mode_badge.dart';
++import 'package:invan2/features/home/components/patch_restart_button.dart';
+ import 'package:invan2/features/home/components/sync_button_home.dart';
+ import 'package:invan2/features/home/features/home_products/shift_opened/top_buttons/search_buttons.dart';
+ import 'package:invan2/features/home/features/home_orders/clients_part/clients_part.dart';
+@@ -138,6 +139,8 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
+               actions: [
+                 // Server javob bermayotgan bo'lsa kassir buni ko'rib tursin.
+                 const OfflineModeBadge(),
++                // Ish vaqtida yuklangan Shorebird patch — savat bo'sh bo'lsa qayta ishga tushirish.
++                const PatchRestartButton(),
+                 Consumer<SettingsProvider>(
+                   builder: (context, settings, _) => settings.showInvoiceButton
+                       ? TextButton(
+```
+
+### 6.10. `windows/runner/win32_window.cpp`
+
+```diff
+diff --git a/windows/runner/win32_window.cpp b/windows/runner/win32_window.cpp
+index 2ac3a35..0ccea04 100644
+--- a/windows/runner/win32_window.cpp
++++ b/windows/runner/win32_window.cpp
+@@ -102,28 +102,50 @@ Win32Window::~Win32Window() {
+   Destroy();
+ }
+ 
++// Jarayonni dasturning O'ZI qayta ishga tushirganmi: Shorebird patch
++// qo'llangach (PatchUpdater startup'i yoki "Yangilanish tayyor" tugmasi -
++// INVAN_PATCH_RELAUNCHED=1) yoki ishga tushish xato ekranidagi "Qayta ishga
++// tushirish" (INVAN_RESTART=1). Bunda eski nusxa hali yopilayotgan bo'ladi.
++static bool IsSelfRestart() {
++    const wchar_t* names[] = {L"INVAN_PATCH_RELAUNCHED", L"INVAN_RESTART"};
++    for (const wchar_t* name : names) {
++        wchar_t value[8];
++        if (GetEnvironmentVariableW(name, value, 8) == 1u && value[0] == L'1') {
++            return true;
++        }
++    }
++    return false;
++}
++
++// Dastur bitta nusxada ishlaydi: ikkinchi nusxa oyna ochmasdan chiqadi.
++// O'zi qayta yongan jarayon esa eski nusxa yopilishini 10 s gacha kutadi:
++// eski nusxa Process.start dan keyin exit(0) qiladi va yangi nusxa undan
++// oldin shu tekshiruvga yetsa, "ikkinchi nusxa" deb jim yopilib qolardi -
++// kassir dasturni qo'lda qayta ochishi kerak bo'lardi.
+ bool CheckOneInstance()
+ {
++    const int attempts = IsSelfRestart() ? 100 : 1;  // 100 x 100 ms
+ 
+-    HANDLE  m_hStartEvent = CreateEventW( NULL, FALSE, FALSE, L"Global\\yourpackage" );
+-
+-    if(m_hStartEvent == NULL)
+-    {
+-        CloseHandle( m_hStartEvent );
+-        return false;
+-    }
++    for (int i = 0; i < attempts; ++i) {
++        HANDLE m_hStartEvent = CreateEventW( NULL, FALSE, FALSE, L"Global\\yourpackage" );
+ 
++        if (m_hStartEvent == NULL) {
++            return false;
++        }
+ 
+-    if (GetLastError() == ERROR_ALREADY_EXISTS) {
++        if (GetLastError() != ERROR_ALREADY_EXISTS) {
++            // the only instance, start in a usual way (handle jarayon
++            // yopilguncha ochiq qoladi - boshqa nusxalar shuni ko'radi)
++            return true;
++        }
+ 
+-        CloseHandle( m_hStartEvent );
+-        m_hStartEvent = NULL;
+         // already exist
+-        // send message from here to existing copy of the application
+-        return false;
++        CloseHandle( m_hStartEvent );
++        if (i + 1 < attempts) {
++            Sleep(100);
++        }
+     }
+-    // the only instance, start in a usual way
+-    return true;
++    return false;
+ }
+ 
+ bool Win32Window::CreateAndShow(const std::wstring& title,
+```
+
+### 6.11. Testlar
+
+<details><summary>YANGI: <code>test/patch_updater_test.dart</code></summary>
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/services/patch_updater.dart';
+import 'package:shorebird_code_push/shorebird_code_push.dart';
+
+void main() {
+  group('PatchUpdater.isUpdateInProgress', () {
+    test('avtomatik yuklovchi bilan poyga — xato emas (kanalga yuborilmaydi)',
+        () {
+      // Mac sinovidagi aynan shu xabar (Flutter 3.41.3 dvigateli).
+      const UpdateException error = UpdateException(
+        message: 'Update already in progress',
+        reason: UpdateFailureReason.unknown,
+      );
+      expect(PatchUpdater.isUpdateInProgress(error), isTrue);
+    });
+
+    test('haqiqiy yuklash/o\'rnatish xatosi — xato', () {
+      expect(
+        PatchUpdater.isUpdateInProgress(const UpdateException(
+          message: 'Failed to download patch',
+          reason: UpdateFailureReason.downloadFailed,
+        )),
+        isFalse,
+      );
+      expect(
+        PatchUpdater.isUpdateInProgress(const UpdateException(
+          message: 'Patch failed to install',
+          reason: UpdateFailureReason.installFailed,
+        )),
+        isFalse,
+      );
+    });
+
+    test('UpdateException bo\'lmagan xato — matni mos bo\'lsa ham xato', () {
+      expect(
+        PatchUpdater.isUpdateInProgress(
+            Exception('Update already in progress')),
+        isFalse,
+      );
+    });
+  });
+}
+```
+
+</details>
+
+<details><summary>YANGI: <code>test/startup_error_app_test.dart</code></summary>
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/app/startup_error_app.dart';
+import 'package:invan2/changes/services/patch_updater.dart';
+
+/// Dastur ishga tushmaganda ko'rsatiladigan ekran (qora/ko'rinmas oyna
+/// o'rniga). Mac sinovida (2026-10-02) haqiqiy sabab — boshqa InVan dasturi
+/// cheklar bazasini o'z sxemasiga yangilagan edi.
+void main() {
+  setUp(() {
+    final TestWidgetsFlutterBinding binding =
+        TestWidgetsFlutterBinding.ensureInitialized();
+    binding.platformDispatcher.views.first.physicalSize =
+        const Size(1600, 1200);
+    binding.platformDispatcher.views.first.devicePixelRatio = 1;
+  });
+
+  testWidgets(
+      'ObjectBox sxemasi mos emas — bazaga oid aniq sabab va "cheklar '
+      'o\'chirilmagan" ko\'rsatiladi', (WidgetTester tester) async {
+    await tester.pumpWidget(StartupErrorApp(
+      error: Exception('ObjectBoxException: failed to create store: DB\'s '
+          'last property ID 61 is higher than the incoming one 50 in entity '
+          'ReceiptModel4'),
+    ));
+
+    expect(find.text('Dastur ishga tushmadi'), findsOneWidget);
+    expect(find.text('Программа не запустилась'), findsOneWidget);
+    expect(find.textContaining('dasturning bu versiyasiga mos emas'),
+        findsOneWidget);
+    expect(find.textContaining('Cheklar o\'chirilmagan'), findsOneWidget);
+    expect(find.textContaining('last property ID 61'), findsOneWidget,
+        reason: 'administrator uchun asl xato matni ko\'rinishi kerak');
+    expect(find.text('Qayta ishga tushirish / Перезапустить'), findsOneWidget);
+    expect(find.text('Yopish / Закрыть'), findsOneWidget);
+  });
+
+  testWidgets('boshqa xato — umumiy matn, baza haqida gapirilmaydi',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+        const StartupErrorApp(error: 'HiveError: box is already locked'));
+
+    expect(find.text('Dastur ishga tushmadi'), findsOneWidget);
+    expect(find.textContaining('Qayta ishga tushirib'), findsOneWidget);
+    expect(find.textContaining('versiyasiga mos emas'), findsNothing);
+    expect(find.textContaining('box is already locked'), findsOneWidget);
+  });
+
+  test(
+      'qayta ishga tushirish yangilanish belgisini meros qilmaydi — yangi '
+      'jarayon patch tekshiruvini (rollback) o\'tkazib yubormaydi', () {
+    final Map<String, String> env =
+        StartupErrorApp.restartEnvironment(<String, String>{
+      'PATH': r'C:\Windows\system32',
+      PatchUpdater.relaunchedEnv: '1',
+    });
+
+    expect(env.containsKey(PatchUpdater.relaunchedEnv), isFalse);
+    expect(env['PATH'], r'C:\Windows\system32',
+        reason: 'qolgan muhit o\'zgarmasdan o\'tadi');
+    expect(env[StartupErrorApp.restartEnv], '1',
+        reason: 'Windows runner eski nusxa yopilishini kutsin');
+  });
+}
+```
+
+</details>
+
+## 7. Tekshirish
+
+- `flutter test test/patch_updater_test.dart test/startup_error_app_test.dart` — 6 test; to'liq to'plam — 1616/1616 (2026-10-02, `c4e42e1`).
+- Mac (sinov relizi `1.1.2+9128`, patch 1–5, 2026-10-02): ilova ichida tugma → qayta yonish ✅; yopiq ilova ochilganda bir martada (+3.2 s) ✅; rollback (patch 3 → 2) bir ochilishda ✅; xato ekrani (boshqa dastur yangilagan ObjectBox bazasi bilan) ✅; ochilish vaqtlari — 2-bo'limda.
+- **Windows:** qayta yonish (`CheckOneInstance` kutishi) sinalmagan — 1.1.2+129 o'rnatilgach birinchi patch bilan: (1) yopiq dastur ochiladi → bir martada yangi patch, "Dastur yangilandi"; (2) ish vaqtida tugma → dastur qayta ochiladi (yopilib qolmaydi).
+
+## 8. Eslatmalar va ochiq savollar
+
+- **ObjectBox sxemasini o'zgartiruvchi o'zgarish HECH QACHON patch bilan chiqmaydi** — rollback'dan keyin eski kod yangi bazani ochmaydi. Sxema faqat to'liq reliz bilan (va shu relizdan pastga qaytish yopiladi).
+- `assets/` patch'ga kirmaydi. Yangi `Icons.xxx` ikonka shriftini o'zgartiradi → Shorebird "asset changes" deb ogohlantiradi (mavjud ikonkani ishlating).
+- Patch faqat bitta relizga tushadi — kassalar turli relizlarda bo'lsa, muhim tuzatish har biriga alohida patch qilinadi.
+- Rollback: `shorebird patches rollback --release-version=<v> --patch-number=<n>` (yoki console) — kassa keyingi tekshiruvda avvalgi patch'ga qaytadi.
+- Odoo forkiga: kerak (Shorebird mantig'i umumiy; Odoo o'z `app_id` si bilan; `df6ef7c`..`d16df8a` allaqachon ko'chirilgan).
+
+---
+
+# 9-TASK — Click Pass / Payme Go → ReceivedCard (QQS to'liq) + elektron to'lov ID'lari chekda (1.1.2+129)
+
+> **Commit:** `f007377` (2026-10-01) + `e5ba429` (2026-10-02), reliz `c4e42e1` 1.1.2+129.
+> **Sessiya hujjati:** docs/sessions/2026-09-30-click-pass-payme-go-received-card.md
+> **Holat 2026-10-02:** to'liq testlar o'tdi (1616), do'kon/qurilma sinovi kutilmoqda.
+
+> ⚠️ **ObjectBox SXEMASI O'ZGARADI.** `ReceiptModel4` ga yangi maydon `epayJson`
+> (`String?`) qo'shiladi — InVan 2 da bu ObjectBox property **51**
+> (`lib/objectbox-model.json`). Shu sababli bu task **faqat to'liq reliz bilan**
+> chiqadi (yangi `.exe`), **Shorebird patch bilan EMAS**: patch rollback bo'lsa
+> eski kod yangi sxemali bazani ochmaydi va dastur ishga tushmaydi.
+> **InVan 1 da `objectbox-model.json` / `objectbox.g.dart` ni InVan 2 dan
+> KO'CHIRMANG** — maydonni modelga qo'shib, `dart run build_runner build
+> --delete-conflicting-outputs` bilan O'ZINGIZ generatsiya qiling (property ID va
+> UID'lar sizda boshqa bo'ladi).
+
+## 1. Nima va nima uchun
+
+**a) Click Pass / Payme Go fiskalda karta to'lovi (f007377).** Soliq (RPC) talabi:
+mobil ilova integratsiyasi orqali olingan to'lov — haqiqiy beznal. Ilgari Click Pass
+va Payme Go summasi fiskal chekning `Other` maydoniga tushardi va QQS **0** chiqardi
+(noto'g'ri). Endi ular `ReceivedCard` ga tushadi, QQS to'liq hisoblanadi. Click QR /
+Payme QR (kassir qo'lda belgilaydi, to'lov ID'si `@` bilan) va Uzum (Pass ham, QR
+ham) — o'zgarishsiz `Other`, QQS 0.
+
+**b) QR to'lovda provayderga noto'g'ri so'rov (f007377).** Fiskaldan keyin chek
+havolasini Click/Payme/Uzum API'siga qaytarish bayroqlari (`receivedClick/Payme/Uzum`)
+QR to'lovda ham `true` bo'lardi → provayderga oldingi to'lovdan qolgan `payment_id`
+bilan so'rov ketardi. Endi bayroqlar faqat Pass/Go to'lovida `true`.
+
+**c) Fiskal `ExtraInfo` da eski to'lov ID'si (2026-10-02).** `ExtraInfo`
+(`QRPaymentProvider` / `QRPaymentID` / `PhoneNumber`) chekdan emas, global
+Pref'dan (`epayPay_Id`, `epay_Id`, `epay_phone`) olinardi. Bu Pref:
+- faqat fiskal MUVAFFAQIYATLI bo'lganda tozalanardi (fiskal yiqilsa — qolardi);
+- `ClickService.post` HAR bir Click so'rovida qayta yozardi, jumladan fiskaldan
+  keyingi `submit_qrcode` javobida — u tozalashdan KEYIN keladi, natijada har
+  Click Pass sotuvidan keyin `epayPay_Id = 64` qolardi.
+Natija: keyingi chekka, hatto naqd chekka ham, soliqqa "Click orqali to'langan" (64)
+va eski to'lov ID'si ketishi mumkin edi.
+
+**d) Qayta yuborilgan chekda provayderga boshqa to'lov ID'si (2026-10-02).** Cheklar
+ro'yxatidan fiskalga qayta yuborishda (PreOfd) provayderga chekning emas, xotiradagi
+OXIRGI to'lovning ID'si ketardi (`ClickService.paymentId`, `UzumService.paymentId`,
+`PaynetService.paymentId`, Pref `p_id`); dastur qayta ochilgan bo'lsa — bo'sh ID.
+
+**Yechim (c, d):** elektron to'lov ID'lari chek yaratilgan zahoti chekning o'ziga
+(`ReceiptModel4.epayJson`) yoziladi; fiskal body ham, provayderga yuborish ham faqat
+shundan o'qiydi. To'lov sahifasi ochilganda global qoldiqlar tozalanadi.
+
+## 2. Qanday ishlaydi (oqim; eski vs yangi)
+
+**To'lov tasnifi (sotuv, `FiscalPaymentSplit.of`):**
+
+| To'lov turi | Eski | Yangi |
+|---|---|---|
+| Naqd | `ReceivedCash` | o'zgarmagan |
+| Karta (Uzcard/Humo), nasiya, noma'lum | `ReceivedCard` | o'zgarmagan |
+| **Click Pass / Payme Go** (payId `id`, nomi `CLICK PASS` / `PAYME GO`) | `Other`, QQS 0 | **`ReceivedCard`, QQS to'liq** |
+| Click QR / Payme QR (payId `@id` YOKI nomida `QR`) | `Other` | o'zgarmagan |
+| Uzum / Uzum QR | `Other` | o'zgarmagan |
+| Cashback | `Other` | o'zgarmagan |
+| Vozvrat (hamma tur) | `ReceivedCash` | o'zgarmagan |
+
+QR aniqlash: `payId` `@` bilan boshlansa **yoki** nomida `QR` bo'lsa (serverdan
+qaytgan chekda `@` yo'q bo'lishi mumkin).
+
+**Elektron to'lov ID'lari:**
+
+```
+ESKI:
+  to'lov (Click/Payme/Uzum) → ClickService.paymentId / Pref p_id / UzumService.paymentId
+                              + Pref epay_Id/epayPay_Id/epay_phone   (GLOBAL)
+  saleOnOFD → externalInfo = Pref epay_*           ← oldingi to'lovniki bo'lishi mumkin
+  sell OK  → provayderga ClickService.paymentId …  ← qayta yuborishda boshqa to'lovniki
+  sell OK  → Pref epay_* tozalanadi (yiqilsa — yo'q; Click javobi keyin qayta yozadi)
+
+YANGI:
+  to'lov sahifasi ochildi → EpayCapture.reset()   (statik ID'lar + Pref epay_*, p_id)
+  to'lov (servislar eskicha global yozadi)
+  chek yig'ildi → receipt.epayJson = EpayCapture.forReceipt(receipt)
+                  (faqat SHU chekdagi Pass/Go provayderlarining ID'lari)
+  saleOnOFD → externalInfo = ReceiptEpay.decode(receipt.epayJson)  (vozvratda bo'sh)
+  sell OK  → epay.targets(params): bayroq true VA chekda ID bor → provayderga shu ID
+  PreOfd   → nusxa epayJson'ni o'zi bilan olib yuradi
+```
+
+`ReceiptEpay.capture` qoidalari:
+- Click/Payme/Uzum ID'si faqat chekda o'sha provayderning **Pass/Go** to'lovi bo'lsa
+  (`FiscalPaymentSplit.hasPass`); QR'da olinmaydi.
+- Paynet ID'si chekda Paynet to'lovi bo'lsa (Pass ham, QR ham — `receivedPaynet`
+  qoidasi bilan bir xil).
+- `ExtraInfo` provayderi: chekdagi Pass/Go provayderi; bir nechta bo'lsa — oxirgi
+  to'langani (Pref `epayPay_Id`), aniqlanmasa Click → Payme → Uzum tartibi.
+  Provayder kodlari: Click **64**, Payme **141**, Uzum **161**.
+- Telefon faqat oxirgi to'langan provayder shu chekdagi provayder bo'lsa (boshqa
+  provayderning telefoni oqib ketmasin).
+- Vozvrat → bo'sh.
+
+Yangilanishdan oldingi fiskalsiz cheklar (`epayJson == null`) qayta yuborilsa:
+provayderga **yuborilmaydi** (noto'g'ri ID bilan yuborishdan ko'ra), `ExtraInfo`
+bo'sh; pul maydonlari (`ReceivedCard` va h.k.) o'zgarmaydi.
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/domain/receipt/receipt_vat.dart` | o'zgargan (f007377) | `FiscalPaymentSplit.isQr`, `hasPass`; Click/Payme: Pass/Go → `card`, QR → `epay` |
+| `lib/changes/domain/receipt/receipt_epay.dart` | YANGI | `ReceiptEpay` (capture / encode / decode / targets), `EpayTarget` |
+| `lib/changes/services/payment/epay_capture.dart` | YANGI | `EpayCapture.forReceipt` (global manbalar → `ReceiptEpay`), `EpayCapture.reset` |
+| `lib/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart` | o'zgargan | `String? epayJson` maydoni (ObjectBox) — serverga ketmaydi |
+| `lib/objectbox-model.json`, `lib/objectbox.g.dart` | generatsiya | +1 property (InVan 1 o'zi generatsiya qiladi!) |
+| `lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart` | o'zgargan | f007377: `receivedClick/Payme/Uzum` = `hasPass`; yangi: `externalInfo` chekdagi `ReceiptEpay` dan (vozvratda bo'sh); `fromReceipt4ToClick(clickPaymentId:)`; `click_service` importi olib tashlandi |
+| `lib/changes/services/local_selling_service.dart` | o'zgargan | provayderga yuborish `ReceiptEpay.targets` + chekdagi ID'lar bilan; `extraInfoFromBody` ajratildi (tana o'zgarmagan) |
+| `lib/changes/services/payment/payme_service.dart` | o'zgargan | `setFiscalData2(paymeReceiptId:)` — Pref `p_id` o'rniga |
+| `lib/changes/services/receipt_api_4.dart` | o'zgargan | `ReceiptApi4.func` nusxasiga `epayJson` |
+| `lib/features/checks/features/check_view/bloc/pre_ofd/preofd_bloc.dart` | o'zgargan | nusxa `receiptForResend` ga ajratildi (tana o'zgarmagan) + `epayJson` |
+| `lib/changes/providers/ordering_provider_4.dart` | o'zgargan | `pressPaymentButton` va `pressPaymentButtonOnlyOFD` da chek yig'ilgach `epayJson`; `initPaymentPageValues` da `EpayCapture.reset()` (eski `PaynetService.paymentId = null` shu ichida) |
+| `test/receipt_vat_test.dart` | o'zgargan (f007377) | Pass/Go/QR tasnifi va bayroqlar |
+| `test/receipt_epay_test.dart` | YANGI | 36 test |
+| `test/epay_fiscal_matrix_test.dart` | YANGI | 124 test (to'lov turi × savat, juftlar, vozvrat) |
+| `test/support/epay_fixtures.dart` | YANGI | umumiy fixture'lar |
+
+## 4. Bog'liqliklar (InVan 1 uchun)
+
+InVan 1 da bo'lmasligi mumkin bo'lgan sinflar:
+
+- **`FiscalPaymentSplit`** (`receipt_vat.dart`) — 2026-09-24 "fiskal QQS chegirma
+  bazasi" taskida paydo bo'lgan. Yo'q bo'lsa: kerakli minimal — `isQr(p)` va
+  `hasPass(receipt, providerId)` statik funksiyalari hamda `saleOnOFD` dagi to'lov
+  tasnifi tsikli (Click/Payme shoxida `isQr ? epay : card`).
+- **`ReceiptBuilder`** (`lib/changes/domain/receipt/receipt_builder.dart`) —
+  OrderingProvider4 ajratilishidan (Faza 9). Yo'q bo'lsa: `epayJson` chek
+  `ReceiptModel4(...)` yaratilib, `payment` qo'shilgan joyda (pressPaymentButton /
+  pressPaymentButtonOnlyOFD ichida) yoziladi.
+- **`ReceiptPayments.build`** — to'lov nomlarini normallashtiradi (`CLICK PASS`,
+  `CLICK QR`, `PAYME GO`, `PAYME QR`, `UZUM`, `UZUM QR`); QR — `type == 1`, kalit
+  `@id`. InVan 1 da nomlar boshqacha bo'lsa — `isQr` / `hasPass` shunga moslanadi.
+- **`PaynetService`** — Paynet integratsiyasi yo'q bo'lsa: `ReceiptEpay` dan
+  `paynetPaymentId` va `EpayTarget.paynet` ni olib tashlang, `EpayCapture` dan
+  Paynet qatorini olib tashlang.
+- **`PreOfdBloc`** — cheklar ro'yxatidan fiskalga qayta yuborish. Boshqa nom bilan
+  bo'lishi mumkin: asosiysi — chek nusxasi `epayJson` ni olib yurishi.
+- **`ReceiptApi4.func`** — `saleOnOFD` chekning nusxasi bilan ishlaydi; nusxaga
+  `epayJson` o'tishi shart (aks holda `ExtraInfo` doim bo'sh).
+
+## 5. Qo'llash tartibi
+
+1. `receipt_vat.dart`: `isQr`, `hasPass` va Click/Payme tasnifi (f007377 diff).
+2. `receipt_singleton_4.dart` → `saleOnOFD`: `receivedClick/Payme/Uzum` =
+   `FiscalPaymentSplit.hasPass(...)` (f007377 diff).
+3. `receipt_epay.dart` (YANGI, to'liq) va `epay_capture.dart` (YANGI, to'liq).
+4. `ReceiptModel4` ga `String? epayJson;` → **InVan 1 da** `dart run build_runner
+   build --delete-conflicting-outputs` (ObjectBox generatsiyasi; InVan 2 fayllarini
+   ko'chirmang).
+5. Nusxalash joylari: `ReceiptApi4.func` va `PreOfdBloc` (va InVan 1 da chekni
+   qayta yaratadigan boshqa joylar — `cardNumber`/`pptId` nusxalanadigan joylarni
+   qidiring).
+6. `saleOnOFD`: `externalInfo` chekdagi `ReceiptEpay` dan (vozvratda `empty`).
+7. `fromReceipt4ToClick(clickPaymentId:)`, `PaymeGOService.setFiscalData2(paymeReceiptId:)`.
+8. `LocalService.sell`: `epay.targets(body['params'])` bo'yicha provayderlarga.
+9. `OrderingProvider4`: chek yig'ilgach `receipt.epayJson = EpayCapture.forReceipt(receipt)`
+   (ikkala to'lov yo'lida); `initPaymentPageValues` da `EpayCapture.reset()`.
+10. Testlar (6-bo'lim) — InVan 1 fixture'lariga moslab.
+
+## 6. Kod
+
+> `lib/objectbox-model.json` va `lib/objectbox.g.dart` bu yerda YO'Q — generatsiya, InVan 1 o'zi qiladi (yuqoridagi ogohlantirish).
+
+### 6.1. `lib/changes/domain/receipt/receipt_vat.dart` (`f007377`)
+
+```diff
+diff --git a/lib/changes/domain/receipt/receipt_vat.dart b/lib/changes/domain/receipt/receipt_vat.dart
+index 606686f..dc72dda 100644
+--- a/lib/changes/domain/receipt/receipt_vat.dart
++++ b/lib/changes/domain/receipt/receipt_vat.dart
+@@ -11,10 +11,11 @@
+ // Ulush fiskal `_countOtherOFD` bilan aynan bir xil taqsimlanadi (chegirmali
+ // qator summasining chek jamisidagi nisbati, so'mga yaxlitlab).
+ //
+-// Click / Payme / Uzum: fiskalda hozircha `Other` (QQS 0) — bu alohida
+-// masala (docs/fiskal-tolov-turlari-va-qqs.md §6.1, rasmiy talab: karta
+-// to'lovi, QQS to'liq). Qog'oz chekda ular ayrilMAYDI — fiskal tuzatilganda
+-// ikkisi o'z-o'zidan mos keladi.
++// Click Pass / Payme Go (2026-09-30): ilova integratsiyasi orqali olingan
++// haqiqiy beznal pul → fiskal `ReceivedCard`, QQS to'liq (rasmiy talab,
++// docs/fiskal-tolov-turlari-va-qqs.md §2.2). Qog'oz chek bilan mos.
++// Click QR / Payme QR (qo'lda belgilanadigan, `@id`) va Uzum (Pass ham, QR
++// ham) — o'zgarishsiz `Other` (QQS 0). Qog'oz chekda ular ayrilMAYDI.
+ //
+ // Testlar: test/receipt_vat_test.dart
+ 
+@@ -35,7 +36,8 @@ class FiscalPaymentSplit {
+   /// Do'kon bonusi (cashback) — xaridordan olinmagan pul → fiskal `Other`.
+   final double cashback;
+ 
+-  /// Click / Payme / Uzum — hozircha fiskal `Other` (yuqoridagi izoh).
++  /// Click QR / Payme QR / Uzum — fiskal `Other` (yuqoridagi izoh).
++  /// Click Pass / Payme Go bu yerga emas, [card] ga tushadi.
+   final double epay;
+ 
+   const FiscalPaymentSplit({
+@@ -45,9 +47,24 @@ class FiscalPaymentSplit {
+     required this.epay,
+   });
+ 
+-  /// `saleOnOFD` dagi qoida (o'zgartirilmagan, shu yerga ko'chirildi):
+-  /// vozvratda hammasi naqd; sotuvda avval nom, keyin adminka ID bo'yicha;
+-  /// hech qaysiga tushmasa — karta.
++  /// QR varianti: to'lov ekranida qo'lda belgilangan (`type: 1` → payId
++  /// '@id', nomi 'CLICK QR' / 'PAYME QR' / 'UZUM QR'). Serverdan qaytgan
++  /// chekda '@' olib tashlangan bo'lishi mumkin — shuning uchun nom ham.
++  static bool isQr(ReceiptModelPaymentType4 p) =>
++      p.payId.trim().startsWith('@') || p.name.toUpperCase().contains('QR');
++
++  /// Chekda [providerId] ning Pass/Go (integratsiya orqali) to'lovi bormi.
++  /// Fiskal chek URL'i provayderga (Click/Payme/Uzum) faqat shunda qaytariladi:
++  /// QR variantida provayder to'lov ID'si yo'q (yoki oldingi to'lovdan qolgan).
++  static bool hasPass(ReceiptModel4 receipt, String providerId) {
++    if (providerId.isEmpty) return false;
++    return receipt.payment.any(
++      (p) => p.payId.replaceFirst('@', '').trim() == providerId && !isQr(p),
++    );
++  }
++
++  /// `saleOnOFD` dagi qoida: vozvratda hammasi naqd; sotuvda avval nom,
++  /// keyin adminka ID bo'yicha; hech qaysiga tushmasa — karta.
+   static FiscalPaymentSplit of(ReceiptModel4 receipt) {
+     double cash = 0, card = 0, cashback = 0, epay = 0;
+ 
+@@ -80,8 +97,14 @@ class FiscalPaymentSplit {
+       } else if (id == cashbackId) {
+         cashback += p.value;
+       } else if ((id == clickId && nameUpper.contains('CLICK')) ||
+-          (id == paymeId && nameUpper.contains('PAYME')) ||
+-          (id == uzumId && nameUpper.contains('UZUM'))) {
++          (id == paymeId && nameUpper.contains('PAYME'))) {
++        // Pass / Go — beznal (karta), QR — Other
++        if (isQr(p)) {
++          epay += p.value;
++        } else {
++          card += p.value;
++        }
++      } else if (id == uzumId && nameUpper.contains('UZUM')) {
+         epay += p.value;
+       } else {
+         // Boshqa barcha holatlar (xavfsizlik uchun) → CARD
+```
+
+### 6.2. YANGI: `lib/changes/domain/receipt/receipt_epay.dart`
+
+```dart
+// Chekning elektron to'lov (Click Pass / Payme Go / Uzum / Paynet) ma'lumoti.
+//
+// Nega kerak (2026-10-02): ilgari bu ma'lumot chekda emas, global joyda
+// turardi — `ClickService.paymentId`, `UzumService.paymentId`,
+// `PaynetService.paymentId` (xotirada) va Pref `epay_Id` / `epayPay_Id` /
+// `epay_phone` / `p_id`. Natijada:
+//   1. Fiskal `ExtraInfo` (QRPaymentProvider / QRPaymentID / PhoneNumber)
+//      oldingi to'lovdan qolgan qiymat bilan ketardi — hatto naqd chekda ham
+//      (Click'ning `submit_qrcode` javobi Pref'ni tozalashdan KEYIN qayta
+//      yozardi; fiskal yiqilsa Pref umuman tozalanmasdi).
+//   2. Cheklar ro'yxatidan fiskalga qayta yuborilgan (PreOfd) Pass chekida
+//      provayderga (Click/Payme/Uzum/Paynet) o'sha chekning emas, xotiradagi
+//      oxirgi to'lov ID'si ketardi (dastur qayta ochilgan bo'lsa — bo'sh).
+//
+// Endi chek yaratilgan zahoti ([capture]) shu chekdagi Pass/Go to'lovlarining
+// ID'lari chekka (`ReceiptModel4.epayJson`) yoziladi va fiskal body ham,
+// provayderga yuborish ham faqat shu yerdan o'qiydi.
+//
+// Testlar: test/receipt_epay_test.dart, test/epay_fiscal_matrix_test.dart
+
+import 'dart:convert';
+
+import 'package:invan2/changes/domain/receipt/receipt_vat.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+
+/// Fiskal chek URL'i qaytariladigan provayder.
+enum EpayTarget { click, payme, uzum, paynet }
+
+class ReceiptEpay {
+  const ReceiptEpay({
+    this.qrPaymentProvider = 0,
+    this.qrPaymentId = '',
+    this.phoneNumber = '',
+    this.clickPaymentId = '',
+    this.paymeReceiptId = '',
+    this.uzumPaymentId = '',
+    this.paynetPaymentId,
+  });
+
+  /// Fiskal `ExtraInfo.QRPaymentProvider` kodlari.
+  static const int clickProvider = 64;
+  static const int paymeProvider = 141;
+  static const int uzumProvider = 161;
+
+  static const ReceiptEpay empty = ReceiptEpay();
+
+  /// Fiskal `ExtraInfo` — 0 / bo'sh: elektron Pass to'lov yo'q.
+  final int qrPaymentProvider;
+  final String qrPaymentId;
+  final String phoneNumber;
+
+  /// Provayderga fiskal chek URL'ini qaytarish uchun — bo'sh bo'lsa
+  /// yuborilmaydi (noto'g'ri ID bilan yuborishdan ko'ra yubormagan yaxshi).
+  final String clickPaymentId;
+  final String paymeReceiptId;
+  final String uzumPaymentId;
+  final int? paynetPaymentId;
+
+  bool get isEmpty =>
+      qrPaymentProvider == 0 &&
+      qrPaymentId.isEmpty &&
+      phoneNumber.isEmpty &&
+      clickPaymentId.isEmpty &&
+      paymeReceiptId.isEmpty &&
+      uzumPaymentId.isEmpty &&
+      paynetPaymentId == null;
+
+  /// Chek yaratilayotgan paytdagi manbalardan faqat SHU chekdagi to'lovlarga
+  /// tegishlisini oladi. Manbalar (servis/Pref qiymatlari) chaqiruvchidan
+  /// beriladi — bu klass global holatni o'qimaydi.
+  ///
+  /// - Click/Payme/Uzum ID'si faqat chekda o'sha provayderning Pass/Go
+  ///   to'lovi bo'lsa (QR — qo'lda belgilanadi, provayder ID'si yo'q).
+  /// - Paynet ID'si chekda Paynet to'lovi bo'lsa (Pass ham, QR ham —
+  ///   `receivedPaynet` bilan bir xil qoida).
+  /// - ExtraInfo: chekdagi Pass/Go provayderi. Bir nechta bo'lsa — eng oxirgi
+  ///   to'langani ([lastProvider], Pref `epayPay_Id`), aniqlanmasa Click →
+  ///   Payme → Uzum tartibida birinchisi. Telefon faqat [lastProvider] shu
+  ///   provayder bo'lsa (u boshqa provayderniki bo'lishi mumkin).
+  static ReceiptEpay capture({
+    required ReceiptModel4 receipt,
+    required String clickId,
+    required String paymeId,
+    required String uzumId,
+    required String paynetId,
+    String? clickPaymentId,
+    String? paymeReceiptId,
+    String? uzumPaymentId,
+    int? paynetPaymentId,
+    int lastProvider = 0,
+    String lastPhone = '',
+  }) {
+    if (receipt.isRefund) return empty;
+
+    String pick(String providerId, String? value) =>
+        FiscalPaymentSplit.hasPass(receipt, providerId)
+            ? (value ?? '').trim()
+            : '';
+
+    final String click = pick(clickId, clickPaymentId);
+    final String payme = pick(paymeId, paymeReceiptId);
+    final String uzum = pick(uzumId, uzumPaymentId);
+
+    final bool hasPaynet = paynetId.isNotEmpty &&
+        receipt.payment
+            .any((p) => p.payId.replaceFirst('@', '').trim() == paynetId);
+    final int? paynet =
+        hasPaynet && paynetPaymentId != null && paynetPaymentId > 0
+            ? paynetPaymentId
+            : null;
+
+    final Map<int, String> present = <int, String>{
+      if (click.isNotEmpty) clickProvider: click,
+      if (payme.isNotEmpty) paymeProvider: payme,
+      if (uzum.isNotEmpty) uzumProvider: uzum,
+    };
+    int provider = 0;
+    if (present.containsKey(lastProvider)) {
+      provider = lastProvider;
+    } else if (present.isNotEmpty) {
+      provider = present.keys.first;
+    }
+
+    return ReceiptEpay(
+      qrPaymentProvider: provider,
+      qrPaymentId: present[provider] ?? '',
+      phoneNumber: provider != 0 && provider == lastProvider ? lastPhone : '',
+      clickPaymentId: click,
+      paymeReceiptId: payme,
+      uzumPaymentId: uzum,
+      paynetPaymentId: paynet,
+    );
+  }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'qrPaymentProvider': qrPaymentProvider,
+        'qrPaymentId': qrPaymentId,
+        'phoneNumber': phoneNumber,
+        'clickPaymentId': clickPaymentId,
+        'paymeReceiptId': paymeReceiptId,
+        'uzumPaymentId': uzumPaymentId,
+        if (paynetPaymentId != null) 'paynetPaymentId': paynetPaymentId,
+      };
+
+  factory ReceiptEpay.fromJson(Map<String, dynamic> json) => ReceiptEpay(
+        qrPaymentProvider: (json['qrPaymentProvider'] as num?)?.toInt() ?? 0,
+        qrPaymentId: '${json['qrPaymentId'] ?? ''}',
+        phoneNumber: '${json['phoneNumber'] ?? ''}',
+        clickPaymentId: '${json['clickPaymentId'] ?? ''}',
+        paymeReceiptId: '${json['paymeReceiptId'] ?? ''}',
+        uzumPaymentId: '${json['uzumPaymentId'] ?? ''}',
+        paynetPaymentId: (json['paynetPaymentId'] as num?)?.toInt(),
+      );
+
+  /// Fiskal muvaffaqiyatli bo'lgach fiskal chek URL'i qaysi provayderlarga
+  /// qaytariladi. [params] — `saleOnOFD` body'sining `params` qismi
+  /// (`receivedClick` va h.k. — faqat Pass/Go'da true). Bayroq bo'lsa-yu,
+  /// chekda ID bo'lmasa (yangilanishdan oldingi chek) — yuborilmaydi:
+  /// boshqa to'lov ID'si bilan yuborishdan ko'ra yubormagan to'g'ri.
+  Set<EpayTarget> targets(Map<String, dynamic> params) => <EpayTarget>{
+        if (params['receivedClick'] == true && clickPaymentId.isNotEmpty)
+          EpayTarget.click,
+        if (params['receivedPayme'] == true && paymeReceiptId.isNotEmpty)
+          EpayTarget.payme,
+        if (params['receivedUzum'] == true && uzumPaymentId.isNotEmpty)
+          EpayTarget.uzum,
+        if (params['receivedPaynet'] == true && paynetPaymentId != null)
+          EpayTarget.paynet,
+      };
+
+  /// `ReceiptModel4.epayJson` uchun. Bo'sh bo'lsa `null` (eski cheklar kabi).
+  String? encode() => isEmpty ? null : jsonEncode(toJson());
+
+  /// Buzilgan yoki yo'q (eski chek) — [empty].
+  static ReceiptEpay decode(String? raw) {
+    if (raw == null || raw.isEmpty) return empty;
+    try {
+      final dynamic json = jsonDecode(raw);
+      return json is Map<String, dynamic> ? ReceiptEpay.fromJson(json) : empty;
+    } catch (_) {
+      return empty;
+    }
+  }
+}
+```
+
+### 6.3. YANGI: `lib/changes/services/payment/epay_capture.dart`
+
+```dart
+// Elektron to'lov ID'larining global manbalari (servis maydonlari va Pref)
+// bilan `ReceiptEpay` o'rtasidagi ko'prik.
+//
+// - [reset] — to'lov sahifasi ochilganda (`initPaymentPageValues`): oldingi
+//   sotuvdan qolgan ID hech qachon yangi chekka tushmasin. `paymentsMap` ham
+//   shu yerda tozalanadi, ya'ni yangi Pass to'lov baribir qaytadan qilinadi.
+// - [forReceipt] — chek yig'ilgan zahoti: shu chekdagi Pass/Go to'lovlarining
+//   ID'larini chekka yozish uchun JSON.
+
+import 'package:invan2/changes/domain/receipt/receipt_epay.dart';
+import 'package:invan2/changes/services/payment/click_service.dart';
+import 'package:invan2/changes/services/payment/paynet_service.dart';
+import 'package:invan2/changes/services/payment/uzum_service.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+
+class EpayCapture {
+  const EpayCapture._();
+
+  /// `ReceiptModel4.epayJson` uchun qiymat (Pass/Go yo'q bo'lsa null).
+  static String? forReceipt(ReceiptModel4 receipt) => ReceiptEpay.capture(
+        receipt: receipt,
+        clickId: Pref.getString(PrefKeys.clickId, ''),
+        paymeId: Pref.getString(PrefKeys.paymeId, ''),
+        uzumId: Pref.getString(PrefKeys.uzumId, ''),
+        paynetId: Pref.getString(PrefKeys.paynetId, ''),
+        clickPaymentId: ClickService.paymentId,
+        paymeReceiptId: Pref.getString('p_id', ''),
+        uzumPaymentId: UzumService.paymentId,
+        paynetPaymentId: PaynetService.paymentId,
+        lastProvider: Pref.getInt('epayPay_Id', 0),
+        lastPhone: Pref.getString('epay_phone', ''),
+      ).encode();
+
+  /// Yangi to'lov sessiyasi — oldingi to'lov ID'lari unutiladi.
+  static void reset() {
+    ClickService.paymentId = null;
+    UzumService.paymentId = null;
+    PaynetService.paymentId = null;
+    // Faqat qiymat bor bo'lsa yoziladi — to'lov sahifasi har ochilganda
+    // diskka bekorga yozilmasin.
+    for (final String key in const ['p_id', 'epay_Id', 'epay_phone']) {
+      if (Pref.getString(key, '').isNotEmpty) Pref.setString(key, '');
+    }
+    if (Pref.getInt('epayPay_Id', 0) != 0) Pref.setInt('epayPay_Id', 0);
+  }
+}
+```
+
+### 6.4. `lib/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart`
+
+```diff
+diff --git a/lib/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart b/lib/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart
+index a4118d7..1269cc5 100644
+--- a/lib/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart
++++ b/lib/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart
+@@ -57,6 +57,12 @@ class ReceiptModel4 {
+   String? pptId;        // RRN: "608610728951"
+   int? cardType;
+ 
++  /// Elektron to'lov (Click Pass / Payme Go / Uzum / Paynet) ID'lari va fiskal
++  /// ExtraInfo — `ReceiptEpay` JSON'i. Chek yaratilganda yoziladi; fiskal body
++  /// va provayderga fiskal URL yuborish faqat shundan o'qiydi. Eski cheklarda
++  /// null. Serverga (order_pos) ketmaydi.
++  String? epayJson;
++
+   /// Savat sessiyasida o'chirilgan mahsulotlar (DeletedItemModel4 ro'yxati)
+   /// JSON string ko'rinishida — offline chek bilan birga saqlanib,
+   /// order_pos body'sida "deleted_items" bo'lib ketadi.
+```
+
+### 6.5. `lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart` (`f007377` + `e5ba429`)
+
+```diff
+diff --git a/lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart b/lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart
+index ba75e4d..719ce2c 100644
+--- a/lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart
++++ b/lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart
+@@ -3,12 +3,12 @@ import 'dart:convert';
+ import 'package:flutter/foundation.dart';
+ import 'package:invan2/changes/domain/marking/fiscal_mxik_fallback.dart';
+ import 'package:invan2/changes/domain/receipt/receipt_vat.dart';
++import 'package:invan2/changes/domain/receipt/receipt_epay.dart';
+ import 'package:invan2/changes/models/discount_model.dart';
+ import 'package:invan2/changes/models/ofd/epos_response_model.dart';
+ import 'package:invan2/changes/models/product/sale_item_model.dart';
+ import 'package:invan2/changes/models/product_discount_model.dart';
+ import 'package:invan2/changes/services/log_helper.dart';
+-import 'package:invan2/changes/services/payment/click_service.dart';
+ import 'package:invan2/changes/services/receipt_api_4.dart';
+ import 'package:invan2/features/features.dart';
+ import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+@@ -245,10 +245,15 @@ class ReceiptSingleton4 {
+ 
+     final paynetId = Pref.getString(PrefKeys.paynetId, "");
+ 
+-    // To'lov tasnifi (naqd / karta / cashback / Click-Payme-Uzum) qog'oz chek
++    // To'lov tasnifi (naqd / karta / cashback / QR-Uzum) qog'oz chek
+     // QQS'i bilan BIR XIL qoidadan: lib/changes/domain/receipt/receipt_vat.dart
+-    // (vozvratda hammasi naqd; sotuvda nom/ID bo'yicha; noma'lum → karta).
++    // (vozvratda hammasi naqd; sotuvda nom/ID bo'yicha; noma'lum → karta;
++    // Click Pass / Payme Go → karta, Click/Payme QR va Uzum → Other).
+     final FiscalPaymentSplit split = FiscalPaymentSplit.of(receipt);
++    // Vozvratda provayderga hech narsa qaytarilmaydi va ExtraInfo bo'sh.
++    final ReceiptEpay epay = receipt.isRefund
++        ? ReceiptEpay.empty
++        : ReceiptEpay.decode(receipt.epayJson);
+     // Tiyinda, butun songa yaxlitlab — float changi FiscalReceiptModel'dagi
+     // `.toInt()` kesishida 1 tiyin yo'qotmasin.
+     final double receivedCashValue = (split.cash * 100).roundToDouble();
+@@ -365,15 +370,23 @@ class ReceiptSingleton4 {
+         if (!receipt.isRefund) ...{'paycheckNumber': receipt.externalId},
+         "receivedCash": receivedCashValue,
+         "receivedCard": receivedCardValue,
+-        "receivedClick": receipt.hasClick,
+-        "receivedUzum": receipt.hasUzum,
+-        "receivedPayme": receipt.hasPayme,
++        // Fiskal chek URL'ini provayderga qaytarish bayroqlari — faqat
++        // Pass/Go. `receipt.hasClick/...` QR'da ham true (serverga shunday
++        // ketadi), QR'da esa provayder to'lov ID'si yo'q.
++        "receivedClick": FiscalPaymentSplit.hasPass(
++            receipt, Pref.getString(PrefKeys.clickId, "")),
++        "receivedUzum": FiscalPaymentSplit.hasPass(
++            receipt, Pref.getString(PrefKeys.uzumId, "")),
++        "receivedPayme": FiscalPaymentSplit.hasPass(
++            receipt, Pref.getString(PrefKeys.paymeId, "")),
+         "receivedPaynet": receivedPaynet,
+         "receivedDept": receipt.hasDept,
++        // ExtraInfo chekning o'zidan: global Pref (`epay_Id` va h.k.) oldingi
++        // to'lovdan qolgan bo'lishi mumkin edi. Qarang: ReceiptEpay.
+         "externalInfo": {
+-          "qrPaymentProvider": Pref.getInt('epayPay_Id', 0).toString(),
+-          "qrPaymentID": Pref.getString('epay_Id', "").toString(),
+-          "phoneNumber": Pref.getString('epay_phone', "").toString(),
++          "qrPaymentProvider": epay.qrPaymentProvider.toString(),
++          "qrPaymentID": epay.qrPaymentId,
++          "phoneNumber": epay.phoneNumber,
+           "cardType": receipt.cardType ?? Pref.getInt('card_type', 0),
+           "cardNumber": receipt.cardNumber ?? '',
+           "pptId": receipt.pptId ?? '',
+@@ -634,15 +647,18 @@ class ReceiptSingleton4 {
+ 
+   //   return clickData;
+   // }
++  /// [clickPaymentId] — shu chekning Click Pass to'lov ID'si
++  /// (`ReceiptEpay.clickPaymentId`), xotiradagi oxirgi to'lovniki emas.
+   static Map<String, dynamic> fromReceipt4ToClick({
+     required Map<String, dynamic> receipt,
++    required String clickPaymentId,
+   }) {
+     Map<String, dynamic> params = receipt['params'];
+     List<Map<String, dynamic>> items = params['items'];
+ 
+     var clickData = {
+       "service_id": Pref.getInt(PrefKeys.serviceId, -1),
+-      "payment_id": num.tryParse(ClickService.paymentId ?? ''),
++      "payment_id": num.tryParse(clickPaymentId),
+       "items": List.generate(items.length, (index) {
+         Map<String, dynamic> map = {};
+         Map<String, dynamic> item = items[index];
+```
+
+### 6.6. `lib/changes/services/local_selling_service.dart`
+
+```diff
+diff --git a/lib/changes/services/local_selling_service.dart b/lib/changes/services/local_selling_service.dart
+index a649890..d511f6a 100644
+--- a/lib/changes/services/local_selling_service.dart
++++ b/lib/changes/services/local_selling_service.dart
+@@ -3,6 +3,7 @@
+ import 'dart:async';
+ import 'dart:convert';
+ import 'dart:io';
++import 'package:invan2/changes/domain/receipt/receipt_epay.dart';
+ import 'package:invan2/changes/models/ofd/epos_response_model.dart';
+ import 'package:invan2/changes/models/ofd/incom_response_model.dart';
+ import 'package:invan2/changes/repository/log_repository.dart';
+@@ -109,9 +110,22 @@ static String cleanMarkForFiscal(String rawMark) {
+ 
+       if (!data['error']) {
+         CommunicatorRESPONSE res = CommunicatorRESPONSE.fromJson(data);
++        // Fiskal chek URL'i provayderlarga — faqat SHU chekning to'lov
++        // ID'lari bilan (ReceiptEpay). Ilgari xotiradagi oxirgi to'lov ID'si
++        // ishlatilardi: cheklar ro'yxatidan qayta yuborilganda boshqa
++        // to'lovga (yoki bo'sh ID bilan) ketardi.
++        final ReceiptEpay epay = receiptData is ReceiptModel4 &&
++                !receiptData.isRefund
++            ? ReceiptEpay.decode(receiptData.epayJson)
++            : ReceiptEpay.empty;
++        final Set<EpayTarget> targets = epay.targets(body['params']);
++
+         // Agar to'lovda CLICK PASSdan foydalanilsa, Receiptni CLICK ka jo'natish kerak
+-        if (body['params']['receivedClick']) {
+-          var clickData = ReceiptSingleton4.fromReceipt4ToClick(receipt: body);
++        if (targets.contains(EpayTarget.click)) {
++          var clickData = ReceiptSingleton4.fromReceipt4ToClick(
++            receipt: body,
++            clickPaymentId: epay.clickPaymentId,
++          );
+           ClickService.sendFiscalReceipt({
+             'service_id': clickData['service_id'],
+             'payment_id': clickData['payment_id'],
+@@ -120,16 +134,16 @@ static String cleanMarkForFiscal(String rawMark) {
+         }
+ 
+         // Agar to'lovda Uzum Passdan foydalanilsa, Receiptni Uzumga ka jo'natish kerak
+-        if (body['params']['receivedUzum']) {
++        if (targets.contains(EpayTarget.uzum)) {
+           await UzumService.sendFiscalReceipt({
+-            'payment_id': UzumService.paymentId.toString(),
++            'payment_id': epay.uzumPaymentId,
+             'fiscal_url': res.info?.qrCodeUrl,
+           });
+         }
+ 
+         // Agar to'lovda Paynet (Pass yoki QR) dan foydalanilsa, fiskal chekni Paynетга jo'natish kerak
+-        if (body['params']['receivedPaynet'] == true) {
+-          final pid = PaynetService.paymentId ?? 0;
++        if (targets.contains(EpayTarget.paynet)) {
++          final int pid = epay.paynetPaymentId!;
+           final qrcode = res.info?.qrCodeUrl ?? '';
+           final address = Pref.getString(PrefKeys.serviceAddress, "");
+           print('======= Paynet sendFiscalReceipt | pid: $pid | qrcode: $qrcode | address: $address =======');
+@@ -142,10 +156,11 @@ static String cleanMarkForFiscal(String rawMark) {
+         }
+ 
+         // Agar to'lovda Payme Godan foydalanilsa, Receiptni Paymega ka jo'natish kerak
+-        if (body['params']['receivedPayme']) {
++        if (targets.contains(EpayTarget.payme)) {
+           PaymeGOService.setFiscalData2(
+             info: res.info,
+             statusCode: 0,
++            paymeReceiptId: epay.paymeReceiptId,
+           );
+         }
+         LogRepository.addLog(
+@@ -225,6 +240,30 @@ static String cleanMarkForFiscal(String rawMark) {
+     }
+   }
+ 
++  /// `saleOnOFD` body'sidagi `externalInfo` → fiskal `ExtraInfo`
++  /// (`saleWithOutIncom` dan ajratildi — tana o'zgarmagan; testlar uchun).
++  static ExtraInfo extraInfoFromBody(Map<String, dynamic> body) {
++    return ExtraInfo(
++      carNumber: "",
++      phoneNumber: body['params']['externalInfo']['phoneNumber'] ?? '',
++      cardType: body['params']['externalInfo']['cardType'],
++      pinfl: "",
++      tin: "",
++      qrPaymentID: body['params']['externalInfo']['qrPaymentID'] ?? '',
++      qrPaymentProvider: int.tryParse(
++        body['params']['externalInfo']['qrPaymentProvider']?.toString() ?? '0',
++      ) ?? 0,
++
++      // ==================== YANGI QO‘SHILGAN MAYDONLAR ====================
++      cardNumber: body['params']['externalInfo']['cardNumber'] ?? '',
++      pptId: body['params']['externalInfo']['pptId'] ??
++          body['params']['externalInfo']['RRN'] ??
++          body['params']['externalInfo']['PPTID'] ?? '',                     // RRN / PPTID
++      cashedOutFromCard: body['params']['externalInfo']['cashedOutFromCard'] ?? 0,
++      // ==================================================================
++    );
++  }
++
+   /// Sale Method
+   static Future saleWithOutIncom({var body}) async {
+     final RequestSaleModel model = RequestSaleModel.fromJson(body);
+@@ -263,25 +302,7 @@ static String cleanMarkForFiscal(String rawMark) {
+     //     body['params']['externalInfo']['qrPaymentProvider'] ?? 0,
+     //   ),
+     // );
+-    var extraInfo = ExtraInfo(
+-      carNumber: "",
+-      phoneNumber: body['params']['externalInfo']['phoneNumber'] ?? '',
+-      cardType: body['params']['externalInfo']['cardType'],
+-      pinfl: "",
+-      tin: "",
+-      qrPaymentID: body['params']['externalInfo']['qrPaymentID'] ?? '',
+-      qrPaymentProvider: int.tryParse(
+-        body['params']['externalInfo']['qrPaymentProvider']?.toString() ?? '0',
+-      ) ?? 0,
+-
+-      // ==================== YANGI QO‘SHILGAN MAYDONLAR ====================
+-      cardNumber: body['params']['externalInfo']['cardNumber'] ?? '',
+-      pptId: body['params']['externalInfo']['pptId'] ??
+-          body['params']['externalInfo']['RRN'] ??
+-          body['params']['externalInfo']['PPTID'] ?? '',                     // RRN / PPTID
+-      cashedOutFromCard: body['params']['externalInfo']['cashedOutFromCard'] ?? 0,
+-      // ==================================================================
+-    );
++    var extraInfo = extraInfoFromBody(body);
+     FiscalReceiptModel receiptModel = FiscalReceiptModel.fromRequest(
+       model,
+       dataModel,
+```
+
+### 6.7. `lib/changes/services/payment/payme_service.dart`
+
+```diff
+diff --git a/lib/changes/services/payment/payme_service.dart b/lib/changes/services/payment/payme_service.dart
+index 8a6b3dd..858b84a 100644
+--- a/lib/changes/services/payment/payme_service.dart
++++ b/lib/changes/services/payment/payme_service.dart
+@@ -135,15 +135,18 @@ class PaymeGOService {
+     );
+   }
+ 
++  /// [paymeReceiptId] — shu chekning Payme Go cheki ID'si
++  /// (`ReceiptEpay.paymeReceiptId`), Pref `p_id` dagi oxirgisi emas.
+   static Future setFiscalData2({
+     int statusCode = 0,
+     Info? info,
++    required String paymeReceiptId,
+   }) async {
+     return await _post(
+       api: "/api HTTP/1.1",
+       method: "receipts.set_fiscal_data",
+       params: {
+-        "id": Pref.getString('p_id', ""),
++        "id": paymeReceiptId,
+         "fiscal_data": {
+           "receipt_id": int.parse(info?.receiptSeq ?? "0"),
+           "qr_code_url": info?.qrCodeUrl,
+```
+
+### 6.8. `lib/changes/services/receipt_api_4.dart`
+
+```diff
+diff --git a/lib/changes/services/receipt_api_4.dart b/lib/changes/services/receipt_api_4.dart
+index ad4b6a4..ea5b463 100644
+--- a/lib/changes/services/receipt_api_4.dart
++++ b/lib/changes/services/receipt_api_4.dart
+@@ -253,6 +253,8 @@ class ReceiptApi4 {
+ 
+     receipt.soldItemList.addAll(r.soldItemList);
+     receipt.payment.addAll(paymentMap.values);
++    // Fiskal ExtraInfo va provayder ID'lari (saleOnOFD shu nusxadan o'qiydi).
++    receipt.epayJson = r.epayJson;
+     // Savatda o'chirilgan mahsulotlar ro'yxati serverga ketadigan nusxada
+     // ham saqlanadi ("deleted_items" massivi).
+     receipt.deletedItemsJson =
+```
+
+### 6.9. `lib/features/checks/features/check_view/bloc/pre_ofd/preofd_bloc.dart`
+
+```diff
+diff --git a/lib/features/checks/features/check_view/bloc/pre_ofd/preofd_bloc.dart b/lib/features/checks/features/check_view/bloc/pre_ofd/preofd_bloc.dart
+index 18087da..380ee83 100644
+--- a/lib/features/checks/features/check_view/bloc/pre_ofd/preofd_bloc.dart
++++ b/lib/features/checks/features/check_view/bloc/pre_ofd/preofd_bloc.dart
+@@ -25,48 +25,8 @@ class PreOfdBloc extends Bloc<PreOfdEvent, PreOfdState> {
+     final String character =
+         Pref.getString(PrefKeys.checkId, "not initialized");
+     bool ofd = Pref.getBool(PrefKeys.withOFD, false);
+-    final newReceiptModel41 = ReceiptModel4(
+-      supplierId: event.receiptModel4.supplierId,
+-      newid: event.receiptModel4.newid,
+-      clientPhone: event.clientNumber,
+-      cashierId: event.receiptModel4.cashierId,
+-      cashierName: event.receiptModel4.cashierName,
+-      date: DateTime.now().millisecondsSinceEpoch,
+-      isRefund: false,
+-      comment: event.receiptModel4.comment,
+-      fiscalSign: event.receiptModel4.fiscalSign,
+-      receiptSeq: event.receiptModel4.receiptSeq,
+-      terminalId: event.receiptModel4.terminalId,
+-      totalPrice: _getRightTotalPrice(event.receiptModel4.soldItemList),
+-      uploaded: false,
+-      clientName: event.receiptModel4.clientName,
+-      clientId: event.receiptModel4.clientId,
+-      cashback: 0,
+-      sdacha: 0,
+-      returnForCheck: event.receiptModel4.returnForCheck,
+-      posName: event.receiptModel4.posName,
+-      refundInfo: event.receiptModel4.refundInfo,
+-      commissionTIN: event.receiptModel4.commissionTIN,
+-      isDonate: Pref.getBool('donate', false),
+-      createdDate: event.receiptModel4.createdDate,
+-      orderId: event.receiptModel4.orderId,
+-      cashboxId: event.receiptModel4.cashboxId,
+-      externalId: event.receiptModel4.externalId,
+-      orderType: event.receiptModel4.orderType,
+-      shopId: event.receiptModel4.shopId,
+-      userId: event.receiptModel4.userId,
+-      discountVat: event.receiptModel4.discountVat,
+-      discountID: event.receiptModel4.discountID,
+-      rejected: event.receiptModel4.rejected,
+-      url: event.receiptModel4.url,
+-    );
+-    newReceiptModel41.id = event.receiptModel4.id;
+-    newReceiptModel41.rejected = event.receiptModel4.rejected;
+-    newReceiptModel41.uploaded = event.receiptModel4.uploaded;
+-    newReceiptModel41.payment.clear();
+-    newReceiptModel41.soldItemList.clear();
+-    newReceiptModel41.payment.addAll(event.receiptModel4.payment);
+-    newReceiptModel41.soldItemList.addAll(event.receiptModel4.soldItemList);
++    final newReceiptModel41 =
++        receiptForResend(event.receiptModel4, event.clientNumber);
+ 
+     if (ofd) {
+       emit(PreOfdLoadingState(message: ReturnMessage.internet));
+@@ -122,7 +82,58 @@ class PreOfdBloc extends Bloc<PreOfdEvent, PreOfdState> {
+     }
+   }
+ 
+-  double _getRightTotalPrice(List<ReceiptModelSoldItem4> v) {
++  /// Fiskalga qayta yuboriladigan nusxa (asl chek o'rniga `box.put` bilan
++  /// yoziladi). `_preOfd` dan ajratildi — tana o'zgarmagan; testlar uchun.
++  static ReceiptModel4 receiptForResend(ReceiptModel4 src, String clientNumber) {
++    final newReceiptModel41 = ReceiptModel4(
++      supplierId: src.supplierId,
++      newid: src.newid,
++      clientPhone: clientNumber,
++      cashierId: src.cashierId,
++      cashierName: src.cashierName,
++      date: DateTime.now().millisecondsSinceEpoch,
++      isRefund: false,
++      comment: src.comment,
++      fiscalSign: src.fiscalSign,
++      receiptSeq: src.receiptSeq,
++      terminalId: src.terminalId,
++      totalPrice: _getRightTotalPrice(src.soldItemList),
++      uploaded: false,
++      clientName: src.clientName,
++      clientId: src.clientId,
++      cashback: 0,
++      sdacha: 0,
++      returnForCheck: src.returnForCheck,
++      posName: src.posName,
++      refundInfo: src.refundInfo,
++      commissionTIN: src.commissionTIN,
++      isDonate: Pref.getBool('donate', false),
++      createdDate: src.createdDate,
++      orderId: src.orderId,
++      cashboxId: src.cashboxId,
++      externalId: src.externalId,
++      orderType: src.orderType,
++      shopId: src.shopId,
++      userId: src.userId,
++      discountVat: src.discountVat,
++      discountID: src.discountID,
++      rejected: src.rejected,
++      url: src.url,
++    );
++    newReceiptModel41.id = src.id;
++    newReceiptModel41.rejected = src.rejected;
++    newReceiptModel41.uploaded = src.uploaded;
++    newReceiptModel41.payment.clear();
++    newReceiptModel41.soldItemList.clear();
++    newReceiptModel41.payment.addAll(src.payment);
++    // Shu chekning o'z to'lov ID'lari — xotiradagi oxirgi to'lovniki emas.
++    // box.put shu nusxani asl chek o'rniga yozadi, shuning uchun yo'qolmasin.
++    newReceiptModel41.epayJson = src.epayJson;
++    newReceiptModel41.soldItemList.addAll(src.soldItemList);
++    return newReceiptModel41;
++  }
++
++  static double _getRightTotalPrice(List<ReceiptModelSoldItem4> v) {
+     double t = 0;
+     for (var element in v) {
+       t += element.price * element.value;
+```
+
+### 6.10. `lib/changes/providers/ordering_provider_4.dart` (faqat `e5ba429`; shu fayldagi savat o'zgarishlari — 10-TASK)
+
+```diff
+diff --git a/lib/changes/providers/ordering_provider_4.dart b/lib/changes/providers/ordering_provider_4.dart
+index a9d3252..e98a874 100644
+--- a/lib/changes/providers/ordering_provider_4.dart
++++ b/lib/changes/providers/ordering_provider_4.dart
+@@ -64,6 +64,7 @@ import 'package:invan2/features/home/features/home_orders/calculation_part/total
+ import 'package:invan2/features/payment/right/complete_button/uzum_pay_bloc/uzum_pay_bloc.dart';
+ import 'package:invan2/features/payment/right/dilogs/click/bloc/click_bloc.dart';
+ import 'package:invan2/changes/services/payment/paynet_service.dart';
++import 'package:invan2/changes/services/payment/epay_capture.dart';
+ import 'package:invan2/features/payment/right/dilogs/paynet/bloc/paynet_bloc.dart';
+ import 'package:invan2/features/payment/right/dilogs/paynet/paynet_dialog.dart';
+ import 'package:invan2/features/payment/right/dilogs/click/clic_pass_dialog.dart';
+@@ -1781,6 +1782,9 @@ class OrderingProvider4 extends ChangeNotifier {
+       orphanDeletedItems: _orphanDeletedItems,
+       isTpEdited: isTpEdited,
+     );
++    // Shu chekdagi Pass/Go to'lov ID'lari — keyin cheklar ro'yxatidan
++    // fiskalga yuborilganda ham aynan shular ishlatiladi.
++    receiptModel4.epayJson = EpayCapture.forReceipt(receiptModel4);
+     if (receiptModel4.payment.isNotEmpty &&
+         receiptModel4.soldItemList.isNotEmpty) {
+       await ReceiptSingleton4.toOBJECTBOX(
+@@ -1855,6 +1859,7 @@ class OrderingProvider4 extends ChangeNotifier {
+       lastCardNumber: _lastCardNumber,
+       lastRRN: _lastRRN,
+     );
++    receiptModel4.epayJson = EpayCapture.forReceipt(receiptModel4);
+ 
+     if (receiptModel4.soldItemList.isEmpty) {
+       LogHelper.write(
+@@ -1960,7 +1965,9 @@ class OrderingProvider4 extends ChangeNotifier {
+     _isOfdWithOfd = false;
+     _clickPassPaid = false;
+     _paymePaid = false;
+-    PaynetService.paymentId = null;
++    // Oldingi sotuvning Click/Payme/Uzum/Paynet to'lov ID'lari va fiskal
++    // ExtraInfo qoldig'i yangi chekka tushmasin.
++    EpayCapture.reset();
+   }
+ 
+   late bool _paymentInProgress;
+```
+
+### 6.11. Testlar
+
+<details><summary><code>test/receipt_vat_test.dart</code> (<code>f007377</code>, diff)</summary>
+
+```diff
+diff --git a/test/receipt_vat_test.dart b/test/receipt_vat_test.dart
+index 89d151d..1416aa2 100644
+--- a/test/receipt_vat_test.dart
++++ b/test/receipt_vat_test.dart
+@@ -8,8 +8,9 @@
+ //   2) chek jami QQS'i fiskal ΣVAT bilan (qator boshiga ≤ 1 so'm yaxlitlash)
+ //      mos — cashback, chegirma, ko'p qator, QQS 0%, vozvrat;
+ //   3) qator QQS'i aniq raqamlarda; blok/dona bo'linganda yig'indi saqlanadi.
+-// Click/Payme/Uzum: fiskalda hozircha Other (VAT 0), chekda ayrilmaydi —
+-// ataylab, alohida masala (§6.1). Bu farq ham testda qayd etilgan.
++// Click Pass / Payme Go: fiskalda ReceivedCard (QQS to'liq), chek bilan mos.
++// Click QR / Payme QR / Uzum: fiskalda Other (VAT 0), chekda ayrilmaydi —
++// ataylab (§6.1). Bu farq ham testda qayd etilgan.
+ import 'dart:convert';
+ 
+ import 'package:flutter_test/flutter_test.dart';
+@@ -58,9 +59,14 @@ ReceiptModelPaymentType4 pay(String name, String payId, double v) =>
+ ReceiptModelPaymentType4 cash(double v) => pay('CASH', kCashId, v);
+ ReceiptModelPaymentType4 card(double v) => pay('CARD', kCardId, v);
+ ReceiptModelPaymentType4 cashback(double v) => pay('Cashback', kCashbackId, v);
+-ReceiptModelPaymentType4 click(double v) => pay('Click', kClickId, v);
+-ReceiptModelPaymentType4 payme(double v) => pay('Payme', kPaymeId, v);
+-ReceiptModelPaymentType4 uzum(double v) => pay('Uzum', kUzumId, v);
++// Nomlar/IDlar `ReceiptPayments.build` natijasidagidek: Pass/Go — '@' siz,
++// QR (`type: 1`) — '@id'.
++ReceiptModelPaymentType4 clickPass(double v) => pay('CLICK PASS', kClickId, v);
++ReceiptModelPaymentType4 clickQr(double v) => pay('CLICK QR', '@$kClickId', v);
++ReceiptModelPaymentType4 paymeGo(double v) => pay('PAYME GO', kPaymeId, v);
++ReceiptModelPaymentType4 paymeQr(double v) => pay('PAYME QR', '@$kPaymeId', v);
++ReceiptModelPaymentType4 uzum(double v) => pay('UZUM', kUzumId, v);
++ReceiptModelPaymentType4 uzumQr(double v) => pay('UZUM QR', '@$kUzumId', v);
+ 
+ ReceiptModel4 receiptWith(
+   List<ReceiptModelSoldItem4> rows, {
+@@ -219,14 +225,35 @@ void main() {
+       expectSplitMatchesWire(r);
+     });
+ 
+-    test('Click / Payme / Uzum: ID + nom mos bo\'lsa epay', () {
+-      for (final p in [click(50000), payme(50000), uzum(50000)]) {
++    test('Click QR / Payme QR / Uzum (Pass ham, QR ham) → epay (Other)', () {
++      for (final p in [clickQr(50000), paymeQr(50000), uzum(50000), uzumQr(50000)]) {
+         final r = receiptWith([row(realPrice: 50000)], payments: [p]);
+-        expect(FiscalPaymentSplit.of(r).epay, 50000, reason: p.name);
++        final s = FiscalPaymentSplit.of(r);
++        expect(s.epay, 50000, reason: p.name);
++        expect(s.card, 0, reason: p.name);
+         expectSplitMatchesWire(r);
+       }
+     });
+ 
++    test('Click Pass / Payme Go → karta (ReceivedCard), Other 0', () {
++      for (final p in [clickPass(50000), paymeGo(50000)]) {
++        final r = receiptWith([row(realPrice: 50000)], payments: [p]);
++        final s = FiscalPaymentSplit.of(r);
++        expect(s.card, 50000, reason: p.name);
++        expect(s.epay, 0, reason: p.name);
++        final w = wireOf(r);
++        expect(receiptPart(w)['ReceivedCard'], 5000000, reason: p.name);
++        expect(sumOf(w, 'Other'), 0, reason: p.name);
++        expectSplitMatchesWire(r);
++      }
++    });
++
++    test('QR: serverdan qaytgan chekda \'@\' yo\'q, lekin nomi QR → epay', () {
++      final r = receiptWith([row(realPrice: 50000)],
++          payments: [pay('CLICK QR', kClickId, 50000)]);
++      expect(FiscalPaymentSplit.of(r).epay, 50000);
++    });
++
+     test('Click ID bor, lekin nomi mos emas → karta (fallback)', () {
+       final r = receiptWith([row(realPrice: 50000)], payments: [pay('Boshqa', kClickId, 50000)]);
+       expect(FiscalPaymentSplit.of(r).card, 50000);
+@@ -239,10 +266,10 @@ void main() {
+       expectSplitMatchesWire(r);
+     });
+ 
+-    test('aralash: naqd + karta + cashback + click', () {
++    test('aralash: naqd + karta + cashback + click QR', () {
+       final r = receiptWith(
+         [row(realPrice: 100000)],
+-        payments: [cash(40000), card(30000), cashback(20000), click(10000)],
++        payments: [cash(40000), card(30000), cashback(20000), clickQr(10000)],
+       );
+       final s = FiscalPaymentSplit.of(r);
+       expect(s.cash, 40000);
+@@ -252,6 +279,18 @@ void main() {
+       expectSplitMatchesWire(r);
+     });
+ 
++    test('aralash: naqd + Click Pass + Payme QR', () {
++      final r = receiptWith(
++        [row(realPrice: 100000)],
++        payments: [cash(40000), clickPass(35000), paymeQr(25000)],
++      );
++      final s = FiscalPaymentSplit.of(r);
++      expect(s.cash, 40000);
++      expect(s.card, 35000);
++      expect(s.epay, 25000);
++      expectSplitMatchesWire(r);
++    });
++
+     test('vozvrat: hammasi naqd, to\'lov turidan qat\'iy nazar', () {
+       final r = receiptWith(
+         [row(realPrice: 50000)],
+@@ -342,16 +381,53 @@ void main() {
+       expectPaperMatchesFiscal(r);
+     });
+ 
+-    test('QAYD: Click bilan to\'langanda chekda QQS to\'liq, fiskalda 0 (hozircha)', () {
+-      // Fiskal Click'ni Other'ga yozadi (§6.1 — alohida masala, tegilmadi).
+-      // Chek uni ayirmaydi: rasmiy talab bo'yicha Click = karta, QQS to'liq.
+-      final r = receiptWith([row(realPrice: 50000)], payments: [click(50000)]);
++    test('Click Pass / Payme Go: chek va fiskal QQS to\'liq, mos', () {
++      for (final p in [clickPass(50000), paymeGo(50000)]) {
++        final r = receiptWith([row(realPrice: 50000)], payments: [p]);
++        expect(ReceiptVat.total(r), closeTo(5357.14, 0.01), reason: p.name);
++        expect(sumOf(wireOf(r), 'VAT'), closeTo(535714, 1), reason: p.name);
++        expectPaperMatchesFiscal(r);
++      }
++    });
++
++    test('QAYD: Click QR bilan to\'langanda chekda QQS to\'liq, fiskalda 0', () {
++      // Fiskal QR'ni Other'ga yozadi (§6.1 — ataylab o'zgartirilmagan).
++      final r = receiptWith([row(realPrice: 50000)], payments: [clickQr(50000)]);
+       expect(ReceiptVat.paperOtherTotal(r), 0);
+       expect(ReceiptVat.total(r), closeTo(5357.14, 0.01));
+       expect(sumOf(wireOf(r), 'VAT'), 0);
+     });
+   });
+ 
++  group('receivedClick/Payme/Uzum — provayderga fiskal URL faqat Pass/Go da', () {
++    Map<String, dynamic> paramsOf(ReceiptModel4 r) =>
++        ReceiptSingleton4.saleOnOFD(r)['params'] as Map<String, dynamic>;
++
++    test('Pass/Go → true', () {
++      expect(paramsOf(receiptWith([row(realPrice: 50000)],
++          payments: [clickPass(50000)]))['receivedClick'], true);
++      expect(paramsOf(receiptWith([row(realPrice: 50000)],
++          payments: [paymeGo(50000)]))['receivedPayme'], true);
++      expect(paramsOf(receiptWith([row(realPrice: 50000)],
++          payments: [uzum(50000)]))['receivedUzum'], true);
++    });
++
++    test('QR → false (ilgari true edi va eski payment ID bilan yuborilardi)', () {
++      final p = paramsOf(receiptWith([row(realPrice: 90000)],
++          payments: [clickQr(30000), paymeQr(30000), uzumQr(30000)]));
++      expect(p['receivedClick'], false);
++      expect(p['receivedPayme'], false);
++      expect(p['receivedUzum'], false);
++    });
++
++    test('naqd → hammasi false', () {
++      final p = paramsOf(receiptWith([row(realPrice: 50000)]));
++      expect(p['receivedClick'], false);
++      expect(p['receivedPayme'], false);
++      expect(p['receivedUzum'], false);
++    });
++  });
++
+   group('ReceiptVat.lineVat — qator va blok/dona bo\'linishi', () {
+     test('qty berilmasa to\'liq qator', () {
+       expect(ReceiptVat.lineVat(row(realPrice: 50000, value: 2)),
+```
+
+</details>
+
+<details><summary>YANGI: <code>test/receipt_epay_test.dart</code></summary>
+
+```dart
+// ReceiptEpay — elektron to'lov ID'lari chekning o'zida (2026-10-02).
+//
+// Tuzatilgan ikki muammo:
+//   1. Fiskal ExtraInfo (QRPaymentProvider/QRPaymentID/PhoneNumber) global
+//      Pref'dan olinardi → oldingi Click/Payme/Uzum to'lovining ID'si keyingi
+//      (hatto naqd) chekka ham ketardi.
+//   2. Cheklar ro'yxatidan fiskalga qayta yuborilganda (PreOfd) provayderga
+//      chekning emas, xotiradagi oxirgi to'lov ID'si ketardi.
+//
+// Testlar: sof qoida (capture / encode / targets), fiskal JSON'dagi ExtraInfo,
+// nusxalash yo'llari (ReceiptApi4.func, PreOfd), servis holati bilan to'liq
+// sotuv stsenariylari (EpayCapture).
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/domain/receipt/receipt_epay.dart';
+import 'package:invan2/changes/services/payment/click_service.dart';
+import 'package:invan2/changes/services/payment/epay_capture.dart';
+import 'package:invan2/changes/services/payment/paynet_service.dart';
+import 'package:invan2/changes/services/payment/uzum_service.dart';
+import 'package:invan2/changes/services/receipt_api_4.dart';
+import 'package:invan2/features/checks/features/check_view/bloc/pre_ofd/preofd_bloc.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+
+import 'support/epay_fixtures.dart';
+import 'support/provider_harness.dart';
+
+const kPaynetId = 'pay-paynet';
+
+ReceiptModelPaymentType4 paynet(double v, {bool qr = false}) =>
+    ReceiptModelPaymentType4(
+        name: qr ? 'PAYNET QR' : 'PAYNET',
+        payId: qr ? '@$kPaynetId' : kPaynetId,
+        value: v);
+
+/// To'lov sahifasidagi holat — servislar to'lovdan keyin qanday qoldiradi.
+void simulateClickPaid(String id, {String phone = '998901111111'}) {
+  ClickService.paymentId = id;
+  Pref.setString('epay_Id', id);
+  Pref.setInt('epayPay_Id', 64);
+  Pref.setString('epay_phone', phone);
+}
+
+void simulatePaymePaid(String id, {String phone = '998902222222'}) {
+  Pref.setString('p_id', id);
+  Pref.setString('epay_Id', id);
+  Pref.setInt('epayPay_Id', 141);
+  Pref.setString('epay_phone', phone);
+}
+
+void simulateUzumPaid(String id, {String phone = '998903333333'}) {
+  UzumService.paymentId = id;
+  Pref.setString('epay_Id', id);
+  Pref.setInt('epayPay_Id', 161);
+  Pref.setString('epay_phone', phone);
+}
+
+/// ClickService.post `submit_qrcode` javobida Pref'ni qayta yozadi (fiskal
+/// tozalashdan KEYIN keladi) — eski xatoning manbai.
+void simulateLateClickSubmitResponse() {
+  Pref.setString('epay_Id', '');
+  Pref.setInt('epayPay_Id', 64);
+  Pref.setString('epay_phone', '');
+}
+
+ReceiptModel4 sale(Map<Kind, double> amounts,
+    {List<ReceiptModelPaymentType4> extra = const []}) {
+  final double total =
+      amounts.values.fold<double>(0, (a, b) => a + b) +
+          extra.fold<double>(0, (a, p) => a + p.value);
+  return receiptOf([row(realPrice: total)],
+      [...buildPayments(amounts), ...extra]);
+}
+
+/// Fiskal modulga ketadigan ExtraInfo.
+Map<String, dynamic> extraOf(ReceiptModel4 r) =>
+    receiptPart(wireOf(r))['ExtraInfo'] as Map<String, dynamic>;
+
+ReceiptEpay capture(
+  ReceiptModel4 r, {
+  String? click,
+  String? payme,
+  String? uzum,
+  int? paynetPid,
+  int last = 0,
+  String phone = '',
+}) =>
+    ReceiptEpay.capture(
+      receipt: r,
+      clickId: ids.click,
+      paymeId: ids.payme,
+      uzumId: ids.uzum,
+      paynetId: kPaynetId,
+      clickPaymentId: click,
+      paymeReceiptId: payme,
+      uzumPaymentId: uzum,
+      paynetPaymentId: paynetPid,
+      lastProvider: last,
+      lastPhone: phone,
+    );
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('receipt_epay', withEmployee: false);
+    await Pref.setString(PrefKeys.mxikCode, kMxik);
+    await Pref.setString(PrefKeys.cashId, ids.cash);
+    await Pref.setString(PrefKeys.cardId, ids.card);
+    await Pref.setString(PrefKeys.cashbackId, ids.cashback);
+    await Pref.setString(PrefKeys.clickId, ids.click);
+    await Pref.setString(PrefKeys.paymeId, ids.payme);
+    await Pref.setString(PrefKeys.uzumId, ids.uzum);
+    await Pref.setString(PrefKeys.paynetId, kPaynetId);
+  });
+
+  setUp(EpayCapture.reset);
+
+  group('ReceiptEpay.capture — faqat shu chekdagi Pass/Go', () {
+    test('naqd chek: manbalarda eski ID bo\'lsa ham bo\'sh', () {
+      final e = capture(sale({Kind.cash: 50000}),
+          click: 'OLD-C', payme: 'OLD-P', uzum: 'OLD-U', paynetPid: 9,
+          last: 64, phone: '998900000000');
+      expect(e.isEmpty, isTrue);
+      expect(e.encode(), isNull);
+    });
+
+    test('har bir to\'lov turi yakka: faqat Pass/Go ID oladi', () {
+      for (final k in Kind.values) {
+        final e = capture(sale({k: 50000}),
+            click: 'C1', payme: 'P1', uzum: 'U1', last: 0);
+        final why = k.name;
+        expect(e.clickPaymentId, k == Kind.clickPass ? 'C1' : '', reason: why);
+        expect(e.paymeReceiptId, k == Kind.paymeGo ? 'P1' : '', reason: why);
+        expect(e.uzumPaymentId, k == Kind.uzum ? 'U1' : '', reason: why);
+        final int provider = const {
+              Kind.clickPass: 64,
+              Kind.paymeGo: 141,
+              Kind.uzum: 161,
+            }[k] ??
+            0;
+        expect(e.qrPaymentProvider, provider, reason: why);
+        expect(e.qrPaymentId, provider == 0 ? '' : isNotEmpty, reason: why);
+      }
+    });
+
+    test('Click Pass: ExtraInfo 64 + ID + telefon (oxirgi to\'lov Click)', () {
+      final e = capture(sale({Kind.clickPass: 50000}),
+          click: '123456', last: 64, phone: '998901234567');
+      expect(e.qrPaymentProvider, 64);
+      expect(e.qrPaymentId, '123456');
+      expect(e.phoneNumber, '998901234567');
+    });
+
+    test('Click QR: eski ClickService ID\'si bo\'lsa ham olinmaydi', () {
+      final e = capture(sale({Kind.clickQr: 50000}), click: 'OLD', last: 64);
+      expect(e.isEmpty, isTrue);
+    });
+
+    test('Payme Go + Click Pass: ExtraInfo oxirgi to\'langan provayder, ikkala ID saqlanadi',
+        () {
+      final r = sale({Kind.clickPass: 20000, Kind.paymeGo: 30000});
+      final e = capture(r, click: 'C', payme: 'P', last: 141, phone: '99890');
+      expect(e.qrPaymentProvider, 141);
+      expect(e.qrPaymentId, 'P');
+      expect(e.phoneNumber, '99890');
+      expect(e.clickPaymentId, 'C');
+      expect(e.paymeReceiptId, 'P');
+    });
+
+    test('oxirgi provayder noma\'lum: Click → Payme → Uzum tartibi, telefon yo\'q',
+        () {
+      final r = sale({Kind.paymeGo: 20000, Kind.uzum: 30000, Kind.clickPass: 1});
+      final e = capture(r, click: 'C', payme: 'P', uzum: 'U', last: 0,
+          phone: '99890');
+      expect(e.qrPaymentProvider, 64);
+      expect(e.phoneNumber, '');
+    });
+
+    test('Pref\'dagi oxirgi provayder chekda yo\'q: uning telefoni oqib ketmaydi',
+        () {
+      final e = capture(sale({Kind.clickPass: 50000}),
+          click: 'C', last: 141, phone: 'PAYME-PHONE');
+      expect(e.qrPaymentProvider, 64);
+      expect(e.phoneNumber, '');
+    });
+
+    test('Pass bor, lekin ID yo\'q (to\'lov ID\'si olinmagan): ExtraInfo bo\'sh',
+        () {
+      for (final id in [null, '', '   ']) {
+        final e = capture(sale({Kind.clickPass: 50000}), click: id, last: 64);
+        expect(e.qrPaymentProvider, 0, reason: '"$id"');
+        expect(e.clickPaymentId, '', reason: '"$id"');
+      }
+    });
+
+    test('ID atrofidagi bo\'shliq olib tashlanadi', () {
+      final e = capture(sale({Kind.clickPass: 50000}), click: ' 77 ');
+      expect(e.clickPaymentId, '77');
+    });
+
+    test('Paynet (Pass ham, QR ham): ID chekda Paynet bo\'lsa saqlanadi', () {
+      for (final qr in [false, true]) {
+        final r = sale({}, extra: [paynet(50000, qr: qr)]);
+        expect(capture(r, paynetPid: 555).paynetPaymentId, 555, reason: 'qr=$qr');
+        expect(capture(r, paynetPid: null).paynetPaymentId, isNull);
+        expect(capture(r, paynetPid: 0).paynetPaymentId, isNull);
+      }
+      expect(capture(sale({Kind.cash: 1}), paynetPid: 555).paynetPaymentId,
+          isNull,
+          reason: 'chekda Paynet yo\'q — eski ID olinmaydi');
+    });
+
+    test('vozvrat: hech narsa olinmaydi', () {
+      final r = receiptOf([row(realPrice: 50000)],
+          buildPayments({Kind.clickPass: 50000}),
+          isRefund: true);
+      expect(capture(r, click: 'C', last: 64).isEmpty, isTrue);
+    });
+  });
+
+  group('encode / decode', () {
+    test('to\'liq qaytish (round-trip)', () {
+      const e = ReceiptEpay(
+        qrPaymentProvider: 141,
+        qrPaymentId: 'P',
+        phoneNumber: '998',
+        clickPaymentId: 'C',
+        paymeReceiptId: 'P',
+        uzumPaymentId: 'U',
+        paynetPaymentId: 42,
+      );
+      final d = ReceiptEpay.decode(e.encode());
+      expect(d.toJson(), e.toJson());
+    });
+
+    test('null / bo\'sh / buzilgan / boshqa tur → bo\'sh, xato tashlamaydi', () {
+      for (final raw in [null, '', '{', '[]', '"x"', 'null', '{"qrPaymentProvider":"abc"}']) {
+        expect(() => ReceiptEpay.decode(raw), returnsNormally, reason: '$raw');
+      }
+      expect(ReceiptEpay.decode(null).isEmpty, isTrue);
+      expect(ReceiptEpay.decode('{').isEmpty, isTrue);
+      expect(ReceiptEpay.decode('[]').isEmpty, isTrue);
+    });
+
+    test('kalitlari yetishmagan JSON: mavjudi o\'qiladi', () {
+      final d = ReceiptEpay.decode('{"clickPaymentId":"C"}');
+      expect(d.clickPaymentId, 'C');
+      expect(d.qrPaymentProvider, 0);
+      expect(d.paynetPaymentId, isNull);
+    });
+  });
+
+  group('targets — fiskal URL qaysi provayderga qaytariladi', () {
+    const full = ReceiptEpay(
+        clickPaymentId: 'C', paymeReceiptId: 'P', uzumPaymentId: 'U',
+        paynetPaymentId: 1);
+
+    test('bayroq + ID → yuboriladi', () {
+      expect(
+          full.targets({
+            'receivedClick': true,
+            'receivedPayme': true,
+            'receivedUzum': true,
+            'receivedPaynet': true,
+          }),
+          EpayTarget.values.toSet());
+    });
+
+    test('bayroq bor, ID yo\'q (eski chek) → yuborilmaydi', () {
+      expect(
+          ReceiptEpay.empty.targets({
+            'receivedClick': true,
+            'receivedPayme': true,
+            'receivedUzum': true,
+            'receivedPaynet': true,
+          }),
+          isEmpty);
+    });
+
+    test('ID bor, bayroq yo\'q (QR yoki naqd) → yuborilmaydi', () {
+      expect(
+          full.targets({
+            'receivedClick': false,
+            'receivedPayme': false,
+            'receivedUzum': false,
+            'receivedPaynet': false,
+          }),
+          isEmpty);
+      expect(full.targets(<String, dynamic>{}), isEmpty);
+    });
+
+    test('haqiqiy saleOnOFD params bilan: Click Pass + Payme QR → faqat Click', () {
+      final r = sale({Kind.clickPass: 20000, Kind.paymeQr: 30000});
+      r.epayJson = capture(r, click: 'C', payme: 'STALE').encode();
+      final params = paramsOf(r);
+      expect(ReceiptEpay.decode(r.epayJson).targets(params), {EpayTarget.click});
+    });
+  });
+
+  group('Fiskal JSON ExtraInfo — chekdan, Pref\'dan emas', () {
+    test('naqd chek, Pref\'da oldingi Click qoldig\'i: ExtraInfo bo\'sh', () {
+      simulateClickPaid('OLD-111');
+      simulateLateClickSubmitResponse();
+      Pref.setString('epay_Id', 'OLD-111');
+      final x = extraOf(sale({Kind.cash: 50000}));
+      expect(x['QRPaymentProvider'], 0);
+      expect(x['QRPaymentID'], '');
+      expect(x['PhoneNumber'], '');
+    });
+
+    test('Click Pass chek: ExtraInfo chekdagi ID, Pref\'da boshqa to\'lov bo\'lsa ham',
+        () {
+      final r = sale({Kind.clickPass: 50000});
+      r.epayJson = capture(r, click: 'C-1', last: 64, phone: '998901').encode();
+      simulatePaymePaid('OTHER'); // keyingi mijozning to'lovi
+      final x = extraOf(r);
+      expect(x['QRPaymentProvider'], 64);
+      expect(x['QRPaymentID'], 'C-1');
+      expect(x['PhoneNumber'], '998901');
+    });
+
+    test('har bir Pass/Go turi: provayder kodi to\'g\'ri', () {
+      const codes = {Kind.clickPass: 64, Kind.paymeGo: 141, Kind.uzum: 161};
+      for (final k in codes.keys) {
+        final int code = codes[k]!;
+        final r = sale({k: 50000});
+        r.epayJson =
+            capture(r, click: 'C', payme: 'P', uzum: 'U', last: code).encode();
+        expect(extraOf(r)['QRPaymentProvider'], code, reason: k.name);
+      }
+    });
+
+    test('QR chek: ExtraInfo bo\'sh, pul Other\'da (o\'zgarishsiz)', () {
+      for (final k in [Kind.clickQr, Kind.paymeQr, Kind.uzumQr]) {
+        final r = sale({k: 50000});
+        r.epayJson = capture(r, click: 'X', payme: 'X', uzum: 'X').encode();
+        expect(r.epayJson, isNull, reason: k.name);
+        expect(extraOf(r)['QRPaymentProvider'], 0, reason: k.name);
+        expect(sumOf(wireOf(r), 'Other'), 5000000, reason: k.name);
+      }
+    });
+
+    test('vozvrat: chekda epayJson bo\'lsa ham ExtraInfo bo\'sh', () {
+      final r = receiptOf([row(realPrice: 50000)],
+          [ReceiptModelPaymentType4(name: 'CASH', payId: ids.cash, value: 50000)],
+          isRefund: true);
+      r.epayJson = const ReceiptEpay(
+              qrPaymentProvider: 64, qrPaymentId: 'C', clickPaymentId: 'C')
+          .encode();
+      final x = extraOf(r);
+      expect(x['QRPaymentProvider'], 0);
+      expect(x['QRPaymentID'], '');
+    });
+
+    test('ExtraInfo qo\'shilishi pul maydonlarini o\'zgartirmaydi', () {
+      final r = sale({Kind.clickPass: 30000, Kind.cash: 20000});
+      final before = jsonEncode(receiptPart(wireOf(r))['Items']);
+      r.epayJson = capture(r, click: 'C', last: 64, phone: '9').encode();
+      final w = wireOf(r);
+      expect(jsonEncode(receiptPart(w)['Items']), before);
+      expect(receiptPart(w)['ReceivedCard'], 3000000);
+      expect(receiptPart(w)['ReceivedCash'], 2000000);
+    });
+  });
+
+  group('Nusxalash yo\'llari epayJson\'ni yo\'qotmaydi', () {
+    test('ReceiptApi4.func (saleOnOFD ishlatadi)', () {
+      final r = sale({Kind.clickPass: 50000});
+      r.epayJson = capture(r, click: 'C').encode();
+      expect(ReceiptApi4.func(r).epayJson, r.epayJson);
+    });
+
+    test('PreOfdBloc.receiptForResend', () {
+      final r = sale({Kind.paymeGo: 50000});
+      r.epayJson = capture(r, payme: 'P').encode();
+      final copy = PreOfdBloc.receiptForResend(r, '');
+      expect(copy.epayJson, r.epayJson);
+      expect(copy.payment.map((p) => p.payId), r.payment.map((p) => p.payId));
+    });
+
+    test('eski chek (epayJson null) nusxada ham null', () {
+      final r = sale({Kind.clickPass: 50000});
+      expect(PreOfdBloc.receiptForResend(r, '').epayJson, isNull);
+      expect(ReceiptApi4.func(r).epayJson, isNull);
+    });
+  });
+
+  group('Click payload — payment_id chekdan', () {
+    test('fromReceipt4ToClick ClickService.paymentId ni emas, berilganini oladi',
+        () {
+      ClickService.paymentId = '999999';
+      final r = sale({Kind.clickPass: 50000});
+      final data = ReceiptSingleton4.fromReceipt4ToClick(
+          receipt: ReceiptSingleton4.saleOnOFD(r), clickPaymentId: '123');
+      expect(data['payment_id'], 123);
+    });
+  });
+
+  group('EpayCapture — servis holati bilan to\'liq stsenariylar', () {
+    test('reset: barcha global manbalar tozalanadi', () {
+      simulateClickPaid('C');
+      simulatePaymePaid('P');
+      simulateUzumPaid('U');
+      PaynetService.paymentId = 5;
+      EpayCapture.reset();
+      expect(ClickService.paymentId, isNull);
+      expect(UzumService.paymentId, isNull);
+      expect(PaynetService.paymentId, isNull);
+      expect(Pref.getString('p_id', 'x'), '');
+      expect(Pref.getInt('epayPay_Id', -1), 0);
+      expect(Pref.getString('epay_Id', 'x'), '');
+      expect(Pref.getString('epay_phone', 'x'), '');
+    });
+
+    test('1-muammo: Click Pass sotuvi fiskalda yiqildi → keyingi naqd chekda ExtraInfo bo\'sh',
+        () {
+      // Sotuv 1: Click Pass.
+      simulateClickPaid('111');
+      final r1 = sale({Kind.clickPass: 50000});
+      r1.epayJson = EpayCapture.forReceipt(r1);
+      // Fiskal yiqildi — LocalService Pref'ni tozalamadi; Click javobi ham keldi.
+      simulateLateClickSubmitResponse();
+      // Sotuv 2: yangi to'lov sahifasi, naqd.
+      EpayCapture.reset();
+      final r2 = sale({Kind.cash: 30000});
+      r2.epayJson = EpayCapture.forReceipt(r2);
+      expect(r2.epayJson, isNull);
+      expect(extraOf(r2)['QRPaymentProvider'], 0);
+      expect(extraOf(r2)['QRPaymentID'], '');
+      // Sotuv 1 o'z ma'lumotini saqlab qolgan.
+      expect(extraOf(r1)['QRPaymentProvider'], 64);
+      expect(extraOf(r1)['QRPaymentID'], '111');
+    });
+
+    test('reset\'dan keyin ham kech kelgan Click javobi: naqd chekka 64 tushmaydi',
+        () {
+      EpayCapture.reset();
+      simulateLateClickSubmitResponse(); // epayPay_Id = 64
+      final r = sale({Kind.cash: 30000});
+      r.epayJson = EpayCapture.forReceipt(r);
+      expect(extraOf(r)['QRPaymentProvider'], 0);
+    });
+
+    test('Payme Go to\'lovidan keyin kech Click javobi: ExtraInfo baribir Payme',
+        () {
+      EpayCapture.reset();
+      simulatePaymePaid('PM-2');
+      simulateLateClickSubmitResponse(); // epayPay_Id 141 → 64 bo'lib qoldi
+      final r = sale({Kind.paymeGo: 40000});
+      r.epayJson = EpayCapture.forReceipt(r);
+      final x = extraOf(r);
+      expect(x['QRPaymentProvider'], 141);
+      expect(x['QRPaymentID'], 'PM-2');
+      expect(x['PhoneNumber'], '', reason: 'telefon kimniki ekani noma\'lum');
+    });
+
+    test('2-muammo: PreOfd qayta yuborish — provayderga chekning o\'z ID\'si', () {
+      // Sotuv 1: Click Pass, fiskalsiz saqlandi.
+      simulateClickPaid('111');
+      final r1 = sale({Kind.clickPass: 50000});
+      r1.epayJson = EpayCapture.forReceipt(r1);
+      // Sotuv 2: boshqa mijoz, Click Pass 222 va Payme Go.
+      EpayCapture.reset();
+      simulateClickPaid('222');
+      simulatePaymePaid('PM-9');
+      final r2 = sale({Kind.clickPass: 10000, Kind.paymeGo: 10000});
+      r2.epayJson = EpayCapture.forReceipt(r2);
+
+      // Keyinroq cheklar ro'yxatidan sotuv 1 fiskalga qayta yuboriladi.
+      final resend = PreOfdBloc.receiptForResend(r1, '');
+      final body = ReceiptSingleton4.saleOnOFD(resend);
+      final epay = ReceiptEpay.decode(resend.epayJson);
+      expect(epay.targets(body['params']), {EpayTarget.click});
+      expect(epay.clickPaymentId, '111');
+      expect(
+          ReceiptSingleton4.fromReceipt4ToClick(
+              receipt: body, clickPaymentId: epay.clickPaymentId)['payment_id'],
+          111);
+      expect(extraOf(resend)['QRPaymentID'], '111');
+
+      // Sotuv 2 o'z ID'lari bilan.
+      final e2 = ReceiptEpay.decode(r2.epayJson);
+      expect(e2.clickPaymentId, '222');
+      expect(e2.paymeReceiptId, 'PM-9');
+      expect(e2.targets(paramsOf(r2)), {EpayTarget.click, EpayTarget.payme});
+    });
+
+    test('dastur qayta ochilgandan keyin (statik ID\'lar yo\'q) qayta yuborish', () {
+      simulateClickPaid('111');
+      final r1 = sale({Kind.clickPass: 50000});
+      r1.epayJson = EpayCapture.forReceipt(r1);
+      // Qayta ishga tushish: xotira tozalandi.
+      ClickService.paymentId = null;
+      final resend = PreOfdBloc.receiptForResend(r1, '');
+      final epay = ReceiptEpay.decode(resend.epayJson);
+      expect(epay.targets(paramsOf(resend)), {EpayTarget.click});
+      expect(epay.clickPaymentId, '111');
+    });
+
+    test('yangilanishdan oldingi chek (epayJson yo\'q): provayderga yuborilmaydi, ExtraInfo bo\'sh',
+        () {
+      ClickService.paymentId = 'SOMEONE-ELSE';
+      Pref.setInt('epayPay_Id', 64);
+      Pref.setString('epay_Id', 'SOMEONE-ELSE');
+      final old = sale({Kind.clickPass: 50000}); // epayJson null
+      final resend = PreOfdBloc.receiptForResend(old, '');
+      expect(ReceiptEpay.decode(resend.epayJson).targets(paramsOf(resend)),
+          isEmpty);
+      expect(extraOf(resend)['QRPaymentID'], '');
+      // Pul maydonlari o'zgarmagan: Pass → ReceivedCard.
+      expect(receiptPart(wireOf(resend))['ReceivedCard'], 5000000);
+    });
+
+    test('Uzum Pass va Paynet: ID chekdan', () {
+      simulateUzumPaid('UZ-1');
+      PaynetService.paymentId = 77;
+      final r = sale({Kind.uzum: 20000}, extra: [paynet(30000)]);
+      r.epayJson = EpayCapture.forReceipt(r);
+      final e = ReceiptEpay.decode(r.epayJson);
+      expect(e.uzumPaymentId, 'UZ-1');
+      expect(e.paynetPaymentId, 77);
+      expect(e.qrPaymentProvider, 161);
+      final params = paramsOf(r);
+      expect(params['receivedPaynet'], true);
+      expect(e.targets(params), {EpayTarget.uzum, EpayTarget.paynet});
+    });
+  });
+}
+```
+
+</details>
+
+<details><summary>YANGI: <code>test/epay_fiscal_matrix_test.dart</code></summary>
+
+```dart
+// Click Pass / Payme Go / QR / Uzum — fiskal modulga ketadigan JSON matritsasi.
+//
+// f007377 (Click Pass / Payme Go → ReceivedCard, QQS to'liq; QR → Other;
+// receivedClick/Payme/Uzum faqat Pass/Go) ni keng qamrovda tekshiradi.
+//
+// receipt_vat_test.dart dan farqi: to'lovlar QO'LDA yasalmaydi — to'lov
+// ekranidagi xarita (`Map<String, Payment>`, QR `type: 1` → '@id' kalit)
+// haqiqiy `ReceiptPayments.build` dan o'tadi, so'ng `saleOnOFD` →
+// `RequestSaleModel` → `FiscalReceiptModel.toJson` (modulga ketadigan JSON).
+//
+// Har bir holatda modul invariantlari:
+//   - ReceivedCash / ReceivedCard / ΣOther — to'lov turiga qarab kutilgan;
+//   - Σ(Price − Discount) == ReceivedCash + ReceivedCard + ΣOther (§10.2.1);
+//   - har qatorda 0 ≤ Other, Other + Discount ≤ Price;
+//   - VAT == (Price − Discount − Other) × p / (100 + p), 0% da 0;
+//   - receivedClick / receivedPayme / receivedUzum faqat Pass/Go bo'lsa.
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+import 'dart:convert';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+
+import 'support/epay_fixtures.dart';
+import 'support/provider_harness.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('epay_fiscal_matrix', withEmployee: false);
+    await Pref.setString(PrefKeys.mxikCode, kMxik);
+    await Pref.setString(PrefKeys.cashId, ids.cash);
+    await Pref.setString(PrefKeys.cardId, ids.card);
+    await Pref.setString(PrefKeys.cashbackId, ids.cashback);
+    await Pref.setString(PrefKeys.clickId, ids.click);
+    await Pref.setString(PrefKeys.paymeId, ids.payme);
+    await Pref.setString(PrefKeys.uzumId, ids.uzum);
+  });
+
+  group('ReceiptPayments.build — to\'lov ekranidan chekka nomlar', () {
+    test('Pass/Go — \'@\' siz, QR — \'@id\' va nomda QR', () {
+      final ps = buildPayments({
+        for (final k in Kind.values) k: 1000,
+      });
+      final byKey = {for (final p in ps) p.payId: p.name};
+      expect(byKey['pay-click'], 'CLICK PASS');
+      expect(byKey['@pay-click'], 'CLICK QR');
+      expect(byKey['pay-payme'], 'PAYME GO');
+      expect(byKey['@pay-payme'], 'PAYME QR');
+      expect(byKey['pay-uzum'], 'UZUM');
+      expect(byKey['@pay-uzum'], 'UZUM QR');
+      expect(byKey['pay-card'], 'UZCARD');
+      expect(byKey['@pay-card'], 'HUMO');
+      expect(byKey['pay-cash'], 'CASH');
+      expect(byKey['pay-cashback'], 'CASHBACK');
+      expect(byKey['pay-debt'], 'DEBT');
+    });
+  });
+
+  group('Yakka to\'lov turi × savat — fiskal JSON', () {
+    for (final cart in [...carts, scaleCart]) {
+      for (final kind in Kind.values) {
+        test('${kind.name} | ${cart.name}', () {
+          final rows = cart.rows();
+          final double total = cartTotal(rows);
+          final amounts = {kind: total};
+          final r = receiptOf(rows, buildPayments(amounts));
+          final w = wireOf(r);
+          final why = '${kind.name} / ${cart.name}';
+
+          expectModuleInvariants(w, why);
+          // Tarozida to'lov so'mga yaxlitlanadi — summa emas, bucket muhim.
+          final paid = {kind: r.payment.single.value};
+          if (cart != scaleCart) {
+            expectBuckets(w, paid, why, rows: rows.length);
+          } else {
+            final rp = receiptPart(w);
+            switch (kind.bucket) {
+              case Bucket.cash:
+                expect(rp['ReceivedCard'], 0, reason: why);
+                expect(sumOf(w, 'Other'), 0, reason: why);
+                break;
+              case Bucket.card:
+                expect(rp['ReceivedCash'], 0, reason: why);
+                expect(sumOf(w, 'Other'), 0, reason: why);
+                break;
+              case Bucket.other:
+                expect(rp['ReceivedCash'], 0, reason: why);
+                expect(rp['ReceivedCard'], 0, reason: why);
+                break;
+            }
+          }
+          expectFlags(paramsOf(r), {kind}, why);
+
+          // Karta guruhi (Pass/Go ham) — QQS to'liq; Other guruhi — 0.
+          final num vat = sumOf(w, 'VAT');
+          if (kind.bucket == Bucket.other) {
+            expect(vat, 0, reason: '$why: Other → VAT 0');
+          } else if (rows.any((x) => x.vatPercent > 0)) {
+            expect(vat, greaterThan(0), reason: '$why: VAT to\'liq');
+          }
+        });
+      }
+    }
+  });
+
+  group('Pass/Go oldin vs hozir — aniq raqamlar', () {
+    test('Click Pass 112 000 (12%): ReceivedCard, Other 0, VAT 12 000 so\'m', () {
+      final rows = [row(realPrice: 112000)];
+      final w = wireOf(receiptOf(rows, buildPayments({Kind.clickPass: 112000})));
+      final it = itemsOf(w).single;
+      expect(receiptPart(w)['ReceivedCash'], 0);
+      expect(receiptPart(w)['ReceivedCard'], 11200000);
+      expect(it['Price'], 11200000);
+      expect(it['Other'], 0);
+      expect(it['VAT'], closeTo(1200000, 1));
+    });
+
+    test('Payme Go 112 000: xuddi shunday', () {
+      final w = wireOf(receiptOf(
+          [row(realPrice: 112000)], buildPayments({Kind.paymeGo: 112000})));
+      expect(receiptPart(w)['ReceivedCard'], 11200000);
+      expect(itemsOf(w).single['Other'], 0);
+      expect(itemsOf(w).single['VAT'], closeTo(1200000, 1));
+    });
+
+    test('Click QR / Payme QR 112 000: o\'zgarishsiz — Other, VAT 0', () {
+      for (final k in [Kind.clickQr, Kind.paymeQr]) {
+        final w = wireOf(
+            receiptOf([row(realPrice: 112000)], buildPayments({k: 112000})));
+        expect(receiptPart(w)['ReceivedCard'], 0, reason: k.name);
+        expect(receiptPart(w)['ReceivedCash'], 0, reason: k.name);
+        expect(itemsOf(w).single['Other'], 11200000, reason: k.name);
+        expect(itemsOf(w).single['VAT'], 0, reason: k.name);
+      }
+    });
+  });
+
+  group('Aralash: har juft to\'lov turi (1/3 + 2/3)', () {
+    final kinds = Kind.values;
+    for (var i = 0; i < kinds.length; i++) {
+      for (var j = i + 1; j < kinds.length; j++) {
+        final a = kinds[i], b = kinds[j];
+        test('${a.name} + ${b.name}', () {
+          for (final cart in carts) {
+            final rows = cart.rows();
+            final double total = cartTotal(rows);
+            final double first = (total / 3).floorToDouble();
+            final amounts = {a: first, b: total - first};
+            final r = receiptOf(rows, buildPayments(amounts));
+            final w = wireOf(r);
+            final why = '${a.name}+${b.name} / ${cart.name}';
+            expectModuleInvariants(w, why);
+            expectBuckets(w, amounts, why, rows: rows.length);
+            expectFlags(paramsOf(r), {a, b}, why);
+          }
+        });
+      }
+    }
+  });
+
+  group('Murakkab holatlar', () {
+    test('hamma 11 tur bitta chekda', () {
+      final rows = [
+        row(realPrice: 110000, name: 'X'),
+        row(realPrice: 55000, vatPercent: 0, name: 'Y'),
+      ];
+      final amounts = {for (final k in Kind.values) k: 15000.0};
+      final r = receiptOf(rows, buildPayments(amounts));
+      final w = wireOf(r);
+      expectModuleInvariants(w, 'hammasi');
+      expectBuckets(w, amounts, 'hammasi', rows: 2);
+      expectFlags(paramsOf(r), Kind.values.toSet(), 'hammasi');
+    });
+
+    test('bir provayderning Pass + QR bitta chekda: Pass → karta, QR → Other, bayroq true',
+        () {
+      final rows = [row(realPrice: 100000)];
+      for (final pair in [
+        [Kind.clickPass, Kind.clickQr],
+        [Kind.paymeGo, Kind.paymeQr],
+        [Kind.uzum, Kind.uzumQr],
+      ]) {
+        final amounts = {pair[0]: 60000.0, pair[1]: 40000.0};
+        final r = receiptOf(rows, buildPayments(amounts));
+        final w = wireOf(r);
+        expectModuleInvariants(w, pair.toString());
+        expectBuckets(w, amounts, pair.toString());
+        expectFlags(paramsOf(r), pair.toSet(), pair.toString());
+      }
+    });
+
+    test('naqd qaytim (sdacha) + Click Pass: naqd qatoridan qaytim ayriladi', () {
+      final rows = [row(realPrice: 50000)];
+      // Mijoz 20 000 Click Pass + 40 000 naqd berdi, qaytim 10 000.
+      final payments = buildPayments(
+          {Kind.clickPass: 20000, Kind.cash: 40000},
+          sdacha: 10000);
+      final r = receiptOf(rows, payments);
+      final w = wireOf(r);
+      expectModuleInvariants(w, 'sdacha');
+      expect(receiptPart(w)['ReceivedCash'], 3000000);
+      expect(receiptPart(w)['ReceivedCard'], 2000000);
+      expect(sumOf(w, 'Other'), 0);
+      expect(paramsOf(r)['receivedClick'], true);
+    });
+
+    test('cashback + Click QR + Payme Go: Other = cashback + QR, karta = Go', () {
+      final rows = [
+        row(realPrice: 30000, name: 'A'),
+        row(realPrice: 70000, name: 'B'),
+      ];
+      final amounts = {
+        Kind.cashback: 10000.0,
+        Kind.clickQr: 25000.0,
+        Kind.paymeGo: 65000.0,
+      };
+      final r = receiptOf(rows, buildPayments(amounts));
+      final w = wireOf(r);
+      expectModuleInvariants(w, 'cb+qr+go');
+      expectBuckets(w, amounts, 'cb+qr+go', rows: 2);
+      expectFlags(paramsOf(r), amounts.keys.toSet(), 'cb+qr+go');
+    });
+
+    test('serverdan qaytgan chek: QR\'da \'@\' yo\'q, nomi QR → baribir Other',
+        () {
+      final rows = [row(realPrice: 50000)];
+      final r = receiptOf(rows, [
+        ReceiptModelPaymentType4(name: 'CLICK QR', payId: 'pay-click', value: 20000),
+        ReceiptModelPaymentType4(name: 'PAYME QR', payId: 'pay-payme', value: 30000),
+      ]);
+      final w = wireOf(r);
+      expectModuleInvariants(w, 'server QR');
+      expect(receiptPart(w)['ReceivedCard'], 0);
+      expect(sumOf(w, 'Other'), 5000000);
+      expectFlags(paramsOf(r), const {}, 'server QR');
+    });
+
+    test('nomi kichik harfda (eski chek): click pass → karta', () {
+      final r = receiptOf([row(realPrice: 50000)], [
+        ReceiptModelPaymentType4(name: 'click pass', payId: 'pay-click', value: 50000),
+      ]);
+      final w = wireOf(r);
+      expect(receiptPart(w)['ReceivedCard'], 5000000);
+      expect(paramsOf(r)['receivedClick'], true);
+    });
+  });
+
+  group('Vozvrat — to\'lov turidan qat\'iy nazar naqd', () {
+    test('Click Pass / Payme Go / QR chekining vozvrati (return_bloc: faqat CASH)',
+        () {
+      for (final k in [Kind.clickPass, Kind.paymeGo, Kind.clickQr, Kind.paymeQr]) {
+        final rows = [row(realPrice: 50000)];
+        // return_bloc.dart: vozvrat cheki to'lovi har doim bitta CASH.
+        final refund = receiptOf(
+          rows,
+          [ReceiptModelPaymentType4(name: 'CASH', payId: ids.cash, value: 50000)],
+          isRefund: true,
+        );
+        final w = wireOf(refund);
+        expectModuleInvariants(w, 'vozvrat ${k.name}');
+        expect(receiptPart(w)['ReceivedCash'], 5000000, reason: k.name);
+        expect(receiptPart(w)['ReceivedCard'], 0, reason: k.name);
+        expect(sumOf(w, 'Other'), 0, reason: k.name);
+        expectFlags(paramsOf(refund), const {}, 'vozvrat ${k.name}');
+      }
+    });
+
+    test('vozvrat chekida asl to\'lovlar qolgan bo\'lsa ham — hammasi ReceivedCash',
+        () {
+      final rows = [row(realPrice: 50000)];
+      final refund = receiptOf(
+        rows,
+        buildPayments({Kind.clickPass: 20000, Kind.paymeQr: 30000}),
+        isRefund: true,
+      );
+      final w = wireOf(refund);
+      expectModuleInvariants(w, 'vozvrat aralash');
+      expect(receiptPart(w)['ReceivedCash'], 5000000);
+      expect(receiptPart(w)['ReceivedCard'], 0);
+      expect(sumOf(w, 'Other'), 0);
+    });
+  });
+
+  group('Barqarorlik', () {
+    test('saleOnOFD qayta chaqirilsa (PreOfd qayta urinish) natija bir xil', () {
+      final rows = [
+        row(realPrice: 37500, value: 2, name: 'A'),
+        row(realPrice: 9990, name: 'C'),
+      ];
+      final total = cartTotal(rows);
+      final r = receiptOf(rows,
+          buildPayments({Kind.clickPass: 30000, Kind.clickQr: total - 30000}));
+      final before = jsonEncode(r.payment.map((p) => [p.name, p.payId, p.value]).toList());
+      final first = jsonEncode(wireOf(r));
+      final second = jsonEncode(wireOf(r));
+      expect(second, first);
+      expect(
+          jsonEncode(r.payment.map((p) => [p.name, p.payId, p.value]).toList()),
+          before,
+          reason: 'saleOnOFD chek to\'lovlarini o\'zgartirmasligi kerak');
+    });
+
+    test('provayder ID sozlanmagan (clickId bo\'sh): Pass bayrog\'i false', () async {
+      final saved = Pref.getString(PrefKeys.clickId, '');
+      await Pref.setString(PrefKeys.clickId, '');
+      try {
+        final r = receiptOf(
+            [row(realPrice: 50000)], buildPayments({Kind.clickPass: 50000}));
+        expect(paramsOf(r)['receivedClick'], false);
+        expectModuleInvariants(wireOf(r), 'clickId bo\'sh');
+      } finally {
+        await Pref.setString(PrefKeys.clickId, saved);
+      }
+    });
+  });
+}
+```
+
+</details>
+
+<details><summary>YANGI: <code>test/support/epay_fixtures.dart</code></summary>
+
+```dart
+// Click/Payme/Uzum fiskal testlari uchun umumiy fixture'lar:
+// test/epay_fiscal_matrix_test.dart, test/receipt_epay_test.dart
+import 'dart:convert';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/domain/receipt/receipt_payments.dart';
+import 'package:invan2/changes/models/organization_model.dart';
+import 'package:invan2/changes/services/local_selling_service.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart';
+import 'package:invan2/fiscal_service/model/fiscal_receipt_model.dart';
+import 'package:invan2/fiscal_service/model/location/location.dart';
+import 'package:invan2/fiscal_service/model/receipt_data_model.dart';
+import 'package:invan2/fiscal_service/model/request_receipt_model.dart';
+import 'provider_harness.dart';
+
+const kMxik = '01234567890123456';
+const ids = PaymentIds(
+  cash: 'pay-cash',
+  card: 'pay-card',
+  cashback: 'pay-cashback',
+  debt: 'pay-debt',
+  payme: 'pay-payme',
+  click: 'pay-click',
+  uzum: 'pay-uzum',
+);
+
+/// Fiskalda qaysi maydonga tushishi kerak.
+enum Bucket { cash, card, other }
+
+/// To'lov ekranidagi tugma.
+enum Kind {
+  cash('pay-cash', 0, Bucket.cash),
+  uzcard('pay-card', 0, Bucket.card),
+  humo('@pay-card', 1, Bucket.card),
+  clickPass('pay-click', 0, Bucket.card),
+  clickQr('@pay-click', 1, Bucket.other),
+  paymeGo('pay-payme', 0, Bucket.card),
+  paymeQr('@pay-payme', 1, Bucket.other),
+  uzum('pay-uzum', 0, Bucket.other),
+  uzumQr('@pay-uzum', 1, Bucket.other),
+  cashback('pay-cashback', 0, Bucket.other),
+  debt('pay-debt', 0, Bucket.card);
+
+  const Kind(this.key, this.type, this.bucket);
+
+  /// `paymentsMap` kaliti (QR — '@id').
+  final String key;
+  final int type;
+  final Bucket bucket;
+}
+
+/// Savat varianti.
+class Cart {
+  const Cart(this.name, this.rows);
+  final String name;
+  final List<ReceiptModelSoldItem4> Function() rows;
+}
+
+ReceiptModelSoldItem4 row({
+  required double realPrice,
+  double? price,
+  double value = 1,
+  double vatPercent = 12,
+  String name = 'Tovar',
+}) =>
+    makeSoldItem(
+      productId: name,
+      name: name,
+      price: price ?? realPrice,
+      realPrice: realPrice,
+      onlyPrice: realPrice,
+      value: value,
+      vatPercent: vatPercent,
+      singleDiscount: realPrice - (price ?? realPrice),
+      mxik: kMxik,
+    );
+
+final List<Cart> carts = [
+  Cart('bitta qator 50 000, 12%', () => [row(realPrice: 50000)]),
+  Cart('ko\'p qator, QQS 12% va 0%', () => [
+        row(realPrice: 37500, value: 2, name: 'A'),
+        row(realPrice: 15000, vatPercent: 0, name: 'B'),
+        row(realPrice: 9990, name: 'C'),
+      ]),
+  Cart('chegirma 120 000 → 99 000', () => [
+        row(realPrice: 120000, price: 99000, name: 'D'),
+        row(realPrice: 4500, value: 3, name: 'E'),
+      ]),
+  Cart('katta summa 3 × 12 500 000', () => [
+        row(realPrice: 12500000, value: 3, name: 'F'),
+      ]),
+];
+
+/// Tarozi: 0.29 × 77 950 = 22 605.5 (yarim so'm) — §10.2.1 yaxlitlash.
+Cart scaleCart = Cart('tarozi 0.29 × 77 950', () => [
+      row(realPrice: 77950, value: 0.29, name: 'Go\'sht'),
+      row(realPrice: 12000, name: 'Non'),
+    ]);
+
+double cartTotal(List<ReceiptModelSoldItem4> rows) =>
+    rows.fold<double>(0, (a, r) => a + r.price * r.value);
+
+/// To'lov ekrani xaritasi → haqiqiy `ReceiptPayments.build`.
+List<ReceiptModelPaymentType4> buildPayments(
+  Map<Kind, double> amounts, {
+  double sdacha = 0,
+}) {
+  final map = <String, Payment>{
+    for (final e in amounts.entries)
+      e.key.key: Payment(
+        name: e.key.name,
+        id: e.key.key.replaceFirst('@', ''),
+        type: e.key.type,
+        value: e.value,
+      ),
+  };
+  return ReceiptPayments.build(map,
+      ids: ids, sdacha: sdacha, zdachaToCashBack: 0);
+}
+
+ReceiptModel4 receiptOf(
+  List<ReceiptModelSoldItem4> rows,
+  List<ReceiptModelPaymentType4> payments, {
+  bool isRefund = false,
+}) {
+  final r = ReceiptModel4(
+    createdDate: '2026-10-02 12:00:00',
+    orderId: 'order-1',
+    cashboxId: 'cashbox-1',
+    externalId: 'DN-1',
+    orderType: isRefund ? 'refund' : 'sale',
+    shopId: 'shop-1',
+    userId: kUserId,
+    discountVat: 0,
+    discountID: '',
+    newid: '',
+    cashierId: kCashierId,
+    cashierName: kCashierName,
+    date: DateTime.now().millisecondsSinceEpoch,
+    isRefund: isRefund,
+    totalPrice: cartTotal(rows),
+    uploaded: false,
+    rejected: false,
+    clientName: '',
+    clientPhone: '',
+    clientId: '',
+    supplierId: '',
+    cashback: 0,
+    sdacha: 0,
+    returnForCheck: isRefund ? 'DN-0' : '',
+    posName: 'Test POS',
+    isDonate: false,
+    refundInfo: isRefund
+        ? jsonEncode({
+            'TerminalID': 'MOCK00000001',
+            'ReceiptSeq': '101',
+            'DateTime': '20261002120000',
+            'FiscalSign': '600000000101',
+            'QRCodeURL': '',
+          })
+        : null,
+  );
+  r.soldItemList.addAll(rows);
+  r.payment.addAll(payments);
+  return r;
+}
+
+Map<String, dynamic> paramsOf(ReceiptModel4 r) =>
+    ReceiptSingleton4.saleOnOFD(r)['params'] as Map<String, dynamic>;
+
+/// Modulga ketadigan JSON.
+Map<String, dynamic> wireOf(ReceiptModel4 receipt) {
+  final body = ReceiptSingleton4.saleOnOFD(receipt);
+  final model = RequestSaleModel.fromJson(body);
+  final fiscal = FiscalReceiptModel.fromRequest(
+    model,
+    ReceiptDataModel(
+      factoryID: 'UZ000000000MOCK',
+      terminalID: 'MOCK00000001',
+      location: Location(latitude: 41.311081, longitude: 69.240562),
+    ),
+    DateTime(2026, 10, 2, 12, 0, 0),
+    // saleWithOutIncom bilan aynan bir xil ExtraInfo.
+    LocalService.extraInfoFromBody(body),
+  );
+  return jsonDecode(jsonEncode(fiscal.toJson())) as Map<String, dynamic>;
+}
+
+Map<String, dynamic> receiptPart(Map<String, dynamic> w) =>
+    w['params']['Receipt'] as Map<String, dynamic>;
+List<Map<String, dynamic>> itemsOf(Map<String, dynamic> w) =>
+    (receiptPart(w)['Items'] as List).cast<Map<String, dynamic>>();
+num sumOf(Map<String, dynamic> w, String key) =>
+    itemsOf(w).fold<num>(0, (a, it) => a + (it[key] as num? ?? 0));
+
+/// Modul qabul qilishi uchun shart bo'lgan invariantlar.
+void expectModuleInvariants(Map<String, dynamic> w, String why) {
+  final rp = receiptPart(w);
+  final num cash = rp['ReceivedCash'] as num;
+  final num card = rp['ReceivedCard'] as num;
+  expect(cash, greaterThanOrEqualTo(0), reason: '$why: ReceivedCash');
+  expect(card, greaterThanOrEqualTo(0), reason: '$why: ReceivedCard');
+
+  for (final it in itemsOf(w)) {
+    final num price = it['Price'] as num;
+    final num disc = it['Discount'] as num? ?? 0;
+    final num other = it['Other'] as num? ?? 0;
+    final num vat = it['VAT'] as num? ?? 0;
+    final num p = it['VATPercent'] as num? ?? 0;
+    expect(other, greaterThanOrEqualTo(0), reason: '$why: ${it['Name']} Other');
+    expect(other + disc, lessThanOrEqualTo(price),
+        reason: '$why: ${it['Name']} Other+Discount ≤ Price');
+    final double expectedVat = p == 0 ? 0 : (price - disc - other) * p / (100 + p);
+    expect(vat, closeTo(expectedVat, 1),
+        reason: '$why: ${it['Name']} VAT bazasi (Price−Discount−Other)');
+  }
+
+  final num lhs = sumOf(w, 'Price') - sumOf(w, 'Discount');
+  final num rhs = cash + card + sumOf(w, 'Other');
+  expect(lhs, rhs, reason: '$why: §10.2.1 Σ(Price−Discount) = Cash+Card+ΣOther');
+}
+
+/// To'lov turlariga qarab kutilgan maydonlar (tiyinda).
+void expectBuckets(
+  Map<String, dynamic> w,
+  Map<Kind, double> amounts,
+  String why, {
+  int rows = 1,
+}) {
+  double cash = 0, card = 0, other = 0;
+  amounts.forEach((k, v) {
+    switch (k.bucket) {
+      case Bucket.cash:
+        cash += v;
+        break;
+      case Bucket.card:
+        card += v;
+        break;
+      case Bucket.other:
+        other += v;
+        break;
+    }
+  });
+  final rp = receiptPart(w);
+  expect(rp['ReceivedCash'], (cash * 100).round(), reason: '$why: ReceivedCash');
+  expect(rp['ReceivedCard'], (card * 100).round(), reason: '$why: ReceivedCard');
+  // Other qatorlarga so'mga yaxlitlab taqsimlanadi — qator boshiga ≤ 1 so'm.
+  expect(sumOf(w, 'Other'), closeTo(other * 100, rows * 100.0),
+      reason: '$why: ΣOther');
+  if (other == 0) expect(sumOf(w, 'Other'), 0, reason: '$why: Other 0');
+}
+
+void expectFlags(Map<String, dynamic> params, Set<Kind> kinds, String why) {
+  expect(params['receivedClick'], kinds.contains(Kind.clickPass),
+      reason: '$why: receivedClick');
+  expect(params['receivedPayme'], kinds.contains(Kind.paymeGo),
+      reason: '$why: receivedPayme');
+  expect(params['receivedUzum'], kinds.contains(Kind.uzum),
+      reason: '$why: receivedUzum');
+}
+```
+
+</details>
+
+## 7. Tekshirish
+
+- Unit/integratsiya: `test/receipt_epay_test.dart` (36), `test/epay_fiscal_matrix_test.dart`
+  (124), `test/receipt_vat_test.dart` (30). To'liq suite: 1616 ✅,
+  `flutter analyze` — 0 error.
+- Matritsa: to'lovlar haqiqiy `ReceiptPayments.build` orqali; natija modulga ketadigan
+  aniq JSON'da (`saleOnOFD` → `RequestSaleModel` → `FiscalReceiptModel.toJson`,
+  `ExtraInfo` — `LocalService.extraInfoFromBody`). 11 to'lov turi × 5 savat (12%/0%,
+  chegirma, tarozi yarim so'm, 37,5 mln), 55 juft, sdacha, vozvrat, `@` siz server
+  QR. Har holatda §10.2.1 balansi, `Other + Discount ≤ Price`, QQS bazasi.
+- Mutatsiya: tuzatishni 11 xil buzish (Pass→Other, hasPass QR'ni o'tkazishi,
+  ExtraInfo Pref'dan, nusxalar epayJson'siz, reset, targets, vozvrat, telefon
+  oqishi va h.k.) — hammasini testlar ushladi.
+- **Do'kon/qurilma sinovi (kutilmoqda):**
+  - Click Pass / Payme Go chek: fiskal JSON `ReceivedCard` = summa, `Other` = 0,
+    `VAT` > 0; `ExtraInfo` 64/141 + to'lov ID + telefon; provayderga
+    `submit_qrcode` / `set_fiscal_data` shu to'lov ID'si bilan.
+  - Click Pass'dan keyingi naqd chek: `ExtraInfo.QRPaymentProvider` = 0, ID bo'sh.
+  - Click QR / Payme QR: eskidek `Other`, QQS 0, provayderga so'rov yo'q.
+  - Fiskalsiz saqlangan Pass chekni cheklar ro'yxatidan qayta yuborish: provayderga
+    o'sha chekning ID'si.
+
+## 8. Eslatmalar va ochiq savollar
+
+- **ObjectBox:** property 51 (`epayJson`) — faqat to'liq reliz. InVan 1 o'zi
+  generatsiya qiladi; InVan 2 `objectbox-model.json` ni ko'chirmang.
+- Servislar (`ClickService.post`, `PaymeGOService._post`, `UzumService.payment`)
+  global Pref'ga yozishda davom etadi — ataylab tegilmadi (to'lov oqimi
+  o'zgarmasin); fiskal endi ulardan o'qimaydi.
+- `epayJson` serverga (`order_pos`) yuborilmaydi.
+- Qog'oz chek QQS'i: Click/Payme QR va Uzum fiskalda `Other` (QQS 0), qog'oz chekda
+  ayrilmaydi — avvalgidek, ataylab (receipt_vat_test "QAYD" testi).
+- `PaynetService._baseUrl = _baseUrlTest` — mavjud holat, bu taskda tegilmagan
+  (alohida tekshirilsin).
+- `ofd_page.dart` (qo'lda OFD sahifasi) hali Pref `epay_*` dan o'qiydi — u yerda
+  `receivedClick/Payme` false, tegilmadi.
+
+**Odoo forkiga: KERAK** — fiskal to'lov tasnifi (Click Pass/Payme Go → ReceivedCard)
+va ExtraInfo/provayder ID mantig'i umumiy. Odoo forki ObjectBox'ni o'zi generatsiya
+qilsin (u yerda `ReceiptModel4` property ID'lari boshqa — 61 gacha).
+
+---
+
+# 10-TASK — Multi-klient orqali access-siz mahsulot o'chirish yopildi (1.1.2+129)
+
+> **Commit:** `a3a69a9` (2026-10-01), reliz 1.1.2+129.
+> **Sessiya hujjati:** docs/sessions/2026-09-30-multi-klient-access-bypass-fix.md
+> **Holat 2026-10-02:** relizda; do'kon sinovi kutilmoqda.
+
+## 1. Nima va nima uchun
+
+Kassirlar bo'sh klient tab'ini bosib, `deleteS` (o'chirish) huquqisiz mahsulotni savatdan "yo'qotish" yo'lini topishgan. Ildiz: `selectClient()` tanlangan bo'sh klientni `_clearEmptyClients()` bilan ro'yxatdan o'chirib, `_currentClient` ni ro'yxatdan uzilgan holda qoldirardi; keyingi to'lovda `_paymentOnClients()` savatni **indeks** bo'yicha tozalab, boshqa klientning savatini jimgina (deletedItems/Telegram izsiz) o'chirardi. Yondosh teshiklar: `cancelOrdering` mantig'i teskari edi (`deleteS` YO'Q xodim savatni dialogsiz tozalardi, BOR xodim dialog olardi); Shift+Delete `delete_ticket` prefiga qarardi (uni har qanday PIN yozadi — rahbar PIN'idan keyin ruxsatsiz kassir tozalay olardi); `Pref.getDeleteItem` defaulti `true` edi.
+
+## 2. Qanday ishlaydi
+
+- `selectClient(i)`: bo'sh tanlangan klient ro'yxatda QOLADI (`_clearEmptyClients(keep: _currentClient)`), `_index` — `indexOf(_currentClient)`.
+- `_paymentOnClients()`: to'lagan klient doim `_currentClient` — savat **identity** bo'yicha tozalanadi, keyin bo'sh klientlar olinadi.
+- Yangi klient qo'shishda joriy klient ro'yxatda bo'lmasa — savati bilan qo'shiladi.
+- `cancelOrdering(access)`: ruxsat = dialogdan kelgan `access` YOKI joriy xodimning jonli `deleteS`; ikkalasi yo'q → `false` (chaqiruvchi `NoAccessDialog` ko'rsatadi).
+- Shift+Delete: `cancelOrdering(false)` — faqat jonli huquq.
+- `Pref.getDeleteItem` default `false` (default-deny).
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/providers/ordering_provider_4.dart` | o'zgargan | `cancelOrdering`, `selectClient`, `_clearEmptyClients(keep:)`, `_paymentOnClients`, klient qo'shish |
+| `lib/features/home/home_page.dart` | o'zgargan | Shift+Delete → `cancelOrdering(false)`, `deleteTicketAccess` olib tashlandi |
+| `lib/utils/helpers/prefs.dart` | o'zgargan | `getDeleteItem` default `false` |
+| `test/multi_client_access_bypass_regression_test.dart` | YANGI | Hiyla stsenariysi va yondosh teshiklar |
+| `test/multi_client_stress_test.dart` | YANGI | Ko'p klientli tasodifiy ketma-ketliklar |
+| `test/cart_basic_test.dart` | o'zgargan | `cancelOrdering` yangi mantig'i |
+
+## 4. Bog'liqliklar
+
+- `OrderingProvider4` ajratilgan holati (Faza 9, bu hujjatdan tashqarida) — InVan 1 da savat mantig'i boshqa faylda bo'lsa, xuddi shu metodlarni toping (`selectClient`, `_clearEmptyClients`, `_paymentOnClients`, `cancelOrdering`).
+- Testlar `test/support/provider_harness.dart` ga tayanadi (yuqoridagi umumiy ko'rsatma, 5-band).
+
+## 5. Qo'llash tartibi
+
+1. `ordering_provider_4.dart` (6.1) — to'rt metod.
+2. `home_page.dart` (6.2) va `prefs.dart` (6.3).
+3. Testlar (6.4), `flutter test`.
+
+## 6. Kod
+
+### 6.1. `lib/changes/providers/ordering_provider_4.dart`
+
+```diff
+diff --git a/lib/changes/providers/ordering_provider_4.dart b/lib/changes/providers/ordering_provider_4.dart
+index fae7fb7..a9d3252 100644
+--- a/lib/changes/providers/ordering_provider_4.dart
++++ b/lib/changes/providers/ordering_provider_4.dart
+@@ -257,15 +257,11 @@ class OrderingProvider4 extends ChangeNotifier {
+ 
+   bool cancelOrdering(bool access) {
+     if (_currentClient.orderedProducts.isEmpty) return true;
+-    if (!access) {
+-      if (!(currentEmployee.access?.deleteS ?? false)) {
+-        _currentClient.orderedProducts = [];
+-        _currentClient.lastAddedIndex = -1;
+-        notifyListeners();
+-        return true;
+-      } else {
+-        return false;
+-      }
++    // Ruxsat: dialog/sozlamadan kelgan `access` YOKI joriy xodimning jonli
++    // deleteS huquqi. Ikkalasi ham yo'q bo'lsa — savatga tegilmaydi, false
++    // qaytadi va chaqiruvchi NoAccessDialog ko'rsatadi.
++    if (!access && !(currentEmployee.access?.deleteS ?? false)) {
++      return false;
+     }
+     _currentClient.orderedProducts = [];
+     _currentClient.lastAddedIndex = -1;
+@@ -1528,7 +1524,10 @@ class OrderingProvider4 extends ChangeNotifier {
+         orderedProducts: [],
+         discountAmountFromNewClient: 0,
+       );
+-      if (_sixClient4List.isEmpty) {
++      // Joriy klient ro'yxatda bo'lmasa (bitta-klient rejimi yoki har qanday
++      // uzilgan holat) — savati bilan ro'yxatga qo'shiladi, aks holda undagi
++      // mahsulotlar izsiz yo'qoladi.
++      if (!_sixClient4List.contains(_currentClient)) {
+         _sixClient4List.add(_currentClient);
+       }
+ 
+@@ -1543,8 +1542,11 @@ class OrderingProvider4 extends ChangeNotifier {
+   void selectClient(int i) {
+     LogHelper.activity('CLIENT_SELECT', {'index': i});
+     _currentClient = _sixClient4List[i];
+-    _index = i;
+-    _clearEmptyClients();
++    // Tanlangan klient bo'sh bo'lsa ham ro'yxatdan chiqarilmaydi (keep) —
++    // aks holda _currentClient ro'yxatdan uzilib, _index dangling qoladi va
++    // keyingi to'lovda boshqa klientning savati access-siz o'chib ketadi.
++    _clearEmptyClients(keep: _currentClient);
++    _index = _sixClient4List.indexOf(_currentClient);
+     _syncReceiptCompanyPrefsFromCurrentClient();
+     notifyListeners();
+   }
+@@ -1575,15 +1577,15 @@ class OrderingProvider4 extends ChangeNotifier {
+     _syncReceiptCompanyPrefsFromCurrentClient();
+   }
+ 
+-  void _clearEmptyClients() {
+-    List<int> clientNumbers = [];
+-    for (int i = 0; i < _sixClient4List.length; i++) {
+-      if (_sixClient4List[i].orderedProducts.isEmpty) {
+-        clientNumbers.add(_sixClient4List[i].clientNumber);
+-        _harvestDeletedItems(_sixClient4List[i]);
++  void _clearEmptyClients({SixClientModel4? keep}) {
++    for (final client in _sixClient4List) {
++      if (client.orderedProducts.isEmpty && !identical(client, keep)) {
++        _harvestDeletedItems(client);
+       }
+     }
+-    _sixClient4List.removeWhere((e) => e.orderedProducts.isEmpty);
++    _sixClient4List.removeWhere(
++      (e) => e.orderedProducts.isEmpty && !identical(e, keep),
++    );
+   }
+ 
+   void _harvestDeletedItems(SixClientModel4 client) {
+@@ -1603,6 +1605,13 @@ class OrderingProvider4 extends ChangeNotifier {
+     _cashsaleWarningShown = false;
+     _bigTotalWarningShown = false;
+     _harvestDeletedItems(_currentClient);
++    // To'lagan klient DOIM _currentClient — savat identity bo'yicha
++    // tozalanadi. Indeks (_sixClient4List[_index]) bo'yicha tozalash mumkin
++    // emas: indeks siljigan bo'lsa boshqa klientning savati o'chib ketadi
++    // yoki RangeError beradi.
++    _currentClient.orderedProducts = [];
++    _currentClient.lastAddedIndex = -1;
++    _clearEmptyClients();
+     if (_sixClient4List.isEmpty) {
+       _clientNumber = 1;
+       _currentClient = SixClientModel4(
+@@ -1611,19 +1620,8 @@ class OrderingProvider4 extends ChangeNotifier {
+         orderedProducts: [],
+         discountAmountFromNewClient: 0,
+       );
+-    } else if (_sixClient4List.length == 1) {
+-      _clientNumber = 1;
+-      _currentClient = SixClientModel4(
+-        clientNumber: _clientNumber,
+-        lastAddedIndex: -1,
+-        orderedProducts: [],
+-        discountAmountFromNewClient: 0,
+-      );
+-      _sixClient4List[0].orderedProducts = [];
+-      _clearEmptyClients();
++      _index = 0;
+     } else {
+-      _sixClient4List[_index].orderedProducts = [];
+-      _clearEmptyClients();
+       _index = 0;
+       _currentClient = _sixClient4List.first;
+     }
+```
+
+### 6.2. `lib/features/home/home_page.dart`
+
+```diff
+diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
+index 549b884..73417e8 100644
+--- a/lib/features/home/home_page.dart
++++ b/lib/features/home/home_page.dart
+@@ -76,7 +76,6 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
+     });
+   }
+ 
+-  bool deleteTicketAccess = Pref.getDeleteItem('delete_ticket');
+ 
+   @override
+   Widget build(BuildContext context) {
+@@ -242,7 +241,13 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
+                         bool result = Provider.of<OrderingProvider4>(
+                           context,
+                           listen: false,
+-                        ).cancelOrdering(deleteTicketAccess);
++                        )
++                        // Faqat joriy kassirning JONLI deleteS huquqi
++                        // (cancelOrdering ichida). `delete_ticket` prefi
++                        // ishlatilmaydi: uni har qanday PIN (masalan rahbar
++                        // chek tarixiga kirganda) yozadi va keyin ruxsatsiz
++                        // kassir dialogsiz savatni tozalay olardi.
++                        .cancelOrdering(false);
+                         if (!result) {
+                           blBlocc.add(
+                             BlStatusChangedEvent(
+```
+
+### 6.3. `lib/utils/helpers/prefs.dart`
+
+```diff
+diff --git a/lib/utils/helpers/prefs.dart b/lib/utils/helpers/prefs.dart
+index ee62483..1d3720e 100644
+--- a/lib/utils/helpers/prefs.dart
++++ b/lib/utils/helpers/prefs.dart
+@@ -62,7 +62,9 @@ class Pref {
+     return _box.get(key) ?? defValue;
+   }
+ 
+-  ///
+-  static bool getDeleteItem(String key) => _box.get(key) ?? true;
++  /// Default `false` (default-deny): kalit hali yozilmagan bo'lsa (PIN
++  /// login'dan oldin) o'chirish ruxsati YO'Q deb hisoblanadi. Ruxsati bor
++  /// xodim uchun cancelOrdering jonli deleteS tekshiruvi bilan baribir ochiq.
++  static bool getDeleteItem(String key) => _box.get(key) ?? false;
+   static Future removeWithKey(String removedKey) => _box.delete(removedKey);
+ }
+```
+
+### 6.4. Testlar
+
+<details><summary>YANGI: <code>test/multi_client_access_bypass_regression_test.dart</code></summary>
+
+```dart
+// Regression: bo'sh klient tanlash orqali access-siz mahsulot o'chirish
+// (kassir hiylasi, 2026-09-30 da fix qilindi).
+//
+// Bug tarixi: selectClient() tanlangan bo'sh klientni _clearEmptyClients()
+// bilan ro'yxatdan chiqarib, _currentClient'ni detached qoldirardi (savat UI
+// bo'sh ko'rinardi — mahsulot "yo'qolardi"); keyingi to'lovda
+// _paymentOnClients() indeks bo'yicha _sixClient4List[0] ni tozalab,
+// 1-klientning mahsulotini access kodisiz va deletedItems/orphan yozuvisiz
+// o'chirardi. 3+ klientda dangling _index RangeError ham berardi.
+//
+// Fix: selectClient tanlangan klientni ro'yxatda saqlaydi (keep) va _index'ni
+// identity'dan qayta hisoblaydi; _paymentOnClients indeks emas,
+// _currentClient (to'lagan klient) bo'yicha tozalaydi.
+// Hujjat: docs/sessions/2026-09-30-multi-klient-access-bypass-fix.md
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+
+import 'support/provider_harness.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() => setUpPosTestEnv('multi_client_access_bypass_regression'));
+  tearDownAll(tearDownPosTestEnv);
+
+  setUp(() => Pref.setBool(PrefKeys.isRedDeleteActivated, false));
+
+  test('bo\'sh klient tanlansa ro\'yxatda qoladi — current uzilmaydi', () {
+    final p = freshProvider();
+    p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'a'));
+    p.addClient(); // list=[c1,c2], current=c2(bo'sh), index=1
+
+    p.selectClient(1); // kassir "Mijoz 2" tugmasini bosdi
+
+    // Bo'sh klient tanlangan bo'lsa ro'yxatdan CHIQMAYDI
+    expect(p.getSixClient4List.length, 2);
+    expect(p.getSixClient4List.contains(p.getCurrentClient), isTrue);
+    expect(p.getSelectedIndex, 1);
+    // 1-klient mahsuloti joyida
+    expect(p.getSixClient4List.first.orderedProducts.length, 1);
+  });
+
+  testWidgets(
+      'bo\'sh klient tanlangan holatda to\'lov — 1-klient savati saqlanadi',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    final ctx = tester.element(find.byType(SizedBox));
+
+    final p = freshProvider();
+    p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'a'));
+    final client1 = p.getCurrentClient;
+    p.addClient();
+    p.selectClient(1); // bo'sh "Mijoz 2" tanlandi (hiyla urinishi)
+
+    // Kassir keyingi xaridorning mahsulotini skanladi
+    p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'x'));
+
+    p.initPaymentPageValues(
+      sixClientModel4: p.getCurrentClient,
+      totalPrice: 5000,
+      discountAmount: 0,
+    );
+    await p.pressPaymentButton(ctx);
+
+    // 1-klient mahsuloti to'lovdan keyin ham JOYIDA — jimgina o'chmaydi
+    expect(client1.orderedProducts.length, 1);
+    expect(client1.orderedProducts.first.productId, 'a');
+    expect(p.getSixClient4List, [client1]);
+    expect(p.getCurrentClient, same(client1));
+    expect(p.getSelectedIndex, 0);
+  });
+
+  test('o\'rtadagi bo\'sh klient o\'chganda _index qayta hisoblanadi', () {
+    final p = freshProvider();
+    p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'a'));
+    p.addClient();
+    p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'b'));
+    p.addClient();
+    p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'c'));
+    // list=[c1(a), c2(b), c3(c)], index=2
+
+    // c2 savati boshqa yo'l bilan bo'shadi (masalan PIN bilan o'chirilgan)
+    p.getSixClient4List[1].orderedProducts.clear();
+
+    p.selectClient(2); // kassir "Mijoz 3" ni bosdi
+
+    // c2 chiqib ketdi, _index endi currentning REAL o'rnini ko'rsatadi
+    expect(p.getSixClient4List.length, 2);
+    expect(p.getSelectedIndex, 1);
+    expect(p.getSixClient4List[1], same(p.getCurrentClient));
+    expect(p.getCurrentClient.orderedProducts.first.productId, 'c');
+  });
+
+  testWidgets(
+      'ko\'p klientda to\'lov faqat to\'lagan klient savatini tozalaydi',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    final ctx = tester.element(find.byType(SizedBox));
+
+    final p = freshProvider();
+    p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'a'));
+    final client1 = p.getCurrentClient;
+    p.addClient();
+    p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'b'));
+    // list=[c1(a), c2(b)], current=c2, index=1
+
+    p.initPaymentPageValues(
+      sixClientModel4: p.getCurrentClient,
+      totalPrice: 5000,
+      discountAmount: 0,
+    );
+    await p.pressPaymentButton(ctx);
+
+    // Faqat c2 (to'lagan) tozalanib chiqdi; c1 mahsuloti bilan joriy bo'ldi
+    expect(p.getSixClient4List, [client1]);
+    expect(p.getCurrentClient, same(client1));
+    expect(p.getSelectedIndex, 0);
+    expect(client1.orderedProducts.first.productId, 'a');
+  });
+}
+```
+
+</details>
+
+<details><summary>YANGI: <code>test/multi_client_stress_test.dart</code></summary>
+
+```dart
+// Multi-klient stress-test — katta miqyosli tasodifiy stsenariylar.
+//
+// MAQSAD: 2026-09-30 access-bypass fix'idan keyin multi-klient holat mashinasi
+// HAR QANDAY operatsiya ketma-ketligida buzilmasligini isbotlash. Minglab
+// tasodifiy (seed'langan, takrorlanuvchi) qadamlar bajariladi va har qadamdan
+// keyin quyidagi invariantlar tekshiriladi:
+//
+//   I1. Ro'yxat bo'sh bo'lmasa: _currentClient DOIM ro'yxatda (identity) va
+//       getSelectedIndex uning real o'rniga teng.
+//   I2. Ro'yxatdagi bo'sh savatli klient faqat _currentClient bo'lishi mumkin
+//       (begona bo'sh slot qolmaydi).
+//   I3. clientNumber'lar ro'yxat ichida unikal (tab'larda takror "Mijoz N" yo'q).
+//   I4. Konservatsiya: hech bir klientning savati unga qaratilmagan operatsiya
+//       natijasida O'ZGARMAYDI; mahsulotli klient hech qachon izsiz yo'qolmaydi.
+//       (aynan kassir hiylasi shu invariantni buzardi)
+//
+// Har seed uchun kutilgan holat "shadow" modelda (identity-map) yuritiladi va
+// provider bilan solishtiriladi. Xatolik chiqsa reason'da seed va qadam bor —
+// aynan shu ketma-ketlikni lokal takrorlash mumkin.
+//
+// Hujjat: docs/sessions/2026-09-30-multi-klient-access-bypass-fix.md
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/models/six_client_model.dart';
+import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+
+import 'support/provider_harness.dart';
+
+/// Shadow model: har klient (identity) uchun kutilgan productId ro'yxati.
+typedef Shadow = Map<SixClientModel4, List<String>>;
+
+bool _inListOrCurrent(OrderingProvider4 p, SixClientModel4 c) =>
+    identical(p.getCurrentClient, c) ||
+    p.getSixClient4List.any((e) => identical(e, c));
+
+void _checkInvariants(OrderingProvider4 p, Shadow shadow, String ctx) {
+  final list = p.getSixClient4List;
+  final current = p.getCurrentClient;
+
+  if (list.isNotEmpty) {
+    final idx = list.indexWhere((c) => identical(c, current));
+    expect(idx, isNot(-1), reason: '$ctx: current ro\'yxatdan uzilgan');
+    expect(p.getSelectedIndex, idx,
+        reason: '$ctx: _index ($idx kutilgan) noto\'g\'ri');
+    for (final c in list) {
+      if (c.orderedProducts.isEmpty) {
+        expect(identical(c, current), isTrue,
+            reason: '$ctx: begona bo\'sh klient ro\'yxatda qolgan');
+      }
+    }
+    final nums = list.map((c) => c.clientNumber).toList();
+    expect(nums.toSet().length, nums.length,
+        reason: '$ctx: clientNumber takrorlangan: $nums');
+  }
+
+  // Konservatsiya: mahsulotli klient izsiz yo'qolmasligi kerak
+  for (final e in shadow.entries) {
+    if (e.value.isNotEmpty) {
+      expect(_inListOrCurrent(p, e.key), isTrue,
+          reason:
+              '$ctx: klient #${e.key.clientNumber} ${e.value} mahsulotlari '
+              'bilan G\'OYIB bo\'ldi (kassir hiylasi qaytdi!)');
+    }
+  }
+
+  // Har ko'rinadigan klient savati aynan kutilganidek
+  final visible = <SixClientModel4>{...list, current};
+  for (final c in visible) {
+    final expected = shadow[c] ?? const <String>[];
+    expect(c.orderedProducts.map((i) => i.productId).toList(), expected,
+        reason: '$ctx: klient #${c.clientNumber} savati ruxsatsiz o\'zgargan');
+  }
+
+  // Ko'rinmay qolgan (to'langan/bo'sh chiqarilgan) klientlarni shadow'dan olib
+  // tashlaymiz — ular faqat bo'sh holda chiqib ketishi mumkin edi (yuqorida
+  // tekshirildi).
+  shadow.removeWhere((c, _) => !_inListOrCurrent(p, c));
+}
+
+Future<void> _fuzzSeed(WidgetTester tester, int seed, int steps) async {
+  await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+  final ctx = tester.element(find.byType(SizedBox));
+
+  final rnd = Random(seed);
+  final p = freshProvider();
+  final Shadow shadow = Map.identity();
+  shadow[p.getCurrentClient] = [];
+  int productSeq = 0;
+
+  List<String> sh(SixClientModel4 c) => shadow.putIfAbsent(c, () => []);
+
+  for (int step = 0; step < steps; step++) {
+    final roll = rnd.nextInt(100);
+    final current = p.getCurrentClient;
+    final list = p.getSixClient4List;
+    String op;
+
+    if (roll < 30) {
+      // SKAN — joriy savatga mahsulot
+      op = 'scan';
+      final id = 'p${productSeq++}';
+      current.orderedProducts.add(makeSoldItem(productId: id));
+      sh(current).add(id);
+    } else if (roll < 45 && list.length < 6) {
+      // YANGI KLIENT (provider bo'sh savatda o'zi rad etadi)
+      op = 'addClient';
+      final hadItems = current.orderedProducts.isNotEmpty;
+      p.addClient();
+      if (hadItems) {
+        sh(p.getCurrentClient); // yangi bo'sh klient shadow'ga
+      } else {
+        expect(identical(p.getCurrentClient, current), isTrue,
+            reason: 'seed=$seed step=$step: bo\'sh savatda addClient '
+                'holatni o\'zgartirmasligi kerak');
+      }
+    } else if (roll < 65 && list.isNotEmpty) {
+      // KLIENT TANLASH — har qanday indeks, jumladan bo'sh/joriy klient
+      final i = rnd.nextInt(list.length);
+      op = 'select($i)';
+      final target = list[i];
+      p.selectClient(i);
+      expect(identical(p.getCurrentClient, target), isTrue,
+          reason: 'seed=$seed step=$step: tanlangan klient joriy bo\'lmadi');
+    } else if (roll < 72) {
+      // BUTUN SAVATNI BEKOR QILISH — ruxsat bilan
+      op = 'cancelTrue';
+      p.cancelOrdering(true);
+      sh(current).clear();
+    } else if (roll < 79) {
+      // RUXSATSIZ BEKOR QILISH — test xodimida deleteS yo'q: rad etilishi shart
+      op = 'cancelFalse';
+      final result = p.cancelOrdering(false);
+      if (current.orderedProducts.isNotEmpty) {
+        expect(result, isFalse,
+            reason: 'seed=$seed step=$step: ruxsatsiz cancelOrdering '
+                'savatni tozalab yubordi (access bypass!)');
+      }
+    } else if (roll < 89 && current.orderedProducts.isNotEmpty) {
+      // OXIRGI QATORNI O'CHIRISH
+      op = 'removeLast';
+      current.lastAddedIndex = current.orderedProducts.length - 1;
+      p.removeLastAdded();
+      sh(current).removeLast();
+    } else if (roll < 97 && current.orderedProducts.isNotEmpty) {
+      // TO'LOV — faqat joriy klient savati tozalanishi kerak
+      op = 'pay';
+      p.initPaymentPageValues(
+        sixClientModel4: current,
+        totalPrice: 1000,
+        discountAmount: 0,
+      );
+      await p.pressPaymentButton(ctx);
+      sh(current).clear();
+    } else if (roll >= 97) {
+      // SMENA TOZALASH — hammasi bo'shaydi
+      op = 'clearAll';
+      p.clearSixClient4List();
+      shadow.clear();
+      shadow[p.getCurrentClient] = [];
+    } else {
+      continue; // shart bajarilmagan variant — qadam tashlab ketiladi
+    }
+
+    _checkInvariants(p, shadow, 'seed=$seed step=$step op=$op');
+  }
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() => setUpPosTestEnv('multi_client_stress_test'));
+  tearDownAll(tearDownPosTestEnv);
+
+  setUp(() => Pref.setBool(PrefKeys.isRedDeleteActivated, false));
+
+  group('Fuzz — tasodifiy operatsiyalar oqimi (har qadamda invariantlar)', () {
+    for (final batch in [0, 1, 2]) {
+      testWidgets('seed to\'plami ${batch + 1}/3 (10 seed x 300 qadam)',
+          (tester) async {
+        // Minglab qadamda [ACTIVITY] loglari konsolni bosmasligi uchun
+        // vaqtincha o'chiriladi; test tugashidan OLDIN tiklanishi shart
+        // (framework foundation o'zgaruvchilarini tekshiradi).
+        final originalDebugPrint = debugPrint;
+        debugPrint = (String? message, {int? wrapWidth}) {};
+        try {
+          for (int s = 0; s < 10; s++) {
+            final seed = 1000 + batch * 10 + s;
+            await _fuzzSeed(tester, seed, 300);
+          }
+        } finally {
+          debugPrint = originalDebugPrint;
+        }
+      }, timeout: const Timeout(Duration(minutes: 5)));
+    }
+  });
+
+  group('Deterministik chekka holatlar', () {
+    test('bo\'sh klient tab\'ini KETMA-KET ikki marta bosish', () {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'a'));
+      p.addClient();
+
+      p.selectClient(1);
+      p.selectClient(1); // double-tap
+
+      expect(p.getSixClient4List.length, 2);
+      expect(p.getSelectedIndex, 1);
+      expect(p.getSixClient4List[1], same(p.getCurrentClient));
+      expect(p.getSixClient4List.first.orderedProducts.length, 1);
+    });
+
+    testWidgets('4 klientli hiyla varianti: bo\'sh 4-klient orqali to\'lov',
+        (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+      final ctx = tester.element(find.byType(SizedBox));
+
+      final p = freshProvider();
+      // 3 ta to'la klient
+      for (final id in ['a', 'b', 'c']) {
+        p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: id));
+        p.addClient();
+      }
+      // hozir 4-klient (bo'sh) joriy; kassir uni qayta bosdi
+      p.selectClient(3);
+      // skanladi va sotdi
+      p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'x'));
+      p.initPaymentPageValues(
+        sixClientModel4: p.getCurrentClient,
+        totalPrice: 5000,
+        discountAmount: 0,
+      );
+      await p.pressPaymentButton(ctx);
+
+      // Uchchala klient mahsulotlari joyida
+      final products = p.getSixClient4List
+          .map((c) => c.orderedProducts.map((i) => i.productId).join())
+          .toList();
+      expect(products, ['a', 'b', 'c']);
+      expect(p.getCurrentClient, same(p.getSixClient4List.first));
+      expect(p.getSelectedIndex, 0);
+    });
+
+    test('cancelOrdering(true) dan keyin boshqa klientga o\'tish', () {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'a'));
+      p.addClient();
+      p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'b'));
+
+      // joriy (2-klient) savati ruxsat bilan bekor qilindi — bo'sh, lekin joriy
+      p.cancelOrdering(true);
+      expect(p.getSixClient4List.length, 2);
+
+      // 1-klientga qaytish — bo'shab qolgan 2-klient ro'yxatdan chiqadi
+      p.selectClient(0);
+
+      expect(p.getSixClient4List.length, 1);
+      expect(p.getSelectedIndex, 0);
+      expect(p.getCurrentClient.orderedProducts.first.productId, 'a');
+    });
+
+    test('6 klientgacha ketma-ket qo\'shish — raqamlar unikal va o\'suvchi',
+        () {
+      final p = freshProvider();
+      for (int i = 0; i < 5; i++) {
+        p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'p$i'));
+        p.addClient();
+      }
+      expect(p.getSixClient4List.length, 6);
+      expect(
+        p.getSixClient4List.map((c) => c.clientNumber).toList(),
+        [1, 2, 3, 4, 5, 6],
+      );
+      expect(p.getSelectedIndex, 5);
+    });
+
+    test('bo\'sh klientda skan qilib, orqaga qaytish — mahsulotlar o\'z '
+        'joyida', () {
+      final p = freshProvider();
+      p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'a'));
+      p.addClient();
+      p.selectClient(1); // bo'sh 2-klient joriy (ro'yxatda!)
+      p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'x'));
+
+      p.selectClient(0);
+      expect(p.getCurrentClient.orderedProducts.first.productId, 'a');
+
+      p.selectClient(1);
+      expect(p.getCurrentClient.orderedProducts.first.productId, 'x');
+      expect(p.getSixClient4List.length, 2);
+    });
+  });
+}
+```
+
+</details>
+
+<details><summary><code>test/cart_basic_test.dart</code> (diff)</summary>
+
+```diff
+diff --git a/test/cart_basic_test.dart b/test/cart_basic_test.dart
+index d276ab9..b3d2351 100644
+--- a/test/cart_basic_test.dart
++++ b/test/cart_basic_test.dart
+@@ -9,6 +9,8 @@
+ // kontekstsiz metodlar chaqiriladi.
+ // MUHIM: "to'g'rimi?" emas, "hozir nima bo'lyapti?" yoziladi.
+ import 'package:flutter_test/flutter_test.dart';
++import 'package:invan2/features/get_employees/model/employees_find_response.dart';
++import 'package:invan2/features/hive_repository/hive_boxes.dart';
+ import 'package:invan2/utils/constants/pref_keys.dart';
+ import 'package:invan2/utils/helpers/prefs.dart';
+ 
+@@ -114,16 +116,40 @@ void main() {
+       expect(p.getLastAddedIndex, -1);
+     });
+ 
+-    test('ruxsatsiz va xodimda deleteS huquqi yo\'q: savat baribir tozalanadi',
+-        () {
++    test('ruxsatsiz va xodimda deleteS huquqi yo\'q: savatga TEGILMAYDI', () {
++      // 2026-09-30 fix: avval bu holatda savat dialogsiz tozalanardi
++      // (mantiq teskari edi). Endi false qaytadi — chaqiruvchi
++      // NoAccessDialog ko'rsatadi.
+       final p = freshProvider();
+       p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'a'));
+ 
+       // Test xodimida access = null, ya'ni deleteS = false
+       final result = p.cancelOrdering(false);
+ 
+-      expect(result, isTrue);
+-      expect(p.getCurrentClient.orderedProducts, isEmpty);
++      expect(result, isFalse);
++      expect(p.getCurrentClient.orderedProducts.length, 1);
++    });
++
++    test('ruxsat parametrsiz, lekin xodimda deleteS bor: savat tozalanadi',
++        () async {
++      // getCurrentEmployee bir xil id'li yozuvlardan OXIRGISINI oladi —
++      // deleteS'li xodimni vaqtincha qo'shib, testdan keyin o'chiramiz.
++      final box = HiveBoxes.getEmployees();
++      final key = await box.add(Employee(
++        user: EmployeeUser(id: kCashierId, firstName: kCashierName),
++        access: EmployeeAccess(deleteS: true),
++      ));
++      try {
++        final p = freshProvider();
++        p.getCurrentClient.orderedProducts.add(makeSoldItem(productId: 'a'));
++
++        final result = p.cancelOrdering(false);
++
++        expect(result, isTrue);
++        expect(p.getCurrentClient.orderedProducts, isEmpty);
++      } finally {
++        await box.delete(key);
++      }
+     });
+   });
+ 
+```
+
+</details>
+
+## 7. Tekshirish
+
+- `flutter test test/multi_client_access_bypass_regression_test.dart` — 4/4; to'liq to'plam o'tgan (2026-09-30: 1382; 2026-10-02: 1616/1616 (2026-10-02, `c4e42e1`)).
+- Do'kon sinovi kutilmoqda: (1) kassir hiylasi stsenariysi — bo'sh tab bosilib, keyingi to'lovda boshqa savat o'chmasligi; (2) `deleteS` siz xodim Shift+Del → dialog, `deleteS` li xodim → tozalash.
+
+## 8. Eslatmalar
+
+- Odoo forkiga: kerak (savat mantig'i umumiy).
+
+---
+
+# 11-TASK — Smena ochish/yopish navbati FIFO ro'yxat: server o'chiq kunda ham har smena serverga yetadi (1.1.2+129)
+
+> **Commit:** `a24d0c9` (2026-10-02), reliz 1.1.2+129.
+> **Sessiya hujjati:** docs/sessions/2026-10-02-smena-navbat-fifo.md
+> **Holat 2026-10-02:** relizda; Mac'da qo'lda sinalgan (foydalanuvchi: 4-5 marta ochish/yopish, orada sotuv, internetsiz), jonli dev API sinovi; **Windows'da qo'lda sinalmagan**.
+
+## 1. Nima va nima uchun
+
+Server yoki internet yo'qligida bajarilgan smena ochish/yopishlari "navbat"da saqlanib, server qaytganda yuboriladi. Eski navbatda ochish va yopish uchun **bittadan joy** (Pref: `openedDate/openedCount`, `closedDate/closedCount`) bor edi:
+
+- Server ertalabdan o'chiq: 08:00 oflayn ochish → 14:00 yopish → 14:05 qayta ochish. Ochish joyi 08:00 → 14:05 ga almashadi. Server qaytganda "yopish 14:00, ochish 14:05" ketadi — server yopiq kassani yopishga ham 200 qaytaradi (jonli sinov), natijada **08:00–14:00 smenasi serverga umuman yetmaydi**.
+- Ikkinchi oflayn yopish umuman bloklanardi ("Smena yopilmadi" — `blockingCloseIssue`).
+- `user_id` yuborish paytidagi kassirdan olinardi → Alining smenasi Vali nomidan ketardi.
+- Onlayn ochish POST'i yiqilsa (fire-and-forget) navbatga tushmasdi.
+- Yopish-oldi dialogidagi "Yopishni yuborish" joriy (ochiq) smenani Pref'da yopiq qilib qo'yardi.
+
+## 2. Qanday ishlaydi
+
+- Navbat = Pref'dagi JSON ro'yxat (`PrefKeys.shiftSyncQueue = 'shift_sync_queue'`). Har voqea: `method` (`open`/`close`), `at` (UTC `yyyy-MM-dd HH:mm:ss`), `user_id`, `cashbox_id`, `failures`, `first_failure_at`. ObjectBox sxemasi o'zgarmaydi.
+- **Qat'iy FIFO:** navbat bo'sh bo'lmasa yangi voqea to'g'ridan-to'g'ri yuborilmaydi — oxiriga qo'shiladi. `flush()` boshidan bittalab: 200/201 → olib tashlanadi.
+- 200/201 bo'lmasa — **server holati** so'raladi (`shift_statuses`): kassa voqea kutgan holatda bo'lsa (ochish → ochiq, yopish → to'liq yopiq) voqea olinadi; aks holda navbatda qoladi va yuborish TO'XTAYDI (keyingilari kutadi). Sabab: status kodi "rad etdi" bilan "bir lahza yiqildi"ni ajrata olmaydi — haqiqiy smenani tashlagandan kutgan yaxshi (stend testi 500 da haqiqiy yopilish yo'qolishini ko'rsatdi).
+- **Zaharli voqea:** server tirik + holat mos emas + ≥5 rad + birinchi raddan ≥1 soat → olib tashlanadi va hisobot (bitta buzuq voqea — masalan o'chirilgan kassir — navbatni va logout'ni abadiy to'smasin).
+- Ochish: navbatda yetmagan voqea bo'lsa server holatiga qaramay lokal bajariladi (navbatga). Navbat bo'sh bo'lsa — avvalgidek `shift_statuses` tekshiruvi.
+- Yopish: navbat bo'sh va server ishlayotgan bo'lsa to'g'ridan-to'g'ri; aks holda navbatga. Oflayn yopish cheklovi YO'Q.
+- Eski kalitlar (`opened/closed Date/Count`) o'qishda ro'yxat oxiriga ko'chiriladi va birinchi yozishda tozalanadi (yangilangan kassada qolib ketgan navbat yo'qolmaydi).
+- Logout: avval "Ochiq smenani yopishingiz kerak" (avvalgidek); smena yopiq bo'lsa navbat yuboriladi, qolsa — "Smena ma'lumotlari serverga hali yuborilmagan. Internetni tekshirib, keyinroq qayta urinib ko'ring." (chiqilmaydi).
+- Oflayn belgi navbatdagi voqealar sonini ham ko'rsatadi.
+
+Server xulqi (jonli dev, 2026-10-02): o'tgan/kechagi vaqtli ochish-yopishni ketma-ket qabul qiladi, takrorga 200 `{"message":"OK"}` (idempotent), vaqt tartibini tekshirmaydi, yo'q `user_id` → 500, yaroqsiz token → 403.
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/services/shift/shift_sync_queue.dart` | qayta yozilgan | `ShiftQueueEvent`, FIFO ro'yxat, `flush`, server holati tekshiruvi, zaharli voqea, eski kalitlar migratsiyasi |
+| `lib/changes/services/shift_api_4.dart` | o'zgargan | `openShift/closeShift` — vaqt, `userId`, `cashboxId` parametr; `isCashboxFullyClosed` |
+| `.../shift_4/singleton/shift_singleton_4.dart` | o'zgargan | Ochish/yopish navbat orqali; `syncCloseToServer`; voqea egasi — smena ochgan kassir |
+| `lib/changes/services/shift/shift_diagnostics.dart` | o'zgargan | Navbatdan hisoblanadi; oflayn yopish cheklovi olib tashlandi |
+| `lib/changes/providers/open_shift_provider.dart` | o'zgargan | Yopishdan oldin navbat yuboriladi; "Yopishni yuborish" ochiq smenaga tegmaydi |
+| `.../child_settings/view/child_settings_content.dart` | o'zgargan | Logout: navbat yuborilmaguncha chiqilmaydi |
+| `lib/features/home/components/offline_mode_badge.dart` | o'zgargan | Belgi soniga navbat ham qo'shiladi |
+| `lib/utils/constants/pref_keys.dart` | o'zgargan | `shiftSyncQueue` |
+| `test/shift_queue_scenarios_test.dart` | YANGI | Holatli soxta backend + uzilishlar + tasodifiy ketma-ketliklar (28 test) |
+| `test/server_down_behaviour_test.dart`, `test/shift_close_guard_test.dart` | o'zgargan | Yangi navbat qoidalari |
+
+## 4. Bog'liqliklar
+
+- `BackendHealth` (2026-09-02, bu hujjatdan tashqarida): `isUsable`, `markUserInitiatedAction`. Bo'lmasa — "server ishlayaptimi" tekshiruvini InVan 1 dagi ekvivalentiga almashtiring.
+- `ShiftApi4.shiftStatusInvan2()` (`shift_statuses`) — InVan backend endpointi; InVan 1 dagi ERP'da kassa holatini qaytaradigan so'rov kerak (bo'lmasa: holat tekshiruvi `null` qaytarsin — voqea navbatda qoladi, faqat 200/201 bilan olinadi).
+- `ShiftDiagnostics` (2026-08-13 taski) — yopish-oldi ogohlantirishlari.
+
+## 5. Qo'llash tartibi
+
+1. `pref_keys.dart` (6.8), keyin `shift_sync_queue.dart` ni to'liq almashtiring (6.1).
+2. `shift_api_4.dart` (6.2), `shift_singleton_4.dart` (6.3).
+3. `shift_diagnostics.dart` (6.4), `open_shift_provider.dart` (6.5), logout (6.6), belgi (6.7).
+4. Testlar (6.9). Og'ir rejim: `flutter test test/shift_queue_scenarios_test.dart --dart-define=SHIFT_FUZZ_SEEDS=2000`.
+
+## 6. Kod
+
+### 6.1. `lib/changes/services/shift/shift_sync_queue.dart` (to'liq)
+
+```dart
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:invan2/changes/models/shift/shifting_model.dart';
+import 'package:invan2/changes/services/api/result_http_model.dart';
+import 'package:invan2/changes/services/shift/shift_diagnostics.dart';
+import 'package:invan2/changes/services/shift_api_4.dart';
+import 'package:invan2/utils/utils.dart';
+
+enum ShiftQueueMethod { open, close }
+
+/// Navbatdagi bitta voqea: smena ochildi yoki yopildi.
+@immutable
+class ShiftQueueEvent {
+  const ShiftQueueEvent({
+    required this.method,
+    required this.at,
+    required this.userId,
+    required this.cashboxId,
+    this.failures = 0,
+    this.firstFailureAt,
+  });
+
+  final ShiftQueueMethod method;
+
+  /// Voqea vaqti, `yyyy-MM-dd HH:mm:ss` (UTC) — serverga `opened_at` /
+  /// `closed_at` bo'lib ketadi.
+  final String at;
+
+  /// Amalni bajargan kassir — voqea paytidagi `PrefKeys.userId`.
+  final String userId;
+
+  /// Voqea sodir bo'lgan kassa — voqea paytidagi `PrefKeys.activatedPosId`.
+  /// Kassa keyin boshqasiga qayta aktivlashtirilsa ham voqea o'z kassasiga
+  /// ketadi. Bo'sh bo'lsa (eski yozuv) — yuborish paytidagi kassa.
+  final String cashboxId;
+
+  /// Server TIRIK bo'lib (kassa holatini ko'rsatib) bu voqeani necha marta
+  /// qabul qilmagan. Uzilish paytidagi urinishlar sanalmaydi.
+  final int failures;
+
+  /// Birinchi shunday rad etish vaqti.
+  final DateTime? firstFailureAt;
+
+  bool get isOpen => method == ShiftQueueMethod.open;
+
+  bool get isClose => method == ShiftQueueMethod.close;
+
+  /// Aynan shu voqeami. `userId` hisobga olinmaydi: eski kalitlardan
+  /// tiklangan voqea `userId` ni joriy kassirdan oladi va u o'zgarishi
+  /// mumkin. Bir xil turdagi ikki voqea bir soniyada sodir bo'lmaydi.
+  bool sameAs(ShiftQueueEvent other) =>
+      other.method == method && other.at == at;
+
+  /// Yana bir rad etish qayd etilgan nusxa.
+  ShiftQueueEvent withFailure(DateTime now) => ShiftQueueEvent(
+        method: method,
+        at: at,
+        userId: userId,
+        cashboxId: cashboxId,
+        failures: failures + 1,
+        firstFailureAt: firstFailureAt ?? now,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'method': method.name,
+        'at': at,
+        'user_id': userId,
+        'cashbox_id': cashboxId,
+        if (failures > 0) 'failures': failures,
+        if (firstFailureAt != null)
+          'first_failure_at': firstFailureAt!.toIso8601String(),
+      };
+
+  static ShiftQueueEvent? fromJson(dynamic json) {
+    if (json is! Map) return null;
+    final String at = '${json['at'] ?? ''}';
+    if (at.isEmpty) return null;
+    final String name = '${json['method']}';
+    final ShiftQueueMethod method;
+    if (name == 'open') {
+      method = ShiftQueueMethod.open;
+    } else if (name == 'close') {
+      method = ShiftQueueMethod.close;
+    } else {
+      return null;
+    }
+    return ShiftQueueEvent(
+      method: method,
+      at: at,
+      userId: '${json['user_id'] ?? ''}',
+      cashboxId: '${json['cashbox_id'] ?? ''}',
+      failures: int.tryParse('${json['failures'] ?? 0}') ?? 0,
+      firstFailureAt: DateTime.tryParse('${json['first_failure_at'] ?? ''}'),
+    );
+  }
+
+  @override
+  String toString() => '${isOpen ? "ochish" : "yopish"} $at';
+}
+
+/// Serverga yetkazilmagan smena ochish/yopish voqealarining navbati.
+///
+/// Kassa oflayn ishlashi shart: server yoki internet bo'lmasa smena avval
+/// **lokal** ochiladi/yopiladi, serverga yuborish esa shu navbatga qo'yiladi.
+///
+/// Navbat — voqealar RO'YXATI. Har voqea o'z vaqti va o'z kassiri bilan
+/// saqlanadi va serverga aynan sodir bo'lgan tartibda (FIFO) yuboriladi.
+///
+/// Nima uchun ro'yxat. 2026-10-02 gacha navbatda ochish va yopish uchun
+/// bittadan joy bor edi (`openedDate`/`closedDate`):
+/// - ikkinchi oflayn ochish birinchisining vaqtini o'chirib yuborardi. Server
+///   ertalabdan o'chiq kunda "ochish 08:00 → yopish 14:00 → ochish 14:05"
+///   navbatda "yopish 14:00, ochish 14:05" bo'lib qolardi — 08:00–14:00
+///   smenasi serverga UMUMAN yetmasdi (yopiq kassani yopishga server 200
+///   qaytaradi, ya'ni yopish bekor ketardi — jonli dev sinovi, 2026-10-02);
+/// - ikkinchi oflayn yopish umuman bloklanardi (joy band edi);
+/// - `user_id` yuborish paytidagi kassirdan olinardi.
+///
+/// Haqiqiy server (dev, 2026-10-02 jonli sinov): o'tgan va hatto kechagi
+/// vaqtli ochish/yopishni ketma-ket qabul qiladi (200), vaqt tartibini
+/// tekshirmaydi, takror ochish/yopishga 200 "OK" qaytaradi (holat
+/// o'zgarmaydi), mavjud bo'lmagan `user_id` ga 500 ("sql: no rows"),
+/// yaroqsiz tokenga 403.
+///
+/// Qoidalar:
+/// 1. Navbat bo'sh bo'lmasa yangi voqea to'g'ridan-to'g'ri serverga
+///    yuborilmaydi — navbat oxiriga turadi (aks holda tartib buziladi).
+/// 2. Yuborish birinchi voqeadan boshlanadi va u o'tmaguncha keyingisiga
+///    o'tilmaydi.
+/// 3. Server 200/201 qaytarmasa, voqea faqat serverdagi kassa holati
+///    ALLAQACHON unga mos bo'lsa olib tashlanadi (javobi yo'qolgan yoki
+///    takror yuborilgan voqea) — buni `shift_statuses` dan so'raymiz. Status
+///    kodiga ishonilmaydi: qayta ishga tushayotgan server ham 500/404
+///    qaytaradi va darhol tiriladi — kod bo'yicha "rad etildi" deb tashlab
+///    yuborilgan haqiqiy yopilish serverni kassadan ajratib qo'yardi
+///    (tasodifiy stend testida topilgan).
+/// 4. Aks holda voqea navbatda qoladi va yuborish to'xtaydi (Telegram
+///    hisoboti bilan) — keyingi urinishda davom etadi.
+/// 5. ZAHARLI voqea: server TIRIK bo'lib (kassa holatini ko'rsatib) uni
+///    kamida [poisonAttempts] marta va [poisonAfter] dan uzoq qabul
+///    qilmasa (masalan kassir backend'da o'chirilgan) — u majburiy Telegram
+///    hisoboti bilan olib tashlanadi. Aks holda bitta buzuq voqea butun
+///    navbatni va tizimdan chiqishni abadiy to'sib qo'yardi.
+class ShiftSyncQueue {
+  ShiftSyncQueue._();
+
+  static bool _inProgress = false;
+
+  /// Zaharli voqea uchun eng kam rad etishlar soni (qoida 5).
+  static const int poisonAttempts = 5;
+
+  /// Zaharli voqea uchun birinchi rad etishdan beri o'tishi kerak bo'lgan
+  /// vaqt (qoida 5). Qisqa qisman uzilishda haqiqiy voqea tashlanmasligi
+  /// uchun uzun.
+  static const Duration poisonAfter = Duration(hours: 1);
+
+  /// Hozirgi vaqt — testlarda soatni oldinga surish uchun almashtiriladi.
+  @visibleForTesting
+  static DateTime Function() now = DateTime.now;
+
+  /* ─────────────────────────────── O'QISH ─────────────────────────────── */
+
+  /// Navbatdagi voqealar — eskisidan yangisiga.
+  static List<ShiftQueueEvent> get pending => _load();
+
+  static int get pendingCount => _load().length;
+
+  static bool get hasPending => _load().isNotEmpty;
+
+  /// Navbatda kutayotgan yopish bormi.
+  static bool get hasPendingClose => _load().any((e) => e.isClose);
+
+  /// Navbatda kutayotgan ochish bormi.
+  static bool get hasPendingOpen => _load().any((e) => e.isOpen);
+
+  /// Hisobot uchun: "ochish 2026-10-02 03:00:00 → yopish ...".
+  static String describe([List<ShiftQueueEvent>? events]) =>
+      (events ?? _load()).join(' → ');
+
+  /* ─────────────────────────────── YOZISH ─────────────────────────────── */
+
+  /// Smena ochilishini navbatga qo'yadi. [at] — ochilish vaqti (UTC),
+  /// [userId] / [cashboxId] — ochgan kassir va kassa (berilmasa joriy
+  /// `PrefKeys.userId` / `PrefKeys.activatedPosId`).
+  static Future<void> enqueueOpen(
+    String at, {
+    String? userId,
+    String? cashboxId,
+  }) =>
+      _enqueue(ShiftQueueMethod.open, at, userId, cashboxId);
+
+  /// Smena yopilishini navbatga qo'yadi. [at] — yopilish vaqti (UTC),
+  /// [userId] / [cashboxId] — yopgan kassir va kassa (berilmasa joriy
+  /// `PrefKeys.userId` / `PrefKeys.activatedPosId`).
+  static Future<void> enqueueClose(
+    String at, {
+    String? userId,
+    String? cashboxId,
+  }) =>
+      _enqueue(ShiftQueueMethod.close, at, userId, cashboxId);
+
+  static Future<void> _enqueue(
+    ShiftQueueMethod method,
+    String at,
+    String? userId,
+    String? cashboxId,
+  ) async {
+    final List<ShiftQueueEvent> events = _load()
+      ..add(ShiftQueueEvent(
+        method: method,
+        at: at,
+        userId: userId ?? Pref.getString(PrefKeys.userId, ''),
+        cashboxId: cashboxId ?? Pref.getString(PrefKeys.activatedPosId, ''),
+      ));
+    await _save(events);
+  }
+
+  /* ────────────────────────────── YUBORISH ────────────────────────────── */
+
+  /// Navbatni serverga yuborishga urinadi.
+  ///
+  /// Xavfsiz: navbat bo'sh bo'lsa yoki boshqa urinish ketayotgan bo'lsa
+  /// darhol qaytadi, shuning uchun istalgan joydan (startup, tarmoq yoki
+  /// server tiklanganda, cheklar ketgandan keyin) chaqirish mumkin.
+  static Future<void> flush({required String reason}) async {
+    if (_inProgress || !hasPending) return;
+    _inProgress = true;
+
+    try {
+      while (true) {
+        final List<ShiftQueueEvent> events = _load();
+        if (events.isEmpty) return;
+        final ShiftQueueEvent event = events.first;
+
+        final int status = await _send(event);
+        if (kDebugMode) {
+          print('ShiftSyncQueue: $event ($reason) → $status');
+        }
+
+        if (status == 200 || status == 201) {
+          if (!await _remove(event)) return;
+          continue;
+        }
+
+        // Muvaffaqiyat javobi kelmadi. Bu "server yiqilgan", "javob
+        // yo'qolgan" yoki "server rad etdi" bo'lishi mumkin — status kodidan
+        // ajratib bo'lmaydi: qayta ishga tushayotgan server ham 500/502/404
+        // qaytaradi va bir lahzadan keyin tiriladi. Shuning uchun voqea
+        // faqat serverning O'ZI tasdiqlaganda olib tashlanadi: kassa holati
+        // allaqachon bu voqea kutgan holatda (javobi yo'qolgan yoki takror
+        // yuborilgan voqea). Aks holda u navbatda qoladi — haqiqiy amal hech
+        // qachon tashlab yuborilmaydi.
+        final bool? applied = await _alreadyApplied(event);
+        if (applied == true) {
+          if (!await _remove(event)) return;
+          await ShiftDiagnostics.report(
+            issue: event.isOpen
+                ? ShiftIssue.pendingOpenNotSynced
+                : ShiftIssue.pendingCloseNotSynced,
+            action: event.isOpen ? ShiftAction.open : ShiftAction.close,
+            detail: 'Navbatdagi voqea ($reason): $event — server javobi '
+                'status $status, lekin serverdagi kassa holati ALLAQACHON '
+                'MOS (javob yo\'qolgan yoki takror). Voqea navbatdan olindi, '
+                'keyingisi yuboriladi.\n'
+                'Navbatda qoldi: ${_describeOrNone()}',
+          );
+          continue;
+        }
+
+        if (applied == false) {
+          // Server TIRIK (kassa holatini ko'rsatdi), lekin voqeani qabul
+          // qilmayapti. Qisqa qisman uzilish bo'lishi mumkin — darhol
+          // tashlamaymiz, faqat sanaymiz (qoida 5).
+          final ShiftQueueEvent counted = event.withFailure(now());
+          if (counted.failures >= poisonAttempts &&
+              now().difference(counted.firstFailureAt!) >= poisonAfter) {
+            if (!await _remove(event)) return;
+            await ShiftDiagnostics.report(
+              issue: event.isOpen
+                  ? ShiftIssue.pendingOpenNotSynced
+                  : ShiftIssue.pendingCloseNotSynced,
+              action: event.isOpen ? ShiftAction.open : ShiftAction.close,
+              detail: 'ZAHARLI VOQEA NAVBATDAN OLIB TASHLANDI ($reason): '
+                  '$event, user_id=${event.userId}, '
+                  'cashbox_id=${_cashboxOf(event)}. Server tirik, lekin uni '
+                  '${counted.failures} marta (birinchisi '
+                  '${counted.firstFailureAt}) qabul qilmadi, oxirgi status '
+                  '$status. Serverda QO\'LDA tekshiring — bu ochish/yopish '
+                  'serverga yetmagan.\n'
+                  'Navbatda qoldi: ${_describeOrNone()}',
+              force: true,
+            );
+            continue;
+          }
+          await _replace(event, counted);
+        }
+
+        await ShiftDiagnostics.report(
+          issue: event.isOpen
+              ? ShiftIssue.pendingOpenNotSynced
+              : ShiftIssue.pendingCloseNotSynced,
+          action: event.isOpen ? ShiftAction.open : ShiftAction.close,
+          detail: 'Navbatni yuborish ($reason) to\'xtadi: $event, '
+              'status $status'
+              '${applied == false ? ", server rad etdi (${event.failures + 1}-marta)" : ""}'
+              '. Navbatda qoldi: ${_describeOrNone()}',
+        );
+        return;
+      }
+    } finally {
+      _inProgress = false;
+    }
+  }
+
+  static String _describeOrNone() {
+    final String text = describe();
+    return text.isEmpty ? "yo'q" : text;
+  }
+
+  /// Serverdagi kassa holati [event] kutgan holatdami: ochish uchun kassa
+  /// ochiq, yopish uchun to'liq yopiq. `null` — bilib bo'lmadi (server
+  /// javob bermadi yoki kassa ro'yxatda yo'q).
+  static Future<bool?> _alreadyApplied(ShiftQueueEvent event) async {
+    final HttpResult res = await ShiftApi4.shiftStatusInvan2();
+    if (!res.isSuccess || res.result is! List) return null;
+    final String cashboxId = _cashboxOf(event);
+    for (final dynamic cashBox in res.result as List) {
+      if (cashBox is Map && cashBox['cashbox_id'] == cashboxId) {
+        final bool fullyClosed = ShiftApi4.isCashboxFullyClosed(cashBox);
+        return event.isOpen ? !fullyClosed : fullyClosed;
+      }
+    }
+    return null;
+  }
+
+  static String _cashboxOf(ShiftQueueEvent event) => event.cashboxId.isNotEmpty
+      ? event.cashboxId
+      : Pref.getString(PrefKeys.activatedPosId, '');
+
+  /// Voqeani serverga yuboradi va HTTP status kodini qaytaradi.
+  /// Istisno bo'lsa -2 (`ApiProvider` dagi "kutilmagan xato" kodi).
+  static Future<int> _send(ShiftQueueEvent event) async {
+    final String cashboxId = _cashboxOf(event);
+    if (event.isOpen) {
+      final HttpResult res = await ShiftApi4.openShift(
+          openedAt: event.at, userId: event.userId, cashboxId: cashboxId);
+      return res.statusCode;
+    }
+    final ShiftingModel res = await ShiftApi4.closeShift(
+        closedAt: event.at, userId: event.userId, cashboxId: cashboxId);
+    return res.statusCode ?? -2;
+  }
+
+  /// [old] o'rniga [updated] ni yozadi (rad etishlar hisobi uchun).
+  static Future<void> _replace(
+    ShiftQueueEvent old,
+    ShiftQueueEvent updated,
+  ) async {
+    final List<ShiftQueueEvent> events = _load();
+    final int index = events.indexWhere((e) => e.sameAs(old));
+    if (index < 0) return;
+    events[index] = updated;
+    await _save(events);
+  }
+
+  /// [event] ni navbatdan olib tashlaydi. `false` — topilmadi.
+  static Future<bool> _remove(ShiftQueueEvent event) async {
+    final List<ShiftQueueEvent> events = _load();
+    final int index = events.indexWhere((e) => e.sameAs(event));
+    if (index < 0) return false;
+    events.removeAt(index);
+    await _save(events);
+    return true;
+  }
+
+  /* ─────────────────────────────── SAQLASH ─────────────────────────────── */
+
+  static List<ShiftQueueEvent> _load() {
+    final List<ShiftQueueEvent> events = [];
+    final String raw = Pref.getString(PrefKeys.shiftSyncQueue, '');
+    if (raw.isNotEmpty) {
+      try {
+        final dynamic decoded = jsonDecode(raw);
+        if (decoded is List) {
+          for (final dynamic item in decoded) {
+            final ShiftQueueEvent? event = ShiftQueueEvent.fromJson(item);
+            if (event != null) events.add(event);
+          }
+        }
+      } catch (_) {
+        // Buzilgan yozuv — bo'sh navbat deb hisoblaymiz.
+      }
+    }
+
+    // Eski kalitlar ro'yxat OXIRIGA qo'shiladi: oddiy yangilanishda ro'yxat
+    // bo'sh, Shorebird rollback'dan keyin esa eski kod yozgan voqealar
+    // ro'yxatdagilardan yangiroq. Ro'yxatga ko'chib bo'lganlari takrorlanmaydi
+    // (yozuv o'rtasida ilova yopilgan bo'lsa).
+    for (final ShiftQueueEvent legacy in _legacyEvents()) {
+      if (!events.any((e) => e.sameAs(legacy))) events.add(legacy);
+    }
+    return events;
+  }
+
+  /// Ro'yxatni saqlaydi va eski kalitlarni tozalaydi — ulardagi voqealar
+  /// endi ro'yxat ichida.
+  static Future<void> _save(List<ShiftQueueEvent> events) async {
+    await Pref.setString(
+      PrefKeys.shiftSyncQueue,
+      jsonEncode(events.map((e) => e.toJson()).toList()),
+    );
+    await Pref.setInt(PrefKeys.openedCount, 0);
+    await Pref.setString(PrefKeys.openedDate, '');
+    await Pref.setInt(PrefKeys.closedCount, 0);
+    await Pref.setString(PrefKeys.closedDate, '');
+  }
+
+  /// Eski (2026-10-02 gacha) navbat kalitlaridagi voqealar.
+  ///
+  /// Kassa server o'chgan paytda yangilansa, navbat eski kalitlarda qolgan
+  /// bo'ladi — u yo'qolmasligi kerak. Ikkalasi ham bo'lsa eski qoida bo'yicha
+  /// vaqt tartibida (vaqt noaniq bo'lsa ochish oldin).
+  static List<ShiftQueueEvent> _legacyEvents() {
+    final String openedAt = Pref.getString(PrefKeys.openedDate, '');
+    final String closedAt = Pref.getString(PrefKeys.closedDate, '');
+    final bool hasOpen =
+        openedAt.isNotEmpty && Pref.getInt(PrefKeys.openedCount, 0) == 1;
+    final bool hasClose =
+        closedAt.isNotEmpty && Pref.getInt(PrefKeys.closedCount, 0) == 1;
+    if (!hasOpen && !hasClose) return const [];
+
+    final String userId = Pref.getString(PrefKeys.userId, '');
+    final String cashboxId = Pref.getString(PrefKeys.activatedPosId, '');
+    final ShiftQueueEvent open = ShiftQueueEvent(
+        method: ShiftQueueMethod.open,
+        at: openedAt,
+        userId: userId,
+        cashboxId: cashboxId);
+    final ShiftQueueEvent close = ShiftQueueEvent(
+        method: ShiftQueueMethod.close,
+        at: closedAt,
+        userId: userId,
+        cashboxId: cashboxId);
+    if (!hasClose) return [open];
+    if (!hasOpen) return [close];
+
+    final DateTime? opened = DateTime.tryParse(openedAt);
+    final DateTime? closed = DateTime.tryParse(closedAt);
+    final bool openFirst =
+        opened == null || closed == null || opened.isBefore(closed);
+    return openFirst ? [open, close] : [close, open];
+  }
+}
+```
+
+### 6.2. `lib/changes/services/shift_api_4.dart`
+
+```diff
+diff --git a/lib/changes/services/shift_api_4.dart b/lib/changes/services/shift_api_4.dart
+index c21ec83..43f2dc5 100644
+--- a/lib/changes/services/shift_api_4.dart
++++ b/lib/changes/services/shift_api_4.dart
+@@ -112,7 +112,16 @@ class ShiftApi4 {
+   /////                   OPEN SHIFT                     /////
+   /////                                                   /////
+   /////////////////////////////////////////////////////////////
+-  static Future<HttpResult> openShift() async {
++
++  /// [openedAt] — smena ochilgan vaqt (`yyyy-MM-dd HH:mm:ss`, UTC),
++  /// [userId] — ochgan kassir, [cashboxId] — kassa. Hammasi chaqiruvchidan
++  /// keladi: navbatdan yuborilganda ular yuborish paytidagi emas, ochish
++  /// paytidagi qiymatlar bo'lishi shart (qarang: `ShiftSyncQueue`).
++  static Future<HttpResult> openShift({
++    required String openedAt,
++    required String userId,
++    required String cashboxId,
++  }) async {
+     final token = Pref.getString(PrefKeys.token, "not initialized");
+     final headers = <String, String>{
+       'Accept-Version': '2.0.0',
+@@ -125,16 +134,15 @@ class ShiftApi4 {
+       'timezone': "-300",
+       'Accept-Service': _acceptService,
+     };
+-    String cashBoxId = Pref.getString(PrefKeys.activatedPosId, "");
+ 
+     var body = {
+-      "opened_at": Pref.getString(PrefKeys.openedDate, ""),
++      "opened_at": openedAt,
+       "closed_at": "",
+       "method": "open",
+       "opened_by_pos": true,
+       "opened_by_web": false,
+-      "cashbox_id": cashBoxId,
+-      "user_id": Pref.getString(PrefKeys.userId, "")
++      "cashbox_id": cashboxId,
++      "user_id": userId
+     };
+ 
+     return ApiProvider.postResponse(
+@@ -144,6 +152,14 @@ class ShiftApi4 {
+     );
+   }
+ 
++  /// `shift_statuses` ro'yxatidagi kassa TO'LIQ yopiqmi (hech kim — na POS,
++  /// na web — ochmagan).
++  static bool isCashboxFullyClosed(Map<dynamic, dynamic> cashBox) =>
++      cashBox['opened_by_web'] == false &&
++      cashBox['opened_by_pos'] == false &&
++      cashBox['opened_by_user_id'] == '' &&
++      (cashBox['status'] == 'closed' || cashBox['status'] == 'close');
++
+   static Future<HttpResult> shiftStatusInvan2({String? token}) async {
+     // Aktivatsiyadan oldin (kassa tanlash) PrefKeys.token hali bo'sh bo'ladi,
+     // shuning uchun login token'ini parametr orqali uzatish mumkin.
+@@ -166,7 +182,17 @@ class ShiftApi4 {
+   /////                                                   /////
+   /////////////////////////////////////////////////////////////
+ 
+-  static Future<ShiftingModel> closeShift() async {
++  /// [closedAt] — smena yopilgan vaqt (`yyyy-MM-dd HH:mm:ss`, UTC),
++  /// [userId] — yopgan kassir, [cashboxId] — kassa (qarang: [openShift]).
++  ///
++  /// Muvaffaqiyatsiz javobda ham `statusCode` haqiqiy HTTP kodi bo'ladi:
++  /// navbat u bo'yicha "server rad etdi" va "server javob bermadi" ni
++  /// ajratadi. Istisno bo'lsa `statusCode` — `null`.
++  static Future<ShiftingModel> closeShift({
++    required String closedAt,
++    required String userId,
++    required String cashboxId,
++  }) async {
+     final token = Pref.getString(PrefKeys.token, "not initialized");
+     ShiftingModel result = ShiftingModel();
+     var headers = {
+@@ -176,15 +202,14 @@ class ShiftApi4 {
+       'timezone': "-300",
+       'Content-Type': 'application/json'
+     };
+-    String cashId = Pref.getString(PrefKeys.activatedPosId, "");
+     final body = {
+       "opened_at": '',
+-      "closed_at": Pref.getString(PrefKeys.closedDate, ""),
+-      "cashbox_id": cashId,
++      "closed_at": closedAt,
++      "cashbox_id": cashboxId,
+       "opened_by_pos": false,
+       "opened_by_web": false,
+       "method": "close",
+-      "user_id": Pref.getString(PrefKeys.userId, "")
++      "user_id": userId
+     };
+     try {
+       var response = await ApiProvider.postResponse(
+@@ -193,9 +218,12 @@ class ShiftApi4 {
+         headers: headers,
+       );
+       _statusCode = response.statusCode;
+-      if (response.statusCode == 200) {
++      if (response.statusCode == 200 || response.statusCode == 201) {
+         result.statusCode = response.statusCode;
+-        result.message = response.result['message'];
++        // Javob tanasi Map bo'lmasa ham yopish muvaffaqiyatli — ilgari bu
++        // yerdagi istisno tasdiqlangan yopishni "xato" qilib qo'yardi.
++        final dynamic data = response.result;
++        result.message = data is Map ? data['message']?.toString() : null;
+ 
+         LogRepository.addLog(
+           """ HEADERS: => $headers, 
+@@ -220,7 +248,9 @@ class ShiftApi4 {
+           url: ApiProvider.baseUrlINVAN2,
+           statusCode: _statusCode,
+         );
+-        return ShiftingModel()..message = "Failed";
++        return ShiftingModel()
++          ..statusCode = response.statusCode
++          ..message = "Failed";
+       }
+     } catch (e) {
+       Log.e(e, name: 'shift_api_4.dart');
+```
+
+### 6.3. `lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart`
+
+```diff
+diff --git a/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart b/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart
+index 0fefa17..f99d94a 100644
+--- a/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart
++++ b/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart
+@@ -1,3 +1,5 @@
++import 'dart:async';
++
+ import 'package:flutter/material.dart';
+ import 'package:hive_flutter/hive_flutter.dart';
+ import 'package:intl/intl.dart';
+@@ -5,6 +7,7 @@ import 'package:invan2/changes/models/shift/shift_hive_model.dart';
+ import 'package:invan2/changes/repository/log_repository.dart';
+ import 'package:invan2/changes/services/api/result_http_model.dart';
+ import 'package:invan2/changes/services/shift/shift_diagnostics.dart';
++import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
+ import 'package:invan2/changes/services/shift_api_4.dart';
+ import 'package:invan2/features/hive_repository/hive_boxes.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+@@ -18,6 +21,11 @@ import '../../../../../../../changes/models/shift/shifting_model.dart';
+ import 'package:invan2/changes/services/health/backend_health.dart';
+ 
+ class ShiftSingleton4 {
++  /// Smena ochilish/yopilish vaqti shu soatdan olinadi. Testlarda ketma-ket
++  /// amallarga aniq, farqli vaqt berish uchun almashtiriladi.
++  @visibleForTesting
++  static DateTime Function() clock = DateTime.now;
++
+   static void updateTheShift(List<ReceiptModelPaymentType4> payments,
+       double zdachaToCashBack, double discountAmount) async {
+     num card = 0;
+@@ -116,26 +124,46 @@ class ShiftSingleton4 {
+     sh.iV = i;
+     bool? isReturn = true;
+ 
+-    await Pref.setString(PrefKeys.openedDate,
+-        DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()));
++    // Ochilish vaqti, kassir va kassa BIR MARTA olinadi: onlayn yuborilsa
++    // ham, navbatga tushsa ham serverga aynan shu qiymatlar ketadi.
++    final String openedAt =
++        DateFormat('yyyy-MM-dd HH:mm:ss').format(clock().toUtc());
++    final String userId = Pref.getString(PrefKeys.userId, '');
++    final String cashboxId = Pref.getString(PrefKeys.activatedPosId, '');
+     await Pref.setInt(PrefKeys.currentShiftKey, i);
+     // Har urinishdan oldin oldingi sababni tozalaymiz — UI faqat shu
+     // urinishning sababini ko'rsatishi kerak.
+     ShiftDiagnostics.resetOpenIssue();
+ 
+-    /// Smenani serversiz (lokal) ochish — navbatga qo'yiladi.
++    /// Smenani serversiz (lokal) ochish — ochilish navbatga qo'yiladi.
+     ///
+-    /// Ikki holatda ishlatiladi: internet yo'q va server yiqilgan. Ikkalasi
+-    /// ham kassa uchun bir xil: serverdagi holatni tekshirib bo'lmaydi,
+-    /// lekin kassir sotishi kerak.
++    /// Internet yo'q, server yiqilgan yoki navbatda serverga yetmagan eski
++    /// voqealar bor — kassa uchun hammasi bir xil: kassir sotishi kerak,
++    /// ochilish esa navbat orqali o'z tartibida yetadi.
++    ///
++    /// Har ochilish navbatga alohida yoziladi. Ilgari navbatda ochish uchun
++    /// bitta joy bor edi va ikkinchi oflayn ochilish birinchisining vaqtini
++    /// o'chirib yuborardi (qarang: `ShiftSyncQueue`).
+     Future<void> openOffline() async {
+-      if (Pref.getInt(PrefKeys.openedCount, 0) == 0) {
+-        isReturn = true;
+-        await Pref.setInt(PrefKeys.openedCount, 1);
+-      }
++      isReturn = true;
++      await ShiftSyncQueue.enqueueOpen(openedAt,
++          userId: userId, cashboxId: cashboxId);
+     }
+ 
+     if (await BackendHealth.isUsable()) {
++      // Serverga yetmagan eski voqealar (masalan oldingi smenaning yopilishi)
++      // avval ketsin — serverdagi kassa holati shundan keyingina to'g'ri.
++      await ShiftSyncQueue.flush(reason: 'before-open');
++
++      // Ular baribir ketmagan bo'lsa, serverdagi holat ESKIRGAN: masalan
++      // server kassani "ochiq" deb ko'rsatadi, chunki bizning yopilishimiz
++      // unga hali yetmagan. Unga ishonib ochishni bloklash noto'g'ri —
++      // smena lokal ochiladi va navbatda ularning ortidan turadi.
++      if (ShiftSyncQueue.hasPending) {
++        await openOffline();
++        return isReturn;
++      }
++
+       await ShiftApi4.shiftStatusInvan2().then((HttpResult status) async {
+         // 1a) Server yiqilgan (5xx / timeout / ulanmadi) — bu "smena
+         // ochilmasin" degani EMAS. Internet uzilgandagi kabi lokal ochamiz
+@@ -194,10 +222,7 @@ class ShiftSingleton4 {
+         }
+ 
+         // 4) Kassa serverda to'liq yopiqmi?
+-        final bool isFullyClosed = myCashBox['opened_by_web'] == false &&
+-            myCashBox['opened_by_pos'] == false &&
+-            myCashBox['opened_by_user_id'] == '' &&
+-            (myCashBox['status'] == 'closed' || myCashBox['status'] == 'close');
++        final bool isFullyClosed = ShiftApi4.isCashboxFullyClosed(myCashBox);
+ 
+         if (!isFullyClosed) {
+           ShiftDiagnostics.lastOpenIssue = myCashBox['opened_by_web'] == true
+@@ -214,46 +239,61 @@ class ShiftSingleton4 {
+           return;
+         }
+ 
+-        // 5) Hammasi joyida — smenani serverda ochamiz.
+-        ShiftApi4.openShift().then(
+-          (HttpResult value) async {
+-            if (value.isSuccess) {
+-              String localSUuid = const Uuid().v4();
+-              sh
+-                ..shiftId = localSUuid
+-                ..iV = i;
+-              await box.put(
+-                i,
+-                sh,
+-              );
+-            } else {
+-              await box.put(i, sh);
+-              // Smena kassada ochildi, lekin server tasdiqlamadi — keyinchalik
+-              // yopishda "kassa serverda ochiq emas" muammosi chiqadi.
+-              await ShiftDiagnostics.report(
+-                issue: ShiftIssue.pendingOpenNotSynced,
+-                action: ShiftAction.open,
+-                detail: 'POST api/v1/shift_pos (open) → '
+-                    'status ${value.statusCode}',
+-              );
+-            }
+-          },
+-        ).catchError(
+-          (err) {
+-            LogRepository.addLog(
+-              err.toString(),
+-              file: "ShiftSingleton_4 / openShift / catchError",
+-              method: "OPEN SHIFT",
+-              where: "SHIFT SINGLETON / CATCH ERROR",
+-              path: "ShiftSingleton_4.dart",
+-              statusCode: 0,
+-              url: '-',
++        // 5) Hammasi joyida. Lekin navbatda hali ketmagan eski voqealar
++        // qolgan bo'lsa, bu ochilish ularning ORTIDAN ketishi kerak —
++        // to'g'ridan-to'g'ri yuborilsa server ularni noto'g'ri tartibda oladi.
++        if (ShiftSyncQueue.hasPending) {
++          await openOffline();
++          unawaited(ShiftSyncQueue.flush(reason: 'after-open'));
++          return;
++        }
++
++        // Navbat bo'sh — smenani serverda to'g'ridan-to'g'ri ochamiz.
++        //
++        // Javob KUTILADI: yiqilsa ochilish shu zahoti navbatga tushishi
++        // kerak. Ilgari so'rov kutilmasdi — kassir smenani ochib darhol
++        // yopsa, yopilish ochilishdan oldin serverga yetib bekor ketishi
++        // (server yopiq kassani yopishga 200 qaytaradi) va smena serverda
++        // ochiq qolishi mumkin edi.
++        try {
++          final HttpResult value = await ShiftApi4.openShift(
++              openedAt: openedAt, userId: userId, cashboxId: cashboxId);
++          if (value.isSuccess) {
++            String localSUuid = const Uuid().v4();
++            sh
++              ..shiftId = localSUuid
++              ..iV = i;
++            await box.put(
++              i,
++              sh,
+             );
+-          },
+-        );
++          } else {
++            await box.put(i, sh);
++            // Server ochilishni tasdiqlamadi — navbatga qo'yamiz: server
++            // yiqilgan bo'lsa keyin yetadi, rad etgan bo'lsa navbat uni
++            // hisobot bilan olib tashlaydi. Ilgari bu ochilish yo'qolardi
++            // va kechqurun "kassa serverda ochiq emas" muammosi chiqardi.
++            await ShiftSyncQueue.enqueueOpen(openedAt,
++                userId: userId, cashboxId: cashboxId);
++            await ShiftDiagnostics.report(
++              issue: ShiftIssue.pendingOpenNotSynced,
++              action: ShiftAction.open,
++              detail: 'POST api/v1/shift_pos (open) → '
++                  'status ${value.statusCode}',
++            );
++          }
++        } catch (err) {
++          LogRepository.addLog(
++            err.toString(),
++            file: "ShiftSingleton_4 / openShift / catchError",
++            method: "OPEN SHIFT",
++            where: "SHIFT SINGLETON / CATCH ERROR",
++            path: "ShiftSingleton_4.dart",
++            statusCode: 0,
++            url: '-',
++          );
++        }
+         isReturn = true;
+-        await Pref.setInt(PrefKeys.openedCount, 0);
+-        await Pref.setString(PrefKeys.openedDate, '');
+       });
+     } else {
+       await openOffline();
+@@ -273,50 +313,70 @@ class ShiftSingleton4 {
+       ..isClosed = true;
+     shift.closingTime = closingTime;
+ 
+-    await Pref.setString(PrefKeys.closedDate,
+-        DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now().toUtc()));
+     await box.put(currentShiftKey, shift);
+     //-------------
+ 
+-    /// Smenani serversiz yopish — yopish NAVBATGA qo'yiladi.
+-    ///
+-    /// `ShiftSyncQueue` navbatni ikki shart bo'yicha topadi: `closedDate`
+-    /// bo'sh emas VA `closedCount == 1`. Shuning uchun hisoblagichni
+-    /// qo'ymaslik yopishni butunlay yo'qotishga olib keladi.
++    final bool delivered = await syncCloseToServer(
++      // Yopilish vaqti, kassir va kassa BIR MARTA olinadi: onlayn yuborilsa
++      // ham, navbatga tushsa ham serverga aynan shu qiymatlar ketadi.
++      closedAt: DateFormat('yyyy-MM-dd HH:mm:ss').format(clock().toUtc()),
++      userId: Pref.getString(PrefKeys.userId, ''),
++      cashboxId: Pref.getString(PrefKeys.activatedPosId, ''),
++    );
++    if (delivered) uploadHiveShifts();
++    return returnedShift;
++  }
++
++  /// Smena yopilishini serverga yetkazadi. `true` — server darhol tasdiqladi.
++  ///
++  /// Smena kassada HAR DOIM yopiladi (`shiftsOpened = false`). Server bilan
++  /// aloqa bo'lmasa, navbatda serverga yetmagan eski voqealar bo'lsa yoki
++  /// server tasdiqlamasa — yopilish navbatga tushadi. Navbat ro'yxat, har
++  /// yopilish alohida yoziladi: ilgari navbatda yopish uchun bitta joy bor
++  /// edi va internetsiz ikkinchi marta yopib bo'lmasdi.
++  ///
++  /// ObjectBox'ga tegmaydi (cheklar `closeShift` da) — shuning uchun
++  /// testlarda haqiqiy so'rovlar bilan alohida sinaladi.
++  @visibleForTesting
++  static Future<bool> syncCloseToServer({
++    required String closedAt,
++    required String userId,
++    required String cashboxId,
++  }) async {
+     Future<void> closeOffline() async {
+-      // Ochish navbatda turgani yopishga TO'SIQ EMAS: `ShiftSyncQueue` endi
+-      // ikkalasini vaqt tartibida yuboradi (avval ochish, keyin yopish).
+-      // Ilgari bu shart `openedCount == 0` ni ham talab qilardi — natijada
+-      // server o'chgan kunda ertalab oflayn ochilgan smenani kechqurun
+-      // umuman yopib bo'lmasdi.
+-      //
+-      // `closedCount == 0` sharti qoladi: navbatda bitta yopish uchungina
+-      // joy bor, ikkinchisi birinchisining sanasini yo'q qilib yuborardi.
+-      if (Pref.getInt(PrefKeys.closedCount, 0) == 0) {
+-        await Pref.setBool(PrefKeys.shiftsOpened, false);
+-        await Pref.setInt(PrefKeys.closedCount, 1);
+-      }
++      await Pref.setBool(PrefKeys.shiftsOpened, false);
++      await ShiftSyncQueue.enqueueClose(closedAt,
++          userId: userId, cashboxId: cashboxId);
+     }
+ 
+-    if (await BackendHealth.isUsable()) {
+-      ShiftingModel shiftingModel = await ShiftApi4.closeShift();
+-      if (shiftingModel.statusCode != null && shiftingModel.statusCode == 200) {
+-        uploadHiveShifts();
+-        await Pref.setBool(PrefKeys.shiftsOpened, false);
+-        await Pref.setString(PrefKeys.closedDate, '');
+-        await Pref.setInt(PrefKeys.closedCount, 0);
+-      } else if (BackendHealth.isServerFailureStatus(
+-          shiftingModel.statusCode ?? 0)) {
+-        // Server yiqilgan — internet uzilgandagi kabi navbatga qo'yamiz.
+-        // Ilgari bu shox umuman yo'q edi: Hive'da smena "yopilgan" bo'lib
+-        // qolar, `closedCount` esa 0 bo'lgani uchun navbat ham hosil
+-        // bo'lmasdi — ya'ni yopilish serverga HECH QACHON yetmasdi.
+-        await closeOffline();
+-      }
+-    } else {
++    if (!await BackendHealth.isUsable()) {
+       await closeOffline();
++      return false;
+     }
+-    return returnedShift;
++
++    if (ShiftSyncQueue.hasPending) {
++      // Navbatda serverga yetmagan eski voqealar bor — bu yopilish ularning
++      // ORTIDAN ketishi kerak. To'g'ridan-to'g'ri yuborilsa, masalan,
++      // oflayn ochilgan smenaning yopilishi ochilishidan OLDIN yetib bekor
++      // ketardi (server yopiq kassani yopishga 200 qaytaradi), keyin
++      // yetgan ochilish esa kassani serverda ochiq qoldirardi.
++      await closeOffline();
++      unawaited(ShiftSyncQueue.flush(reason: 'after-close'));
++      return false;
++    }
++
++    final ShiftingModel shiftingModel = await ShiftApi4.closeShift(
++        closedAt: closedAt, userId: userId, cashboxId: cashboxId);
++    if (shiftingModel.statusCode == 200 || shiftingModel.statusCode == 201) {
++      await Pref.setBool(PrefKeys.shiftsOpened, false);
++      return true;
++    }
++
++    // Server yopilishni tasdiqlamadi — smena baribir kassada yopiladi,
++    // yopilish navbatga tushadi: server yiqilgan bo'lsa keyin yetadi,
++    // rad etgan bo'lsa navbat uni hisobot bilan olib tashlaydi.
++    await closeOffline();
++    return false;
+   }
+ 
+ //////////////////////////////////////////////////////////////////////////////
+```
+
+### 6.4. `lib/changes/services/shift/shift_diagnostics.dart`
+
+```diff
+diff --git a/lib/changes/services/shift/shift_diagnostics.dart b/lib/changes/services/shift/shift_diagnostics.dart
+index 370868f..b7e1ada 100644
+--- a/lib/changes/services/shift/shift_diagnostics.dart
++++ b/lib/changes/services/shift/shift_diagnostics.dart
+@@ -1,4 +1,5 @@
+ import 'package:invan2/changes/repository/log_repository.dart';
++import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
+ import 'package:invan2/objectbox.g.dart';
+@@ -38,10 +39,6 @@ enum ShiftIssue {
+   /// ko'rsatilardi, holbuki serverga umuman murojaat qilinmagan edi.
+   offlineCloseBlockedByPendingOpen,
+ 
+-  /// Internetsiz yopib bo'lmaydi: oldingi yopish hali navbatda
+-  /// (`closedCount == 1`).
+-  offlineCloseBlockedByPendingClose,
+-
+   /// Yopish so'rovi serverga ketdi, lekin server 200 qaytarmadi.
+   serverCloseFailed,
+ 
+@@ -84,24 +81,25 @@ class ShiftSnapshot {
+     required this.posName,
+     required this.cashboxId,
+     required this.cashierName,
++    this.queueSummary = '',
+   });
+ 
+   final bool internet;
+   final int unsentReceipts;
+   final int rejectedReceipts;
+ 
+-  /// `PrefKeys.closedDate` — bo'sh bo'lmasa, serverga yetmagan yopish bor.
++  /// Navbatdagi eng ESKI yopish vaqti (UTC) — bo'sh bo'lmasa, serverga
++  /// yetmagan yopish bor.
+   final String pendingCloseAt;
+ 
+-  /// `PrefKeys.openedDate` — bo'sh bo'lmasa, serverga yetmagan ochish bor.
++  /// Navbatdagi eng ESKI ochish vaqti (UTC) — bo'sh bo'lmasa, serverga
++  /// yetmagan ochish bor.
+   final String pendingOpenAt;
+ 
+-  /// `PrefKeys.openedCount` — 1 bo'lsa, smena OFLAYN ochilgan va ochilish
+-  /// serverga yuborilishi kutilyapti.
++  /// Navbatda serverga yuborilishi kutilayotgan ochishlar soni.
+   final int openedCount;
+ 
+-  /// `PrefKeys.closedCount` — 1 bo'lsa, oflayn yopilish serverga yuborilishi
+-  /// kutilyapti.
++  /// Navbatda serverga yuborilishi kutilayotgan yopishlar soni.
+   final int closedCount;
+ 
+   final bool shiftsOpened;
+@@ -110,21 +108,12 @@ class ShiftSnapshot {
+   final String cashboxId;
+   final String cashierName;
+ 
++  /// Navbat tarkibi, hisobot uchun ("ochish ... → yopish ...").
++  final String queueSummary;
++
+   bool get hasPendingClose => pendingCloseAt.isNotEmpty;
+ 
+   bool get hasPendingOpen => pendingOpenAt.isNotEmpty;
+-
+-  /// Internetsiz yopish mumkinmi.
+-  ///
+-  /// `ShiftSingleton4.closeShift` ning oflayn shoxidagi shartning aynan
+-  /// nusxasi — ikkalasi bir joydan o'qilishi kerak, aks holda UI "yopiladi"
+-  /// deb va'da berib, kod yopmay qo'yadi (2026-08-17 hodisasi).
+-  /// Serverga ulanmasdan yopish mumkinmi.
+-  ///
+-  /// Navbatda OCHISH turgani to'siq emas — `ShiftSyncQueue` ochish va
+-  /// yopishni vaqt tartibida yuboradi. Faqat navbatda allaqachon YOPISH
+-  /// turgan bo'lsa mumkin emas: navbatda bitta yopish uchungina joy bor.
+-  bool get canCloseOffline => closedCount == 0;
+ }
+ 
+ class ShiftDiagnostics {
+@@ -178,19 +167,28 @@ class ShiftDiagnostics {
+       // ObjectBox o'qib bo'lmasa ham diagnostika ishlashda davom etsin.
+     }
+ 
++    final List<ShiftQueueEvent> queue = ShiftSyncQueue.pending;
++    String oldest(ShiftQueueMethod method) {
++      for (final ShiftQueueEvent e in queue) {
++        if (e.method == method) return e.at;
++      }
++      return '';
++    }
++
+     return ShiftSnapshot(
+       internet: hasNet,
+       unsentReceipts: unsent,
+       rejectedReceipts: rejected,
+-      pendingCloseAt: Pref.getString(PrefKeys.closedDate, ''),
+-      pendingOpenAt: Pref.getString(PrefKeys.openedDate, ''),
+-      openedCount: Pref.getInt(PrefKeys.openedCount, 0),
+-      closedCount: Pref.getInt(PrefKeys.closedCount, 0),
++      pendingCloseAt: oldest(ShiftQueueMethod.close),
++      pendingOpenAt: oldest(ShiftQueueMethod.open),
++      openedCount: queue.where((e) => e.isOpen).length,
++      closedCount: queue.where((e) => e.isClose).length,
+       shiftsOpened: Pref.getBool(PrefKeys.shiftsOpened, false),
+       currentShiftKey: Pref.getInt(PrefKeys.currentShiftKey, -1),
+       posName: Pref.getString(PrefKeys.posName, '-'),
+       cashboxId: Pref.getString(PrefKeys.activatedPosId, ''),
+       cashierName: Pref.getString(PrefKeys.cashierName, '-'),
++      queueSummary: ShiftSyncQueue.describe(queue),
+     );
+   }
+ 
+@@ -205,21 +203,10 @@ class ShiftDiagnostics {
+   /// bermaydi — ogohlantirish shunchaki shovqin bo'lardi. Ular baribir
+   /// Telegram hisobotida (`Rad etilgan cheklar: N`) ko'rinadi va Sozlamalar →
+   /// rad etilgan cheklar bo'limidan alohida boshqariladi.
+-  /// Smenani yopish **umuman mumkin emas** bo'lgan holat.
+-  ///
+-  /// `null` qaytsa — yopishga urinish mumkin. Aks holda yopish tugmasi
+-  /// bosilganda hech narsa yozilmasligi kerak: `ShiftSingleton4.closeShift`
+-  /// Hive yozuviga `isClosed=true` va `closedDate` ni **shartni tekshirishdan
+-  /// oldin** yozadi, keyin esa shart bajarilmasa smenani yopmay qo'yadi.
+-  /// Natijada Hive'da "yopiq", POS'da "ochiq" — nomuvofiq holat qoladi.
+   ///
+-  /// Faqat oflayn holat tekshiriladi: internet bo'lsa yopish server javobiga
+-  /// qarab hal qilinadi.
+-  static ShiftIssue? blockingCloseIssue(ShiftSnapshot s) {
+-    if (s.internet || s.canCloseOffline) return null;
+-    return ShiftIssue.offlineCloseBlockedByPendingClose;
+-  }
+-
++  /// Yopishni TO'SADIGAN holat yo'q: smena navbati ro'yxat bo'lgani uchun
++  /// internetsiz ham istalgancha yopish mumkin (2026-10-02 gacha navbatda
++  /// bitta yopish uchun joy bor edi va ikkinchisi bloklanardi).
+   static List<ShiftIssue> closeWarnings(ShiftSnapshot s) {
+     final List<ShiftIssue> issues = [];
+     if (!s.internet) issues.add(ShiftIssue.noInternet);
+@@ -252,10 +239,6 @@ class ShiftDiagnostics {
+         return isUz
+             ? 'Smena yopilmadi — ochilishi serverga yetmagan'
+             : 'Смена не закрыта — открытие не дошло до сервера';
+-      case ShiftIssue.offlineCloseBlockedByPendingClose:
+-        return isUz
+-            ? 'Smena yopilmadi — oldingi yopish navbatda'
+-            : 'Смена не закрыта — прошлое закрытие в очереди';
+       case ShiftIssue.serverCloseFailed:
+         return isUz
+             ? 'Server smenani yopmadi'
+@@ -296,13 +279,9 @@ class ShiftDiagnostics {
+       case ShiftIssue.noInternet:
+         return isUz
+             ? 'Internet ulanmagan. Smena kassada yopiladi va serverga yuborish '
+-                'navbatiga tushadi — internet tiklangach avtomatik yuboriladi. '
+-                'Yopish serverga yetmaguncha bu kassada keyingi smenani '
+-                'internetsiz yopib bo\'lmaydi.'
++                'navbatiga tushadi — internet tiklangach avtomatik yuboriladi.'
+             : 'Нет интернета. Смена закроется на кассе и попадёт в очередь '
+-                'отправки — уйдёт автоматически после восстановления связи. Пока '
+-                'закрытие не дошло до сервера, следующую смену на этой кассе без '
+-                'интернета закрыть не получится.';
++                'отправки — уйдёт автоматически после восстановления связи.';
+       case ShiftIssue.unsentReceipts:
+         return isUz
+             ? '${s.unsentReceipts} ta chek hali serverga yuborilmagan. '
+@@ -355,29 +334,11 @@ class ShiftDiagnostics {
+                 'открытие смены уйдёт на сервер автоматически — после этого '
+                 'закройте смену как обычно.\n'
+                 'Продажи и чеки не потеряются, всё сохранено на кассе.';
+-      case ShiftIssue.offlineCloseBlockedByPendingClose:
+-        final ago = _agoText(s.pendingCloseAt, isUz: isUz);
+-        return isUz
+-            ? 'NIMA BO\'LDI: Smena yopilmadi — kassada ochiq qoldi.\n'
+-                'SABAB: Oldingi smena yopilishi hali serverga yuborilmagan$ago. '
+-                'Kassa bir vaqtda faqat bitta yuborilmagan yopishni saqlay '
+-                'oladi, shuning uchun internetsiz ikkinchi marta yopib '
+-                'bo\'lmaydi.\n'
+-                'NIMA QILISH KERAK: Internetni ulang — navbatdagi yopish '
+-                'yuboriladi, shundan keyin bu smenani yopasiz.\n'
+-                'Sotuvlar va cheklar yo\'qolmaydi.'
+-            : 'ЧТО ПРОИЗОШЛО: Смена не закрыта — осталась открытой на кассе.\n'
+-                'ПРИЧИНА: Закрытие прошлой смены ещё не отправлено на сервер'
+-                '$ago. Касса хранит только одно неотправленное закрытие, '
+-                'поэтому без интернета закрыть второй раз нельзя.\n'
+-                'ЧТО ДЕЛАТЬ: Подключите интернет — закрытие из очереди уйдёт на '
+-                'сервер, после этого закройте эту смену.\n'
+-                'Продажи и чеки не потеряются.';
+       case ShiftIssue.serverCloseFailed:
+-        // Navbatga tushdimi? `ShiftSyncQueue` faqat `closedCount == 1` bo'lsa
+-        // qayta yuboradi. Aks holda "qayta yuboriladi" deb va'da berish
+-        // yolg'on bo'ladi — kassir kutib o'tiradi, hech narsa ketmaydi.
+-        final bool queued = s.closedCount == 1 && s.hasPendingClose;
++        // Navbatga tushdimi? Faqat navbatdagi yopish qayta yuboriladi. Aks
++        // holda "qayta yuboriladi" deb va'da berish yolg'on bo'ladi — kassir
++        // kutib o'tiradi, hech narsa ketmaydi.
++        final bool queued = s.hasPendingClose;
+         return isUz
+             ? 'NIMA BO\'LDI: Smena kassada yopildi, lekin server tasdiqlamadi.\n'
+                 'SABAB: Yopish so\'rovi serverga yuborildi, server esa muvaffaqiyat '
+@@ -538,7 +499,9 @@ class ShiftDiagnostics {
+               "${_agoText(s.pendingCloseAt, isUz: true)}" : "yo'q"}')
+       ..writeln('Serverga yetmagan OCHISH: '
+           '${s.hasPendingOpen ? "${s.pendingOpenAt} UTC"
+-              "${_agoText(s.pendingOpenAt, isUz: true)}" : "yo'q"}');
++              "${_agoText(s.pendingOpenAt, isUz: true)}" : "yo'q"}')
++      ..writeln('Smena navbati: '
++          '${s.queueSummary.isEmpty ? "bo'sh" : "${s.queueSummary} (UTC)"}');
+ 
+     if (detail != null && detail.trim().isNotEmpty) {
+       buffer
+```
+
+### 6.5. `lib/changes/providers/open_shift_provider.dart`
+
+```diff
+diff --git a/lib/changes/providers/open_shift_provider.dart b/lib/changes/providers/open_shift_provider.dart
+index 05f9e6c..2d49f32 100644
+--- a/lib/changes/providers/open_shift_provider.dart
++++ b/lib/changes/providers/open_shift_provider.dart
+@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
+ import 'package:hive/hive.dart';
+ import 'package:invan2/app_navigation.dart';
+ import 'package:invan2/changes/models/shift/shift_hive_model.dart';
++import 'package:invan2/changes/services/health/backend_health.dart';
+ import 'package:invan2/changes/services/shift/shift_diagnostics.dart';
+ import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
+ import 'package:invan2/features/checks/features/checks_app_bar/bloc/usr_bloc.dart';
+@@ -14,7 +15,6 @@ import 'package:invan2/widgets/my_snackbar.dart';
+ import 'package:invan2/widgets/shift_warning_dialog.dart';
+ import 'package:provider/provider.dart';
+ import '../../features/hive_repository/hive_boxes.dart';
+-import '../models/shift/shifting_model.dart';
+ import '../services/api.dart';
+ 
+ class OpenShiftProvider extends ChangeNotifier {
+@@ -120,11 +120,10 @@ class OpenShiftProvider extends ChangeNotifier {
+     notifyListeners();
+     ShiftSnapshot snapshot = await ShiftDiagnostics.capture();
+ 
+-    // Navbatda ochish/yopish turgan bo'lsa, internet bor ekan — avval o'shani
+-    // yuboramiz. Aks holda serverda ochilmagan smenani yopishga urinamiz va
+-    // server rad etadi. Bu yerda `flush` tartibi ham to'g'ri: avval yopish,
+-    // keyin ochish.
+-    if (snapshot.internet && !snapshot.canCloseOffline) {
++    // Navbatda serverga yetmagan ochish/yopish turgan bo'lsa, internet bor
++    // ekan — avval o'shani yuboramiz: bu smenaning yopilishi ulardan KEYIN
++    // ketishi kerak (navbat qat'iy tartibda yuboriladi).
++    if (snapshot.internet && ShiftSyncQueue.hasPending) {
+       await ShiftSyncQueue.flush(reason: 'before-close');
+       snapshot = await ShiftDiagnostics.capture(internet: true);
+     }
+@@ -132,34 +131,8 @@ class OpenShiftProvider extends ChangeNotifier {
+     _isWaiting = false;
+     notifyListeners();
+ 
+-    // 1) Yopish umuman mumkinmi? Mumkin bo'lmasa hech narsa yozilmasligi
+-    // kerak: `ShiftSingleton4.closeShift` Hive yozuviga `isClosed=true` va
+-    // `closedDate` ni shartni tekshirishdan OLDIN yozadi, keyin esa smenani
+-    // yopmay qo'yadi. 2026-08-17 da kassir aynan shu sababli "Smena yopildi"
+-    // degan xabarni ko'rib, smena ochiq qolganini keyin bilgan.
+-    final ShiftIssue? blocker = ShiftDiagnostics.blockingCloseIssue(snapshot);
+-    if (blocker != null) {
+-      await ShiftDiagnostics.report(
+-        issue: blocker,
+-        action: ShiftAction.close,
+-        snapshot: snapshot,
+-        detail: 'Yopish boshlanmadi (oflayn shart bajarilmaydi): '
+-            'openedCount=${snapshot.openedCount}, '
+-            'closedCount=${snapshot.closedCount}',
+-      );
+-      await showShiftWarningDialog(
+-        context,
+-        issues: [blocker],
+-        snapshot: snapshot,
+-        isUz: isUz,
+-        action: ShiftAction.close,
+-        infoOnly: true,
+-        succeeded: false,
+-      );
+-      return false;
+-    }
+-
+-    // 2) Yopish mumkin, lekin e'tibor berish kerak bo'lgan holatlar.
++    // Yopishni to'sadigan holat yo'q (navbat ro'yxat — internetsiz ham
++    // istalgancha yopish mumkin). Faqat e'tibor berish kerak bo'lganlari.
+     final List<ShiftIssue> warnings = ShiftDiagnostics.closeWarnings(snapshot);
+     if (warnings.isEmpty) return true;
+ 
+@@ -204,11 +177,17 @@ class OpenShiftProvider extends ChangeNotifier {
+     }
+   }
+ 
+-  /// Serverga yetmagan smena yopilishini qo'lda qayta yuboradi.
++  /// Serverga yetmagan smena voqealarini (yopish va ochishlarni) qo'lda
++  /// yuboradi — navbatdagi tartibida.
+   ///
+   /// 2026-08-13 hodisasida aynan shu yo'l yetishmagan edi: lokal smena yopiq,
+   /// serverda ochiq — va yopishni qayta yuborishning hech qanday usuli yo'q edi,
+   /// shu sababli kassa butunlay bloklanib qolgan.
++  ///
++  /// Joriy smenaning holatiga (`shiftsOpened`) TEGILMAYDI: navbatdagi yopish
++  /// doim OLDINGI smenaniki — joriy smena yopilganda u allaqachon `false`.
++  /// Ilgari bu yerda `shiftsOpened=false` qilinardi va tugma yopish-oldi
++  /// dialogidan bosilsa, ochiq smena Pref'da yopiq bo'lib qolardi.
+   Future<void> sendPendingCloseToServer(
+     BuildContext context, {
+     required bool isUz,
+@@ -216,20 +195,17 @@ class OpenShiftProvider extends ChangeNotifier {
+     _isWaiting = true;
+     notifyListeners();
+ 
+-    ShiftingModel result = await ShiftApi4.closeShift();
+-    final bool ok = result.statusCode == 200;
++    // Kassir o'zi bosdi — "server o'chgan" degan xotira so'rovni to'smasin.
++    BackendHealth.markUserInitiatedAction();
++    await ShiftSyncQueue.flush(reason: 'manual');
++    final bool ok = !ShiftSyncQueue.hasPending;
+ 
+-    if (ok) {
+-      await Pref.setString(PrefKeys.closedDate, '');
+-      await Pref.setInt(PrefKeys.closedCount, 0);
+-      await Pref.setBool(PrefKeys.shiftsOpened, false);
+-      _isShiftOpened = false;
+-    } else {
++    if (!ok) {
+       await ShiftDiagnostics.report(
+         issue: ShiftIssue.serverCloseFailed,
+         action: ShiftAction.close,
+-        detail: 'Kassir "Yopishni yuborish" tugmasini bosdi, server javobi: '
+-            '${result.statusCode ?? "-"} / ${result.message ?? "-"}',
++        detail: 'Kassir "Yopishni yuborish" tugmasini bosdi — navbat to\'liq '
++            'ketmadi. Navbatda qoldi: ${ShiftSyncQueue.describe()}',
+       );
+     }
+ 
+@@ -335,11 +311,11 @@ class OpenShiftProvider extends ChangeNotifier {
+       }
+       _isShiftOpened = false;
+ 
+-      // Smena kassada yopildi. Lekin serverga yetdimi? `closedDate` faqat
+-      // server 200 qaytarganda tozalanadi — bo'sh bo'lmasa, yopilish navbatda
+-      // qolgan va bu kassada yangi smena OCHILMAYDI. Kassir buni hozir
+-      // bilishi kerak, 15 marta "smena ochish"ni bosgandan keyin emas.
+-      if (Pref.getString(PrefKeys.closedDate, '').isNotEmpty) {
++      // Smena kassada yopildi. Lekin serverga yetdimi? Navbatda yopish
++      // qolgan bo'lsa — server bu kassani hali "ochiq" deb hisoblaydi. Kassir
++      // buni hozir bilishi kerak, 15 marta "smena ochish"ni bosgandan keyin
++      // emas.
++      if (ShiftSyncQueue.hasPendingClose) {
+         await ShiftDiagnostics.report(
+           issue: ShiftIssue.pendingCloseNotSynced,
+           action: ShiftAction.close,
+```
+
+### 6.6. `lib/features/settings/features/child_settings/view/child_settings_content.dart`
+
+```diff
+diff --git a/lib/features/settings/features/child_settings/view/child_settings_content.dart b/lib/features/settings/features/child_settings/view/child_settings_content.dart
+index c362abd..d6e922d 100644
+--- a/lib/features/settings/features/child_settings/view/child_settings_content.dart
++++ b/lib/features/settings/features/child_settings/view/child_settings_content.dart
+@@ -8,7 +8,10 @@ import 'package:invan2/features/settings/bloc/settings_bloc.dart';
+ import 'package:invan2/features/settings/features/child_settings/dialogs/before_log_out_dialog.dart';
+ import '../../../../../changes/services/api.dart';
+ import '../../../../../changes/services/api/result_http_model.dart';
++import '../../../../../changes/services/health/backend_health.dart';
++import '../../../../../changes/services/shift/shift_sync_queue.dart';
+ import '../../../../../utils/helpers/auth_reset.dart';
++import '../../../../../widgets/my_snackbar.dart';
+ import 'item_list_tile.dart';
+ import '../dialogs/language_dialog.dart';
+ import '../dialogs/tarozi_prefix_dialog.dart';
+@@ -99,6 +102,29 @@ class _ChildSettingsContentState extends State<ChildSettingsContent> {
+                 builder: (_) => const BeforeLogOutDialog(isAboutShift: true),
+               );
+             } else {
++              // Smena yopiq. Chiqishda butun Pref tozalanadi — serverga
++              // yetmagan smena ochish/yopishlari ham. Avval ularni yuboramiz;
++              // ketmasa chiqish to'xtatiladi, aks holda yopilish yo'qolib,
++              // server kassani "ochiq" deb qoladi.
++              if (ShiftSyncQueue.hasPending) {
++                BackendHealth.markUserInitiatedAction();
++                await ShiftSyncQueue.flush(reason: 'before-logout');
++                if (ShiftSyncQueue.hasPending) {
++                  if (!context.mounted) return;
++                  final bool isUz = loc.ha.toLowerCase() == 'ha';
++                  ScaffoldMessenger.of(context).showSnackBar(mySnackBar(
++                    context,
++                    msg: isUz
++                        ? 'Smena ma\'lumotlari serverga hali yuborilmagan. '
++                            'Internetni tekshirib, keyinroq qayta urinib '
++                            'ko\'ring.'
++                        : 'Данные смены ещё не отправлены на сервер. '
++                            'Проверьте интернет и попробуйте позже.',
++                    duration: 4000,
++                  ));
++                  return;
++                }
++              }
+               HttpResult httpResult = await ShiftApi4.closeCashBox();
+               if (!httpResult.isSuccess) {
+                 showDialog(
+```
+
+### 6.7. `lib/features/home/components/offline_mode_badge.dart`
+
+```diff
+diff --git a/lib/features/home/components/offline_mode_badge.dart b/lib/features/home/components/offline_mode_badge.dart
+index 68e677f..9ed2ace 100644
+--- a/lib/features/home/components/offline_mode_badge.dart
++++ b/lib/features/home/components/offline_mode_badge.dart
+@@ -75,7 +75,7 @@ class _OfflineModeBadgeState extends State<OfflineModeBadge> {
+           .build();
+       total = query.count();
+       query.close();
+-      if (ShiftSyncQueue.hasPending) total++;
++      total += ShiftSyncQueue.pendingCount;
+     } catch (_) {
+       // Sanoq ixtiyoriy — xato bo'lsa belgi baribir ko'rsatiladi.
+     }
+```
+
+### 6.8. `lib/utils/constants/pref_keys.dart`
+
+```dart
+  /// Smena navbati — serverga yetmagan ochish/yopishlar ro'yxati (JSON).
+  /// Qarang: `ShiftSyncQueue`.
+  static const String shiftSyncQueue = 'shift_sync_queue';
+  /// ESKI navbat kalitlari (2026-10-02 gacha). Yangi kod ularga yozmaydi —
+  /// faqat yangilangan kassada qolib ketgan navbatni `ShiftSyncQueue`
+  /// ro'yxatiga ko'chirish uchun o'qiladi.
+```
+
+(Eski kalitlar — `openedDate`, `openedCount`, `closedDate`, `closedCount` — o'z joyida qoladi.)
+
+### 6.9. Testlar
+
+<details><summary>YANGI: <code>test/shift_queue_scenarios_test.dart</code></summary>
+
+```dart
+// Smena navbati — "haqiqiy serverga o'xshash" stend.
+//
+// Nima uchun: smena ochish/yopishning serverga yetishi kassaning eng nozik
+// joyi. Kassir har xil ketma-ketlik qiladi (ochdi-yopdi-ochdi...), tarmoq esa
+// istalgan paytda uzilishi, server yiqilishi, javob yo'qolishi mumkin.
+//
+// Stend:
+// - lokal HTTP server kassa holatini (ochiq/yopiq) ESLAYDI va noto'g'ri
+//   o'tishni (ochiq kassani ochish, yopiq kassani yopish) RAD ETADI — xuddi
+//   haqiqiy backend kabi. Rad etish kodi sozlanadi (400/409/500/200/403),
+//   chunki haqiqiy server aynan qaysi kodni qaytarishi jonli tekshirilmagan;
+// - uzilishlar qo'lda beriladi: server 500, internet yo'q (ulanish uziladi),
+//   Wi-Fi login sahifasi (200 + HTML), token eskirgan (401), javob yo'qolishi
+//   (server bajardi, lekin javob kassaga yetmadi);
+// - ilovaning HAQIQIY kodi ishlaydi: ShiftSingleton4.openShift,
+//   ShiftSingleton4.syncCloseToServer, ShiftSyncQueue, ShiftApi4, ApiProvider,
+//   BackendHealth. Faqat transport lokal serverga yo'naltiriladi.
+//
+// Asosiy talab — har qanday ketma-ketlikdan keyin, aloqa tiklangach:
+// 1. navbat bo'sh (hech narsa tiqilib qolmagan);
+// 2. serverdagi kassa holati kassadagi bilan bir xil;
+// 3. server qabul qilgan amallar = kassir bajargan amallar: aynan shu
+//    tartibda, aynan shu vaqtlar bilan, har biri BIR martadan.
+
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+import 'package:intl/intl.dart';
+import 'package:invan2/changes/models/log/log_model.dart';
+import 'package:invan2/changes/models/shift/shift_hive_model.dart';
+import 'package:invan2/changes/services/api/api_provider.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
+import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
+import 'package:invan2/features/get_employees/model/employees_find_response.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+
+/// Tarmoq / server holati.
+enum _Net {
+  /// Hammasi ishlaydi.
+  up,
+
+  /// Server yiqilgan — har so'rovga 500.
+  down500,
+
+  /// Internet yo'q — ulanish javobsiz uziladi.
+  internetOff,
+
+  /// Wi-Fi login sahifasi: har so'rovga 200 + HTML.
+  captivePortal,
+
+  /// Token eskirgan — har so'rovga 401.
+  unauthorized,
+}
+
+/// Kassa holatini eslaydigan soxta backend.
+class _FakeBackend {
+  late HttpServer _http;
+
+  _Net net = _Net.up;
+
+  /// Noto'g'ri o'tishga (ochiq kassani ochish / yopiq kassani yopish) server
+  /// javobi. 200 — "idempotent" server: xato demaydi, holat o'zgarmaydi.
+  int rejectStatus = 400;
+
+  /// Keyingi ochish/yopish BAJARILADI, lekin javob kassaga yetmaydi.
+  bool loseNextResponse = false;
+
+  /// Keyingi ochish/yopish BAJARILMAYDI va shu status qaytadi — server
+  /// bir lahzaga yiqildi (qayta ishga tushyapti), so'ng darhol tirildi.
+  int? failNextMutationWith;
+
+  /// Server ochishni DOIMIY rad etadi (masalan validatsiya xatosi) — kassa
+  /// yopiq bo'lsa ham.
+  bool refuseOpens = false;
+
+  /// Backend'da o'chirilgan kassirlar: ularning ochish/yopishiga haqiqiy
+  /// server 500 "sql: no rows in result set" qaytaradi (jonli dev sinovi).
+  final Set<String> unknownUsers = {};
+
+  /// cashbox_id → serverda ochiqmi.
+  final Map<String, bool> open = {};
+
+  /// Server qabul qilgan amallar: `open@vaqt@kassa`.
+  final List<String> accepted = [];
+
+  int get port => _http.port;
+
+  Future<void> start() async {
+    _http = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    _http.listen(_handle);
+  }
+
+  Future<void> stop() => _http.close(force: true);
+
+  void reset() {
+    net = _Net.up;
+    rejectStatus = 400;
+    loseNextResponse = false;
+    failNextMutationWith = null;
+    refuseOpens = false;
+    unknownUsers.clear();
+    open
+      ..clear()
+      ..['kassa-1'] = false;
+    accepted.clear();
+  }
+
+  Future<void> _handle(HttpRequest req) async {
+    final String body = await utf8.decoder.bind(req).join();
+    switch (net) {
+      case _Net.internetOff:
+        await _drop(req);
+        return;
+      case _Net.down500:
+        await _reply(req, 500, '{"message":"Internal Server Error"}');
+        return;
+      case _Net.unauthorized:
+        await _reply(req, 401, '{"message":"Unauthorized"}');
+        return;
+      case _Net.captivePortal:
+        await _reply(req, 200, '<html><body>Wi-Fi login</body></html>');
+        return;
+      case _Net.up:
+        break;
+    }
+
+    final String path = req.uri.path;
+    if (path.endsWith('shift_statuses')) {
+      final List<Map<String, dynamic>> list = open.entries
+          .map((e) => <String, dynamic>{
+                'cashbox_id': e.key,
+                'cashbox_name': 'Kassa ${e.key}',
+                'status': e.value ? 'open' : 'closed',
+                'opened_by_pos': e.value,
+                'opened_by_web': false,
+                'opened_by_user_id': e.value ? 'kimdir' : '',
+              })
+          .toList();
+      await _reply(req, 200, jsonEncode(list));
+      return;
+    }
+
+    if (path.endsWith('shift_pos')) {
+      final Map<String, dynamic> data = jsonDecode(body);
+      final String cashbox = '${data['cashbox_id']}';
+      final bool wantsOpen = data['method'] == 'open';
+      final String at =
+          wantsOpen ? '${data['opened_at']}' : '${data['closed_at']}';
+      final bool isOpen = open[cashbox] ?? false;
+      final int? fail = failNextMutationWith;
+      if (fail != null) {
+        failNextMutationWith = null;
+        await _reply(req, fail, '{"message":"temporarily unavailable"}');
+        return;
+      }
+      if (wantsOpen && refuseOpens) {
+        await _reply(req, 400, '{"message":"validation failed"}');
+        return;
+      }
+      if (unknownUsers.contains('${data['user_id']}')) {
+        await _reply(req, 500,
+            '{"error":"rpc error: code = Unknown desc = sql: no rows in result set"}');
+        return;
+      }
+      if (wantsOpen == isOpen) {
+        await _reply(
+          req,
+          rejectStatus,
+          wantsOpen
+              ? '{"message":"cashbox already open"}'
+              : '{"message":"cashbox is not open"}',
+        );
+        return;
+      }
+      open[cashbox] = wantsOpen;
+      accepted.add('${data['method']}@$at@$cashbox');
+      if (loseNextResponse) {
+        loseNextResponse = false;
+        await _drop(req);
+        return;
+      }
+      await _reply(req, 200, '{"message":"Success"}');
+      return;
+    }
+
+    await _reply(req, 200, '{"message":"Success"}');
+  }
+
+  static Future<void> _reply(HttpRequest req, int status, String body) async {
+    req.response
+      ..statusCode = status
+      ..headers.contentType = ContentType.json
+      ..write(body);
+    await req.response.close();
+  }
+
+  /// Javobsiz uzish: ulanish yopiladi, kassa javob olmaydi.
+  static Future<void> _drop(HttpRequest req) async {
+    final Socket socket =
+        await req.response.detachSocket(writeHeaders: false);
+    socket.destroy();
+  }
+}
+
+/// Ilovaning barcha HTTP so'rovlarini lokal serverga yo'naltiradi.
+class _ToLocal extends HttpOverrides {
+  _ToLocal(this.port);
+
+  final int port;
+
+  @override
+  HttpClient createHttpClient(SecurityContext? context) =>
+      _LocalClient(super.createHttpClient(context), port);
+}
+
+class _LocalClient implements HttpClient {
+  _LocalClient(this._inner, this._port);
+
+  final HttpClient _inner;
+  final int _port;
+
+  @override
+  Future<HttpClientRequest> openUrl(String method, Uri url) => _inner.openUrl(
+      method, url.replace(scheme: 'http', host: '127.0.0.1', port: _port));
+
+  @override
+  void close({bool force = false}) => _inner.close(force: force);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// `ShiftSingleton4.openShift` kontekstdan foydalanmaydi.
+class _FakeContext extends Fake implements BuildContext {}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Directory tempDir;
+  final _FakeBackend backend = _FakeBackend();
+  final BuildContext ctx = _FakeContext();
+  final DateFormat fmt = DateFormat('yyyy-MM-dd HH:mm:ss');
+
+  DateTime simTime = DateTime.utc(2026, 10, 2, 3);
+
+  /// Kassir kassada bajargan amallar: `open@vaqt@kassa`.
+  final List<String> posLog = [];
+
+  setUpAll(() async {
+    tempDir = await Directory.systemTemp.createTemp('shift_queue_scenarios');
+    Hive.init(tempDir.path);
+
+    void reg<T>(int typeId, TypeAdapter<T> adapter) {
+      if (!Hive.isAdapterRegistered(typeId)) Hive.registerAdapter(adapter);
+    }
+
+    reg(27, LogModelAdapter());
+    reg(0, EmployeeAdapter());
+    reg(2, EmployeeAccessAdapter());
+    reg(101, EmployeeUserAdapter());
+    reg(102, EmployeeRoleAdapter());
+    reg(30, ShiftModelHiveAdapter());
+    reg(31, CashDrawerHiveAdapter());
+    reg(32, SalesSummaryHiveAdapter());
+    reg(33, PaysHiveAdapter());
+
+    await Hive.openBox<dynamic>('prefs');
+    await Hive.openBox<LogModel>('logs');
+    await Hive.openBox<LogModel>('tg_logs');
+    await Hive.openBox<Employee>('employees');
+    await Hive.openBox<ShiftModelHive>('shifts');
+
+    // Testda Telegramga haqiqiy xabar ketmasin.
+    await Pref.setBool(PrefKeys.isSendToTelegram, false);
+
+    await backend.start();
+    HttpOverrides.global = _ToLocal(backend.port);
+    BackendHealth.configureProbeUrl(ApiProvider.baseUrlINVAN2);
+  });
+
+  tearDownAll(() async {
+    ShiftSingleton4.clock = DateTime.now;
+    ShiftSyncQueue.now = DateTime.now;
+    BackendHealth.reset();
+    BackendHealth.autoProbe = true;
+    HttpOverrides.global = null;
+    await backend.stop();
+    await Hive.close();
+    await tempDir.delete(recursive: true);
+  });
+
+  void setNet(_Net net) {
+    backend.net = net;
+    BackendHealth.internetCheck = () async => net != _Net.internetOff;
+  }
+
+  /// Server/internet tiklandi va `BackendHealth` buni sezdi (ilovada buni
+  /// fon tekshiruvi qiladi).
+  void recovered() {
+    setNet(_Net.up);
+    BackendHealth.reset();
+  }
+
+  /// Fonda ketayotgan yuborishlar tugashi uchun.
+  Future<void> settle() =>
+      Future<void>.delayed(const Duration(milliseconds: 30));
+
+  /// Aloqa tiklangach ilova navbatni oxirigacha yuboradi.
+  Future<void> deliverAll() async {
+    recovered();
+    final Stopwatch sw = Stopwatch()..start();
+    while (ShiftSyncQueue.hasPending && sw.elapsed.inSeconds < 10) {
+      // Ilovada `BackendHealth` fon tekshiruvi (har 30 soniyada) server
+      // tirikligini o'zi aniqlaydi va holatni `up` qiladi. Testda fon
+      // tekshiruvi o'chiq — eskirgan tasdiqlovchi so'rov holatni `down`
+      // qilib qo'yishi mumkin, shuning uchun o'sha tiklanishni shu yerda
+      // qaytaramiz.
+      BackendHealth.reset();
+      await ShiftSyncQueue.flush(reason: 'test-final');
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    await settle();
+  }
+
+  Future<void> resetWorld() async {
+    await settle();
+    backend.reset();
+    BackendHealth.reset();
+    BackendHealth.autoProbe = false;
+    BackendHealth.now = DateTime.now;
+    BackendHealth.internetCheck = () async => true;
+    await Pref.setString(PrefKeys.shiftSyncQueue, '');
+    await Pref.setString(PrefKeys.openedDate, '');
+    await Pref.setString(PrefKeys.closedDate, '');
+    await Pref.setInt(PrefKeys.openedCount, 0);
+    await Pref.setInt(PrefKeys.closedCount, 0);
+    await Pref.setBool(PrefKeys.shiftsOpened, false);
+    await Pref.setString(PrefKeys.activatedPosId, 'kassa-1');
+    await Pref.setString(PrefKeys.userId, 'kassir-1');
+    await Pref.setString(PrefKeys.token, 'test-token');
+    await Hive.box<ShiftModelHive>('shifts').clear();
+    simTime = DateTime.utc(2026, 10, 2, 3);
+    ShiftSingleton4.clock = () => simTime;
+    ShiftSyncQueue.now = DateTime.now;
+    posLog.clear();
+  }
+
+  String kassa() => Pref.getString(PrefKeys.activatedPosId, '');
+
+  bool posOpen() => Pref.getBool(PrefKeys.shiftsOpened, false);
+
+  /// Kassir "Smena ochish"ni bosdi (`OpenShiftProvider.openShift` kabi).
+  Future<bool?> cashierOpens() async {
+    simTime = simTime.add(const Duration(minutes: 7));
+    final bool? result =
+        await ShiftSingleton4.openShift(ctx, startingCash: 0);
+    await Pref.setBool(PrefKeys.shiftsOpened, result ?? false);
+    if (result == true) posLog.add('open@${fmt.format(simTime)}@${kassa()}');
+    return result;
+  }
+
+  /// Kassir "Smena yopish"ni bosdi (`OpenShiftProvider` oqimi: internet
+  /// bo'lsa avval navbat yuboriladi, keyin yopiladi).
+  Future<void> cashierCloses() async {
+    simTime = simTime.add(const Duration(minutes: 7));
+    if (await BackendHealth.isUsable() && ShiftSyncQueue.hasPending) {
+      await ShiftSyncQueue.flush(reason: 'before-close');
+    }
+    await ShiftSingleton4.syncCloseToServer(
+      closedAt: fmt.format(simTime),
+      userId: Pref.getString(PrefKeys.userId, ''),
+      cashboxId: kassa(),
+    );
+    posLog.add('close@${fmt.format(simTime)}@${kassa()}');
+    expect(posOpen(), isFalse,
+        reason: 'yopish kassada HAR DOIM bajarilishi kerak');
+  }
+
+  void expectConsistent([String label = '']) {
+    expect(ShiftSyncQueue.hasPending, isFalse,
+        reason: '$label\nnavbat tiqilib qoldi: ${ShiftSyncQueue.describe()}');
+    expect(backend.open[kassa()] ?? false, posOpen(),
+        reason: '$label\nserverdagi va kassadagi smena holati farq qiladi');
+    expect(backend.accepted, posLog,
+        reason: '$label\nserver qabul qilgan amallar kassir amallariga '
+            'teng emas');
+  }
+
+  setUp(resetWorld);
+
+  group('Aniq stsenariylar', () {
+    test('server ertalabdan o\'chiq: ochish → yopish → ochish → yopish — '
+        'server qaytgach to\'rttalasi tartib bilan yetadi', () async {
+      setNet(_Net.down500);
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+      expect(backend.accepted, isEmpty);
+      expect(ShiftSyncQueue.pendingCount, 4);
+
+      await deliverAll();
+      expectConsistent();
+      expect(backend.accepted.length, 4);
+    });
+
+    test('internet yo\'q: xuddi shu ketma-ketlik', () async {
+      setNet(_Net.internetOff);
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('ertalab server ishlagan → o\'chdi → yopish → yana ochish → server '
+        'qaytdi (foydalanuvchi savoli)', () async {
+      expect(await cashierOpens(), isTrue);
+      expect(backend.open['kassa-1'], isTrue, reason: 'onlayn ochildi');
+
+      setNet(_Net.down500);
+      await cashierCloses();
+      expect(await cashierOpens(), isTrue);
+
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('server ertalabdan o\'chiq, kunduzi qaytdi, kechqurun yopildi — '
+        'kechki yopish oflayn ochilishdan KEYIN yetadi', () async {
+      setNet(_Net.down500);
+      expect(await cashierOpens(), isTrue);
+
+      // Server qaytdi, lekin navbat hali yuborilmadi (trigger kechikdi).
+      recovered();
+      await cashierCloses();
+
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('Wi-Fi login sahifasi (200 + HTML) — kassa oflayndagidek ishlaydi',
+        () async {
+      setNet(_Net.captivePortal);
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+      expect(backend.accepted, isEmpty);
+
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('onlayn ochishning JAVOBI yo\'qoldi (server ochdi, kassa bilmadi) — '
+        'takror yuborilmaydi, yopish to\'g\'ri yetadi', () async {
+      backend.loseNextResponse = true;
+      expect(await cashierOpens(), isTrue);
+      expect(backend.open['kassa-1'], isTrue);
+      expect(ShiftSyncQueue.pendingCount, 1,
+          reason: 'javob kelmagani uchun ochish navbatga tushadi');
+
+      await cashierCloses();
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('navbatdan yuborishda javob yo\'qoldi — server holatidan "bajarilgan" '
+        'deb aniqlanadi, takror yuborilmaydi, qolganlari shu zahoti yetadi',
+        () async {
+      setNet(_Net.down500);
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+      expect(await cashierOpens(), isTrue);
+
+      recovered();
+      backend.loseNextResponse = true;
+      await ShiftSyncQueue.flush(reason: 'backend-recovered');
+      expect(ShiftSyncQueue.pendingCount, 0);
+      expectConsistent();
+    });
+
+    test('yopishning javobi yo\'qoldi (onlayn) — kassa yopiq, server yopiq',
+        () async {
+      expect(await cashierOpens(), isTrue);
+      backend.loseNextResponse = true;
+      await cashierCloses();
+      expect(backend.open['kassa-1'], isFalse);
+      expect(ShiftSyncQueue.pendingCount, 1);
+
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('token eskirdi (401): yopish kassada bajariladi va saqlanadi; '
+        'navbatda yetmagan voqea bor — ochish ham lokal bajariladi; token '
+        'yangilangach hammasi yetadi', () async {
+      expect(await cashierOpens(), isTrue);
+      setNet(_Net.unauthorized);
+      await cashierCloses();
+      expect(ShiftSyncQueue.pendingCount, 1);
+
+      // Server bizning yopilishimizni hali bilmaydi ("ochiq" deydi) — uning
+      // eskirgan holatiga ishonib kassirni to'xtatib bo'lmaydi.
+      expect(await cashierOpens(), isTrue);
+      expect(ShiftSyncQueue.pendingCount, 2);
+
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('token eskirdi (401), navbat BO\'SH — ochish bloklanadi (dizayn: '
+        'server tirik, lekin rad etyapti, lokal ochib yashirilmaydi)',
+        () async {
+      setNet(_Net.unauthorized);
+      expect(await cashierOpens(), isFalse);
+      expect(ShiftSyncQueue.hasPending, isFalse);
+      expect(posOpen(), isFalse);
+    });
+
+    test('server ochilmagan kassani "ochiq" ko\'rsatyapti, navbat bo\'sh — '
+        'ochish bloklanadi va sabab ko\'rsatiladi (o\'zgarmagan xulq)',
+        () async {
+      backend.open['kassa-1'] = true; // masalan, web orqali ochilgan
+      expect(await cashierOpens(), isNull);
+      expect(ShiftSyncQueue.hasPending, isFalse);
+    });
+
+    for (final int status in [409, 422, 500]) {
+      test('server noto\'g\'ri o\'tishni $status bilan rad etsa ham navbat '
+          'tiqilmaydi', () async {
+        backend.rejectStatus = status;
+        setNet(_Net.down500);
+        expect(await cashierOpens(), isTrue);
+        await cashierCloses();
+
+        recovered();
+        backend.loseNextResponse = true; // birinchi voqea takror ketadi
+        await ShiftSyncQueue.flush(reason: 'backend-recovered');
+
+        await deliverAll();
+        expectConsistent();
+      });
+    }
+
+    test('server takrorga 200 qaytarsa (idempotent) ham hammasi izchil',
+        () async {
+      backend.rejectStatus = 200;
+      backend.loseNextResponse = true;
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+      expect(await cashierOpens(), isTrue);
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('server takrorni 403 bilan rad etsa ham — kassa holati allaqachon '
+        'mosligi serverdan tekshiriladi, navbat tiqilmaydi', () async {
+      backend.rejectStatus = 403;
+      setNet(_Net.down500);
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+
+      recovered();
+      backend.loseNextResponse = true;
+      await ShiftSyncQueue.flush(reason: 'backend-recovered');
+      // Kassa sotishda davom etadi, keyingi ochish/yopish ham yetadi.
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+
+      await deliverAll();
+      expectConsistent();
+    });
+
+    for (final int status in [500, 502, 503, 404]) {
+      test('server bir lahza $status qaytardi va DARHOL tirildi — haqiqiy '
+          'voqea tashlab yuborilmaydi (tasodifiy testda topilgan)', () async {
+        setNet(_Net.down500);
+        expect(await cashierOpens(), isTrue);
+        await cashierCloses();
+        expect(await cashierOpens(), isTrue);
+
+        recovered();
+        backend.failNextMutationWith = status; // birinchi voqea bajarilmaydi
+        await ShiftSyncQueue.flush(reason: 'backend-recovered');
+        expect(ShiftSyncQueue.pendingCount, 3,
+            reason: 'server tirik chiqdi, lekin ochish unda AKS ETMAGAN — '
+                'voqea navbatda qolishi shart');
+
+        await deliverAll();
+        expectConsistent();
+      });
+    }
+
+    test('server ochishni DOIMIY rad etadi (holat mos emas) — navbat kutadi, '
+        'hech narsa yo\'qolmaydi, kassa ishlashda davom etadi', () async {
+      setNet(_Net.down500);
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+
+      recovered();
+      backend.refuseOpens = true;
+      await ShiftSyncQueue.flush(reason: 'backend-recovered');
+      expect(ShiftSyncQueue.pendingCount, 2,
+          reason: 'ochish serverda yo\'q — tashlab yuborilmaydi');
+
+      // Kassir bemalol ishlayveradi.
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+      expect(ShiftSyncQueue.pendingCount, 4);
+      expect(backend.accepted, isEmpty);
+
+      // Backend tuzatildi.
+      backend.refuseOpens = false;
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('kassir backend\'da O\'CHIRILGAN (server 500 "sql: no rows") — '
+        'voqea 1 soat kutadi, so\'ng hisobot bilan olib tashlanadi; navbat '
+        'tiqilib qolmaydi', () async {
+      DateTime clock = DateTime.now();
+      ShiftSyncQueue.now = () => clock;
+
+      setNet(_Net.down500);
+      await Pref.setString(PrefKeys.userId, 'ochirilgan-kassir');
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+      await Pref.setString(PrefKeys.userId, 'kassir-1');
+      final List<String> poisoned = List<String>.of(posLog);
+
+      recovered();
+      backend.unknownUsers.add('ochirilgan-kassir');
+      for (int i = 0; i < 6; i++) {
+        await ShiftSyncQueue.flush(reason: 'receipts-uploaded');
+        clock = clock.add(const Duration(minutes: 5));
+      }
+      expect(ShiftSyncQueue.pendingCount, 2,
+          reason: '1 soat o\'tmaguncha haqiqiy voqea tashlanmaydi');
+      expect(ShiftSyncQueue.pending.first.failures, greaterThanOrEqualTo(5));
+
+      // Kassa baribir ishlaydi (to'g'ri kassir bilan).
+      expect(await cashierOpens(), isTrue);
+
+      clock = clock.add(const Duration(minutes: 61));
+      await deliverAll();
+
+      expect(ShiftSyncQueue.hasPending, isFalse,
+          reason: 'zaharli voqea navbatni abadiy to\'smasligi kerak');
+      expect(backend.open['kassa-1'], posOpen());
+      expect(backend.accepted,
+          posLog.where((e) => !poisoned.contains(e)).toList(),
+          reason: 'faqat o\'chirilgan kassirning amallari yetmaydi');
+    });
+
+    test('tez-tez uzilish: har amaldan keyin tarmoq holati almashadi',
+        () async {
+      final List<_Net> pattern = [
+        _Net.down500,
+        _Net.up,
+        _Net.internetOff,
+        _Net.up,
+        _Net.captivePortal,
+        _Net.down500,
+        _Net.up,
+        _Net.internetOff,
+      ];
+      for (int i = 0; i < 16; i++) {
+        final _Net net = pattern[i % pattern.length];
+        if (net == _Net.up) {
+          recovered();
+        } else {
+          setNet(net);
+        }
+        if (posOpen()) {
+          await cashierCloses();
+        } else {
+          expect(await cashierOpens(), isTrue, reason: 'qadam $i ($net)');
+        }
+      }
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('kassir navbat yuborilayotgan PAYTDA smenani yopadi', () async {
+      setNet(_Net.down500);
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+      expect(await cashierOpens(), isTrue);
+
+      recovered();
+      final Future<void> background =
+          ShiftSyncQueue.flush(reason: 'backend-recovered');
+      await cashierCloses(); // fon yuborish tugashini kutmasdan
+      await background;
+
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('kassa boshqa kassaga qayta aktivlashtirildi — eski amallar o\'z '
+        'kassasiga ketadi', () async {
+      backend.open['kassa-2'] = false;
+      setNet(_Net.down500);
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+
+      await Pref.setString(PrefKeys.activatedPosId, 'kassa-2');
+      expect(await cashierOpens(), isTrue);
+
+      await deliverAll();
+      expect(ShiftSyncQueue.hasPending, isFalse);
+      expect(backend.accepted, posLog);
+      expect(backend.open['kassa-1'], isFalse);
+      expect(backend.open['kassa-2'], isTrue);
+    });
+
+    test('har amal o\'z kassiri nomidan ketadi (kassir almashdi)', () async {
+      final List<String> users = [];
+      setNet(_Net.down500);
+      await Pref.setString(PrefKeys.userId, 'ali');
+      expect(await cashierOpens(), isTrue);
+      await cashierCloses();
+      await Pref.setString(PrefKeys.userId, 'vali');
+      expect(await cashierOpens(), isTrue);
+
+      users.addAll(ShiftSyncQueue.pending.map((e) => e.userId));
+      expect(users, ['ali', 'ali', 'vali']);
+
+      await deliverAll();
+      expectConsistent();
+    });
+
+    test('ko\'p amal: 30 marta ochish/yopish internetsiz — hammasi yetadi',
+        () async {
+      setNet(_Net.internetOff);
+      for (int i = 0; i < 15; i++) {
+        expect(await cashierOpens(), isTrue);
+        await cashierCloses();
+      }
+      expect(ShiftSyncQueue.pendingCount, 30);
+      await deliverAll();
+      expectConsistent();
+    });
+  });
+
+  group('Tasodifiy stsenariylar', () {
+    // Odatda 100; og'ir tekshiruv uchun:
+    // flutter test test/shift_queue_scenarios_test.dart \
+    //   --dart-define=SHIFT_FUZZ_SEEDS=2000
+    const int seeds =
+        int.fromEnvironment('SHIFT_FUZZ_SEEDS', defaultValue: 100);
+    // Bitta muvaffaqiyatsiz holatni qayta ko'rish uchun:
+    // --dart-define=SHIFT_FUZZ_SEED=247 --dart-define=SHIFT_FUZZ_REJECT=500
+    const int onlySeed = int.fromEnvironment('SHIFT_FUZZ_SEED');
+    const int onlyReject = int.fromEnvironment('SHIFT_FUZZ_REJECT');
+
+    test(
+        'TASODIFIY: 4 xil server xulqi × $seeds ta ketma-ketlik × 25 qadam — '
+        'har doim izchil', () async {
+      int runs = 0;
+      for (final int rejectStatus in [400, 409, 500, 200]) {
+        if (onlyReject != 0 && rejectStatus != onlyReject) continue;
+        for (int seed = 1; seed <= seeds; seed++) {
+          if (onlySeed != 0 && seed != onlySeed) continue;
+          await resetWorld();
+          backend.rejectStatus = rejectStatus;
+          final Random rnd = Random(seed * 1000 + rejectStatus);
+          final List<String> trace = [];
+
+          for (int step = 0; step < 25; step++) {
+            final int roll = rnd.nextInt(100);
+            if (roll < 35) {
+              if (posOpen()) {
+                trace.add('yopish');
+                await cashierCloses();
+              } else {
+                trace.add('ochish');
+                final _Net net = backend.net;
+                final bool? result = await cashierOpens();
+                // 401 da ikkala natija ham dizayn bo'yicha: navbat bo'sh va
+                // server "tirik" bo'lsa bloklanadi, aks holda lokal ochiladi.
+                // Boshqa har qanday holatda ochish bloklanmasligi SHART.
+                if (net != _Net.unauthorized) {
+                  expect(result, isTrue,
+                      reason: 'ochish bloklanmasligi kerak ($net): '
+                          '${trace.join(', ')}');
+                }
+              }
+            } else if (roll < 45) {
+              trace.add('server-500');
+              setNet(_Net.down500);
+            } else if (roll < 55) {
+              trace.add('internet-yoq');
+              setNet(_Net.internetOff);
+            } else if (roll < 59) {
+              trace.add('wifi-login');
+              setNet(_Net.captivePortal);
+            } else if (roll < 63) {
+              trace.add('401');
+              setNet(_Net.unauthorized);
+            } else if (roll < 80) {
+              trace.add('tiklandi');
+              recovered();
+              if (rnd.nextBool()) {
+                await ShiftSyncQueue.flush(reason: 'backend-recovered');
+              }
+            } else if (roll < 84) {
+              trace.add('javob-yoqoladi');
+              backend.loseNextResponse = true;
+            } else if (roll < 88) {
+              final int status = [500, 502, 404][rnd.nextInt(3)];
+              trace.add('bir-lahza-$status');
+              backend.failNextMutationWith = status;
+            } else if (roll < 95) {
+              trace.add('flush');
+              await ShiftSyncQueue.flush(reason: 'receipts-uploaded');
+            } else {
+              trace.add('yopishni-yuborish');
+              BackendHealth.markUserInitiatedAction();
+              await ShiftSyncQueue.flush(reason: 'manual');
+            }
+          }
+
+          await deliverAll();
+          expectConsistent('rad etish=$rejectStatus seed=$seed\n'
+              'qadamlar: ${trace.join(', ')}');
+          runs++;
+        }
+      }
+      if (onlySeed == 0 && onlyReject == 0) expect(runs, 4 * seeds);
+    }, timeout: const Timeout(Duration(hours: 2)));
+  });
+}
+```
+
+</details>
+
+<details><summary><code>test/server_down_behaviour_test.dart</code> (diff)</summary>
+
+```diff
+diff --git a/test/server_down_behaviour_test.dart b/test/server_down_behaviour_test.dart
+index 5f476b9..5aa7077 100644
+--- a/test/server_down_behaviour_test.dart
++++ b/test/server_down_behaviour_test.dart
+@@ -48,6 +48,10 @@ enum ServerMode {
+   /// Server SOG'LOM, lekin bitta so'rov (chek yuborish) unda xatoga olib
+   /// keladi — faqat `order_pos` 500 qaytaradi.
+   poisonedOrderPos,
++
++  /// Server TIRIK, lekin smena YOPISHni rad etadi (400 — "kassa ochiq
++  /// emas"). Qolgan so'rovlar normal.
++  rejectShiftClose,
+ }
+ 
+ /// Chegaraga yetilgach `BackendHealth` serverning tirikligini TEKSHIRIB
+@@ -115,6 +119,25 @@ void main() {
+         await request.response.close();
+         return;
+       }
++      if (mode == ServerMode.rejectShiftClose) {
++        // Kassa serverda YOPIQ: yopish rad etiladi, holat so'ralsa "yopiq".
++        if (request.uri.path.contains('shift_statuses')) {
++          request.response.statusCode = 200;
++          request.response.write('[{"cashbox_id":"kassa-1",'
++              '"status":"closed","opened_by_pos":false,'
++              '"opened_by_web":false,"opened_by_user_id":""}]');
++          await request.response.close();
++          return;
++        }
++        final bool reject = request.uri.path.contains('shift_pos') &&
++            body.contains('"method":"close"');
++        request.response.statusCode = reject ? 400 : 200;
++        request.response.write(reject
++            ? '{"message":"cashbox is not open"}'
++            : '{"message":"Success"}');
++        await request.response.close();
++        return;
++      }
+       if (mode == ServerMode.partialEmployees) {
+         if (request.uri.path.contains('role_with_permissions')) {
+           request.response.statusCode = 500;
+@@ -475,30 +498,35 @@ void main() {
+ 
+   group('Smena navbati — server o\'chgan kun stsenariysi', () {
+     setUp(() async {
++      await Pref.setString(PrefKeys.shiftSyncQueue, '');
+       await Pref.setString(PrefKeys.openedDate, '');
+       await Pref.setString(PrefKeys.closedDate, '');
+       await Pref.setInt(PrefKeys.openedCount, 0);
+       await Pref.setInt(PrefKeys.closedCount, 0);
++      await Pref.setString(PrefKeys.userId, 'kassir-1');
++      await Pref.setString(PrefKeys.activatedPosId, 'kassa-1');
+     });
+ 
++    List<String> shiftCalls() =>
++        requestLog.where((r) => r.contains('shift_pos')).toList();
++
+     test('ertalab oflayn ochilgan + kechqurun oflayn yopilgan smena — '
+         'serverga AVVAL ochish, KEYIN yopish ketadi', () async {
+       // Server o'chgan kun: ikkalasi ham navbatda qoldi.
+-      await Pref.setString(PrefKeys.openedDate, '2026-09-02 09:00:00');
+-      await Pref.setInt(PrefKeys.openedCount, 1);
+-      await Pref.setString(PrefKeys.closedDate, '2026-09-02 21:00:00');
+-      await Pref.setInt(PrefKeys.closedCount, 1);
++      await ShiftSyncQueue.enqueueOpen('2026-09-02 09:00:00');
++      await ShiftSyncQueue.enqueueClose('2026-09-02 21:00:00');
+ 
+       // Ertasiga server ko'tarildi.
+       mode = ServerMode.ok;
+       await ShiftSyncQueue.flush(reason: 'test');
+ 
+-      final List<String> shiftCalls =
+-          requestLog.where((r) => r.contains('shift_pos')).toList();
+-      expect(shiftCalls.length, 2, reason: 'ikkalasi ham yuborilishi kerak');
+-      expect(shiftCalls.first.contains('"method":"open"'), isTrue,
++      final List<String> calls = shiftCalls();
++      expect(calls.length, 2, reason: 'ikkalasi ham yuborilishi kerak');
++      expect(calls.first, contains('"method":"open"'),
+           reason: 'ochilmagan smenani yopib bo\'lmaydi — tartib muhim');
+-      expect(shiftCalls.last.contains('"method":"close"'), isTrue);
++      expect(calls.first, contains('"opened_at":"2026-09-02 09:00:00"'));
++      expect(calls.last, contains('"method":"close"'));
++      expect(calls.last, contains('"closed_at":"2026-09-02 21:00:00"'));
+ 
+       expect(ShiftSyncQueue.hasPending, isFalse,
+           reason: 'ikkalasi ketgach navbat bo\'shashi kerak');
+@@ -506,38 +534,145 @@ void main() {
+ 
+     test('oldingi smena yopilishi navbatda, keyin yangi smena ochilgan — '
+         'AVVAL yopish ketadi', () async {
+-      await Pref.setString(PrefKeys.closedDate, '2026-09-02 08:00:00');
+-      await Pref.setInt(PrefKeys.closedCount, 1);
+-      await Pref.setString(PrefKeys.openedDate, '2026-09-02 09:00:00');
+-      await Pref.setInt(PrefKeys.openedCount, 1);
++      await ShiftSyncQueue.enqueueClose('2026-09-02 08:00:00');
++      await ShiftSyncQueue.enqueueOpen('2026-09-02 09:00:00');
++
++      await ShiftSyncQueue.flush(reason: 'test');
++
++      final List<String> calls = shiftCalls();
++      expect(calls.length, 2);
++      expect(calls.first, contains('"method":"close"'));
++      expect(calls.last, contains('"method":"open"'));
++    });
++
++    test('server ertalabdan o\'chiq: ochish → yopish → yana ochish — '
++        'UCHALASI ham o\'z vaqti bilan, tartib bilan ketadi', () async {
++      // 2026-10-02 da topilgan bug: eski navbatda ikkinchi ochish
++      // birinchisining vaqtini o'chirardi va navbatda "yopish 14:00,
++      // ochish 14:05" qolardi — server ochilmagan smenani yopishni rad
++      // etardi, ochish esa hech qachon ketmasdi.
++      await ShiftSyncQueue.enqueueOpen('2026-10-02 08:00:00');
++      await ShiftSyncQueue.enqueueClose('2026-10-02 14:00:00');
++      await ShiftSyncQueue.enqueueOpen('2026-10-02 14:05:00');
++
++      expect(ShiftSyncQueue.pendingCount, 3,
++          reason: 'hech bir voqea boshqasini o\'chirmasligi kerak');
+ 
+       await ShiftSyncQueue.flush(reason: 'test');
+ 
+-      final List<String> shiftCalls =
+-          requestLog.where((r) => r.contains('shift_pos')).toList();
+-      expect(shiftCalls.length, 2);
+-      expect(shiftCalls.first.contains('"method":"close"'), isTrue);
+-      expect(shiftCalls.last.contains('"method":"open"'), isTrue);
++      final List<String> calls = shiftCalls();
++      expect(calls.length, 3);
++      expect(calls[0], contains('"opened_at":"2026-10-02 08:00:00"'));
++      expect(calls[1], contains('"closed_at":"2026-10-02 14:00:00"'));
++      expect(calls[2], contains('"opened_at":"2026-10-02 14:05:00"'));
++      expect(ShiftSyncQueue.hasPending, isFalse);
++    });
++
++    test('internetsiz IKKI MARTA yopish — ikkala yopilish ham saqlanadi va '
++        'tartib bilan yuboriladi', () async {
++      await ShiftSyncQueue.enqueueOpen('2026-10-02 08:00:00');
++      await ShiftSyncQueue.enqueueClose('2026-10-02 14:00:00');
++      await ShiftSyncQueue.enqueueOpen('2026-10-02 14:05:00');
++      await ShiftSyncQueue.enqueueClose('2026-10-02 22:00:00');
++
++      await ShiftSyncQueue.flush(reason: 'test');
++
++      final List<String> calls = shiftCalls();
++      expect(
++        calls.map((c) => c.contains('"method":"open"') ? 'open' : 'close'),
++        ['open', 'close', 'open', 'close'],
++      );
++      expect(calls[1], contains('"closed_at":"2026-10-02 14:00:00"'));
++      expect(calls[3], contains('"closed_at":"2026-10-02 22:00:00"'));
++      expect(ShiftSyncQueue.hasPending, isFalse);
+     });
+ 
+     test('server hali ham o\'chiq bo\'lsa navbat SAQLANADI', () async {
+-      await Pref.setString(PrefKeys.openedDate, '2026-09-02 09:00:00');
+-      await Pref.setInt(PrefKeys.openedCount, 1);
+-      await Pref.setString(PrefKeys.closedDate, '2026-09-02 21:00:00');
+-      await Pref.setInt(PrefKeys.closedCount, 1);
++      await ShiftSyncQueue.enqueueOpen('2026-09-02 09:00:00');
++      await ShiftSyncQueue.enqueueClose('2026-09-02 21:00:00');
+ 
+       mode = ServerMode.error500;
+       await ShiftSyncQueue.flush(reason: 'test');
+ 
+-      expect(ShiftSyncQueue.hasPendingOpen, isTrue);
+-      expect(ShiftSyncQueue.hasPendingClose, isTrue,
+-          reason: 'yuborilmagan yopish yo\'qolmasligi kerak');
++      expect(ShiftSyncQueue.pendingCount, 2,
++          reason: 'yuborilmagan voqealar yo\'qolmasligi kerak');
+ 
+       // Birinchi qadam (ochish) yiqilgach ikkinchisi urinilmasligi kerak:
+       // ochilmagan smenani yopishga urinish server uchun ma'nosiz.
+-      final List<String> shiftCalls =
+-          requestLog.where((r) => r.contains('shift_pos')).toList();
+-      expect(shiftCalls.length, 1);
++      expect(shiftCalls().length, 1);
++    });
++
++    test('sessiya muammosi (401) — voqea navbatda QOLADI, yuborish '
++        'to\'xtaydi', () async {
++      await ShiftSyncQueue.enqueueClose('2026-10-02 08:00:00');
++      await ShiftSyncQueue.enqueueOpen('2026-10-02 09:00:00');
++
++      mode = ServerMode.unauthorized401;
++      await ShiftSyncQueue.flush(reason: 'test');
++
++      expect(ShiftSyncQueue.pendingCount, 2,
++          reason: 'token yangilangach qayta yuborilishi kerak');
++      expect(shiftCalls().length, 1);
++    });
++
++    test('server yopishni rad etsa va kassa serverda ALLAQACHON yopiq bo\'lsa '
++        '— yopish navbatdan olinadi, keyingisi yuboriladi', () async {
++      await ShiftSyncQueue.enqueueClose('2026-10-02 08:00:00');
++      await ShiftSyncQueue.enqueueOpen('2026-10-02 09:00:00');
++
++      mode = ServerMode.rejectShiftClose;
++      await ShiftSyncQueue.flush(reason: 'test');
++
++      final List<String> calls = shiftCalls();
++      expect(calls.length, 2);
++      expect(calls.first, contains('"method":"close"'));
++      expect(calls.last, contains('"method":"open"'),
++          reason: 'rad etilgan yopish ochishni to\'sib qo\'ymasligi kerak');
++      expect(ShiftSyncQueue.hasPending, isFalse);
++    });
++
++    test('har voqea o\'z kassiri nomidan yuboriladi (user_id)', () async {
++      await Pref.setString(PrefKeys.userId, 'ali');
++      await ShiftSyncQueue.enqueueOpen('2026-10-02 08:00:00');
++      await ShiftSyncQueue.enqueueClose('2026-10-02 14:00:00');
++      await Pref.setString(PrefKeys.userId, 'vali');
++      await ShiftSyncQueue.enqueueOpen('2026-10-02 14:05:00');
++
++      await ShiftSyncQueue.flush(reason: 'test');
++
++      final List<String> calls = shiftCalls();
++      expect(calls.length, 3);
++      expect(calls[0], contains('"user_id":"ali"'));
++      expect(calls[1], contains('"user_id":"ali"'),
++          reason: 'Alining smenasi Vali nomidan ketmasligi kerak');
++      expect(calls[2], contains('"user_id":"vali"'));
++    });
++
++    test('eski versiyadan qolgan navbat (to\'rt kalit) yo\'qolmaydi va '
++        'yangi voqealardan OLDIN ketadi', () async {
++      // Kassa server o'chgan paytda yangilangan: navbat eski kalitlarda.
++      await Pref.setString(PrefKeys.openedDate, '2026-09-02 09:00:00');
++      await Pref.setInt(PrefKeys.openedCount, 1);
++      await Pref.setString(PrefKeys.closedDate, '2026-09-02 21:00:00');
++      await Pref.setInt(PrefKeys.closedCount, 1);
++
++      expect(ShiftSyncQueue.pendingCount, 2);
++
++      // Yangi versiyada yana bir smena ochildi.
++      await ShiftSyncQueue.enqueueOpen('2026-09-03 08:00:00');
++      expect(Pref.getInt(PrefKeys.closedCount, 0), 0,
++          reason: 'eski kalitlar ro\'yxatga ko\'chgach tozalanadi');
++      expect(ShiftSyncQueue.pendingCount, 3,
++          reason: 'ko\'chirishda takrorlanmasligi kerak');
++
++      await ShiftSyncQueue.flush(reason: 'test');
++
++      final List<String> calls = shiftCalls();
++      expect(calls.length, 3);
++      expect(calls[0], contains('"opened_at":"2026-09-02 09:00:00"'));
++      expect(calls[1], contains('"closed_at":"2026-09-02 21:00:00"'));
++      expect(calls[2], contains('"opened_at":"2026-09-03 08:00:00"'));
++      expect(ShiftSyncQueue.hasPending, isFalse);
+     });
+   });
+ }
+```
+
+</details>
+
+<details><summary><code>test/shift_close_guard_test.dart</code> (diff)</summary>
+
+````diff
+diff --git a/test/shift_close_guard_test.dart b/test/shift_close_guard_test.dart
+index 498bab7..ed85cd1 100644
+--- a/test/shift_close_guard_test.dart
++++ b/test/shift_close_guard_test.dart
+@@ -1,23 +1,14 @@
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:invan2/changes/services/shift/shift_diagnostics.dart';
+ 
+-/// Smenani yopish mumkinmi — `ShiftSingleton4.closeShift` ning oflayn
+-/// shoxidagi shart bilan bir xil bo'lishi kerak:
++/// Smena yopishdagi ogohlantirishlar va kassirga ko'rsatiladigan matnlar.
+ ///
+-/// ```dart
+-/// if (closedCount == 0) { ...yopiladi... }
+-/// ```
+-///
+-/// 2026-08-17 da UI shu shartni bilmasdi: kassirga "Smena yopildi" deb xabar
+-/// berilardi, kod esa smenani yopmasdi.
+-///
+-/// 2026-09-02 da shart YUMSHATILDI (BackendHealth taski): ilgari u
+-/// `openedCount == 0` ni ham talab qilardi. Oqibati og'ir edi — server
+-/// o'chgan kunda ertalab oflayn ochilgan smenani kechqurun UMUMAN yopib
+-/// bo'lmasdi. Endi `ShiftSyncQueue` ochish va yopishni vaqt tartibida
+-/// yuboradi (avval ochish, keyin yopish), shuning uchun navbatdagi ochish
+-/// to'siq emas. Navbatda YOPISH turgani esa hamon to'siq: unda bitta
+-/// yopish uchungina joy bor.
++/// Tarix: 2026-08-17 da oflayn yopish uchun shart (`closedCount == 0`,
++/// keyin `openedCount == 0` ham) va uni UI'da oldindan tekshiradigan
++/// `blockingCloseIssue` qo'shilgan edi — navbatda ochish va yopish uchun
++/// bittadan joy bor edi. 2026-10-02 dan navbat ro'yxat (`ShiftSyncQueue`):
++/// internetsiz ham istalgancha yopish mumkin, to'siq yo'q. Navbatning o'zi
++/// test/server_down_behaviour_test.dart da sinaladi.
+ ShiftSnapshot _snapshot({
+   bool internet = false,
+   int openedCount = 0,
+@@ -44,63 +35,6 @@ ShiftSnapshot _snapshot({
+ }
+ 
+ void main() {
+-  group('canCloseOffline — ShiftSingleton4 sharti bilan bir xil', () {
+-    test('ikkala hisoblagich 0 bo\'lsa yopish mumkin', () {
+-      expect(_snapshot().canCloseOffline, isTrue);
+-    });
+-
+-    test('oflayn ochilgan smena (openedCount=1) — YOPISH MUMKIN', () {
+-      expect(_snapshot(openedCount: 1).canCloseOffline, isTrue,
+-          reason: 'server o\'chgan kunda ochilgan smena kechqurun '
+-              'yopilishi shart — navbat ikkalasini tartib bilan yuboradi');
+-    });
+-
+-    test('navbatda yopish turibdi (closedCount=1) — yopib bo\'lmaydi', () {
+-      expect(_snapshot(closedCount: 1).canCloseOffline, isFalse);
+-    });
+-  });
+-
+-  group('blockingCloseIssue', () {
+-    test('internet bor — hech qachon bloklamaydi (server hal qiladi)', () {
+-      expect(
+-        ShiftDiagnostics.blockingCloseIssue(
+-          _snapshot(internet: true, openedCount: 1, closedCount: 1),
+-        ),
+-        isNull,
+-      );
+-    });
+-
+-    test('oflayn, hisoblagichlar toza — bloklamaydi', () {
+-      expect(ShiftDiagnostics.blockingCloseIssue(_snapshot()), isNull);
+-    });
+-
+-    test('oflayn ochilgan smena — BLOKLANMAYDI', () {
+-      expect(
+-        ShiftDiagnostics.blockingCloseIssue(_snapshot(openedCount: 1)),
+-        isNull,
+-        reason: 'ochish navbatda tursa ham yopish navbatga qo\'shiladi',
+-      );
+-    });
+-
+-    test('navbatdagi yopish — pendingClose sababi bilan bloklanadi', () {
+-      expect(
+-        ShiftDiagnostics.blockingCloseIssue(_snapshot(closedCount: 1)),
+-        ShiftIssue.offlineCloseBlockedByPendingClose,
+-      );
+-    });
+-
+-    test('ikkalasi ham 1 bo\'lsa — yopish navbati band, bloklanadi', () {
+-      expect(
+-        ShiftDiagnostics.blockingCloseIssue(
+-          _snapshot(openedCount: 1, closedCount: 1),
+-        ),
+-        ShiftIssue.offlineCloseBlockedByPendingClose,
+-        reason: 'navbatda allaqachon yopish bor — ikkinchisi birinchisining '
+-            'sanasini o\'chirib yuborardi',
+-      );
+-    });
+-  });
+-
+   group('Kassirga ko\'rsatiladigan matn', () {
+     test('bloklovchi sabab — nima bo\'ldi / sabab / nima qilish kerak', () {
+       final String uz = ShiftDiagnostics.explain(
+@@ -117,19 +51,33 @@ void main() {
+     });
+ 
+     test('bloklovchi sabab sarlavhasi "yopilmadi" deyishi shart', () {
+-      for (final issue in [
+-        ShiftIssue.offlineCloseBlockedByPendingOpen,
+-        ShiftIssue.offlineCloseBlockedByPendingClose,
+-      ]) {
+-        expect(
+-          ShiftDiagnostics.title(issue, isUz: true).toLowerCase(),
+-          contains('yopilmadi'),
+-        );
+-        expect(
+-          ShiftDiagnostics.title(issue, isUz: false).toLowerCase(),
+-          contains('не закрыта'),
+-        );
+-      }
++      const ShiftIssue issue = ShiftIssue.offlineCloseBlockedByPendingOpen;
++      expect(
++        ShiftDiagnostics.title(issue, isUz: true).toLowerCase(),
++        contains('yopilmadi'),
++      );
++      expect(
++        ShiftDiagnostics.title(issue, isUz: false).toLowerCase(),
++        contains('не закрыта'),
++      );
++    });
++
++    test(
++        'internet yo\'q — "keyingi smenani yopib bo\'lmaydi" deb '
++        'ogohlantirmaydi (navbat ro\'yxat, cheklov yo\'q)', () {
++      final String uz = ShiftDiagnostics.explain(
++        ShiftIssue.noInternet,
++        _snapshot(closedCount: 1, pendingCloseAt: '2026-10-02 09:00:00'),
++        isUz: true,
++      );
++      final String ru = ShiftDiagnostics.explain(
++        ShiftIssue.noInternet,
++        _snapshot(closedCount: 1, pendingCloseAt: '2026-10-02 09:00:00'),
++        isUz: false,
++      );
++      expect(uz, isNot(contains('yopib bo\'lmaydi')));
++      expect(ru, isNot(contains('не получится')));
++      expect(uz, contains('navbatiga tushadi'));
+     });
+ 
+     test(
+````
+
+</details>
+
+## 7. Tekshirish
+
+- Stend: 28 test; og'ir rejim 8000 ketma-ketlik × 25 qadam — hammasi o'tgan. To'liq to'plam — 1616/1616 (2026-10-02, `c4e42e1`).
+- Jonli dev API (2026-10-02): ochish/yopish ketma-ketliklari, takror, o'tgan vaqt, yaroqsiz token — 2-bo'lim oxiridagi xulq.
+- Qo'lda (Mac, dev): 4-5 marta ochish/yopish, orada sotuv, internetsiz ochish/yopish; internet qaytgach `shift_pos` ×7+ aynan tartibda, hammasi 200.
+- **Windows'da qo'lda sinov kutilmoqda:** (1) internetsiz ochish → yopish → ochish → yopish — ikkinchi yopishda dialog CHIQMASLIGI; (2) internet qaytgach `shift_pos` ×4 aynan shu tartibda; (3) eski versiyada navbat to'la holda yangilash — navbat yo'qolmasligi.
+
+## 8. Eslatmalar
+
+- `isDocumentRejection` (status kodiga qarab voqea tashlash) qoidasiga QAYTMANG — haqiqiy smena yo'qoladi.
+- Odoo forkiga: kerak (navbat mantig'i umumiy; Odoo forkida `ShiftApi4` Odoo endpointlariga moslangan — `openShift/closeShift` imzolari (vaqt, `userId`, `cashboxId`) moslanadi).
+
+---
+
+# 12-TASK — Shorebird build/patch olingani Telegram kanalga hisobot (1.1.2+129)
+
+> **Commit:** `f21c8d8` (modul) va PatchUpdater'ga ulanishi `40bc8c2` (8-TASK bilan), 2026-10-02; reliz `c4e42e1` 1.1.2+129.
+> **Sessiya hujjati:** docs/sessions/2026-10-02-shorebird-telegram-hisobot.md
+> **Holat 2026-10-02:** Mac sinov relizida haqiqiy kanalga yuborilishi tasdiqlandi (patch 4 va 5 — "build olindi"); prod'da 1.1.2+129 dan.
+
+## 1. Nima va nima uchun
+
+Qaysi do'konning qaysi kassasi oxirgi build'ni (reliz yoki patch) olganini kuzatish. Dastur yangi build'da **ishga tushganda** (yuklangani emas, haqiqatan ishlayotgani) har qurilma uchun bir marta kanalga "✅ Yangi build olindi — muammo yo'q" (tashkilot, do'kon, kassa, kompyuter, build, oldingi build). Shuningdek: patch orqaga qaytarilsa (rollback), yuklangan patch ishga tushmasa (Shorebird uni yaroqsiz deb eski versiyaga qaytsa) va Shorebird yangilanish yo'lidagi xatolar (tarmoq uzilishi emas).
+
+## 2. Qanday ishlaydi
+
+- `PatchUpdater.start` → `PatchReporter.start(updater)`: birinchi tekshiruv 20 s dan keyin (ochilishda sotuvga xalaqit bermasin), keyin har 5 daqiqada va server qaytganda.
+- Kalit `<reliz versiyasi>#<patch raqami>`; muvaffaqiyatli yuborilgach `PrefKeys.patchReportedBuild` ga yoziladi — yuborilmasa (internet yo'q, kassa aktivatsiya qilinmagan) keyingi tekshiruvda qayta uriniladi.
+- Diskda yangi patch kutib turgan bo'lsa `patchPendingBuild` saqlanadi; keyingi ochilishda u ishlamasa — "❌ Patch ishga tushmadi".
+- Xatolar: bir xil xato bir build uchun bir marta, kuniga ko'pi bilan 10 ta (`patchReportErrors`). Tarmoq xatolari (`SocketException`, timeout va h.k.) yuborilmaydi; Shorebird'ning o'z yuklovchisi bilan poyga ("Update already in progress") ham yuborilmaydi (8-TASK `isUpdateInProgress`).
+- Sotuvga ta'sir qilmaydi: barcha xatolar yutiladi, faqat `[PATCH-TG]` log.
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/services/patch_reporter.dart` | YANGI | Hisobot mantig'i (`PatchReporter`) va sof qoidalar (`PatchReportLogic`) |
+| `lib/changes/services/patch_updater.dart` | o'zgargan | `PatchReporter.start` va `PatchReporter.error` chaqiruvlari (8-TASK 6.5 dagi to'liq faylda bor) |
+| `lib/utils/constants/pref_keys.dart` | o'zgargan | `patchReportedBuild`, `patchPendingBuild`, `patchReportErrors` |
+| `test/patch_reporter_test.dart` | YANGI | Kalitlar, boot hodisalari, xato takrori/kunlik chegara, tarmoq xatolari |
+
+## 4. Bog'liqliklar
+
+- **Bot tokeni va kanal ID** `patch_reporter.dart` da `const` (`_botToken`, `_chatId`) — InVan 2 ning kanali. InVan 1 o'z bot/kanalini qo'yadi yoki ikkalasini bo'sh qoldiradi (hisobot o'chadi, faqat log).
+- `SettingsInnerSingleton.deviceData['computerName']`, `PrefKeys.organizationName/storeName/posName`, `package_info_plus`, `BackendHealth`.
+
+## 5. Qo'llash tartibi
+
+1. `pref_keys.dart` ga uch kalit (6.2).
+2. `patch_reporter.dart` (6.1) — token/kanalni o'zingizniki bilan almashtiring yoki bo'sh qoldiring.
+3. `patch_updater.dart` 8-TASK dagi to'liq holatda bo'lsa — chaqiruvlar allaqachon bor.
+4. Test (6.3).
+
+## 6. Kod
+
+### 6.1. YANGI: `lib/changes/services/patch_reporter.dart`
+
+```dart
+/*
+    Shorebird yangilanishlari haqida Telegram kanaliga hisobot.
+
+    Maqsad: qaysi do'konning qaysi kassasi oxirgi build'ni (reliz yoki patch)
+    olganini kuzatish.
+
+    1. "Build olindi" — dastur yangi build'da ISHGA TUSHGANDA (yuklangani
+       emas, haqiqatan ishlayotgani) har qurilma uchun BIR MARTA yuboriladi.
+       Kalit: `<reliz versiyasi>#<patch raqami>`. Yuborilmasa (internet yo'q,
+       kassa hali aktivatsiya qilinmagan) — keyingi tekshiruvda qayta
+       uriniladi; muvaffaqiyatli yuborilgach kalit saqlanadi.
+    2. Shorebird xatolari — faqat yangilanish yo'lidagi xatolar:
+       - `update()` / `checkForUpdate()` xatosi (tarmoq uzilishi emas —
+         oflayn kassa kanalni to'ldirmasin);
+       - yuklangan patch ishga tushmadi (Shorebird uni yaroqsiz deb eski
+         versiyaga qaytdi);
+       - rollback (patch raqami kamaydi).
+       Bir xil xato bir build uchun bir marta, kuniga ko'pi bilan
+       [_dailyErrorCap] ta.
+
+    Sotuvga ta'sir qilmaydi: barcha xatolar yutiladi, faqat `[PATCH-TG]` log.
+    Debug yoki `shorebird release` siz build'da hech narsa qilmaydi
+    (`PatchUpdater.start` ichidan chaqiriladi).
+*/
+
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shorebird_code_push/shorebird_code_push.dart';
+import 'package:invan2/changes/providers/settings_provider.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
+import 'package:invan2/changes/services/log_helper.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+
+class PatchReporter {
+  PatchReporter._();
+
+  // @invan_update_monitor_bot → "Invan Shorebird Builds" kanali.
+  // Bot faqat shu kanalda admin. Bo'sh bo'lsa hisobot o'chiq (faqat log).
+  static const String _botToken =
+      '8765885617:AAHQpp0sHIMoUyuQl1L_eFl_EsMjMeEX9hc';
+  static const String _chatId = '-1003904407778';
+
+  static bool get _configured => _botToken.isNotEmpty && _chatId.isNotEmpty;
+
+  static const Duration _interval = Duration(minutes: 5);
+  static const int _dailyErrorCap = 10;
+  static const int _maxQueuedErrors = 20;
+
+  static ShorebirdUpdater? _updater;
+  static Timer? _timer;
+  static bool _busy = false;
+  static String? _version;
+
+  /// `start` dan oldin (main() boshida, Hive ochilmasdan) yuz bergan xatolar
+  /// ham shu yerda kutadi.
+  static final List<PatchErrorReport> _errors = <PatchErrorReport>[];
+
+  /// `PatchUpdater.start` dan — runApp'dan keyin, Hive ochiq.
+  static void start(ShorebirdUpdater updater) {
+    if (_timer != null) return;
+    _updater = updater;
+    _timer = Timer.periodic(_interval, (_) => _tick());
+    // Ochilishda sotuvga xalaqit bermasin — biroz kutamiz.
+    Timer(const Duration(seconds: 20), _tick);
+    BackendHealth.status.addListener(_onConnectivityChanged);
+  }
+
+  static void _onConnectivityChanged() {
+    if (BackendHealth.status.value == BackendStatus.up) _tick();
+  }
+
+  /// Shorebird yo'lidagi xato. Tarmoq uzilishi bo'lsa faqat log.
+  static void error(String stage, Object error) {
+    if (PatchReportLogic.isNetworkError(error)) return;
+    if (_errors.length >= _maxQueuedErrors) return;
+    _errors.add(PatchErrorReport(stage: stage, message: '$error'));
+    if (_timer != null) unawaited(_tick());
+  }
+
+  static Future<void> _tick() async {
+    final ShorebirdUpdater? updater = _updater;
+    if (_busy || updater == null) return;
+    _busy = true;
+    try {
+      // Aktivatsiyagacha do'kon/kassa nomi yo'q — keyinroq.
+      if (Pref.getString(PrefKeys.storeName, '').isEmpty) return;
+      final String version = _version ??= await _appVersion();
+      if (version.isEmpty) return;
+
+      final int? current = (await updater.readCurrentPatch())?.number;
+      final int? next = (await updater.readNextPatch())?.number;
+      final String currentKey = PatchReportLogic.buildKey(version, current);
+
+      final List<PatchBootEvent> events = PatchReportLogic.bootEvents(
+        version: version,
+        current: current,
+        next: next,
+        lastReported: Pref.getString(PrefKeys.patchReportedBuild, ''),
+        pending: Pref.getString(PrefKeys.patchPendingBuild, ''),
+      );
+      for (final PatchBootEvent event in events) {
+        if (!await _send(_bootMessage(event, currentKey))) return;
+        if (event.kind == PatchBootKind.notApplied) {
+          await Pref.setString(PrefKeys.patchPendingBuild, '');
+        } else {
+          await Pref.setString(PrefKeys.patchReportedBuild, currentKey);
+        }
+      }
+
+      // Diskda yangi patch kutmoqda — keyingi ochilishda u ishga tushmasa
+      // "qo'llanmadi" deb xabar beriladi.
+      final String pending = PatchReportLogic.pendingKey(
+        version: version,
+        current: current,
+        next: next,
+        previous: Pref.getString(PrefKeys.patchPendingBuild, ''),
+      );
+      await Pref.setString(PrefKeys.patchPendingBuild, pending);
+
+      await _flushErrors(currentKey);
+    } catch (e) {
+      _log('tick xatosi: $e');
+    } finally {
+      _busy = false;
+    }
+  }
+
+  static Future<void> _flushErrors(String buildKey) async {
+    while (_errors.isNotEmpty) {
+      final PatchErrorReport report = _errors.first;
+      final Map<dynamic, dynamic> state = _errorState();
+      final String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final PatchErrorDecision decision = PatchReportLogic.errorDecision(
+        state: state,
+        buildKey: buildKey,
+        today: today,
+        signature: report.signature,
+        dailyCap: _dailyErrorCap,
+      );
+      if (decision.send) {
+        if (!await _send(_errorMessage(report, buildKey))) return;
+        await Pref.setObject(PrefKeys.patchReportErrors, decision.newState);
+      }
+      _errors.removeAt(0);
+    }
+  }
+
+  static Map<dynamic, dynamic> _errorState() {
+    final dynamic raw = Pref.getObject(PrefKeys.patchReportErrors);
+    return raw is Map ? raw : <dynamic, dynamic>{};
+  }
+
+  static Future<String> _appVersion() async {
+    try {
+      final PackageInfo info = await PackageInfo.fromPlatform();
+      return '${info.version}+${info.buildNumber}';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  // ---- Xabarlar ----
+
+  static String _header() {
+    final String org = Pref.getString(PrefKeys.organizationName, '-');
+    final String store = Pref.getString(PrefKeys.storeName, '-');
+    final String pos = Pref.getString(PrefKeys.posName, '-');
+    final String computer =
+        '${SettingsInnerSingleton.deviceData['computerName'] ?? '-'}';
+    return '🏢 <b>Tashkilot:</b> ${_esc(org)}\n'
+        '🏬 <b>Do\'kon:</b> ${_esc(store)}\n'
+        '🖥 <b>Kassa:</b> ${_esc(pos)}\n'
+        '💻 <b>Kompyuter:</b> ${_esc(computer)} (${Platform.operatingSystem})';
+  }
+
+  static String _time() =>
+      DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+
+  static String _bootMessage(PatchBootEvent event, String currentKey) {
+    final String now = PatchReportLogic.describe(currentKey);
+    switch (event.kind) {
+      case PatchBootKind.installed:
+        final String prev = event.previous.isEmpty
+            ? '— (birinchi hisobot)'
+            : PatchReportLogic.describe(event.previous);
+        return '✅ <b>Yangi build olindi — muammo yo\'q</b>\n\n'
+            '${_header()}\n\n'
+            '📦 <b>Build:</b> ${_esc(now)}\n'
+            '⬅️ <b>Oldingi:</b> ${_esc(prev)}\n'
+            '🕒 ${_time()}';
+      case PatchBootKind.rolledBack:
+        return '⚠️ <b>Patch orqaga qaytarildi (rollback)</b>\n\n'
+            '${_header()}\n\n'
+            '📦 <b>Hozir:</b> ${_esc(now)}\n'
+            '⬅️ <b>Oldin:</b> ${_esc(PatchReportLogic.describe(event.previous))}\n'
+            '🕒 ${_time()}';
+      case PatchBootKind.notApplied:
+        return '❌ <b>Patch ishga tushmadi</b>\n'
+            'Yuklangan edi, lekin dastur unda ochilmadi — Shorebird eski '
+            'versiyaga qaytdi (yoki patch konsoldan bekor qilingan).\n\n'
+            '${_header()}\n\n'
+            '📥 <b>Yuklangan:</b> ${_esc(PatchReportLogic.describe(event.previous))}\n'
+            '📦 <b>Ishlayapti:</b> ${_esc(now)}\n'
+            '🕒 ${_time()}';
+    }
+  }
+
+  static String _errorMessage(PatchErrorReport report, String buildKey) {
+    final String message = report.message.length > 1500
+        ? '${report.message.substring(0, 1500)}…'
+        : report.message;
+    return '❌ <b>Shorebird xatosi</b>\n\n'
+        '${_header()}\n\n'
+        '📦 <b>Build:</b> ${_esc(PatchReportLogic.describe(buildKey))}\n'
+        '🔧 <b>Bosqich:</b> ${_esc(report.stage)}\n'
+        '🕒 ${_time()}\n\n'
+        '<pre>${_esc(message)}</pre>';
+  }
+
+  static String _esc(String s) => s
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
+
+  /// `true` — Telegram qabul qildi.
+  static Future<bool> _send(String text) async {
+    if (!_configured) {
+      _log('kanal sozlanmagan, yuborilmadi:\n$text');
+      return false;
+    }
+    try {
+      final http.Response response = await http.post(
+        Uri.parse('https://api.telegram.org/bot$_botToken/sendMessage'),
+        body: <String, String>{
+          'chat_id': _chatId,
+          'text': text,
+          'parse_mode': 'HTML',
+          'disable_web_page_preview': 'true',
+        },
+      ).timeout(const Duration(seconds: 15));
+      if (response.statusCode == 200) return true;
+      _log('Telegram ${response.statusCode}: ${response.body}');
+    } catch (e) {
+      _log('yuborib bo\'lmadi: $e');
+    }
+    return false;
+  }
+
+  static void _log(String message) {
+    if (kDebugMode) debugPrint('[PATCH-TG] $message');
+    unawaited(LogHelper.write(LogLevel.info, '[PATCH-TG] $message'));
+  }
+}
+
+/// Navbatdagi xato hisoboti.
+class PatchErrorReport {
+  const PatchErrorReport({required this.stage, required this.message});
+
+  final String stage;
+  final String message;
+
+  /// Takrorni aniqlash uchun — raqamlar (port, vaqt) olib tashlanadi.
+  String get signature {
+    final String m = message.replaceAll(RegExp(r'\d+'), '#');
+    return '$stage|${m.length > 160 ? m.substring(0, 160) : m}';
+  }
+}
+
+enum PatchBootKind {
+  /// Yangi build ishga tushdi (yangi patch yoki yangi reliz).
+  installed,
+
+  /// Shu relizda patch raqami kamaydi.
+  rolledBack,
+
+  /// Yuklangan patch ishga tushmadi.
+  notApplied,
+}
+
+class PatchBootEvent {
+  const PatchBootEvent(this.kind, this.previous);
+
+  final PatchBootKind kind;
+
+  /// installed/rolledBack — oldingi hisobot qilingan build kaliti;
+  /// notApplied — ishga tushmagan patch kaliti.
+  final String previous;
+}
+
+class PatchErrorDecision {
+  const PatchErrorDecision(this.send, this.newState);
+
+  final bool send;
+  final Map<dynamic, dynamic> newState;
+}
+
+/// Sof qarorlar (Shorebird/Hive/tarmoqsiz) — testlanadi.
+class PatchReportLogic {
+  PatchReportLogic._();
+
+  /// `1.1.2+128` (patch yo'q) yoki `1.1.2+128#3`.
+  static String buildKey(String version, int? patch) =>
+      patch == null ? version : '$version#$patch';
+
+  static String versionOf(String key) => key.split('#').first;
+
+  static int? patchOf(String key) {
+    final List<String> parts = key.split('#');
+    return parts.length > 1 ? int.tryParse(parts[1]) : null;
+  }
+
+  /// Odam o'qiydigan ko'rinish: `1.1.2+128 · patch 3` / `1.1.2+128 · asl reliz`.
+  static String describe(String key) {
+    final int? patch = patchOf(key);
+    return '${versionOf(key)} · ${patch == null ? 'asl reliz' : 'patch $patch'}';
+  }
+
+  /// Joriy ishga tushirish bo'yicha yuboriladigan xabarlar.
+  static List<PatchBootEvent> bootEvents({
+    required String version,
+    required int? current,
+    required int? next,
+    required String lastReported,
+    required String pending,
+  }) {
+    final List<PatchBootEvent> events = <PatchBootEvent>[];
+    final String currentKey = buildKey(version, current);
+
+    // Oldingi ochilishda diskda kutgan patch — endi u ham ishlamayapti, ham
+    // navbatda emas, va undan yangisi ham ishlamayapti.
+    final int? pendingPatch = patchOf(pending);
+    if (pendingPatch != null &&
+        versionOf(pending) == version &&
+        next != pendingPatch &&
+        (current == null || current < pendingPatch)) {
+      events.add(PatchBootEvent(PatchBootKind.notApplied, pending));
+    }
+
+    if (lastReported != currentKey) {
+      final int? lastPatch = patchOf(lastReported);
+      final bool rolledBack = lastReported.isNotEmpty &&
+          versionOf(lastReported) == version &&
+          lastPatch != null &&
+          (current == null || current < lastPatch);
+      events.add(PatchBootEvent(
+          rolledBack ? PatchBootKind.rolledBack : PatchBootKind.installed,
+          lastReported));
+    }
+    return events;
+  }
+
+  /// Saqlanadigan "kutayotgan patch" kaliti. Bo'sh — kutayotgan yo'q.
+  static String pendingKey({
+    required String version,
+    required int? current,
+    required int? next,
+    required String previous,
+  }) {
+    if (next != null && (current == null || next > current)) {
+      return buildKey(version, next);
+    }
+    // Patch ishga tushdi (yoki yangi reliz) — kutish tugadi.
+    final int? prevPatch = patchOf(previous);
+    if (prevPatch == null || versionOf(previous) != version) return '';
+    if (current != null && current >= prevPatch) return '';
+    // Hali "qo'llanmadi" xabari yuborilmagan — saqlanadi.
+    return previous;
+  }
+
+  /// Xatoni yuborish kerakmi va yangi holat.
+  /// Holat: `{build, day, count, sigs: [..]}`.
+  static PatchErrorDecision errorDecision({
+    required Map<dynamic, dynamic> state,
+    required String buildKey,
+    required String today,
+    required String signature,
+    required int dailyCap,
+  }) {
+    final bool sameBuild = state['build'] == buildKey;
+    final List<String> sigs = sameBuild
+        ? List<String>.from((state['sigs'] as List?) ?? const <String>[])
+        : <String>[];
+    final int count =
+        state['day'] == today ? (state['count'] as int? ?? 0) : 0;
+
+    if (sigs.contains(signature) || count >= dailyCap) {
+      return PatchErrorDecision(false, state);
+    }
+    return PatchErrorDecision(true, <String, dynamic>{
+      'build': buildKey,
+      'day': today,
+      'count': count + 1,
+      'sigs': <String>[...sigs, signature],
+    });
+  }
+
+  /// Internet/server uzilishi — kassa oflayn ishlayotganda kutiladigan holat,
+  /// kanalga yuborilmaydi.
+  static bool isNetworkError(Object error) {
+    if (error is SocketException ||
+        error is HttpException ||
+        error is TimeoutException ||
+        error is HandshakeException ||
+        error is http.ClientException) {
+      return true;
+    }
+    if (error is UpdateException &&
+        error.reason == UpdateFailureReason.installFailed) {
+      return false;
+    }
+    final String m = '$error'.toLowerCase();
+    const List<String> markers = <String>[
+      'failed host lookup',
+      'dns error',
+      'error sending request',
+      'connection refused',
+      'connection reset',
+      'connection closed',
+      'network is unreachable',
+      'timed out',
+      'actively refused',
+      'no route to host',
+    ];
+    return markers.any(m.contains);
+  }
+}
+```
+
+### 6.2. `lib/utils/constants/pref_keys.dart`
+
+```dart
+  /// Telegram kanaliga "build olindi" deb oxirgi yuborilgan build kaliti
+  /// (`<versiya>#<patch>`). Qarang: `PatchReporter`.
+  static const String patchReportedBuild = 'patch_reported_build';
+  /// Diskda yuklangan, hali ishga tushmagan patch kaliti. Keyingi ochilishda
+  /// u ishlamasa — "patch ishga tushmadi" xabari.
+  static const String patchPendingBuild = 'patch_pending_build';
+  /// Shorebird xato hisobotlari takrori/kunlik chegarasi holati (Map).
+  static const String patchReportErrors = 'patch_report_errors';
+```
+
+### 6.3. Test
+
+<details><summary>YANGI: <code>test/patch_reporter_test.dart</code></summary>
+
+```dart
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:invan2/changes/services/patch_reporter.dart';
+import 'package:shorebird_code_push/shorebird_code_push.dart';
+
+void main() {
+  const String v = '1.1.2+128';
+
+  group('bootEvents — "build olindi" har build uchun bir marta', () {
+    test('birinchi hisobot (hech narsa yuborilmagan) → installed', () {
+      final events = PatchReportLogic.bootEvents(
+          version: v, current: 3, next: 3, lastReported: '', pending: '');
+      expect(events.single.kind, PatchBootKind.installed);
+      expect(events.single.previous, '');
+    });
+
+    test('shu build allaqachon yuborilgan → hech narsa', () {
+      final events = PatchReportLogic.bootEvents(
+          version: v, current: 3, next: 3, lastReported: '$v#3', pending: '');
+      expect(events, isEmpty);
+    });
+
+    test('yangi patch ishga tushdi → installed, oldingi ko\'rsatiladi', () {
+      final events = PatchReportLogic.bootEvents(
+          version: v, current: 4, next: 4, lastReported: '$v#3', pending: '$v#4');
+      expect(events.single.kind, PatchBootKind.installed);
+      expect(events.single.previous, '$v#3');
+    });
+
+    test('yangi reliz (patchsiz) — eski relizning patch\'idan keyin → installed', () {
+      final events = PatchReportLogic.bootEvents(
+          version: '1.1.2+129',
+          current: null,
+          next: null,
+          lastReported: '$v#5',
+          pending: '');
+      expect(events.single.kind, PatchBootKind.installed);
+    });
+
+    test('shu relizda patch raqami kamaydi → rolledBack', () {
+      final events = PatchReportLogic.bootEvents(
+          version: v, current: 2, next: 2, lastReported: '$v#3', pending: '');
+      expect(events.single.kind, PatchBootKind.rolledBack);
+    });
+
+    test('patch\'dan asl relizga qaytdi → rolledBack', () {
+      final events = PatchReportLogic.bootEvents(
+          version: v, current: null, next: null, lastReported: '$v#3', pending: '');
+      expect(events.single.kind, PatchBootKind.rolledBack);
+    });
+
+    test('yuklangan patch ishga tushmadi (eski patch\'da qoldi) → notApplied', () {
+      final events = PatchReportLogic.bootEvents(
+          version: v, current: 3, next: 3, lastReported: '$v#3', pending: '$v#4');
+      expect(events.single.kind, PatchBootKind.notApplied);
+      expect(events.single.previous, '$v#4');
+    });
+
+    test('patch hali navbatda (qayta ochilmagan) → xato emas', () {
+      final events = PatchReportLogic.bootEvents(
+          version: v, current: 3, next: 4, lastReported: '$v#3', pending: '$v#4');
+      expect(events, isEmpty);
+    });
+
+    test('kutilgandan yangiroq patch ishladi → faqat installed', () {
+      final events = PatchReportLogic.bootEvents(
+          version: v, current: 5, next: 5, lastReported: '$v#3', pending: '$v#4');
+      expect(events.single.kind, PatchBootKind.installed);
+    });
+
+    test('pending boshqa relizdan (yangi .exe o\'rnatildi) → notApplied emas', () {
+      final events = PatchReportLogic.bootEvents(
+          version: '1.1.2+129',
+          current: null,
+          next: null,
+          lastReported: '1.1.2+129',
+          pending: '$v#4');
+      expect(events, isEmpty);
+    });
+
+    test('patch ishga tushmadi + undan oldingisi hali yuborilmagan → ikkalasi', () {
+      final events = PatchReportLogic.bootEvents(
+          version: v, current: 3, next: 3, lastReported: '$v#2', pending: '$v#4');
+      expect(events.map((e) => e.kind),
+          [PatchBootKind.notApplied, PatchBootKind.installed]);
+    });
+  });
+
+  group('pendingKey', () {
+    test('diskda yangiroq patch → saqlanadi', () {
+      expect(
+          PatchReportLogic.pendingKey(
+              version: v, current: 3, next: 4, previous: ''),
+          '$v#4');
+    });
+
+    test('patchsiz relizda birinchi patch yuklandi', () {
+      expect(
+          PatchReportLogic.pendingKey(
+              version: v, current: null, next: 1, previous: ''),
+          '$v#1');
+    });
+
+    test('patch ishga tushdi → tozalanadi', () {
+      expect(
+          PatchReportLogic.pendingKey(
+              version: v, current: 4, next: 4, previous: '$v#4'),
+          '');
+    });
+
+    test('ishga tushmagan patch xabari hali yuborilmagan → saqlanib qoladi', () {
+      expect(
+          PatchReportLogic.pendingKey(
+              version: v, current: 3, next: 3, previous: '$v#4'),
+          '$v#4');
+    });
+
+    test('rollback kutilmoqda (next null) → pending emas', () {
+      expect(
+          PatchReportLogic.pendingKey(
+              version: v, current: 3, next: null, previous: ''),
+          '');
+    });
+
+    test('boshqa relizdagi pending → tozalanadi', () {
+      expect(
+          PatchReportLogic.pendingKey(
+              version: '1.1.2+129', current: null, next: null, previous: '$v#4'),
+          '');
+    });
+  });
+
+  group('errorDecision — takror va kunlik chegara', () {
+    const String day = '2026-10-02';
+
+    test('yangi xato → yuboriladi, holat yoziladi', () {
+      final d = PatchReportLogic.errorDecision(
+          state: {}, buildKey: '$v#3', today: day, signature: 'a', dailyCap: 10);
+      expect(d.send, isTrue);
+      expect(d.newState['sigs'], ['a']);
+      expect(d.newState['count'], 1);
+    });
+
+    test('shu build\'da shu xato bor → yuborilmaydi', () {
+      final d = PatchReportLogic.errorDecision(
+          state: {'build': '$v#3', 'day': day, 'count': 1, 'sigs': ['a']},
+          buildKey: '$v#3',
+          today: day,
+          signature: 'a',
+          dailyCap: 10);
+      expect(d.send, isFalse);
+    });
+
+    test('yangi build\'da shu xato → yana yuboriladi', () {
+      final d = PatchReportLogic.errorDecision(
+          state: {'build': '$v#3', 'day': day, 'count': 1, 'sigs': ['a']},
+          buildKey: '$v#4',
+          today: day,
+          signature: 'a',
+          dailyCap: 10);
+      expect(d.send, isTrue);
+      expect(d.newState['sigs'], ['a']);
+      expect(d.newState['count'], 2);
+    });
+
+    test('kunlik chegara → yuborilmaydi, ertasiga yana', () {
+      final state = {'build': '$v#3', 'day': day, 'count': 10, 'sigs': ['x']};
+      expect(
+          PatchReportLogic.errorDecision(
+                  state: state,
+                  buildKey: '$v#3',
+                  today: day,
+                  signature: 'b',
+                  dailyCap: 10)
+              .send,
+          isFalse);
+      expect(
+          PatchReportLogic.errorDecision(
+                  state: state,
+                  buildKey: '$v#3',
+                  today: '2026-10-03',
+                  signature: 'b',
+                  dailyCap: 10)
+              .send,
+          isTrue);
+    });
+  });
+
+  group('isNetworkError — oflayn kassa kanalni to\'ldirmaydi', () {
+    test('tarmoq istisnolari', () {
+      expect(PatchReportLogic.isNetworkError(const SocketException('x')), isTrue);
+      expect(PatchReportLogic.isNetworkError(TimeoutException('x')), isTrue);
+      expect(PatchReportLogic.isNetworkError(http.ClientException('x')), isTrue);
+    });
+
+    test('Shorebird yuklash xatosi tarmoq sababli → tarmoq', () {
+      const e = UpdateException(
+          message: 'error sending request for url (https://api.shorebird.dev)',
+          reason: UpdateFailureReason.downloadFailed);
+      expect(PatchReportLogic.isNetworkError(e), isTrue);
+    });
+
+    test('yaroqsiz patch (installFailed) → doim yuboriladi', () {
+      const e = UpdateException(
+          message: 'connection reset while hashing',
+          reason: UpdateFailureReason.installFailed);
+      expect(PatchReportLogic.isNetworkError(e), isFalse);
+    });
+
+    test('noma\'lum Shorebird xatosi → yuboriladi', () {
+      const e = UpdateException(
+          message: 'Patch hash mismatch',
+          reason: UpdateFailureReason.downloadFailed);
+      expect(PatchReportLogic.isNetworkError(e), isFalse);
+    });
+  });
+
+  test('describe va signature', () {
+    expect(PatchReportLogic.describe('$v#3'), '1.1.2+128 · patch 3');
+    expect(PatchReportLogic.describe(v), '1.1.2+128 · asl reliz');
+    expect(
+        const PatchErrorReport(stage: 'update', message: 'port 5123 fail')
+            .signature,
+        const PatchErrorReport(stage: 'update', message: 'port 7000 fail')
+            .signature);
+  });
+}
+```
+
+</details>
+
+## 7. Tekshirish
+
+- `flutter test test/patch_reporter_test.dart`; to'liq to'plam — 1616/1616 (2026-10-02, `c4e42e1`).
+- Mac sinov relizi (2026-10-02): patch 4 va patch 5 da kanalga "build olindi" yuborildi (Telegram 200, `patch_reported_build` yangilandi).
+
+## 8. Eslatmalar
+
+- Token kod ichida — repo yopiq bo'lishi shart; bot faqat shu kanalda admin (sizib chiqsa ham faqat kanalga yozish mumkin). Xohlansa `--dart-define` + GitHub secret'ga ko'chirish mumkin (u holda lokal sinov build'larida hisobot o'chiq bo'ladi — bu ham qulay).
+- Odoo forkiga: kerak emas — InVan Shorebird `app_id` va InVan Telegram kanaliga bog'langan; Odoo xohlasa o'z bot/kanali bilan oladi.
+
+---
+
 # Kod o'zgarishisiz hujjatlar (shu davrda yozilgan)
 
 | Fayl | Nima | Port uchun |
@@ -11083,6 +18723,8 @@ InVan 1 da `product()` helper (isMarking: false bilan ItemModel yasaydi), `setUp
 | `docs/fiskal-tolov-turlari-va-qqs.md` | Tahlil (2026-09): to'lov turlari → fiskal maydonlar (`Cash`/`Card`/`Other`), Click/Payme qanday hisoblanadi, QQS hisoblash (`VAT`, chop etilgan chek, QQS foizi manbai), cashback xulosasi, nomuvofiqliklar ro'yxati. Kod o'zgarmagan; 5-task shundan chiqdi | Ma'lumot uchun; InVan 1 dagi fiskal item quruvchini shu tahlil bilan solishtirish foydali |
 | `docs/invan1-mac-github-release-port.md` | InVan 1 ni Mac'da ishga tushirish (macOS target) va GitHub Actions orqali Windows `.exe` reliz (CMakeLists MSVC coroutine tuzatishi, `installer.iss`, `release.yml`, tag `v*`) | To'g'ridan-to'g'ri InVan 1 uchun yozilgan — alohida qo'llang |
 | `docs/fiscal-sale-integration.md`, `.ru.md` | Fiskal sotuv spec (item maydonlari, `Price`/`Discount`/`Other`/`VAT`, `OwnerType`, `CommissionInfo`) — VAT formulasi 5-task bilan yangilandi | Spec; InVan 1 fiskal body'sini shu bilan tekshirish |
+| `docs/shorebird-qoidalari.md` | Shorebird: nima patch bilan o'tadi / nima reliz talab qiladi, patch chiqarish (staging → preview → promote), rollback, Mac sinovi, xavflar (2026-10-02) | 8-task ishlatilsa — InVan 1 o'z relizlari va `app_id` si bilan moslab oladi |
+| `docs/fiskal-tolov-turlari-qisqa.md` | To'lov turlari → fiskal maydon (`Cash`/`Card`/`Other`), QQS va provayderga qaytarish — qisqa jadval (9-task holatida) | Ma'lumot uchun |
 | `docs/bhm-naqd-chegara-port.md`, `docs/fiskal-mxik-fallback-port.md` | 1- va 2-taskning per-task port hujjatlari — yuqorida to'liq kiritilgan | Dublikat, alohida kerak emas |
 
 ---

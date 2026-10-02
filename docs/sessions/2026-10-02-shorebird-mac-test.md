@@ -1,8 +1,8 @@
 # Task: Shorebird patch'ini Mac'da sinash — kassir uchun maksimal oson yangilanish
 
 **Boshlangan:** 2026-10-02
-**Holat:** in-progress (1.1.2+129 relizi bilan; Windows prod sinovi kutilmoqda)
-**Branch:** fix/smena-navbat-fifo (ishchi papka; sinov o'zgarishlari commit QILINMAYDI)
+**Holat:** in-progress (relizda — 1.1.2+129, PRO, 2026-10-02; Windows prod sinovi kutilmoqda)
+**Branch:** fix/smena-navbat-fifo → `ayyubxon` (commit `40bc8c2`, `5112b2b`, `f21c8d8`; reliz `c4e42e1`). Sinov o'zgarishlari (entitlements, ranglar) commit QILINMAGAN
 
 ## Maqsad
 Reliz oldidan Shorebird code push'ni (PatchUpdater: df6ef7c, 919e601,

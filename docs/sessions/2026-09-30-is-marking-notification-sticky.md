@@ -1,8 +1,8 @@
 # Task: is_marking true→false o'zgarishi kassaga o'tmasligi (sticky isMarking)
 
 **Boshlangan:** 2026-09-30
-**Holat:** in-progress
-**Branch:** fix/is-marking-false-sinxron
+**Holat:** in-progress (relizda — 1.1.2+129, PRO, 2026-10-02, commit `a83668c` + `d31e4df`; do'kon sinovi kutilmoqda)
+**Branch:** fix/is-marking-false-sinxron → `ayyubxon` (merge `1e96fc5`)
 
 ## Maqsad
 Adminkada mahsulot markirovkasi o'chirilsa (`is_marking` true→false), notification

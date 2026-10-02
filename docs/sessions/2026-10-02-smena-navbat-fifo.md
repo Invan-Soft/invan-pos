@@ -1,8 +1,8 @@
 # Task: Smena navbati FIFO — oflayn ochish/yopish tartibi va "bir marta yopish" cheklovi
 
 **Boshlangan:** 2026-10-02
-**Holat:** in-progress
-**Branch:** fix/smena-navbat-fifo (`ayyubxon` dan)
+**Holat:** in-progress (relizda — 1.1.2+129, PRO, 2026-10-02; Windows va do'kon sinovi kutilmoqda)
+**Branch:** fix/smena-navbat-fifo → `ayyubxon` (commit `a24d0c9`, merge `7b3d01b`, reliz `c4e42e1`)
 
 ## Maqsad
 Server yoki internet yo'qligida bajarilgan smena ochish/yopishlari serverga
