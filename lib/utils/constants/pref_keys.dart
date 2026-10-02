@@ -237,6 +237,17 @@ class PrefKeys {
   /// [bhmAmount] oxirgi marta qachon olingan (ms since epoch).
   static const String bhmFetchedAt = 'bhm_fetched_at';
 
+  /// Telegram kanaliga "build olindi" deb oxirgi yuborilgan build kaliti
+  /// (`<versiya>#<patch>`). Qarang: `PatchReporter`.
+  static const String patchReportedBuild = 'patch_reported_build';
+
+  /// Diskda yuklangan, hali ishga tushmagan patch kaliti. Keyingi ochilishda
+  /// u ishlamasa — "patch ishga tushmadi" xabari.
+  static const String patchPendingBuild = 'patch_pending_build';
+
+  /// Shorebird xato hisobotlari takrori/kunlik chegarasi holati (Map).
+  static const String patchReportErrors = 'patch_report_errors';
+
 
 
 }
