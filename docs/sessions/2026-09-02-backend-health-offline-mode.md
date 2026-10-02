@@ -4,6 +4,10 @@
 **Holat:** in-progress (kod `ayyubxon` da — `3527ef0`, Windows testi kutilmoqda)
 **Branch:** ayyubxon (2026-09-07 da `refactor/ordering-split-2` dan merge qilindi)
 
+> 2026-10-02: smena navbati ro'yxatga (FIFO) o'tkazildi — `_openBeforeClose`
+> va `closedCount == 0` qoidasi endi amal qilmaydi. Qarang:
+> docs/sessions/2026-10-02-smena-navbat-fifo.md
+
 ## Maqsad
 Backend server yiqilganda (5xx yoki umuman javob bermaganda) kassa xuddi
 internet uzilgandagi kabi to'liq ishlashda davom etsin: sotuv, qaytarish,

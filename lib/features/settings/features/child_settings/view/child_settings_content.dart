@@ -8,7 +8,10 @@ import 'package:invan2/features/settings/bloc/settings_bloc.dart';
 import 'package:invan2/features/settings/features/child_settings/dialogs/before_log_out_dialog.dart';
 import '../../../../../changes/services/api.dart';
 import '../../../../../changes/services/api/result_http_model.dart';
+import '../../../../../changes/services/health/backend_health.dart';
+import '../../../../../changes/services/shift/shift_sync_queue.dart';
 import '../../../../../utils/helpers/auth_reset.dart';
+import '../../../../../widgets/my_snackbar.dart';
 import 'item_list_tile.dart';
 import '../dialogs/language_dialog.dart';
 import '../dialogs/tarozi_prefix_dialog.dart';
@@ -99,6 +102,29 @@ class _ChildSettingsContentState extends State<ChildSettingsContent> {
                 builder: (_) => const BeforeLogOutDialog(isAboutShift: true),
               );
             } else {
+              // Smena yopiq. Chiqishda butun Pref tozalanadi — serverga
+              // yetmagan smena ochish/yopishlari ham. Avval ularni yuboramiz;
+              // ketmasa chiqish to'xtatiladi, aks holda yopilish yo'qolib,
+              // server kassani "ochiq" deb qoladi.
+              if (ShiftSyncQueue.hasPending) {
+                BackendHealth.markUserInitiatedAction();
+                await ShiftSyncQueue.flush(reason: 'before-logout');
+                if (ShiftSyncQueue.hasPending) {
+                  if (!context.mounted) return;
+                  final bool isUz = loc.ha.toLowerCase() == 'ha';
+                  ScaffoldMessenger.of(context).showSnackBar(mySnackBar(
+                    context,
+                    msg: isUz
+                        ? 'Smena ma\'lumotlari serverga hali yuborilmagan. '
+                            'Internetni tekshirib, keyinroq qayta urinib '
+                            'ko\'ring.'
+                        : 'Данные смены ещё не отправлены на сервер. '
+                            'Проверьте интернет и попробуйте позже.',
+                    duration: 4000,
+                  ));
+                  return;
+                }
+              }
               HttpResult httpResult = await ShiftApi4.closeCashBox();
               if (!httpResult.isSuccess) {
                 showDialog(

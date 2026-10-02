@@ -75,7 +75,7 @@ class _OfflineModeBadgeState extends State<OfflineModeBadge> {
           .build();
       total = query.count();
       query.close();
-      if (ShiftSyncQueue.hasPending) total++;
+      total += ShiftSyncQueue.pendingCount;
     } catch (_) {
       // Sanoq ixtiyoriy — xato bo'lsa belgi baribir ko'rsatiladi.
     }

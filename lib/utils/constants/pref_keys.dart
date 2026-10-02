@@ -195,6 +195,13 @@ class PrefKeys {
   static const String mxikCode = 'mxik_code';
   static const String packageCode = 'package_code';
 
+  /// Smena navbati — serverga yetmagan ochish/yopishlar ro'yxati (JSON).
+  /// Qarang: `ShiftSyncQueue`.
+  static const String shiftSyncQueue = 'shift_sync_queue';
+
+  /// ESKI navbat kalitlari (2026-10-02 gacha). Yangi kod ularga yozmaydi —
+  /// faqat yangilangan kassada qolib ketgan navbatni `ShiftSyncQueue`
+  /// ro'yxatiga ko'chirish uchun o'qiladi.
   static const String openedDate = 'opened_date';
   static const String closedDate = 'closed_date';
   static const String openedCount = 'opened_count';

@@ -48,6 +48,10 @@ enum ServerMode {
   /// Server SOG'LOM, lekin bitta so'rov (chek yuborish) unda xatoga olib
   /// keladi — faqat `order_pos` 500 qaytaradi.
   poisonedOrderPos,
+
+  /// Server TIRIK, lekin smena YOPISHni rad etadi (400 — "kassa ochiq
+  /// emas"). Qolgan so'rovlar normal.
+  rejectShiftClose,
 }
 
 /// Chegaraga yetilgach `BackendHealth` serverning tirikligini TEKSHIRIB
@@ -111,6 +115,25 @@ void main() {
         request.response.statusCode = poisoned ? 500 : 200;
         request.response.write(poisoned
             ? '{"message":"cannot process this order"}'
+            : '{"message":"Success"}');
+        await request.response.close();
+        return;
+      }
+      if (mode == ServerMode.rejectShiftClose) {
+        // Kassa serverda YOPIQ: yopish rad etiladi, holat so'ralsa "yopiq".
+        if (request.uri.path.contains('shift_statuses')) {
+          request.response.statusCode = 200;
+          request.response.write('[{"cashbox_id":"kassa-1",'
+              '"status":"closed","opened_by_pos":false,'
+              '"opened_by_web":false,"opened_by_user_id":""}]');
+          await request.response.close();
+          return;
+        }
+        final bool reject = request.uri.path.contains('shift_pos') &&
+            body.contains('"method":"close"');
+        request.response.statusCode = reject ? 400 : 200;
+        request.response.write(reject
+            ? '{"message":"cashbox is not open"}'
             : '{"message":"Success"}');
         await request.response.close();
         return;
@@ -475,30 +498,35 @@ void main() {
 
   group('Smena navbati — server o\'chgan kun stsenariysi', () {
     setUp(() async {
+      await Pref.setString(PrefKeys.shiftSyncQueue, '');
       await Pref.setString(PrefKeys.openedDate, '');
       await Pref.setString(PrefKeys.closedDate, '');
       await Pref.setInt(PrefKeys.openedCount, 0);
       await Pref.setInt(PrefKeys.closedCount, 0);
+      await Pref.setString(PrefKeys.userId, 'kassir-1');
+      await Pref.setString(PrefKeys.activatedPosId, 'kassa-1');
     });
+
+    List<String> shiftCalls() =>
+        requestLog.where((r) => r.contains('shift_pos')).toList();
 
     test('ertalab oflayn ochilgan + kechqurun oflayn yopilgan smena — '
         'serverga AVVAL ochish, KEYIN yopish ketadi', () async {
       // Server o'chgan kun: ikkalasi ham navbatda qoldi.
-      await Pref.setString(PrefKeys.openedDate, '2026-09-02 09:00:00');
-      await Pref.setInt(PrefKeys.openedCount, 1);
-      await Pref.setString(PrefKeys.closedDate, '2026-09-02 21:00:00');
-      await Pref.setInt(PrefKeys.closedCount, 1);
+      await ShiftSyncQueue.enqueueOpen('2026-09-02 09:00:00');
+      await ShiftSyncQueue.enqueueClose('2026-09-02 21:00:00');
 
       // Ertasiga server ko'tarildi.
       mode = ServerMode.ok;
       await ShiftSyncQueue.flush(reason: 'test');
 
-      final List<String> shiftCalls =
-          requestLog.where((r) => r.contains('shift_pos')).toList();
-      expect(shiftCalls.length, 2, reason: 'ikkalasi ham yuborilishi kerak');
-      expect(shiftCalls.first.contains('"method":"open"'), isTrue,
+      final List<String> calls = shiftCalls();
+      expect(calls.length, 2, reason: 'ikkalasi ham yuborilishi kerak');
+      expect(calls.first, contains('"method":"open"'),
           reason: 'ochilmagan smenani yopib bo\'lmaydi — tartib muhim');
-      expect(shiftCalls.last.contains('"method":"close"'), isTrue);
+      expect(calls.first, contains('"opened_at":"2026-09-02 09:00:00"'));
+      expect(calls.last, contains('"method":"close"'));
+      expect(calls.last, contains('"closed_at":"2026-09-02 21:00:00"'));
 
       expect(ShiftSyncQueue.hasPending, isFalse,
           reason: 'ikkalasi ketgach navbat bo\'shashi kerak');
@@ -506,38 +534,145 @@ void main() {
 
     test('oldingi smena yopilishi navbatda, keyin yangi smena ochilgan — '
         'AVVAL yopish ketadi', () async {
-      await Pref.setString(PrefKeys.closedDate, '2026-09-02 08:00:00');
-      await Pref.setInt(PrefKeys.closedCount, 1);
-      await Pref.setString(PrefKeys.openedDate, '2026-09-02 09:00:00');
-      await Pref.setInt(PrefKeys.openedCount, 1);
+      await ShiftSyncQueue.enqueueClose('2026-09-02 08:00:00');
+      await ShiftSyncQueue.enqueueOpen('2026-09-02 09:00:00');
 
       await ShiftSyncQueue.flush(reason: 'test');
 
-      final List<String> shiftCalls =
-          requestLog.where((r) => r.contains('shift_pos')).toList();
-      expect(shiftCalls.length, 2);
-      expect(shiftCalls.first.contains('"method":"close"'), isTrue);
-      expect(shiftCalls.last.contains('"method":"open"'), isTrue);
+      final List<String> calls = shiftCalls();
+      expect(calls.length, 2);
+      expect(calls.first, contains('"method":"close"'));
+      expect(calls.last, contains('"method":"open"'));
+    });
+
+    test('server ertalabdan o\'chiq: ochish → yopish → yana ochish — '
+        'UCHALASI ham o\'z vaqti bilan, tartib bilan ketadi', () async {
+      // 2026-10-02 da topilgan bug: eski navbatda ikkinchi ochish
+      // birinchisining vaqtini o'chirardi va navbatda "yopish 14:00,
+      // ochish 14:05" qolardi — server ochilmagan smenani yopishni rad
+      // etardi, ochish esa hech qachon ketmasdi.
+      await ShiftSyncQueue.enqueueOpen('2026-10-02 08:00:00');
+      await ShiftSyncQueue.enqueueClose('2026-10-02 14:00:00');
+      await ShiftSyncQueue.enqueueOpen('2026-10-02 14:05:00');
+
+      expect(ShiftSyncQueue.pendingCount, 3,
+          reason: 'hech bir voqea boshqasini o\'chirmasligi kerak');
+
+      await ShiftSyncQueue.flush(reason: 'test');
+
+      final List<String> calls = shiftCalls();
+      expect(calls.length, 3);
+      expect(calls[0], contains('"opened_at":"2026-10-02 08:00:00"'));
+      expect(calls[1], contains('"closed_at":"2026-10-02 14:00:00"'));
+      expect(calls[2], contains('"opened_at":"2026-10-02 14:05:00"'));
+      expect(ShiftSyncQueue.hasPending, isFalse);
+    });
+
+    test('internetsiz IKKI MARTA yopish — ikkala yopilish ham saqlanadi va '
+        'tartib bilan yuboriladi', () async {
+      await ShiftSyncQueue.enqueueOpen('2026-10-02 08:00:00');
+      await ShiftSyncQueue.enqueueClose('2026-10-02 14:00:00');
+      await ShiftSyncQueue.enqueueOpen('2026-10-02 14:05:00');
+      await ShiftSyncQueue.enqueueClose('2026-10-02 22:00:00');
+
+      await ShiftSyncQueue.flush(reason: 'test');
+
+      final List<String> calls = shiftCalls();
+      expect(
+        calls.map((c) => c.contains('"method":"open"') ? 'open' : 'close'),
+        ['open', 'close', 'open', 'close'],
+      );
+      expect(calls[1], contains('"closed_at":"2026-10-02 14:00:00"'));
+      expect(calls[3], contains('"closed_at":"2026-10-02 22:00:00"'));
+      expect(ShiftSyncQueue.hasPending, isFalse);
     });
 
     test('server hali ham o\'chiq bo\'lsa navbat SAQLANADI', () async {
+      await ShiftSyncQueue.enqueueOpen('2026-09-02 09:00:00');
+      await ShiftSyncQueue.enqueueClose('2026-09-02 21:00:00');
+
+      mode = ServerMode.error500;
+      await ShiftSyncQueue.flush(reason: 'test');
+
+      expect(ShiftSyncQueue.pendingCount, 2,
+          reason: 'yuborilmagan voqealar yo\'qolmasligi kerak');
+
+      // Birinchi qadam (ochish) yiqilgach ikkinchisi urinilmasligi kerak:
+      // ochilmagan smenani yopishga urinish server uchun ma'nosiz.
+      expect(shiftCalls().length, 1);
+    });
+
+    test('sessiya muammosi (401) — voqea navbatda QOLADI, yuborish '
+        'to\'xtaydi', () async {
+      await ShiftSyncQueue.enqueueClose('2026-10-02 08:00:00');
+      await ShiftSyncQueue.enqueueOpen('2026-10-02 09:00:00');
+
+      mode = ServerMode.unauthorized401;
+      await ShiftSyncQueue.flush(reason: 'test');
+
+      expect(ShiftSyncQueue.pendingCount, 2,
+          reason: 'token yangilangach qayta yuborilishi kerak');
+      expect(shiftCalls().length, 1);
+    });
+
+    test('server yopishni rad etsa va kassa serverda ALLAQACHON yopiq bo\'lsa '
+        '— yopish navbatdan olinadi, keyingisi yuboriladi', () async {
+      await ShiftSyncQueue.enqueueClose('2026-10-02 08:00:00');
+      await ShiftSyncQueue.enqueueOpen('2026-10-02 09:00:00');
+
+      mode = ServerMode.rejectShiftClose;
+      await ShiftSyncQueue.flush(reason: 'test');
+
+      final List<String> calls = shiftCalls();
+      expect(calls.length, 2);
+      expect(calls.first, contains('"method":"close"'));
+      expect(calls.last, contains('"method":"open"'),
+          reason: 'rad etilgan yopish ochishni to\'sib qo\'ymasligi kerak');
+      expect(ShiftSyncQueue.hasPending, isFalse);
+    });
+
+    test('har voqea o\'z kassiri nomidan yuboriladi (user_id)', () async {
+      await Pref.setString(PrefKeys.userId, 'ali');
+      await ShiftSyncQueue.enqueueOpen('2026-10-02 08:00:00');
+      await ShiftSyncQueue.enqueueClose('2026-10-02 14:00:00');
+      await Pref.setString(PrefKeys.userId, 'vali');
+      await ShiftSyncQueue.enqueueOpen('2026-10-02 14:05:00');
+
+      await ShiftSyncQueue.flush(reason: 'test');
+
+      final List<String> calls = shiftCalls();
+      expect(calls.length, 3);
+      expect(calls[0], contains('"user_id":"ali"'));
+      expect(calls[1], contains('"user_id":"ali"'),
+          reason: 'Alining smenasi Vali nomidan ketmasligi kerak');
+      expect(calls[2], contains('"user_id":"vali"'));
+    });
+
+    test('eski versiyadan qolgan navbat (to\'rt kalit) yo\'qolmaydi va '
+        'yangi voqealardan OLDIN ketadi', () async {
+      // Kassa server o'chgan paytda yangilangan: navbat eski kalitlarda.
       await Pref.setString(PrefKeys.openedDate, '2026-09-02 09:00:00');
       await Pref.setInt(PrefKeys.openedCount, 1);
       await Pref.setString(PrefKeys.closedDate, '2026-09-02 21:00:00');
       await Pref.setInt(PrefKeys.closedCount, 1);
 
-      mode = ServerMode.error500;
+      expect(ShiftSyncQueue.pendingCount, 2);
+
+      // Yangi versiyada yana bir smena ochildi.
+      await ShiftSyncQueue.enqueueOpen('2026-09-03 08:00:00');
+      expect(Pref.getInt(PrefKeys.closedCount, 0), 0,
+          reason: 'eski kalitlar ro\'yxatga ko\'chgach tozalanadi');
+      expect(ShiftSyncQueue.pendingCount, 3,
+          reason: 'ko\'chirishda takrorlanmasligi kerak');
+
       await ShiftSyncQueue.flush(reason: 'test');
 
-      expect(ShiftSyncQueue.hasPendingOpen, isTrue);
-      expect(ShiftSyncQueue.hasPendingClose, isTrue,
-          reason: 'yuborilmagan yopish yo\'qolmasligi kerak');
-
-      // Birinchi qadam (ochish) yiqilgach ikkinchisi urinilmasligi kerak:
-      // ochilmagan smenani yopishga urinish server uchun ma'nosiz.
-      final List<String> shiftCalls =
-          requestLog.where((r) => r.contains('shift_pos')).toList();
-      expect(shiftCalls.length, 1);
+      final List<String> calls = shiftCalls();
+      expect(calls.length, 3);
+      expect(calls[0], contains('"opened_at":"2026-09-02 09:00:00"'));
+      expect(calls[1], contains('"closed_at":"2026-09-02 21:00:00"'));
+      expect(calls[2], contains('"opened_at":"2026-09-03 08:00:00"'));
+      expect(ShiftSyncQueue.hasPending, isFalse);
     });
   });
 }

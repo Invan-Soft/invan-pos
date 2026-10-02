@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
 import 'package:invan2/app_navigation.dart';
 import 'package:invan2/changes/models/shift/shift_hive_model.dart';
+import 'package:invan2/changes/services/health/backend_health.dart';
 import 'package:invan2/changes/services/shift/shift_diagnostics.dart';
 import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
 import 'package:invan2/features/checks/features/checks_app_bar/bloc/usr_bloc.dart';
@@ -14,7 +15,6 @@ import 'package:invan2/widgets/my_snackbar.dart';
 import 'package:invan2/widgets/shift_warning_dialog.dart';
 import 'package:provider/provider.dart';
 import '../../features/hive_repository/hive_boxes.dart';
-import '../models/shift/shifting_model.dart';
 import '../services/api.dart';
 
 class OpenShiftProvider extends ChangeNotifier {
@@ -120,11 +120,10 @@ class OpenShiftProvider extends ChangeNotifier {
     notifyListeners();
     ShiftSnapshot snapshot = await ShiftDiagnostics.capture();
 
-    // Navbatda ochish/yopish turgan bo'lsa, internet bor ekan — avval o'shani
-    // yuboramiz. Aks holda serverda ochilmagan smenani yopishga urinamiz va
-    // server rad etadi. Bu yerda `flush` tartibi ham to'g'ri: avval yopish,
-    // keyin ochish.
-    if (snapshot.internet && !snapshot.canCloseOffline) {
+    // Navbatda serverga yetmagan ochish/yopish turgan bo'lsa, internet bor
+    // ekan — avval o'shani yuboramiz: bu smenaning yopilishi ulardan KEYIN
+    // ketishi kerak (navbat qat'iy tartibda yuboriladi).
+    if (snapshot.internet && ShiftSyncQueue.hasPending) {
       await ShiftSyncQueue.flush(reason: 'before-close');
       snapshot = await ShiftDiagnostics.capture(internet: true);
     }
@@ -132,34 +131,8 @@ class OpenShiftProvider extends ChangeNotifier {
     _isWaiting = false;
     notifyListeners();
 
-    // 1) Yopish umuman mumkinmi? Mumkin bo'lmasa hech narsa yozilmasligi
-    // kerak: `ShiftSingleton4.closeShift` Hive yozuviga `isClosed=true` va
-    // `closedDate` ni shartni tekshirishdan OLDIN yozadi, keyin esa smenani
-    // yopmay qo'yadi. 2026-08-17 da kassir aynan shu sababli "Smena yopildi"
-    // degan xabarni ko'rib, smena ochiq qolganini keyin bilgan.
-    final ShiftIssue? blocker = ShiftDiagnostics.blockingCloseIssue(snapshot);
-    if (blocker != null) {
-      await ShiftDiagnostics.report(
-        issue: blocker,
-        action: ShiftAction.close,
-        snapshot: snapshot,
-        detail: 'Yopish boshlanmadi (oflayn shart bajarilmaydi): '
-            'openedCount=${snapshot.openedCount}, '
-            'closedCount=${snapshot.closedCount}',
-      );
-      await showShiftWarningDialog(
-        context,
-        issues: [blocker],
-        snapshot: snapshot,
-        isUz: isUz,
-        action: ShiftAction.close,
-        infoOnly: true,
-        succeeded: false,
-      );
-      return false;
-    }
-
-    // 2) Yopish mumkin, lekin e'tibor berish kerak bo'lgan holatlar.
+    // Yopishni to'sadigan holat yo'q (navbat ro'yxat — internetsiz ham
+    // istalgancha yopish mumkin). Faqat e'tibor berish kerak bo'lganlari.
     final List<ShiftIssue> warnings = ShiftDiagnostics.closeWarnings(snapshot);
     if (warnings.isEmpty) return true;
 
@@ -204,11 +177,17 @@ class OpenShiftProvider extends ChangeNotifier {
     }
   }
 
-  /// Serverga yetmagan smena yopilishini qo'lda qayta yuboradi.
+  /// Serverga yetmagan smena voqealarini (yopish va ochishlarni) qo'lda
+  /// yuboradi — navbatdagi tartibida.
   ///
   /// 2026-08-13 hodisasida aynan shu yo'l yetishmagan edi: lokal smena yopiq,
   /// serverda ochiq — va yopishni qayta yuborishning hech qanday usuli yo'q edi,
   /// shu sababli kassa butunlay bloklanib qolgan.
+  ///
+  /// Joriy smenaning holatiga (`shiftsOpened`) TEGILMAYDI: navbatdagi yopish
+  /// doim OLDINGI smenaniki — joriy smena yopilganda u allaqachon `false`.
+  /// Ilgari bu yerda `shiftsOpened=false` qilinardi va tugma yopish-oldi
+  /// dialogidan bosilsa, ochiq smena Pref'da yopiq bo'lib qolardi.
   Future<void> sendPendingCloseToServer(
     BuildContext context, {
     required bool isUz,
@@ -216,20 +195,17 @@ class OpenShiftProvider extends ChangeNotifier {
     _isWaiting = true;
     notifyListeners();
 
-    ShiftingModel result = await ShiftApi4.closeShift();
-    final bool ok = result.statusCode == 200;
+    // Kassir o'zi bosdi — "server o'chgan" degan xotira so'rovni to'smasin.
+    BackendHealth.markUserInitiatedAction();
+    await ShiftSyncQueue.flush(reason: 'manual');
+    final bool ok = !ShiftSyncQueue.hasPending;
 
-    if (ok) {
-      await Pref.setString(PrefKeys.closedDate, '');
-      await Pref.setInt(PrefKeys.closedCount, 0);
-      await Pref.setBool(PrefKeys.shiftsOpened, false);
-      _isShiftOpened = false;
-    } else {
+    if (!ok) {
       await ShiftDiagnostics.report(
         issue: ShiftIssue.serverCloseFailed,
         action: ShiftAction.close,
-        detail: 'Kassir "Yopishni yuborish" tugmasini bosdi, server javobi: '
-            '${result.statusCode ?? "-"} / ${result.message ?? "-"}',
+        detail: 'Kassir "Yopishni yuborish" tugmasini bosdi — navbat to\'liq '
+            'ketmadi. Navbatda qoldi: ${ShiftSyncQueue.describe()}',
       );
     }
 
@@ -335,11 +311,11 @@ class OpenShiftProvider extends ChangeNotifier {
       }
       _isShiftOpened = false;
 
-      // Smena kassada yopildi. Lekin serverga yetdimi? `closedDate` faqat
-      // server 200 qaytarganda tozalanadi — bo'sh bo'lmasa, yopilish navbatda
-      // qolgan va bu kassada yangi smena OCHILMAYDI. Kassir buni hozir
-      // bilishi kerak, 15 marta "smena ochish"ni bosgandan keyin emas.
-      if (Pref.getString(PrefKeys.closedDate, '').isNotEmpty) {
+      // Smena kassada yopildi. Lekin serverga yetdimi? Navbatda yopish
+      // qolgan bo'lsa — server bu kassani hali "ochiq" deb hisoblaydi. Kassir
+      // buni hozir bilishi kerak, 15 marta "smena ochish"ni bosgandan keyin
+      // emas.
+      if (ShiftSyncQueue.hasPendingClose) {
         await ShiftDiagnostics.report(
           issue: ShiftIssue.pendingCloseNotSynced,
           action: ShiftAction.close,

@@ -1,4 +1,5 @@
 import 'package:invan2/changes/repository/log_repository.dart';
+import 'package:invan2/changes/services/shift/shift_sync_queue.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 import 'package:invan2/objectbox.g.dart';
@@ -37,10 +38,6 @@ enum ShiftIssue {
   /// bajarilmasa smena YOPILMAYDI. Ilgari bu holat `serverCloseFailed` deb
   /// ko'rsatilardi, holbuki serverga umuman murojaat qilinmagan edi.
   offlineCloseBlockedByPendingOpen,
-
-  /// Internetsiz yopib bo'lmaydi: oldingi yopish hali navbatda
-  /// (`closedCount == 1`).
-  offlineCloseBlockedByPendingClose,
 
   /// Yopish so'rovi serverga ketdi, lekin server 200 qaytarmadi.
   serverCloseFailed,
@@ -84,24 +81,25 @@ class ShiftSnapshot {
     required this.posName,
     required this.cashboxId,
     required this.cashierName,
+    this.queueSummary = '',
   });
 
   final bool internet;
   final int unsentReceipts;
   final int rejectedReceipts;
 
-  /// `PrefKeys.closedDate` — bo'sh bo'lmasa, serverga yetmagan yopish bor.
+  /// Navbatdagi eng ESKI yopish vaqti (UTC) — bo'sh bo'lmasa, serverga
+  /// yetmagan yopish bor.
   final String pendingCloseAt;
 
-  /// `PrefKeys.openedDate` — bo'sh bo'lmasa, serverga yetmagan ochish bor.
+  /// Navbatdagi eng ESKI ochish vaqti (UTC) — bo'sh bo'lmasa, serverga
+  /// yetmagan ochish bor.
   final String pendingOpenAt;
 
-  /// `PrefKeys.openedCount` — 1 bo'lsa, smena OFLAYN ochilgan va ochilish
-  /// serverga yuborilishi kutilyapti.
+  /// Navbatda serverga yuborilishi kutilayotgan ochishlar soni.
   final int openedCount;
 
-  /// `PrefKeys.closedCount` — 1 bo'lsa, oflayn yopilish serverga yuborilishi
-  /// kutilyapti.
+  /// Navbatda serverga yuborilishi kutilayotgan yopishlar soni.
   final int closedCount;
 
   final bool shiftsOpened;
@@ -110,21 +108,12 @@ class ShiftSnapshot {
   final String cashboxId;
   final String cashierName;
 
+  /// Navbat tarkibi, hisobot uchun ("ochish ... → yopish ...").
+  final String queueSummary;
+
   bool get hasPendingClose => pendingCloseAt.isNotEmpty;
 
   bool get hasPendingOpen => pendingOpenAt.isNotEmpty;
-
-  /// Internetsiz yopish mumkinmi.
-  ///
-  /// `ShiftSingleton4.closeShift` ning oflayn shoxidagi shartning aynan
-  /// nusxasi — ikkalasi bir joydan o'qilishi kerak, aks holda UI "yopiladi"
-  /// deb va'da berib, kod yopmay qo'yadi (2026-08-17 hodisasi).
-  /// Serverga ulanmasdan yopish mumkinmi.
-  ///
-  /// Navbatda OCHISH turgani to'siq emas — `ShiftSyncQueue` ochish va
-  /// yopishni vaqt tartibida yuboradi. Faqat navbatda allaqachon YOPISH
-  /// turgan bo'lsa mumkin emas: navbatda bitta yopish uchungina joy bor.
-  bool get canCloseOffline => closedCount == 0;
 }
 
 class ShiftDiagnostics {
@@ -178,19 +167,28 @@ class ShiftDiagnostics {
       // ObjectBox o'qib bo'lmasa ham diagnostika ishlashda davom etsin.
     }
 
+    final List<ShiftQueueEvent> queue = ShiftSyncQueue.pending;
+    String oldest(ShiftQueueMethod method) {
+      for (final ShiftQueueEvent e in queue) {
+        if (e.method == method) return e.at;
+      }
+      return '';
+    }
+
     return ShiftSnapshot(
       internet: hasNet,
       unsentReceipts: unsent,
       rejectedReceipts: rejected,
-      pendingCloseAt: Pref.getString(PrefKeys.closedDate, ''),
-      pendingOpenAt: Pref.getString(PrefKeys.openedDate, ''),
-      openedCount: Pref.getInt(PrefKeys.openedCount, 0),
-      closedCount: Pref.getInt(PrefKeys.closedCount, 0),
+      pendingCloseAt: oldest(ShiftQueueMethod.close),
+      pendingOpenAt: oldest(ShiftQueueMethod.open),
+      openedCount: queue.where((e) => e.isOpen).length,
+      closedCount: queue.where((e) => e.isClose).length,
       shiftsOpened: Pref.getBool(PrefKeys.shiftsOpened, false),
       currentShiftKey: Pref.getInt(PrefKeys.currentShiftKey, -1),
       posName: Pref.getString(PrefKeys.posName, '-'),
       cashboxId: Pref.getString(PrefKeys.activatedPosId, ''),
       cashierName: Pref.getString(PrefKeys.cashierName, '-'),
+      queueSummary: ShiftSyncQueue.describe(queue),
     );
   }
 
@@ -205,21 +203,10 @@ class ShiftDiagnostics {
   /// bermaydi — ogohlantirish shunchaki shovqin bo'lardi. Ular baribir
   /// Telegram hisobotida (`Rad etilgan cheklar: N`) ko'rinadi va Sozlamalar →
   /// rad etilgan cheklar bo'limidan alohida boshqariladi.
-  /// Smenani yopish **umuman mumkin emas** bo'lgan holat.
   ///
-  /// `null` qaytsa — yopishga urinish mumkin. Aks holda yopish tugmasi
-  /// bosilganda hech narsa yozilmasligi kerak: `ShiftSingleton4.closeShift`
-  /// Hive yozuviga `isClosed=true` va `closedDate` ni **shartni tekshirishdan
-  /// oldin** yozadi, keyin esa shart bajarilmasa smenani yopmay qo'yadi.
-  /// Natijada Hive'da "yopiq", POS'da "ochiq" — nomuvofiq holat qoladi.
-  ///
-  /// Faqat oflayn holat tekshiriladi: internet bo'lsa yopish server javobiga
-  /// qarab hal qilinadi.
-  static ShiftIssue? blockingCloseIssue(ShiftSnapshot s) {
-    if (s.internet || s.canCloseOffline) return null;
-    return ShiftIssue.offlineCloseBlockedByPendingClose;
-  }
-
+  /// Yopishni TO'SADIGAN holat yo'q: smena navbati ro'yxat bo'lgani uchun
+  /// internetsiz ham istalgancha yopish mumkin (2026-10-02 gacha navbatda
+  /// bitta yopish uchun joy bor edi va ikkinchisi bloklanardi).
   static List<ShiftIssue> closeWarnings(ShiftSnapshot s) {
     final List<ShiftIssue> issues = [];
     if (!s.internet) issues.add(ShiftIssue.noInternet);
@@ -252,10 +239,6 @@ class ShiftDiagnostics {
         return isUz
             ? 'Smena yopilmadi — ochilishi serverga yetmagan'
             : 'Смена не закрыта — открытие не дошло до сервера';
-      case ShiftIssue.offlineCloseBlockedByPendingClose:
-        return isUz
-            ? 'Smena yopilmadi — oldingi yopish navbatda'
-            : 'Смена не закрыта — прошлое закрытие в очереди';
       case ShiftIssue.serverCloseFailed:
         return isUz
             ? 'Server smenani yopmadi'
@@ -296,13 +279,9 @@ class ShiftDiagnostics {
       case ShiftIssue.noInternet:
         return isUz
             ? 'Internet ulanmagan. Smena kassada yopiladi va serverga yuborish '
-                'navbatiga tushadi — internet tiklangach avtomatik yuboriladi. '
-                'Yopish serverga yetmaguncha bu kassada keyingi smenani '
-                'internetsiz yopib bo\'lmaydi.'
+                'navbatiga tushadi — internet tiklangach avtomatik yuboriladi.'
             : 'Нет интернета. Смена закроется на кассе и попадёт в очередь '
-                'отправки — уйдёт автоматически после восстановления связи. Пока '
-                'закрытие не дошло до сервера, следующую смену на этой кассе без '
-                'интернета закрыть не получится.';
+                'отправки — уйдёт автоматически после восстановления связи.';
       case ShiftIssue.unsentReceipts:
         return isUz
             ? '${s.unsentReceipts} ta chek hali serverga yuborilmagan. '
@@ -355,29 +334,11 @@ class ShiftDiagnostics {
                 'открытие смены уйдёт на сервер автоматически — после этого '
                 'закройте смену как обычно.\n'
                 'Продажи и чеки не потеряются, всё сохранено на кассе.';
-      case ShiftIssue.offlineCloseBlockedByPendingClose:
-        final ago = _agoText(s.pendingCloseAt, isUz: isUz);
-        return isUz
-            ? 'NIMA BO\'LDI: Smena yopilmadi — kassada ochiq qoldi.\n'
-                'SABAB: Oldingi smena yopilishi hali serverga yuborilmagan$ago. '
-                'Kassa bir vaqtda faqat bitta yuborilmagan yopishni saqlay '
-                'oladi, shuning uchun internetsiz ikkinchi marta yopib '
-                'bo\'lmaydi.\n'
-                'NIMA QILISH KERAK: Internetni ulang — navbatdagi yopish '
-                'yuboriladi, shundan keyin bu smenani yopasiz.\n'
-                'Sotuvlar va cheklar yo\'qolmaydi.'
-            : 'ЧТО ПРОИЗОШЛО: Смена не закрыта — осталась открытой на кассе.\n'
-                'ПРИЧИНА: Закрытие прошлой смены ещё не отправлено на сервер'
-                '$ago. Касса хранит только одно неотправленное закрытие, '
-                'поэтому без интернета закрыть второй раз нельзя.\n'
-                'ЧТО ДЕЛАТЬ: Подключите интернет — закрытие из очереди уйдёт на '
-                'сервер, после этого закройте эту смену.\n'
-                'Продажи и чеки не потеряются.';
       case ShiftIssue.serverCloseFailed:
-        // Navbatga tushdimi? `ShiftSyncQueue` faqat `closedCount == 1` bo'lsa
-        // qayta yuboradi. Aks holda "qayta yuboriladi" deb va'da berish
-        // yolg'on bo'ladi — kassir kutib o'tiradi, hech narsa ketmaydi.
-        final bool queued = s.closedCount == 1 && s.hasPendingClose;
+        // Navbatga tushdimi? Faqat navbatdagi yopish qayta yuboriladi. Aks
+        // holda "qayta yuboriladi" deb va'da berish yolg'on bo'ladi — kassir
+        // kutib o'tiradi, hech narsa ketmaydi.
+        final bool queued = s.hasPendingClose;
         return isUz
             ? 'NIMA BO\'LDI: Smena kassada yopildi, lekin server tasdiqlamadi.\n'
                 'SABAB: Yopish so\'rovi serverga yuborildi, server esa muvaffaqiyat '
@@ -538,7 +499,9 @@ class ShiftDiagnostics {
               "${_agoText(s.pendingCloseAt, isUz: true)}" : "yo'q"}')
       ..writeln('Serverga yetmagan OCHISH: '
           '${s.hasPendingOpen ? "${s.pendingOpenAt} UTC"
-              "${_agoText(s.pendingOpenAt, isUz: true)}" : "yo'q"}');
+              "${_agoText(s.pendingOpenAt, isUz: true)}" : "yo'q"}')
+      ..writeln('Smena navbati: '
+          '${s.queueSummary.isEmpty ? "bo'sh" : "${s.queueSummary} (UTC)"}');
 
     if (detail != null && detail.trim().isNotEmpty) {
       buffer
