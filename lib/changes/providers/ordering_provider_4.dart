@@ -64,6 +64,7 @@ import 'package:invan2/features/home/features/home_orders/calculation_part/total
 import 'package:invan2/features/payment/right/complete_button/uzum_pay_bloc/uzum_pay_bloc.dart';
 import 'package:invan2/features/payment/right/dilogs/click/bloc/click_bloc.dart';
 import 'package:invan2/changes/services/payment/paynet_service.dart';
+import 'package:invan2/changes/services/payment/epay_capture.dart';
 import 'package:invan2/features/payment/right/dilogs/paynet/bloc/paynet_bloc.dart';
 import 'package:invan2/features/payment/right/dilogs/paynet/paynet_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/click/clic_pass_dialog.dart';
@@ -1781,6 +1782,9 @@ class OrderingProvider4 extends ChangeNotifier {
       orphanDeletedItems: _orphanDeletedItems,
       isTpEdited: isTpEdited,
     );
+    // Shu chekdagi Pass/Go to'lov ID'lari — keyin cheklar ro'yxatidan
+    // fiskalga yuborilganda ham aynan shular ishlatiladi.
+    receiptModel4.epayJson = EpayCapture.forReceipt(receiptModel4);
     if (receiptModel4.payment.isNotEmpty &&
         receiptModel4.soldItemList.isNotEmpty) {
       await ReceiptSingleton4.toOBJECTBOX(
@@ -1855,6 +1859,7 @@ class OrderingProvider4 extends ChangeNotifier {
       lastCardNumber: _lastCardNumber,
       lastRRN: _lastRRN,
     );
+    receiptModel4.epayJson = EpayCapture.forReceipt(receiptModel4);
 
     if (receiptModel4.soldItemList.isEmpty) {
       LogHelper.write(
@@ -1960,7 +1965,9 @@ class OrderingProvider4 extends ChangeNotifier {
     _isOfdWithOfd = false;
     _clickPassPaid = false;
     _paymePaid = false;
-    PaynetService.paymentId = null;
+    // Oldingi sotuvning Click/Payme/Uzum/Paynet to'lov ID'lari va fiskal
+    // ExtraInfo qoldig'i yangi chekka tushmasin.
+    EpayCapture.reset();
   }
 
   late bool _paymentInProgress;

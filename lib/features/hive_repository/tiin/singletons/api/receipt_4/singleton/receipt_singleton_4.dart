@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:invan2/changes/domain/marking/fiscal_mxik_fallback.dart';
 import 'package:invan2/changes/domain/receipt/receipt_vat.dart';
+import 'package:invan2/changes/domain/receipt/receipt_epay.dart';
 import 'package:invan2/changes/models/discount_model.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
 import 'package:invan2/changes/models/product/sale_item_model.dart';
 import 'package:invan2/changes/models/product_discount_model.dart';
 import 'package:invan2/changes/services/log_helper.dart';
-import 'package:invan2/changes/services/payment/click_service.dart';
 import 'package:invan2/changes/services/receipt_api_4.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
@@ -250,6 +250,10 @@ class ReceiptSingleton4 {
     // (vozvratda hammasi naqd; sotuvda nom/ID bo'yicha; noma'lum → karta;
     // Click Pass / Payme Go → karta, Click/Payme QR va Uzum → Other).
     final FiscalPaymentSplit split = FiscalPaymentSplit.of(receipt);
+    // Vozvratda provayderga hech narsa qaytarilmaydi va ExtraInfo bo'sh.
+    final ReceiptEpay epay = receipt.isRefund
+        ? ReceiptEpay.empty
+        : ReceiptEpay.decode(receipt.epayJson);
     // Tiyinda, butun songa yaxlitlab — float changi FiscalReceiptModel'dagi
     // `.toInt()` kesishida 1 tiyin yo'qotmasin.
     final double receivedCashValue = (split.cash * 100).roundToDouble();
@@ -377,10 +381,12 @@ class ReceiptSingleton4 {
             receipt, Pref.getString(PrefKeys.paymeId, "")),
         "receivedPaynet": receivedPaynet,
         "receivedDept": receipt.hasDept,
+        // ExtraInfo chekning o'zidan: global Pref (`epay_Id` va h.k.) oldingi
+        // to'lovdan qolgan bo'lishi mumkin edi. Qarang: ReceiptEpay.
         "externalInfo": {
-          "qrPaymentProvider": Pref.getInt('epayPay_Id', 0).toString(),
-          "qrPaymentID": Pref.getString('epay_Id', "").toString(),
-          "phoneNumber": Pref.getString('epay_phone', "").toString(),
+          "qrPaymentProvider": epay.qrPaymentProvider.toString(),
+          "qrPaymentID": epay.qrPaymentId,
+          "phoneNumber": epay.phoneNumber,
           "cardType": receipt.cardType ?? Pref.getInt('card_type', 0),
           "cardNumber": receipt.cardNumber ?? '',
           "pptId": receipt.pptId ?? '',
@@ -641,15 +647,18 @@ class ReceiptSingleton4 {
 
   //   return clickData;
   // }
+  /// [clickPaymentId] — shu chekning Click Pass to'lov ID'si
+  /// (`ReceiptEpay.clickPaymentId`), xotiradagi oxirgi to'lovniki emas.
   static Map<String, dynamic> fromReceipt4ToClick({
     required Map<String, dynamic> receipt,
+    required String clickPaymentId,
   }) {
     Map<String, dynamic> params = receipt['params'];
     List<Map<String, dynamic>> items = params['items'];
 
     var clickData = {
       "service_id": Pref.getInt(PrefKeys.serviceId, -1),
-      "payment_id": num.tryParse(ClickService.paymentId ?? ''),
+      "payment_id": num.tryParse(clickPaymentId),
       "items": List.generate(items.length, (index) {
         Map<String, dynamic> map = {};
         Map<String, dynamic> item = items[index];

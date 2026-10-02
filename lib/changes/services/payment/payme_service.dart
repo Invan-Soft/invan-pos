@@ -135,15 +135,18 @@ class PaymeGOService {
     );
   }
 
+  /// [paymeReceiptId] — shu chekning Payme Go cheki ID'si
+  /// (`ReceiptEpay.paymeReceiptId`), Pref `p_id` dagi oxirgisi emas.
   static Future setFiscalData2({
     int statusCode = 0,
     Info? info,
+    required String paymeReceiptId,
   }) async {
     return await _post(
       api: "/api HTTP/1.1",
       method: "receipts.set_fiscal_data",
       params: {
-        "id": Pref.getString('p_id', ""),
+        "id": paymeReceiptId,
         "fiscal_data": {
           "receipt_id": int.parse(info?.receiptSeq ?? "0"),
           "qr_code_url": info?.qrCodeUrl,

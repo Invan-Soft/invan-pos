@@ -57,6 +57,12 @@ class ReceiptModel4 {
   String? pptId;        // RRN: "608610728951"
   int? cardType;
 
+  /// Elektron to'lov (Click Pass / Payme Go / Uzum / Paynet) ID'lari va fiskal
+  /// ExtraInfo — `ReceiptEpay` JSON'i. Chek yaratilganda yoziladi; fiskal body
+  /// va provayderga fiskal URL yuborish faqat shundan o'qiydi. Eski cheklarda
+  /// null. Serverga (order_pos) ketmaydi.
+  String? epayJson;
+
   /// Savat sessiyasida o'chirilgan mahsulotlar (DeletedItemModel4 ro'yxati)
   /// JSON string ko'rinishida — offline chek bilan birga saqlanib,
   /// order_pos body'sida "deleted_items" bo'lib ketadi.

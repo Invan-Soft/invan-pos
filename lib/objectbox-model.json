@@ -83,7 +83,7 @@
     },
     {
       "id": "3:3601186149013975851",
-      "lastPropertyId": "50:2389010119767467965",
+      "lastPropertyId": "51:4416640865664854334",
       "name": "ReceiptModel4",
       "properties": [
         {
@@ -326,6 +326,11 @@
           "id": "50:2389010119767467965",
           "name": "serviceDurationSeconds",
           "type": 6
+        },
+        {
+          "id": "51:4416640865664854334",
+          "name": "epayJson",
+          "type": 9
         }
       ],
       "relations": [

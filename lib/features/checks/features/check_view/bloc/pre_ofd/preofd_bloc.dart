@@ -25,48 +25,8 @@ class PreOfdBloc extends Bloc<PreOfdEvent, PreOfdState> {
     final String character =
         Pref.getString(PrefKeys.checkId, "not initialized");
     bool ofd = Pref.getBool(PrefKeys.withOFD, false);
-    final newReceiptModel41 = ReceiptModel4(
-      supplierId: event.receiptModel4.supplierId,
-      newid: event.receiptModel4.newid,
-      clientPhone: event.clientNumber,
-      cashierId: event.receiptModel4.cashierId,
-      cashierName: event.receiptModel4.cashierName,
-      date: DateTime.now().millisecondsSinceEpoch,
-      isRefund: false,
-      comment: event.receiptModel4.comment,
-      fiscalSign: event.receiptModel4.fiscalSign,
-      receiptSeq: event.receiptModel4.receiptSeq,
-      terminalId: event.receiptModel4.terminalId,
-      totalPrice: _getRightTotalPrice(event.receiptModel4.soldItemList),
-      uploaded: false,
-      clientName: event.receiptModel4.clientName,
-      clientId: event.receiptModel4.clientId,
-      cashback: 0,
-      sdacha: 0,
-      returnForCheck: event.receiptModel4.returnForCheck,
-      posName: event.receiptModel4.posName,
-      refundInfo: event.receiptModel4.refundInfo,
-      commissionTIN: event.receiptModel4.commissionTIN,
-      isDonate: Pref.getBool('donate', false),
-      createdDate: event.receiptModel4.createdDate,
-      orderId: event.receiptModel4.orderId,
-      cashboxId: event.receiptModel4.cashboxId,
-      externalId: event.receiptModel4.externalId,
-      orderType: event.receiptModel4.orderType,
-      shopId: event.receiptModel4.shopId,
-      userId: event.receiptModel4.userId,
-      discountVat: event.receiptModel4.discountVat,
-      discountID: event.receiptModel4.discountID,
-      rejected: event.receiptModel4.rejected,
-      url: event.receiptModel4.url,
-    );
-    newReceiptModel41.id = event.receiptModel4.id;
-    newReceiptModel41.rejected = event.receiptModel4.rejected;
-    newReceiptModel41.uploaded = event.receiptModel4.uploaded;
-    newReceiptModel41.payment.clear();
-    newReceiptModel41.soldItemList.clear();
-    newReceiptModel41.payment.addAll(event.receiptModel4.payment);
-    newReceiptModel41.soldItemList.addAll(event.receiptModel4.soldItemList);
+    final newReceiptModel41 =
+        receiptForResend(event.receiptModel4, event.clientNumber);
 
     if (ofd) {
       emit(PreOfdLoadingState(message: ReturnMessage.internet));
@@ -122,7 +82,58 @@ class PreOfdBloc extends Bloc<PreOfdEvent, PreOfdState> {
     }
   }
 
-  double _getRightTotalPrice(List<ReceiptModelSoldItem4> v) {
+  /// Fiskalga qayta yuboriladigan nusxa (asl chek o'rniga `box.put` bilan
+  /// yoziladi). `_preOfd` dan ajratildi — tana o'zgarmagan; testlar uchun.
+  static ReceiptModel4 receiptForResend(ReceiptModel4 src, String clientNumber) {
+    final newReceiptModel41 = ReceiptModel4(
+      supplierId: src.supplierId,
+      newid: src.newid,
+      clientPhone: clientNumber,
+      cashierId: src.cashierId,
+      cashierName: src.cashierName,
+      date: DateTime.now().millisecondsSinceEpoch,
+      isRefund: false,
+      comment: src.comment,
+      fiscalSign: src.fiscalSign,
+      receiptSeq: src.receiptSeq,
+      terminalId: src.terminalId,
+      totalPrice: _getRightTotalPrice(src.soldItemList),
+      uploaded: false,
+      clientName: src.clientName,
+      clientId: src.clientId,
+      cashback: 0,
+      sdacha: 0,
+      returnForCheck: src.returnForCheck,
+      posName: src.posName,
+      refundInfo: src.refundInfo,
+      commissionTIN: src.commissionTIN,
+      isDonate: Pref.getBool('donate', false),
+      createdDate: src.createdDate,
+      orderId: src.orderId,
+      cashboxId: src.cashboxId,
+      externalId: src.externalId,
+      orderType: src.orderType,
+      shopId: src.shopId,
+      userId: src.userId,
+      discountVat: src.discountVat,
+      discountID: src.discountID,
+      rejected: src.rejected,
+      url: src.url,
+    );
+    newReceiptModel41.id = src.id;
+    newReceiptModel41.rejected = src.rejected;
+    newReceiptModel41.uploaded = src.uploaded;
+    newReceiptModel41.payment.clear();
+    newReceiptModel41.soldItemList.clear();
+    newReceiptModel41.payment.addAll(src.payment);
+    // Shu chekning o'z to'lov ID'lari — xotiradagi oxirgi to'lovniki emas.
+    // box.put shu nusxani asl chek o'rniga yozadi, shuning uchun yo'qolmasin.
+    newReceiptModel41.epayJson = src.epayJson;
+    newReceiptModel41.soldItemList.addAll(src.soldItemList);
+    return newReceiptModel41;
+  }
+
+  static double _getRightTotalPrice(List<ReceiptModelSoldItem4> v) {
     double t = 0;
     for (var element in v) {
       t += element.price * element.value;
