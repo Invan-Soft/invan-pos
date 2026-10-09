@@ -1,7 +1,7 @@
 # Port hujjati: BHM taskidan boshlab qilingan barcha o'zgarishlar
 
 **Manba loyiha:** InVan 2 POS — `pos-invan-2`, branch `ayyubxon`, versiya `1.1.2+129` (2026-10-02)
-**Hujjat holati:** 2026-10-02 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan)
+**Hujjat holati:** 2026-10-09 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch)
 **Kimga:** shu loyihaning boshqa nusxasini (boshqa ERP bilan integratsiya qilinayotgan nusxa — "InVan 1") InVan 2 bilan bir xil holatga keltiradigan dasturchi yoki Claude.
 
 ## Bu hujjat nima
@@ -35,6 +35,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 10 | 2026-10-01 | Multi-klient orqali access-siz mahsulot o'chirish yopildi | **1.1.2+129** | Relizda; do'kon sinovi kutilmoqda | `a3a69a9` |
 | 11 | 2026-10-02 | Smena navbati FIFO: server/internet yo'qligida har ochish/yopish serverga tartib bilan | **1.1.2+129** | Relizda; Mac + jonli dev API'da sinalgan, Windows sinovi kutilmoqda | `a24d0c9` |
 | 12 | 2026-10-02 | Shorebird build/patch olingani Telegram kanalga hisobot | **1.1.2+129** | Relizda; Mac sinov relizida kanalga yetgani tasdiqlangan | `f21c8d8` (+ `40bc8c2`) |
+| 13 | 2026-10-09 | Ko'p olsa narx OSHADIGAN pog'ona Buy X Get Y aksiyasida yo'qolardi (1-talikka tushardi); `onePrice` = `finalPrice(1)`; type 13 parse | 1.1.2+129 (Shorebird patch) | Commit bor; Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `65dc7ef` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -85,6 +86,7 @@ f21c8d8 2026-10-02 feat(shorebird): Telegram kanalga hisobot (PatchReporter)    
 e5ba429 2026-10-02 fix(fiskal): elektron to'lov ID'lari chekda (ObjectBox +1)               ← 9-task
 7b3d01b 2026-10-02 merge: fix/smena-navbat-fifo → ayyubxon (8, 9, 11, 12-task)
 c4e42e1 2026-10-02 release: 1.1.2+129                                                       (port qilinmaydi)
+65dc7ef 2026-10-09 fix(narx): ko'p olsa narx OSHADIGAN pog'ona BXGY'da yo'qolmasin         ← 13-task
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -18713,6 +18715,4125 @@ void main() {
 
 - Token kod ichida — repo yopiq bo'lishi shart; bot faqat shu kanalda admin (sizib chiqsa ham faqat kanalga yozish mumkin). Xohlansa `--dart-define` + GitHub secret'ga ko'chirish mumkin (u holda lokal sinov build'larida hisobot o'chiq bo'ladi — bu ham qulay).
 - Odoo forkiga: kerak emas — InVan Shorebird `app_id` va InVan Telegram kanaliga bog'langan; Odoo xohlasa o'z bot/kanali bilan oladi.
+
+---
+
+# 13-TASK — Ko'p olsa narx OSHADIGAN pog'ona Buy X Get Y aksiyasida yo'qolardi (relizda emas → Shorebird patch 1.1.2+129)
+
+> **Commit:** `65dc7ef` (2026-10-09), branch `fix/tier-narx-oshuvchi-bxgy` → `ayyubxon`. Reliz: `1.1.2+129` ga Shorebird patch.
+> **Sessiya hujjati:** yo'q (bir sessiyalik task).
+> **Holat 2026-10-09:** commit bor; Mac'da (DEV) qo'lda sinalgan — 7 ta → 4 × 160 000 = 640 000, 8 ta → 640 000 (o'rtacha 80 000); do'kon sinovi kutilmoqda.
+
+## 1. Nima va nima uchun
+
+**Simptom (prod, 2026-10-08):** "Saryog' Lora 200gr" — pog'onali narx 1 ta → 25 000, 7+ ta → 27 000 (ko'p olsa narx OSHADI); aksiya Buy X Get Y: o'sha mahsulotning o'zi, 1 olsa 1 tekin, `isRepeatable`. Kassa 7+ ta sotilganda ham 25 000 dan hisoblardi.
+
+**Sabab:** `DiscountEffectsController.useFreeProducts` aksiya sharti bajarilganda har bir mos qatorga `realPrice = onlyPrice = 1-talik narx` ni **shartsiz** qo'yardi. Bu qoida "arzon ulgurji pog'ona + tekin mahsulot" ikki marta chegirma bo'lmasligi uchun kiritilgan (pog'ona arzonroq bo'lsa 1-talik narx olinadi); pog'ona QIMMAT bo'lgan holat hisobga olinmagan → 27 000 yo'qolib, 25 000 qo'yilardi. `useBuyXGetXProducts` da esa shart allaqachon `firstTierPrice > item.realPrice` edi.
+
+**Yechim:** 1-talik narx faqat u joriy pog'ona narxidan QIMMAT bo'lsa qo'yiladi (blok qatorida `× boxValue`). Qo'shimcha: `onePrice` endi `finalPrice(.., 1, ..)` bilan bir xil pog'onani tanlaydi (ilgari `tiers[0]` — tartibsiz ro'yxatda, `min_quantity: null` yoki dublikatda xato); type 13 narx notification'ida `min_quantity`/`retail_price` int/double/satr bo'lsa ham yiqilmaydi.
+
+## 2. Qanday ishlaydi
+
+| Holat | Eski | Yangi |
+|---|---|---|
+| Pog'ona ARZON (1 → 5000, 3+ → 4500) + BXGY, shart bajarilgan | 1-talik 5000 | 1-talik 5000 (o'zgarmagan) |
+| Pog'ona QIMMAT (1 → 25 000, 7+ → 27 000) + BXGY, 8 ta (4 tekin) | 4 × **25 000** = 100 000 | 4 × **27 000** = 108 000 |
+| Aksiyasiz | pog'ona narxi | pog'ona narxi (o'zgarmagan) |
+
+Biznes qoida (foydalanuvchi tasdiqladi): pog'ona savatdagi **jami** dona (tekinlari bilan) bo'yicha tanlanadi. Prod sozlamasi bo'yicha: 6 ta → 3 × 25 000 = 75 000; 7 ta → 4 × 27 000 = 108 000; 8 ta → 108 000; 9 ta → 135 000. Savatdagi "Цена" ustuni — o'rtacha (summa ÷ son), ustidan chizilgani pog'ona narxi.
+
+`onePrice` tanlovi: `minQuantity <= 1` (null → 0) bo'lganlar ichida eng kattasi, teng bo'lsa oxirgisi — `finalPrice` bilan aynan bir xil. Hech biri mos kelmasa (faqat `3+` pog'ona) — eng kichik `minQuantity` li pog'ona (mahsulot `barcodeProducts` dan tushib qolmasin).
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/providers/ordering/discount_effects_controller.dart` | o'zgargan | `useFreeProducts`: 1-talik narx faqat `adjustedFirstTierPrice > item.realPrice` bo'lsa |
+| `lib/features/get_products/singletons/items_singleton.dart` | o'zgargan | `onePrice` — `finalPrice(1)` bilan bir xil tanlov + fallback |
+| `lib/changes/services/web_socket_service/product/model/product_price_edit_response.dart` | o'zgargan | `ShopPriceTiersSub.fromJson` — `_toInt`/`_toNum` |
+| `test/tier_rising_price_test.dart` | YANGI | Asosiy: narx oshuvchi/kamayuvchi, skan/x8/OPD, prod sozlamasi, BXGY, onePrice, type 13 |
+| `test/tier_cases_rising_bxgy_test.dart` | YANGI | Qimmatlashuvchi pog'ona × aksiyalar (BXGY 1+1/2+1, A→B, BXGX, %), deleteRow, red-delete |
+| `test/tier_cases_falling_regression_test.dart` | YANGI | Arzonlashuvchi pog'ona regressiyasi (eski qoida saqlangan) |
+| `test/tier_cases_box_marking_kg_test.dart` | YANGI | Blok, markirovka, kg qatorlari |
+| `test/tier_cases_data_sync_test.dart` | YANGI | onePrice/finalPrice chekka holatlari, type 13 parse, editItem → savat |
+
+## 4. Bog'liqliklar
+
+- `DiscountEffectsController` — InVan 2 da `OrderingProvider4` dan ajratilgan (Faza 4). InVan 1 da `useFreeProducts` provider ichida bo'lsa, o'sha metoddagi "Har bir qator uchun 6050 ni majburiy qo'yamiz" blokini toping.
+- `ItemsSingleton.onePrice` / `finalPrice` va `ShopPriceTiersSub` — InVan 1 da ham bor (nomlari bir xil).
+- Testlar `test/support/provider_harness.dart` ga tayanadi (umumiy ko'rsatma, 5-band) va `RowRepricer` (Faza 9.1) mavjudligini nazarda tutadi; InVan 1 da bo'lmasa — testlarni moslang yoki faqat kodni ko'chiring.
+
+## 5. Qo'llash tartibi
+
+1. `useFreeProducts` dagi 1-talik narx blokiga `if (adjustedFirstTierPrice > item.realPrice)` shartini qo'shing (6.1, birinchi hunk).
+2. `ItemsSingleton.onePrice` ni 6.1 dagidek almashtiring.
+3. `ShopPriceTiersSub.fromJson` ga `_toInt`/`_toNum` qo'shing (6.1).
+4. Testlarni ko'chiring (6.2–6.6), `flutter test`.
+
+## 6. Kod
+
+### 6.1. Diff (`git show 65dc7ef -- lib/`)
+
+```diff
+diff --git a/lib/changes/providers/ordering/discount_effects_controller.dart b/lib/changes/providers/ordering/discount_effects_controller.dart
+index f581f13..0e615cf 100644
+--- a/lib/changes/providers/ordering/discount_effects_controller.dart
++++ b/lib/changes/providers/ordering/discount_effects_controller.dart
+@@ -201,13 +201,19 @@ class DiscountEffectsController {
+       num freeLeft = returnedProductQty;
+ 
+       for (final item in eligibleItems) {
+-        // 1. Har bir qator uchun 6050 ni majburiy qo'yamiz
++        // 1. Pog'ona narxi 1-talikdan ARZON bo'lsa (ulgurji chegirma) —
++        // tekin mahsulot bilan ikki marta chegirma bo'lmasin, 1-talik narx
++        // qo'yiladi. Pog'ona QIMMAT bo'lsa (ko'p olsa narx oshadi) tegilmaydi —
++        // aks holda kassa pog'ona narxini yo'qotib, 1-talikda sotardi.
++        // useBuyXGetXProducts bilan bir xil qoida.
+         if (firstTierPrice > 0) {
+           final adjustedFirstTierPrice = item.saleType == 2
+               ? firstTierPrice * item.boxValue
+               : firstTierPrice;
+-          item.realPrice = adjustedFirstTierPrice;
+-          item.onlyPrice = adjustedFirstTierPrice;
++          if (adjustedFirstTierPrice > item.realPrice) {
++            item.realPrice = adjustedFirstTierPrice;
++            item.onlyPrice = adjustedFirstTierPrice;
++          }
+         }
+ 
+         if (freeLeft <= 0) {
+diff --git a/lib/changes/services/web_socket_service/product/model/product_price_edit_response.dart b/lib/changes/services/web_socket_service/product/model/product_price_edit_response.dart
+index b1d1b1a..6741cd7 100644
+--- a/lib/changes/services/web_socket_service/product/model/product_price_edit_response.dart
++++ b/lib/changes/services/web_socket_service/product/model/product_price_edit_response.dart
+@@ -170,8 +170,23 @@ class ShopPriceTiersSub {
+   ShopPriceTiersSub({this.minQuantity, this.retailPrice});
+ 
+   ShopPriceTiersSub.fromJson(Map<String, dynamic> json) {
+-    minQuantity = json['min_quantity'];
+-    retailPrice = json['retail_price'];
++    // `3.0` (double) yoki "3" (satr) kelsa ham yiqilmasin — aks holda narx
++    // o'zgarishi kassaga yetib kelmaydi (katalogdagi ShopPriceTiers bilan bir xil).
++    minQuantity = _toInt(json['min_quantity']);
++    retailPrice = _toNum(json['retail_price']);
++  }
++
++  static int? _toInt(dynamic v) {
++    if (v is int) return v;
++    if (v is num) return v.toInt();
++    if (v is String) return num.tryParse(v)?.toInt();
++    return null;
++  }
++
++  static num? _toNum(dynamic v) {
++    if (v is num) return v;
++    if (v is String) return num.tryParse(v);
++    return null;
+   }
+ 
+   Map<String, dynamic> toJson() {
+diff --git a/lib/features/get_products/singletons/items_singleton.dart b/lib/features/get_products/singletons/items_singleton.dart
+index afe8491..34b5279 100644
+--- a/lib/features/get_products/singletons/items_singleton.dart
++++ b/lib/features/get_products/singletons/items_singleton.dart
+@@ -115,15 +115,32 @@ class ItemsSingleton {
+     return price;
+   }
+ 
++  /// 1-talik (asosiy) narx — savatda 1 dona qaysi narxda sotilsa o'sha
++  /// (`finalPrice(.., 1, ..)` bilan aynan bir xil tanlov: `minQuantity <= 1`
++  /// lar ichidan eng kattasi, teng bo'lsa oxirgisi). Server pog'onalarni
++  /// tartiblab yuborishiga tayanilmaydi: `[3→7000, 1→5000]` → 5000; buzuq
++  /// `min_quantity: null` qatori 1-talikni bosib ketmaydi.
++  /// Hech bir pog'ona 1 dona uchun mos kelmasa (masalan faqat `3+`) — eng
++  /// kichik `minQuantity` li pog'ona (mahsulot skanerdan yo'qolmasin).
+   static num onePrice(ShopPrices? shopPrices) {
+-    double price = 0;
+-    if (shopPrices != null &&
+-        shopPrices.shID != null &&
+-        shopPrices.shID!.shopPriceTiers != null &&
+-        shopPrices.shID!.shopPriceTiers!.isNotEmpty) {
+-      price = (shopPrices.shID!.shopPriceTiers![0].retailPrice ?? 0).toDouble();
++    final tiers = shopPrices?.shID?.shopPriceTiers;
++    if (tiers == null || tiers.isEmpty) return 0;
++    ShopPriceTiers? match;
++    int min = 0;
++    for (final t in tiers) {
++      final q = t.minQuantity ?? 0;
++      if (1 >= q && q >= min) {
++        match = t;
++        min = q;
++      }
+     }
+-    return price;
++    if (match == null) {
++      match = tiers.first;
++      for (final t in tiers) {
++        if ((t.minQuantity ?? 0) < (match!.minQuantity ?? 0)) match = t;
++      }
++    }
++    return (match!.retailPrice ?? 0).toDouble();
+   }
+ 
+   /// Qatorning fizik dona soni: blok qatorida value × boxValue, aks holda value
+```
+
+### 6.2. YANGI: `test/tier_rising_price_test.dart`
+
+<details>
+<summary>test/tier_rising_price_test.dart (415 qator)</summary>
+
+```dart
+// Pog'onali narx (tier) — ko'p olsa narx OSHADIGAN holat ham ishlashi kerak.
+//
+// MUAMMO (2026-10-08): adminkada "1 ta → 5000, 3+ ta → 7000" qo'yilganda
+// kassa 8 ta sotsa ham 5000 da qolib ketardi. Kassa mantig'i asosan
+// "ko'p olsa arzonlashadi" deb yozilgan joylari bor edi:
+//   * Buy X Get Y shart bajarilganda `useFreeProducts` narxni SHARTSIZ
+//     1-talikka qaytarardi (qimmat pog'ona yo'qolardi);
+//   * `onePrice` ro'yxatning birinchi elementini 1-talik deb olardi;
+//   * type 13 notification `min_quantity: 3.0` da yiqilardi.
+//
+// Bu fayl ikkala yo'nalishni ham (arzonlashuvchi va qimmatlashuvchi) va
+// barcha kirish yo'llarini (skan, x8, OPD) muzlatadi.
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+import 'package:invan2/app_navigation.dart';
+import 'package:invan2/changes/models/product/item_model.dart';
+import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/changes/services/web_socket_service/product/model/product_price_edit_response.dart';
+import 'package:invan2/changes/singletons/discounts/discount_singleton.dart';
+import 'package:invan2/features/get_discounts/model/discounts_response.dart';
+import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+import 'package:invan2/utils/helpers/size_config.dart';
+import 'package:invan2/utils/l10n/app_localizations.dart';
+
+import 'support/provider_harness.dart';
+
+const kShop = 'shop-1';
+const kPid = 'tier-id';
+const kOtherId = 'other-id';
+
+// Buy X Get Y uchun qat'iy GUIDlar (discount_helpers.dart dan).
+const gGroupBuyXGetY = '86951e75-960f-45d7-9505-9b9cd2ce17a7';
+const gTypeBuyXGetY = 'a9f3ceb1-4fa3-4f71-ab81-00889e26616b';
+
+const kRising = {1: 5000, 3: 7000};
+const kFalling = {1: 5000, 3: 4500, 7: 4000};
+
+ItemModel tierProduct(Map<int, num> tiers, {String id = kPid}) {
+  final m = ItemModel();
+  m.id = id;
+  m.name = 'Tier $id';
+  m.sku = '1';
+  m.barcode = [id];
+  m.packageCode = 'PACK-1';
+  m.vat = Vat(percentage: 12);
+  m.measurementUnit = MeasurementUnit(shortName: 'dona');
+  m.shopPrices = ShopPrices(
+    shID: ShID(shopId: kShop, shopPriceTiers: [
+      for (final t in tiers.entries)
+        ShopPriceTiers(minQuantity: t.key, retailPrice: t.value)
+    ]),
+  );
+  return m;
+}
+
+DiscountItem buyXGetY(
+        {required int buy, required String getId, bool repeatable = false}) =>
+    DiscountItem(
+      id: 'bxgy',
+      name: 'Buy X Get Y',
+      displayName: 'Buy X Get Y',
+      discountGroupType: DiscountGroupType(id: gGroupBuyXGetY),
+      discountType: DiscountType(id: gTypeBuyXGetY),
+      isExpirable: false,
+      isForAllClients: true,
+      isRepeatable: repeatable,
+      shopIds: [ShopIds(id: kShop)],
+      buyXGetY: BuyXGetY(
+        productsToBuy: [ProductsToBuy(id: kPid, name: 'Tier')],
+        buyProductsAmount: buy,
+        productToGet: ProductsToGet(id: getId, name: getId),
+        getProductsAmount: 1,
+      ),
+    );
+
+/// `addProduct` ichida `AppNavigation.navigatorKey.currentContext` o'qiladi.
+Future<BuildContext> appContext(WidgetTester tester) async {
+  late BuildContext captured;
+  await tester.pumpWidget(MaterialApp(
+    navigatorKey: AppNavigation.navigatorKey,
+    locale: const Locale('uz'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: Builder(builder: (c) {
+      captured = c;
+      SizeConfig().init(c);
+      return const SizedBox();
+    })),
+  ));
+  return captured;
+}
+
+Future<void> scan(WidgetTester tester, BuildContext ctx, OrderingProvider4 p,
+    {double value = 1, String id = kPid}) async {
+  p.addProduct(
+      value: value,
+      product: ItemsSingleton.getProductById(id)!,
+      where: 'test',
+      context: ctx);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
+  // Aksiyali mahsulot birinchi qo'shilganda "aksiya bor" dialogi chiqadi —
+  // kassir "Ok" bosmaguncha tekin qo'llanmaydi. Kassir kabi yopamiz.
+  final ok = find.text('Ok');
+  if (ok.evaluate().isNotEmpty) {
+    await tester.tap(ok.first, warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+/// OPD dialogidagi qty o'zgarishi: dialog qator NUSXASINI tahrirlaydi va
+/// "Saqlash"da `pressDialogSaveButton` ga beradi (narx tahrirlanmagan).
+Future<void> opdSetQty(OrderingProvider4 p, int index, double qty) async {
+  final row = p.getCurrentClient.orderedProducts[index];
+  p.tapIndexToEdit(index);
+  await p.pressDialogSaveButton(makeSoldItem(
+    productId: row.productId,
+    price: row.price,
+    realPrice: row.realPrice,
+    onlyPrice: row.onlyPrice,
+    value: qty,
+  ));
+}
+
+List<ReceiptModelSoldItem4> cart(OrderingProvider4 p) =>
+    p.getCurrentClient.orderedProducts;
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('tier_rising_price_test');
+    await Pref.setString(PrefKeys.storeId, kShop);
+
+    // type 13 → editItem Hive'dagi mahsulotlar box'ini o'qiydi.
+    void reg<T>(int typeId, TypeAdapter<T> adapter) {
+      if (!Hive.isAdapterRegistered(typeId)) Hive.registerAdapter(adapter);
+    }
+
+    reg(ItemModelAdapter().typeId, ItemModelAdapter());
+    reg(ShopPricesAdapter().typeId, ShopPricesAdapter());
+    reg(ShIDAdapter().typeId, ShIDAdapter());
+    reg(ShopPriceTiersAdapter().typeId, ShopPriceTiersAdapter());
+    reg(CategoriesFromProductsAdapter().typeId,
+        CategoriesFromProductsAdapter());
+    reg(MeasurementUnitAdapter().typeId, MeasurementUnitAdapter());
+    reg(VatAdapter().typeId, VatAdapter());
+    await Hive.openBox<ItemModel>(HiveBoxNames.items);
+  });
+  tearDownAll(tearDownPosTestEnv);
+
+  // testWidgets ichida Hive IO kutilsa osilib qoladi — sozlash shu yerda.
+  setUp(() async {
+    await Pref.setBool(PrefKeys.markCheckWithOfd, false);
+    await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
+    await Pref.setBool(PrefKeys.isRedDeleteActivated, false);
+    await HiveBoxes.getDiscounts().clear();
+    DiscountSingleton.resetAll();
+  });
+
+  group('Qimmatlashuvchi pog\'ona (1 → 5000, 3+ → 7000)', () {
+    setUp(() => ItemsSingleton.products = [tierProduct(kRising)]);
+
+    for (int n = 1; n <= 8; n++) {
+      final expected = n >= 3 ? 7000.0 : 5000.0;
+      testWidgets('bittadan $n marta skan → $expected', (tester) async {
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        for (int i = 0; i < n; i++) {
+          await scan(tester, ctx, p);
+        }
+        expect(cart(p), hasLength(1));
+        expect(cart(p).first.value, n);
+        expect(cart(p).first.price, expected);
+        expect(cart(p).first.realPrice, expected);
+      });
+    }
+
+    testWidgets('x8 bir martada → 7000', (tester) async {
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expect(cart(p).first.price, 7000);
+    });
+
+    testWidgets('1 ta + 7 ta → 7000', (tester) async {
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p);
+      await scan(tester, ctx, p, value: 7);
+      expect(cart(p).first.value, 8);
+      expect(cart(p).first.price, 7000);
+    });
+
+    testWidgets('OPD: 1 → 8 → 7000, keyin 8 → 2 → yana 5000', (tester) async {
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p);
+      await opdSetQty(p, 0, 8);
+      expect(cart(p).first.price, 7000);
+      await opdSetQty(p, 0, 2);
+      expect(cart(p).first.price, 5000);
+    });
+
+    testWidgets('jami summa pog\'ona narxida: 8 × 7000', (tester) async {
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), 56000);
+    });
+  });
+
+  group('Arzonlashuvchi pog\'ona (regressiya: 1 → 5000, 3+ → 4500, 7+ → 4000)',
+      () {
+    setUp(() => ItemsSingleton.products = [tierProduct(kFalling)]);
+
+    const cases = {1: 5000, 2: 5000, 3: 4500, 6: 4500, 7: 4000, 8: 4000};
+    cases.forEach((n, expected) {
+      testWidgets('$n marta skan → $expected', (tester) async {
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        for (int i = 0; i < n; i++) {
+          await scan(tester, ctx, p);
+        }
+        expect(cart(p).first.price, expected);
+      });
+    });
+  });
+
+  // Prod'dagi aniq sozlama (2026-10-08, "Saryog' Lora 200gr"): Buy X Get Y,
+  // o'sha mahsulotning o'zi, 1 olsa 1 tekin, repeatable; 1 ta → 25 000,
+  // 7+ ta → 27 000. Tekin soni = floor(n / 2). Pog'ona savatdagi JAMI dona
+  // (tekinlari bilan) bo'yicha tanlanadi.
+  group('PROD: Saryog\' Lora — 1+1 repeatable, 1 → 25 000, 7+ → 27 000', () {
+    const tiers = {1: 25000, 7: 27000};
+
+    for (int n = 1; n <= 9; n++) {
+      final unit = n >= 7 ? 27000.0 : 25000.0;
+      final free = n ~/ 2;
+      final lineTotal = unit * (n - free);
+      testWidgets('$n marta skan → dona $unit, $free tekin, jami $lineTotal',
+          (tester) async {
+        await tester.runAsync(() => HiveBoxes.getDiscounts()
+            .add(buyXGetY(buy: 1, getId: kPid, repeatable: true)));
+        ItemsSingleton.products = [tierProduct(tiers)];
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        for (int i = 0; i < n; i++) {
+          await scan(tester, ctx, p);
+        }
+        final row = cart(p).single;
+        expect(row.value, n);
+        expect(row.realPrice, unit, reason: 'pog\'ona narxi yo\'qolmasin');
+        expect(row.price * row.value, closeTo(lineTotal, 0.01));
+        expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(lineTotal, 1));
+      });
+    }
+
+    testWidgets('x8 bir martada → 4 × 27 000 = 108 000', (tester) async {
+      await tester.runAsync(() => HiveBoxes.getDiscounts()
+          .add(buyXGetY(buy: 1, getId: kPid, repeatable: true)));
+      ItemsSingleton.products = [tierProduct(tiers)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      final row = cart(p).single;
+      expect(row.realPrice, 27000);
+      expect(row.price * row.value, closeTo(108000, 0.01));
+    });
+
+    testWidgets('OPD: 8 → 6 ga tushirilsa yana 25 000 (3 × 25 000)',
+        (tester) async {
+      await tester.runAsync(() => HiveBoxes.getDiscounts()
+          .add(buyXGetY(buy: 1, getId: kPid, repeatable: true)));
+      ItemsSingleton.products = [tierProduct(tiers)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      await opdSetQty(p, 0, 6);
+      final row = cart(p).single;
+      expect(row.realPrice, 25000);
+      expect(row.price * row.value, closeTo(75000, 0.01));
+    });
+  });
+
+  group('Buy X Get Y + pog\'ona', () {
+    testWidgets(
+        'QIMMAT pog\'ona: shart bajarilganda ham 7000 saqlanadi '
+        '(8 dan 1 tekin → 7000 × 7/8)', (tester) async {
+      await tester.runAsync(() => HiveBoxes.getDiscounts()
+          .add(buyXGetY(buy: 5, getId: kPid)));
+      ItemsSingleton.products = [tierProduct(kRising)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      for (int i = 0; i < 8; i++) {
+        await scan(tester, ctx, p);
+      }
+      final row = cart(p).single;
+      expect(row.realPrice, 7000, reason: 'qimmat pog\'ona 1-talikka tushmasin');
+      expect(row.price, closeTo(7000 * 7 / 8, 0.01));
+    });
+
+    testWidgets(
+        'ARZON pog\'ona: avvalgi qoida saqlanadi — tekin bor bo\'lsa '
+        '1-talik narx (5000)', (tester) async {
+      await tester.runAsync(() => HiveBoxes.getDiscounts()
+          .add(buyXGetY(buy: 5, getId: kPid)));
+      ItemsSingleton.products = [tierProduct(kFalling)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      for (int i = 0; i < 8; i++) {
+        await scan(tester, ctx, p);
+      }
+      final row = cart(p).single;
+      expect(row.realPrice, 5000);
+      expect(row.price, closeTo(5000 * 7 / 8, 0.01));
+    });
+
+    testWidgets('shart bajarilmasa pog\'ona narxi o\'zgarmaydi', (tester) async {
+      await tester.runAsync(() => HiveBoxes.getDiscounts()
+          .add(buyXGetY(buy: 20, getId: kPid)));
+      ItemsSingleton.products = [tierProduct(kRising)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expect(cart(p).single.price, 7000);
+    });
+  });
+
+  group('onePrice — 1-talik narx', () {
+    test('tartibsiz pog\'onalar: eng kichik minQuantity olinadi', () {
+      final m = tierProduct(const {3: 7000, 1: 5000});
+      expect(ItemsSingleton.onePrice(m.shopPrices), 5000);
+    });
+
+    test('bitta pog\'ona', () {
+      expect(ItemsSingleton.onePrice(tierProduct(const {1: 5000}).shopPrices),
+          5000);
+    });
+
+    test('pog\'ona yo\'q → 0', () {
+      expect(ItemsSingleton.onePrice(null), 0);
+      expect(ItemsSingleton.onePrice(ShopPrices(shID: ShID(shopPriceTiers: []))),
+          0);
+    });
+
+    test('finalPrice tartibsiz pog\'onalarda ham to\'g\'ri', () {
+      final m = tierProduct(const {3: 7000, 1: 5000});
+      expect(ItemsSingleton.finalPrice(m, 1, false), 5000);
+      expect(ItemsSingleton.finalPrice(m, 2, false), 5000);
+      expect(ItemsSingleton.finalPrice(m, 3, false), 7000);
+      expect(ItemsSingleton.finalPrice(m, 8, false), 7000);
+    });
+  });
+
+  group('type 13 notification → savat', () {
+    ProductPriceEdit edit(List<Map<String, dynamic>> tiers) =>
+        ProductPriceEdit.fromJson({
+          'id': 'n-1',
+          'type': 13,
+          'data': {
+            'product_values': [
+              {
+                'product_id': kPid,
+                'price': {
+                  'shop_id': kShop,
+                  'retail_price': 5000,
+                  'supply_price': 4000,
+                  'shop_price_tiers': tiers,
+                },
+              },
+            ],
+          },
+        });
+
+    test('min_quantity 3.0 / "3" — yiqilmaydi', () {
+      final e = edit([
+        {'min_quantity': 1.0, 'retail_price': 5000},
+        {'min_quantity': '3', 'retail_price': '7000'},
+      ]);
+      final tiers = e.data!.productsValues!.first.price!.shopPriceTiers!;
+      expect(tiers[0].minQuantity, 1);
+      expect(tiers[1].minQuantity, 3);
+      expect(tiers[1].retailPrice, 7000);
+    });
+
+    testWidgets('adminkada pog\'ona qo\'shildi → keyingi sotuv 7000',
+        (tester) async {
+      await tester.runAsync(() async {
+        final box = HiveBoxes.getProducts();
+        await box.clear();
+        await box.put(kPid, tierProduct(const {1: 5000}));
+        await ItemsSingleton.storeProducts();
+        expect(ItemsSingleton.finalPrice(
+            ItemsSingleton.getProductById(kPid)!, 8, false), 5000);
+        await ItemsSingleton.editItem(edit([
+          {'min_quantity': 1, 'retail_price': 5000},
+          {'min_quantity': 3.0, 'retail_price': 7000},
+        ]));
+        await ItemsSingleton.storeProducts();
+      });
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expect(cart(p).single.price, 7000);
+      await tester.runAsync(() => HiveBoxes.getProducts().clear());
+    });
+  });
+}
+```
+
+</details>
+
+### 6.3. YANGI: `test/tier_cases_rising_bxgy_test.dart`
+
+<details>
+<summary>test/tier_cases_rising_bxgy_test.dart (1027 qator)</summary>
+
+```dart
+// QIMMATLASHUVCHI pog'ona (ko'p olsa narx OSHADI) + diskontlar — keng holatlar.
+//
+// Tuzatish (2026-10-08): `useFreeProducts` Buy X Get Y shart bajarilganda
+// narxni SHARTSIZ 1-talikka qaytarardi. Endi faqat pog'ona 1-talikdan ARZON
+// bo'lsa (ulgurji) 1-talik qo'yiladi; QIMMAT pog'ona saqlanadi.
+//
+// Biznes qoidalar (kutilgan qiymatlar shulardan hisoblanadi, koddan emas):
+//   * pog'ona = savatdagi shu mahsulotning JAMI donasi (tekinlari bilan)
+//     bo'yicha eng katta minQuantity <= jami;
+//   * Buy X Get Y / Buy X Get X: pog'ona QIMMAT bo'lsa pog'ona narxi qoladi,
+//     tekin donalar shu narxdan chiqariladi;
+//   * diskont yo'q → sof pog'ona narxi.
+//
+// Qator jami = realPrice × to'lanadigan dona; row.price = realPrice × paid / qty.
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/app_navigation.dart';
+import 'package:invan2/changes/models/product/item_model.dart';
+import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/changes/singletons/discounts/discount_singleton.dart';
+import 'package:invan2/features/get_discounts/model/discounts_response.dart';
+import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+import 'package:invan2/utils/helpers/size_config.dart';
+import 'package:invan2/utils/l10n/app_localizations.dart';
+
+import 'support/provider_harness.dart';
+
+const kShop = 'shop-1';
+const kPid = 'lora-id'; // "Saryog' Lora 200gr"
+const kOtherId = 'boshqa-id';
+
+// Qat'iy GUIDlar (discount_helpers.dart dan).
+const gGroupBuyXGetY = '86951e75-960f-45d7-9505-9b9cd2ce17a7';
+const gTypeBuyXGetY = 'a9f3ceb1-4fa3-4f71-ab81-00889e26616b';
+const gGroupBuyXGetX = '316b623e-3bb7-43e2-b6d5-1028c927caba';
+const gTypeBuyXGetX = '90d1f774-44bd-49be-9bbf-2e9a44558377';
+const gGroupProduct = '22e778e1-e562-4649-b47e-b720a28d831c';
+const gTypePercentage = 'e908c52f-4c6f-46d8-b765-16e074425cd9';
+
+/// Prod'dagi pog'ona: 1 ta → 25 000, 7+ ta → 27 000.
+const kProd = {1: 25000, 7: 27000};
+
+/// Uch pog'ona: 1 → 25 000, 3+ → 26 000, 7+ → 27 000.
+const kThree = {1: 25000, 3: 26000, 7: 27000};
+
+/// Ikkinchi mahsulot (ham qimmatlashuvchi): 1 → 10 000, 3+ → 12 000.
+const kOtherRising = {1: 10000, 3: 12000};
+
+// ------------------------------------------------------------------------
+// Biznes qoidalari (kutilgan qiymatlar uchun)
+// ------------------------------------------------------------------------
+
+/// Pog'ona: eng katta minQuantity <= [units].
+num tierUnit(Map<int, num> tiers, num units) {
+  num price = 0;
+  int best = -1;
+  tiers.forEach((minQ, p) {
+    if (units >= minQ && minQ > best) {
+      best = minQ;
+      price = p;
+    }
+  });
+  return price;
+}
+
+/// Bir xil mahsulotdan tekin: repeatable → har to'liq (buy+get) to'plam uchun
+/// get; aks holda bitta to'plam.
+int freeSame(int n, {required int buy, required int get, required bool rep}) {
+  final set = buy + get;
+  if (rep) return (n ~/ set) * get;
+  return n >= set ? get : 0;
+}
+
+// ------------------------------------------------------------------------
+// Katalog va diskont yasovchilar
+// ------------------------------------------------------------------------
+
+ItemModel tierProduct(Map<int, num> tiers, {String id = kPid}) {
+  final m = ItemModel();
+  m.id = id;
+  m.name = 'Tier $id';
+  m.sku = '1';
+  m.barcode = [id];
+  m.packageCode = 'PACK-1';
+  m.vat = Vat(percentage: 12);
+  m.measurementUnit = MeasurementUnit(shortName: 'dona');
+  m.shopPrices = ShopPrices(
+    shID: ShID(shopId: kShop, shopPriceTiers: [
+      for (final t in tiers.entries)
+        ShopPriceTiers(minQuantity: t.key, retailPrice: t.value)
+    ]),
+  );
+  return m;
+}
+
+DiscountItem bxgy({
+  required int buy,
+  int get = 1,
+  String buyId = kPid,
+  String getId = kPid,
+  bool repeatable = false,
+}) =>
+    DiscountItem(
+      id: 'bxgy',
+      name: 'Buy X Get Y',
+      displayName: 'Buy X Get Y',
+      discountGroupType: DiscountGroupType(id: gGroupBuyXGetY),
+      discountType: DiscountType(id: gTypeBuyXGetY),
+      isExpirable: false,
+      isForAllClients: true,
+      isRepeatable: repeatable,
+      shopIds: [ShopIds(id: kShop)],
+      buyXGetY: BuyXGetY(
+        productsToBuy: [ProductsToBuy(id: buyId, name: buyId)],
+        buyProductsAmount: buy,
+        productToGet: ProductsToGet(id: getId, name: getId),
+        getProductsAmount: get,
+      ),
+    );
+
+DiscountItem bxgx({
+  required int buy,
+  int get = 1,
+  String productId = kPid,
+  bool repeatable = false,
+}) =>
+    DiscountItem(
+      id: 'bxgx',
+      name: 'Buy X Get X',
+      displayName: '$buy olsang $get tekin',
+      discountGroupType: DiscountGroupType(id: gGroupBuyXGetX),
+      discountType: DiscountType(id: gTypeBuyXGetX),
+      isExpirable: false,
+      isForAllClients: true,
+      isRepeatable: repeatable,
+      shopIds: [ShopIds(id: kShop)],
+      buyXGetX: BuyXGetX(
+        productsToBuy: [ProductsToBuy(id: productId, name: productId)],
+        buyProductsAmount: buy,
+        getProductsAmount: get,
+      ),
+    );
+
+DiscountItem percent(int value, {List<String>? onlyFor}) => DiscountItem(
+      id: 'pct',
+      name: '$value%',
+      displayName: '$value%',
+      discountGroupType: DiscountGroupType(id: gGroupProduct),
+      discountType: DiscountType(id: gTypePercentage),
+      discountValue: value,
+      isExpirable: false,
+      isAllProducts: onlyFor == null,
+      productIds: (onlyFor ?? const []).map((e) => ProductIds(id: e)).toList(),
+      isForAllClients: true,
+      shopIds: [ShopIds(id: kShop)],
+    );
+
+// ------------------------------------------------------------------------
+// Kassa harakatlari
+// ------------------------------------------------------------------------
+
+/// `addProduct` ichida `AppNavigation.navigatorKey.currentContext` o'qiladi.
+Future<BuildContext> appContext(WidgetTester tester) async {
+  late BuildContext captured;
+  await tester.pumpWidget(MaterialApp(
+    navigatorKey: AppNavigation.navigatorKey,
+    locale: const Locale('uz'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: Builder(builder: (c) {
+      captured = c;
+      SizeConfig().init(c);
+      return const SizedBox();
+    })),
+  ));
+  return captured;
+}
+
+/// testWidgets ichida Hive IO faqat runAsync orqali.
+Future<void> seed(WidgetTester tester, List<DiscountItem> ds) =>
+    tester.runAsync(() => HiveBoxes.getDiscounts().addAll(ds));
+
+Future<void> scan(WidgetTester tester, BuildContext ctx, OrderingProvider4 p,
+    {double value = 1, String id = kPid}) async {
+  p.addProduct(
+      value: value,
+      product: ItemsSingleton.getProductById(id)!,
+      where: 'test',
+      context: ctx);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
+  // "Aksiya bor" dialogi — kassir "Ok" bosmaguncha tekin qo'llanmaydi.
+  final ok = find.text('Ok');
+  if (ok.evaluate().isNotEmpty) {
+    await tester.tap(ok.first, warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+Future<void> scanN(WidgetTester tester, BuildContext ctx, OrderingProvider4 p,
+    int n,
+    {String id = kPid}) async {
+  for (int i = 0; i < n; i++) {
+    await scan(tester, ctx, p, id: id);
+  }
+}
+
+/// OPD dialogidagi qty o'zgarishi (narx tahrirlanmagan).
+Future<void> opdSetQty(OrderingProvider4 p, int index, double qty) async {
+  final row = p.getCurrentClient.orderedProducts[index];
+  p.tapIndexToEdit(index);
+  await p.pressDialogSaveButton(makeSoldItem(
+    productId: row.productId,
+    price: row.price,
+    realPrice: row.realPrice,
+    onlyPrice: row.onlyPrice,
+    value: qty,
+  ));
+}
+
+/// OPD "Saqlash" o'zgarishsiz — tier + diskont effektlarini qayta hisoblaydi.
+Future<void> saveRow(OrderingProvider4 p, int index) async {
+  p.tapIndexToEdit(index);
+  await p.pressDialogSaveButton(p.getCurrentClient.orderedProducts[index]);
+}
+
+/// OPD "O'chirish" — bitta qator.
+Future<void> deleteRow(OrderingProvider4 p, int index) async {
+  p.tapIndexToEdit(index);
+  p.pressDialogDeleteButton();
+  await Future<void>.delayed(Duration.zero);
+}
+
+List<ReceiptModelSoldItem4> cart(OrderingProvider4 p) =>
+    p.getCurrentClient.orderedProducts;
+
+List<ReceiptModelSoldItem4> rowsOf(OrderingProvider4 p, String id) => cart(p)
+    .where((e) => e.productId == id && !(e.isDeleted ?? false))
+    .toList();
+
+ReceiptModelSoldItem4 rowOf(OrderingProvider4 p, String id) =>
+    rowsOf(p, id).single;
+
+/// Mahsulotning savatdagi to'lanadigan jami summasi.
+double productTotal(OrderingProvider4 p, String id) =>
+    rowsOf(p, id).fold<double>(0, (s, e) => s + e.price * e.value);
+
+/// Markirovkali mahsulot qatori (har skan alohida qator, value = 1).
+ReceiptModelSoldItem4 markRow(int i, {String id = kPid, double price = 25000}) =>
+    makeSoldItem(
+        productId: id,
+        name: 'Lora',
+        price: price,
+        value: 1,
+        marking: true,
+        mark: 'KM-$id-$i');
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('tier_cases_rising_bxgy_test');
+    await Pref.setString(PrefKeys.storeId, kShop);
+  });
+  tearDownAll(tearDownPosTestEnv);
+
+  // testWidgets ichida Hive IO kutilsa osilib qoladi — sozlash shu yerda.
+  setUp(() async {
+    await Pref.setBool(PrefKeys.markCheckWithOfd, false);
+    await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
+    await Pref.setBool(PrefKeys.isRedDeleteActivated, false);
+    await HiveBoxes.getDiscounts().clear();
+    DiscountSingleton.resetAll();
+    ItemsSingleton.products = [
+      tierProduct(kProd),
+      tierProduct(kOtherRising, id: kOtherId),
+    ];
+  });
+
+  // ======================================================================
+  // 1. Prod sozlamasi
+  // ======================================================================
+  group('PROD: 1+1 repeatable (o\'zi tekin), 1 → 25 000, 7+ → 27 000', () {
+    for (int n = 1; n <= 10; n++) {
+      final unit = tierUnit(kProd, n).toDouble();
+      final free = freeSame(n, buy: 1, get: 1, rep: true);
+      final total = unit * (n - free);
+      testWidgets('bittadan $n marta skan → dona $unit, $free tekin, jami $total',
+          (tester) async {
+        await seed(tester, [bxgy(buy: 1, repeatable: true)]);
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scanN(tester, ctx, p, n);
+
+        final row = cart(p).single;
+        expect(row.value, n);
+        expect(row.realPrice, unit, reason: 'pog\'ona narxi yo\'qolmasin');
+        expect(row.onlyPrice, unit);
+        expect(row.price, closeTo(unit * (n - free) / n, 0.01));
+        expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(total, 1));
+      });
+    }
+
+    for (final n in const [7, 8, 14]) {
+      final unit = tierUnit(kProd, n).toDouble();
+      final free = freeSame(n, buy: 1, get: 1, rep: true);
+      final total = unit * (n - free);
+      testWidgets('x$n bir martada → $free tekin, jami $total', (tester) async {
+        await seed(tester, [bxgy(buy: 1, repeatable: true)]);
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scan(tester, ctx, p, value: n.toDouble());
+
+        final row = cart(p).single;
+        expect(row.value, n);
+        expect(row.realPrice, unit);
+        expect(row.price * row.value, closeTo(total, 0.01));
+        expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(total, 1));
+      });
+    }
+
+    testWidgets('x6 + 1 skan → 7 ta: 27 000 × 4 = 108 000', (tester) async {
+      await seed(tester, [bxgy(buy: 1, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 6);
+      expect(productTotal(p, kPid), closeTo(75000, 0.01));
+      await scan(tester, ctx, p);
+      final row = cart(p).single;
+      expect(row.value, 7);
+      expect(row.realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+    });
+
+    testWidgets('x7 + x7 → 14 ta: 27 000 × 7 = 189 000', (tester) async {
+      await seed(tester, [bxgy(buy: 1, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 7);
+      await scan(tester, ctx, p, value: 7);
+      final row = cart(p).single;
+      expect(row.value, 14);
+      expect(row.realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(189000, 0.01));
+    });
+  });
+
+  // ======================================================================
+  // 2. Chegara 6 → 7 → 6
+  // ======================================================================
+  group('Chegara 6 → 7 → 6 (prod sozlamasi)', () {
+    testWidgets('OPD: x6 → 7 → 6: 75 000 → 108 000 → 75 000', (tester) async {
+      await seed(tester, [bxgy(buy: 1, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 6);
+      expect(rowOf(p, kPid).realPrice, 25000);
+      expect(productTotal(p, kPid), closeTo(75000, 0.01));
+
+      await opdSetQty(p, 0, 7);
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+
+      await opdSetQty(p, 0, 6);
+      expect(rowOf(p, kPid).realPrice, 25000);
+      expect(productTotal(p, kPid), closeTo(75000, 0.01));
+    });
+
+    testWidgets('7 ta skan → OPD 6 → yana 1 skan → 7: narx qaytadi',
+        (tester) async {
+      await seed(tester, [bxgy(buy: 1, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 7);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+
+      await opdSetQty(p, 0, 6);
+      expect(rowOf(p, kPid).realPrice, 25000);
+      expect(productTotal(p, kPid), closeTo(75000, 0.01));
+
+      await scan(tester, ctx, p);
+      expect(rowOf(p, kPid).value, 7);
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+    });
+
+    testWidgets('OPD: x8 → 7 → 6 → 1 (tekin yo\'qoladi)', (tester) async {
+      await seed(tester, [bxgy(buy: 1, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+      await opdSetQty(p, 0, 7);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+      await opdSetQty(p, 0, 6);
+      expect(productTotal(p, kPid), closeTo(75000, 0.01));
+      await opdSetQty(p, 0, 1);
+      final row = rowOf(p, kPid);
+      expect(row.realPrice, 25000);
+      expect(row.price, 25000, reason: '1 ta — tekin yo\'q');
+    });
+
+    test('deleteRow: 7 ta markali qator → bittasi o\'chirilsa 6 → 25 000',
+        () async {
+      await HiveBoxes.getDiscounts().add(bxgy(buy: 1, repeatable: true));
+      final p = freshProvider();
+      for (int i = 0; i < 7; i++) {
+        cart(p).add(markRow(i));
+      }
+      await saveRow(p, 0);
+
+      final rows7 = rowsOf(p, kPid);
+      expect(rows7, hasLength(7));
+      expect(rows7.every((e) => e.realPrice == 27000), isTrue,
+          reason: '7 dona → hammasi 27 000');
+      expect(rows7.where((e) => e.price == 0), hasLength(3),
+          reason: 'floor(7/2) = 3 ta tekin');
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+
+      // To'lanadigan qatorlardan birini o'chiramiz.
+      final paidIdx = cart(p).indexWhere((e) => e.price > 0);
+      await deleteRow(p, paidIdx);
+
+      final rows6 = rowsOf(p, kPid);
+      expect(rows6, hasLength(6));
+      expect(rows6.every((e) => e.realPrice == 25000), isTrue,
+          reason: '6 dona → 1-pog\'ona');
+      expect(rows6.where((e) => e.price == 0), hasLength(3));
+      expect(productTotal(p, kPid), closeTo(75000, 0.01));
+    });
+
+    test('deleteRow: tekin qator o\'chirilsa ham 6 → 3 × 25 000', () async {
+      await HiveBoxes.getDiscounts().add(bxgy(buy: 1, repeatable: true));
+      final p = freshProvider();
+      for (int i = 0; i < 7; i++) {
+        cart(p).add(markRow(i));
+      }
+      await saveRow(p, 0);
+      final freeIdx = cart(p).indexWhere((e) => e.price == 0);
+      expect(freeIdx, isNot(-1));
+      await deleteRow(p, freeIdx);
+
+      final rows6 = rowsOf(p, kPid);
+      expect(rows6.every((e) => e.realPrice == 25000), isTrue);
+      expect(productTotal(p, kPid), closeTo(75000, 0.01));
+    });
+
+    test('deleteRow: ikki qator (6 + 1) → 1 talik o\'chirilsa 6 → 75 000',
+        () async {
+      await HiveBoxes.getDiscounts().add(bxgy(buy: 1, repeatable: true));
+      final p = freshProvider();
+      cart(p)
+        ..add(markRow(7)) // 0 — oxirgi qo'shilgan
+        ..add(makeSoldItem(productId: kPid, price: 25000, value: 6));
+      await saveRow(p, 0);
+      expect(rowsOf(p, kPid).every((e) => e.realPrice == 27000), isTrue);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+
+      await deleteRow(p, 0);
+      final row = rowOf(p, kPid);
+      expect(row.value, 6);
+      expect(row.realPrice, 25000);
+      expect(productTotal(p, kPid), closeTo(75000, 0.01));
+    });
+
+    test('deleteRow: 6 talik qator o\'chirilsa 1 ta qoladi → 25 000, tekin yo\'q',
+        () async {
+      await HiveBoxes.getDiscounts().add(bxgy(buy: 1, repeatable: true));
+      final p = freshProvider();
+      cart(p)
+        ..add(markRow(7))
+        ..add(makeSoldItem(productId: kPid, price: 25000, value: 6));
+      await saveRow(p, 0);
+      await deleteRow(p, 1);
+      final row = rowOf(p, kPid);
+      expect(row.value, 1);
+      expect(row.realPrice, 25000);
+      expect(row.price, 25000);
+    });
+
+    test('qizil o\'chirish: o\'chirilgan qator jamiga kirmaydi → 75 000',
+        () async {
+      await Pref.setBool(PrefKeys.isRedDeleteActivated, true);
+      await HiveBoxes.getDiscounts().add(bxgy(buy: 1, repeatable: true));
+      final p = freshProvider();
+      cart(p)
+        ..add(markRow(7))
+        ..add(makeSoldItem(productId: kPid, price: 25000, value: 6));
+      await saveRow(p, 0);
+      await deleteRow(p, 0);
+
+      expect(cart(p), hasLength(2), reason: 'qator savatda qoladi');
+      expect(cart(p)[0].isDeleted, isTrue);
+      final row = rowOf(p, kPid);
+      expect(row.realPrice, 25000);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(75000, 1));
+    });
+
+    test('removeLastAdded (diskontsiz): 6 + 1 → 1 talik olib tashlansa 25 000',
+        () async {
+      final p = freshProvider();
+      cart(p)
+        ..add(markRow(7))
+        ..add(makeSoldItem(productId: kPid, price: 25000, value: 6));
+      await saveRow(p, 0);
+      expect(rowsOf(p, kPid).every((e) => e.price == 27000), isTrue);
+
+      p.getCurrentClient.lastAddedIndex = 0;
+      p.removeLastAdded();
+      final row = rowOf(p, kPid);
+      expect(row.value, 6);
+      expect(row.realPrice, 25000);
+      expect(row.price, 25000);
+    });
+
+    test(
+        'removeLastAdded (BXGY): 6 + 1 → 1 talik olib tashlansa '
+        '3 tekin, 3 × 25 000', () async {
+      await HiveBoxes.getDiscounts().add(bxgy(buy: 1, repeatable: true));
+      final p = freshProvider();
+      cart(p)
+        ..add(markRow(7))
+        ..add(makeSoldItem(productId: kPid, price: 25000, value: 6));
+      await saveRow(p, 0);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+
+      p.getCurrentClient.lastAddedIndex = 0;
+      p.removeLastAdded();
+      final row = rowOf(p, kPid);
+      expect(row.realPrice, 25000);
+      expect(productTotal(p, kPid), closeTo(75000, 0.01),
+          reason: '6 dona → 3 tekin qayta hisoblanishi kerak');
+    },
+        skip: 'BUG: removeLastAdded tier qayta tanlaydi, lekin BXGY/BXGX '
+            'tekinini qayta hisoblamaydi (cart_edit_controller.dart:393)');
+  });
+
+  // ======================================================================
+  // 3. Takrorlanmaydigan 1+1
+  // ======================================================================
+  group('Takrorlanmaydigan 1+1 (o\'zi tekin) + qimmatlashuvchi pog\'ona', () {
+    for (final n in const [1, 2, 3, 6, 7, 8]) {
+      final unit = tierUnit(kProd, n).toDouble();
+      final free = freeSame(n, buy: 1, get: 1, rep: false);
+      final total = unit * (n - free);
+      testWidgets('$n marta skan → $free tekin, jami $total', (tester) async {
+        await seed(tester, [bxgy(buy: 1)]);
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scanN(tester, ctx, p, n);
+        final row = cart(p).single;
+        expect(row.realPrice, unit);
+        expect(productTotal(p, kPid), closeTo(total, 0.01));
+      });
+    }
+
+    testWidgets('x7 bir martada → 27 000 × 6 = 162 000', (tester) async {
+      await seed(tester, [bxgy(buy: 1)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 7);
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(162000, 0.01));
+    });
+  });
+
+  // ======================================================================
+  // 4. 2 olsa 1 tekin, repeatable
+  // ======================================================================
+  group('2 olsa 1 tekin, repeatable (o\'zi tekin) + qimmatlashuvchi pog\'ona',
+      () {
+    for (final n in const [2, 3, 5, 6, 7, 8, 9]) {
+      final unit = tierUnit(kProd, n).toDouble();
+      final free = freeSame(n, buy: 2, get: 1, rep: true);
+      final total = unit * (n - free);
+      testWidgets('$n marta skan → $free tekin, jami $total', (tester) async {
+        await seed(tester, [bxgy(buy: 2, repeatable: true)]);
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scanN(tester, ctx, p, n);
+        final row = cart(p).single;
+        expect(row.realPrice, unit);
+        expect(productTotal(p, kPid), closeTo(total, 0.01));
+      });
+    }
+
+    testWidgets('x9 bir martada → 3 tekin, 27 000 × 6 = 162 000',
+        (tester) async {
+      await seed(tester, [bxgy(buy: 2, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 9);
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(162000, 0.01));
+    });
+  });
+
+  // ======================================================================
+  // 5. Tekin sharti va pog'ona chegarasi bir vaqtda (6 olsa 1 tekin)
+  // ======================================================================
+  group('6 olsa 1 tekin (to\'plam = 7) — shart va pog\'ona bir chegarada', () {
+    testWidgets('6 ta → tekin yo\'q, 25 000 × 6 = 150 000', (tester) async {
+      await seed(tester, [bxgy(buy: 6)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 6);
+      expect(rowOf(p, kPid).price, 25000);
+      expect(productTotal(p, kPid), closeTo(150000, 0.01));
+    });
+
+    testWidgets('7 ta → 1 tekin, 27 000 × 6 = 162 000', (tester) async {
+      await seed(tester, [bxgy(buy: 6)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 7);
+      expect(rowOf(p, kPid).realPrice, 27000,
+          reason: 'shart bajarilganda ham qimmat pog\'ona saqlanadi');
+      expect(productTotal(p, kPid), closeTo(162000, 0.01));
+    });
+
+    testWidgets('OPD 7 → 6 → tekin ham, pog\'ona ham qaytadi', (tester) async {
+      await seed(tester, [bxgy(buy: 6)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 7);
+      await opdSetQty(p, 0, 6);
+      final row = rowOf(p, kPid);
+      expect(row.realPrice, 25000);
+      expect(row.price, 25000);
+      expect(productTotal(p, kPid), closeTo(150000, 0.01));
+    });
+  });
+
+  // ======================================================================
+  // 6. Tekin mahsulot BOSHQA mahsulot, ikkalasi ham qimmatlashuvchi
+  // ======================================================================
+  group('A olsa B tekin — A: 1 → 25 000, 7+ → 27 000; B: 1 → 10 000, 3+ → 12 000',
+      () {
+    testWidgets('1+1: A × 7, B × 4 → A 27 000 × 7, B 12 000 × 3',
+        (tester) async {
+      await seed(tester, [bxgy(buy: 1, getId: kOtherId)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 7);
+      await scanN(tester, ctx, p, 4, id: kOtherId);
+
+      final a = rowOf(p, kPid);
+      expect(a.value, 7);
+      expect(a.realPrice, 27000);
+      expect(a.price, 27000, reason: 'A sotib olinadigan — chegirmasiz');
+      expect(productTotal(p, kPid), closeTo(189000, 0.01));
+
+      final b = rowOf(p, kOtherId);
+      expect(b.value, 4);
+      expect(b.realPrice, 12000, reason: 'B ning qimmat pog\'onasi saqlanadi');
+      expect(b.price, closeTo(12000 * 3 / 4, 0.01));
+      expect(productTotal(p, kOtherId), closeTo(36000, 0.01));
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(225000, 1));
+    });
+
+    testWidgets('1+1: A × 1, B × 2 → B 1-pog\'ona, 1 tekin: 10 000',
+        (tester) async {
+      await seed(tester, [bxgy(buy: 1, getId: kOtherId)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p);
+      await scanN(tester, ctx, p, 2, id: kOtherId);
+      expect(rowOf(p, kPid).price, 25000);
+      final b = rowOf(p, kOtherId);
+      expect(b.realPrice, 10000);
+      expect(productTotal(p, kOtherId), closeTo(10000, 0.01));
+    });
+
+    testWidgets('avval B × 4, keyin A × 7 → B ga tekin keyin qo\'llanadi',
+        (tester) async {
+      await seed(tester, [bxgy(buy: 1, getId: kOtherId)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 4, id: kOtherId);
+      expect(productTotal(p, kOtherId), closeTo(48000, 0.01),
+          reason: 'A hali yo\'q — B to\'liq 12 000 × 4');
+      await scanN(tester, ctx, p, 7);
+
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(189000, 0.01));
+      final b = rowOf(p, kOtherId);
+      expect(b.realPrice, 12000);
+      expect(productTotal(p, kOtherId), closeTo(36000, 0.01));
+    });
+
+    testWidgets('2 olsa 1 tekin repeatable: A × 7 → 3 ta B tekin; B × 4 → 12 000',
+        (tester) async {
+      await seed(tester, [bxgy(buy: 2, getId: kOtherId, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 7);
+      await scanN(tester, ctx, p, 4, id: kOtherId);
+
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(189000, 0.01));
+      final b = rowOf(p, kOtherId);
+      expect(b.realPrice, 12000);
+      expect(productTotal(p, kOtherId), closeTo(12000, 0.01),
+          reason: 'floor(7/2) = 3 tekin, 1 ta × 12 000');
+    });
+
+    testWidgets('OPD: B 4 → 2 → B 1-pog\'ona (10 000), A o\'zgarmaydi',
+        (tester) async {
+      await seed(tester, [bxgy(buy: 1, getId: kOtherId)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 7);
+      await scan(tester, ctx, p, value: 4, id: kOtherId);
+      final bIdx = cart(p).indexWhere((e) => e.productId == kOtherId);
+      await opdSetQty(p, bIdx, 2);
+
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(189000, 0.01));
+      final b = rowOf(p, kOtherId);
+      expect(b.realPrice, 10000);
+      expect(productTotal(p, kOtherId), closeTo(10000, 0.01));
+    });
+
+    testWidgets('OPD: A 7 → 6 → A 25 000, B tekini qoladi (shart 1 ta A)',
+        (tester) async {
+      await seed(tester, [bxgy(buy: 1, getId: kOtherId)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 7);
+      await scan(tester, ctx, p, value: 4, id: kOtherId);
+      final aIdx = cart(p).indexWhere((e) => e.productId == kPid);
+      await opdSetQty(p, aIdx, 6);
+
+      expect(rowOf(p, kPid).realPrice, 25000);
+      expect(productTotal(p, kPid), closeTo(150000, 0.01));
+      expect(rowOf(p, kOtherId).realPrice, 12000);
+      expect(productTotal(p, kOtherId), closeTo(36000, 0.01));
+    });
+
+    test('deleteRow: A o\'chirilsa B tekini bekor, B pog\'onasi qoladi',
+        () async {
+      await HiveBoxes.getDiscounts().add(bxgy(buy: 1, getId: kOtherId));
+      final p = freshProvider();
+      cart(p)
+        ..add(makeSoldItem(productId: kOtherId, price: 10000, value: 4))
+        ..add(makeSoldItem(productId: kPid, price: 25000, value: 7));
+      await saveRow(p, 1);
+      await saveRow(p, 0);
+      expect(productTotal(p, kOtherId), closeTo(36000, 0.01));
+
+      await deleteRow(p, 1);
+      final b = rowOf(p, kOtherId);
+      expect(b.realPrice, 12000);
+      expect(b.price, 12000);
+      expect(productTotal(p, kOtherId), closeTo(48000, 0.01));
+    });
+  });
+
+  // ======================================================================
+  // 7. Uch pog'ona
+  // ======================================================================
+  group('Uch pog\'ona: 1 → 25 000, 3+ → 26 000, 7+ → 27 000', () {
+    setUp(() => ItemsSingleton.products = [tierProduct(kThree)]);
+
+    for (int n = 1; n <= 8; n++) {
+      final unit = tierUnit(kThree, n).toDouble();
+      testWidgets('diskontsiz: $n marta skan → $unit', (tester) async {
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scanN(tester, ctx, p, n);
+        final row = cart(p).single;
+        expect(row.price, unit);
+        expect(row.realPrice, unit);
+      });
+    }
+
+    for (int n = 1; n <= 8; n++) {
+      final unit = tierUnit(kThree, n).toDouble();
+      final free = freeSame(n, buy: 1, get: 1, rep: true);
+      final total = unit * (n - free);
+      testWidgets('1+1 repeatable: $n marta skan → dona $unit, jami $total',
+          (tester) async {
+        await seed(tester, [bxgy(buy: 1, repeatable: true)]);
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scanN(tester, ctx, p, n);
+        final row = cart(p).single;
+        expect(row.realPrice, unit);
+        expect(productTotal(p, kPid), closeTo(total, 0.01));
+      });
+    }
+
+    testWidgets('1+1 repeatable, OPD 8 → 3 → 2: 108 000 → 52 000 → 25 000',
+        (tester) async {
+      await seed(tester, [bxgy(buy: 1, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+      await opdSetQty(p, 0, 3);
+      expect(rowOf(p, kPid).realPrice, 26000);
+      expect(productTotal(p, kPid), closeTo(52000, 0.01));
+      await opdSetQty(p, 0, 2);
+      expect(rowOf(p, kPid).realPrice, 25000);
+      expect(productTotal(p, kPid), closeTo(25000, 0.01));
+    });
+  });
+
+  // ======================================================================
+  // 8. Ikki xil pog'onali mahsulot — bir-biriga ta'sir yo'q
+  // ======================================================================
+  group('Ikki xil pog\'onali mahsulot bitta savatda', () {
+    testWidgets('diskontsiz, aralash skan: A 7 → 27 000, B 3 → 12 000',
+        (tester) async {
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      // A, B, A, B, A, B, A, A, A, A — A = 7, B = 3
+      for (final id in const [
+        kPid, kOtherId, kPid, kOtherId, kPid, kOtherId, kPid, kPid, kPid, kPid
+      ]) {
+        await scan(tester, ctx, p, id: id);
+      }
+      expect(rowOf(p, kPid).value, 7);
+      expect(rowOf(p, kPid).price, 27000);
+      expect(rowOf(p, kOtherId).value, 3);
+      expect(rowOf(p, kOtherId).price, 12000);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(189000 + 36000, 1));
+    });
+
+    testWidgets('A 6 da B 7 ta → A 25 000 qoladi (B soni A ga qo\'shilmaydi)',
+        (tester) async {
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 6);
+      await scan(tester, ctx, p, value: 7, id: kOtherId);
+      expect(rowOf(p, kPid).price, 25000);
+      expect(rowOf(p, kOtherId).price, 12000);
+    });
+
+    testWidgets('OPD: B 3 → 2 (B 10 000), keyin A 7 → 6 (A 25 000)',
+        (tester) async {
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 7);
+      await scan(tester, ctx, p, value: 3, id: kOtherId);
+
+      await opdSetQty(p, cart(p).indexWhere((e) => e.productId == kOtherId), 2);
+      expect(rowOf(p, kOtherId).price, 10000);
+      expect(rowOf(p, kPid).price, 27000, reason: 'A ga tegilmaydi');
+
+      await opdSetQty(p, cart(p).indexWhere((e) => e.productId == kPid), 6);
+      expect(rowOf(p, kPid).price, 25000);
+      expect(rowOf(p, kOtherId).price, 10000, reason: 'B ga tegilmaydi');
+    });
+
+    testWidgets('BXGY faqat A da (1+1 rep): A 7 → 108 000, B 3 → 36 000',
+        (tester) async {
+      await seed(tester, [bxgy(buy: 1, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 3, id: kOtherId);
+      await scanN(tester, ctx, p, 7);
+
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+      final b = rowOf(p, kOtherId);
+      expect(b.realPrice, 12000);
+      expect(b.price, 12000, reason: 'B ga aksiya yo\'q');
+      expect(b.productDiscount, isEmpty);
+      expect(productTotal(p, kOtherId), closeTo(36000, 0.01));
+    });
+
+    test('deleteRow: B o\'chirilsa A narxi/tekini o\'zgarmaydi', () async {
+      await HiveBoxes.getDiscounts().add(bxgy(buy: 1, repeatable: true));
+      final p = freshProvider();
+      cart(p)
+        ..add(makeSoldItem(productId: kOtherId, price: 10000, value: 3))
+        ..add(makeSoldItem(productId: kPid, price: 25000, value: 7));
+      await saveRow(p, 0);
+      await saveRow(p, 1);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+      await deleteRow(p, 0);
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+    });
+  });
+
+  // ======================================================================
+  // 9. Foizli mahsulot chegirmasi + qimmatlashuvchi pog'ona (BXGY yo'q)
+  // ======================================================================
+  group('10% mahsulot chegirmasi + qimmatlashuvchi pog\'ona', () {
+    for (int n = 1; n <= 8; n++) {
+      final unit = tierUnit(kProd, n).toDouble();
+      testWidgets('$n marta skan → realPrice $unit, narx ${unit * 0.9}',
+          (tester) async {
+        await seed(tester, [percent(10)]);
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scanN(tester, ctx, p, n);
+        final row = cart(p).single;
+        expect(row.realPrice, unit);
+        expect(row.price, closeTo(unit * 0.9, 0.01));
+        expect(row.discountPercent, closeTo(10, 0.001));
+        expect(productTotal(p, kPid), closeTo(unit * 0.9 * n, 0.1));
+      });
+    }
+
+    testWidgets('x7 bir martada → 24 300', (tester) async {
+      await seed(tester, [percent(10)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 7);
+      final row = rowOf(p, kPid);
+      expect(row.realPrice, 27000);
+      expect(row.price, closeTo(24300, 0.01));
+    });
+
+    testWidgets('OPD 7 → 6 → 22 500, 6 → 7 → 24 300', (tester) async {
+      await seed(tester, [percent(10)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 7);
+      await opdSetQty(p, 0, 6);
+      expect(rowOf(p, kPid).realPrice, 25000);
+      expect(rowOf(p, kPid).price, closeTo(22500, 0.01));
+      await opdSetQty(p, 0, 7);
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(rowOf(p, kPid).price, closeTo(24300, 0.01));
+    });
+
+    testWidgets('chegirma faqat B da: A 7 → 27 000 (chegirmasiz), B 3 → 10 800',
+        (tester) async {
+      await seed(tester, [percent(10, onlyFor: [kOtherId])]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 7);
+      await scanN(tester, ctx, p, 3, id: kOtherId);
+      final a = rowOf(p, kPid);
+      expect(a.realPrice, 27000);
+      expect(a.price, 27000);
+      final b = rowOf(p, kOtherId);
+      expect(b.realPrice, 12000);
+      expect(b.price, closeTo(10800, 0.01));
+    });
+  });
+
+  // ======================================================================
+  // 10. Buy X Get X (bitta qator) + qimmatlashuvchi pog'ona
+  // ======================================================================
+  group('Buy X Get X (bitta qator) + qimmatlashuvchi pog\'ona', () {
+    for (int n = 1; n <= 10; n++) {
+      final unit = tierUnit(kProd, n).toDouble();
+      final free = freeSame(n, buy: 1, get: 1, rep: true);
+      final total = unit * (n - free);
+      testWidgets('1+1 rep: $n marta skan → dona $unit, $free tekin, jami $total',
+          (tester) async {
+        await seed(tester, [bxgx(buy: 1, repeatable: true)]);
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scanN(tester, ctx, p, n);
+        final row = cart(p).single;
+        expect(row.value, n);
+        expect(row.realPrice, unit, reason: 'pog\'ona narxi yo\'qolmasin');
+        expect(productTotal(p, kPid), closeTo(total, 0.01));
+      });
+    }
+
+    testWidgets('1+1 rep: x8 bir martada → 27 000 × 4 = 108 000',
+        (tester) async {
+      await seed(tester, [bxgx(buy: 1, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+    });
+
+    testWidgets('1+1 rep: OPD 8 → 6 → 7: 108 000 → 75 000 → 108 000',
+        (tester) async {
+      await seed(tester, [bxgx(buy: 1, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      await opdSetQty(p, 0, 6);
+      expect(rowOf(p, kPid).realPrice, 25000);
+      expect(productTotal(p, kPid), closeTo(75000, 0.01));
+      await opdSetQty(p, 0, 7);
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(108000, 0.01));
+    });
+
+    testWidgets('1+1 takrorlanmaydigan: 7 ta → 1 tekin, 27 000 × 6',
+        (tester) async {
+      await seed(tester, [bxgx(buy: 1)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 7);
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(162000, 0.01));
+    });
+
+    testWidgets('2+1 rep: 7 ta → 2 tekin, 27 000 × 5 = 135 000',
+        (tester) async {
+      await seed(tester, [bxgx(buy: 2, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 7);
+      expect(rowOf(p, kPid).realPrice, 27000);
+      expect(productTotal(p, kPid), closeTo(135000, 0.01));
+    });
+
+    testWidgets('2+1 rep: 6 ta → 2 tekin, 25 000 × 4 = 100 000',
+        (tester) async {
+      await seed(tester, [bxgx(buy: 2, repeatable: true)]);
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 6);
+      expect(rowOf(p, kPid).realPrice, 25000);
+      expect(productTotal(p, kPid), closeTo(100000, 0.01));
+    });
+  });
+}
+```
+
+</details>
+
+### 6.4. YANGI: `test/tier_cases_falling_regression_test.dart`
+
+<details>
+<summary>test/tier_cases_falling_regression_test.dart (784 qator)</summary>
+
+```dart
+// Arzonlashuvchi (ulgurji) pog'ona — tuzatishdan keyingi REGRESSIYA testlari.
+//
+// KONTEKST (2026-10-08 tuzatishi): `useFreeProducts` (Buy X Get Y) shart
+// bajarilganda qatorning narxini SHARTSIZ 1-talik narxga qaytarardi. Endi
+// faqat pog'ona narxi 1-talikdan ARZON bo'lsagina qaytaradi (ulgurji +
+// tekin ustma-ust tushmasin). Qimmatlashuvchi pog'ona alohida faylda
+// (`tier_rising_price_test.dart`).
+//
+// Bu fayl ASL MAQSAD buzilmaganini tekshiradi — arzonlashuvchi pog'onada
+// (1 → 5000, 3+ → 4500, 7+ → 4000):
+//   * tekin bor bo'lsa — to'lanadigan donalar 1-talik narxda (5000);
+//   * tekin yo'q bo'lsa — sof pog'ona narxi (4500 / 4000);
+//   * diskont yo'q — har n da sof pog'ona.
+//
+// Kutilgan qiymatlar BIZNES QOIDADAN hisoblanadi (`expectedLine`), kod
+// hozir nima chiqarayotganidan emas.
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/app_navigation.dart';
+import 'package:invan2/changes/models/product/item_model.dart';
+import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/changes/singletons/discounts/discount_singleton.dart';
+import 'package:invan2/features/get_discounts/model/discounts_response.dart';
+import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+import 'package:invan2/utils/helpers/size_config.dart';
+import 'package:invan2/utils/l10n/app_localizations.dart';
+
+import 'support/provider_harness.dart';
+
+const kShop = 'shop-1';
+const kPid = 'tier-id';
+const kGetId = 'get-id';
+const kFlatId = 'flat-id';
+
+// Qat'iy GUIDlar (discount_helpers.dart dan).
+const gGroupBuyXGetY = '86951e75-960f-45d7-9505-9b9cd2ce17a7';
+const gTypeBuyXGetY = 'a9f3ceb1-4fa3-4f71-ab81-00889e26616b';
+const gGroupBuyXGetX = '316b623e-3bb7-43e2-b6d5-1028c927caba';
+const gTypeBuyXGetX = '90d1f774-44bd-49be-9bbf-2e9a44558377';
+
+const kFalling = {1: 5000, 3: 4500, 7: 4000};
+
+// ---------------------------------------------------------------------------
+// Biznes qoida (kutilgan qiymatlar shundan hisoblanadi)
+// ---------------------------------------------------------------------------
+
+/// Pog'ona: [n] dan oshmaydigan eng katta minQuantity ning narxi.
+num tierUnit(Map<int, num> tiers, num n) {
+  int best = -1;
+  num price = 0;
+  tiers.forEach((minQ, p) {
+    if (minQ <= n && minQ >= best) {
+      best = minQ;
+      price = p;
+    }
+  });
+  return price;
+}
+
+/// 1-talik narx: eng kichik minQuantity ning narxi.
+num onePiece(Map<int, num> tiers) {
+  final minQ = tiers.keys.reduce((a, b) => a < b ? a : b);
+  return tiers[minQ]!;
+}
+
+/// Tekin bor bo'lsa: pog'ona 1-talikdan arzon → 1-talik, aks holda pog'ona.
+/// Tekin yo'q: sof pog'ona.
+num expectedUnit(Map<int, num> tiers, num n, num free) {
+  final tier = tierUnit(tiers, n);
+  if (free <= 0) return tier;
+  final one = onePiece(tiers);
+  return tier < one ? one : tier;
+}
+
+num expectedLine(Map<int, num> tiers, num n, num free) =>
+    expectedUnit(tiers, n, free) * (n - free);
+
+// ---------------------------------------------------------------------------
+// Yasovchilar
+// ---------------------------------------------------------------------------
+
+ItemModel tierProduct(Map<int, num> tiers, {String id = kPid}) {
+  final m = ItemModel();
+  m.id = id;
+  m.name = 'Tier $id';
+  m.sku = '1';
+  m.barcode = [id];
+  m.packageCode = 'PACK-1';
+  m.vat = Vat(percentage: 12);
+  m.measurementUnit = MeasurementUnit(shortName: 'dona');
+  m.shopPrices = ShopPrices(
+    shID: ShID(shopId: kShop, shopPriceTiers: [
+      for (final t in tiers.entries)
+        ShopPriceTiers(minQuantity: t.key, retailPrice: t.value)
+    ]),
+  );
+  return m;
+}
+
+DiscountItem bxgy({
+  required int buy,
+  int get = 1,
+  String buyId = kPid,
+  String getId = kPid,
+  bool repeatable = false,
+}) =>
+    DiscountItem(
+      id: 'bxgy-$buyId-$getId',
+      name: 'Buy X Get Y',
+      displayName: 'Buy X Get Y',
+      discountGroupType: DiscountGroupType(id: gGroupBuyXGetY),
+      discountType: DiscountType(id: gTypeBuyXGetY),
+      isExpirable: false,
+      isForAllClients: true,
+      isRepeatable: repeatable,
+      shopIds: [ShopIds(id: kShop)],
+      buyXGetY: BuyXGetY(
+        productsToBuy: [ProductsToBuy(id: buyId, name: buyId)],
+        buyProductsAmount: buy,
+        productToGet: ProductsToGet(id: getId, name: getId),
+        getProductsAmount: get,
+      ),
+    );
+
+DiscountItem bxgx({required int buy, int get = 1, bool repeatable = false}) =>
+    DiscountItem(
+      id: 'bxgx',
+      name: 'Buy X Get X',
+      displayName: 'Buy X Get X',
+      discountGroupType: DiscountGroupType(id: gGroupBuyXGetX),
+      discountType: DiscountType(id: gTypeBuyXGetX),
+      isExpirable: false,
+      isForAllClients: true,
+      isRepeatable: repeatable,
+      shopIds: [ShopIds(id: kShop)],
+      buyXGetX: BuyXGetX(
+        productsToBuy: [ProductsToBuy(id: kPid, name: 'Tier')],
+        buyProductsAmount: buy,
+        getProductsAmount: get,
+      ),
+    );
+
+/// testWidgets ichida Hive IO faqat `runAsync` orqali (aks holda osiladi).
+Future<void> addDiscount(WidgetTester tester, DiscountItem d) async {
+  await tester.runAsync(() => HiveBoxes.getDiscounts().add(d));
+}
+
+/// `addProduct` ichida `AppNavigation.navigatorKey.currentContext` o'qiladi.
+Future<BuildContext> appContext(WidgetTester tester) async {
+  late BuildContext captured;
+  await tester.pumpWidget(MaterialApp(
+    navigatorKey: AppNavigation.navigatorKey,
+    locale: const Locale('uz'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: Builder(builder: (c) {
+      captured = c;
+      SizeConfig().init(c);
+      return const SizedBox();
+    })),
+  ));
+  return captured;
+}
+
+Future<void> scan(WidgetTester tester, BuildContext ctx, OrderingProvider4 p,
+    {double value = 1, String id = kPid}) async {
+  p.addProduct(
+      value: value,
+      product: ItemsSingleton.getProductById(id)!,
+      where: 'test',
+      context: ctx);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
+  // "Aksiya bor" dialogi — kassir kabi "Ok" bosamiz.
+  final ok = find.text('Ok');
+  if (ok.evaluate().isNotEmpty) {
+    await tester.tap(ok.first, warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+Future<void> scanN(
+    WidgetTester tester, BuildContext ctx, OrderingProvider4 p, int n,
+    {String id = kPid}) async {
+  for (int i = 0; i < n; i++) {
+    await scan(tester, ctx, p, id: id);
+  }
+}
+
+/// OPD dialogidagi qty o'zgarishi (narx tahrirlanmagan).
+Future<void> opdSetQty(OrderingProvider4 p, int index, double qty) async {
+  final row = p.getCurrentClient.orderedProducts[index];
+  p.tapIndexToEdit(index);
+  await p.pressDialogSaveButton(makeSoldItem(
+    productId: row.productId,
+    price: row.price,
+    realPrice: row.realPrice,
+    onlyPrice: row.onlyPrice,
+    value: qty,
+  ));
+}
+
+List<ReceiptModelSoldItem4> cart(OrderingProvider4 p) =>
+    p.getCurrentClient.orderedProducts;
+
+ReceiptModelSoldItem4 rowOf(OrderingProvider4 p, String id) =>
+    cart(p).singleWhere((e) => e.productId == id && !(e.isDeleted ?? false));
+
+int indexOf(OrderingProvider4 p, String id) =>
+    cart(p).indexWhere((e) => e.productId == id && !(e.isDeleted ?? false));
+
+double line(ReceiptModelSoldItem4 r) => r.price * r.value;
+
+/// Bitta qatorli mahsulotni biznes qoidaga solishtiradi.
+void expectRow(ReceiptModelSoldItem4 r, Map<int, num> tiers, num n, num free,
+    {String why = ''}) {
+  expect(r.value, n, reason: 'dona soni $why');
+  expect(r.realPrice, expectedUnit(tiers, n, free),
+      reason: 'dona narxi (n=$n, tekin=$free) $why');
+  expect(line(r), closeTo(expectedLine(tiers, n, free), 0.01),
+      reason: 'qator jami (n=$n, tekin=$free) $why');
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('tier_cases_falling_regression_test');
+    await Pref.setString(PrefKeys.storeId, kShop);
+  });
+  tearDownAll(tearDownPosTestEnv);
+
+  // testWidgets ichida Hive IO kutilsa osilib qoladi — sozlash shu yerda.
+  setUp(() async {
+    await Pref.setBool(PrefKeys.markCheckWithOfd, false);
+    await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
+    await Pref.setBool(PrefKeys.isRedDeleteActivated, false);
+    await HiveBoxes.getDiscounts().clear();
+    DiscountSingleton.resetAll();
+    ItemsSingleton.products = [
+      tierProduct(kFalling),
+      tierProduct(kFalling, id: kGetId),
+      tierProduct(const {1: 3000}, id: kFlatId),
+    ];
+  });
+
+  // -------------------------------------------------------------------------
+  group('Biznes qoida yordamchisi (o\'zini tekshirish)', () {
+    test('tierUnit / expectedLine', () {
+      expect(tierUnit(kFalling, 1), 5000);
+      expect(tierUnit(kFalling, 2), 5000);
+      expect(tierUnit(kFalling, 3), 4500);
+      expect(tierUnit(kFalling, 6), 4500);
+      expect(tierUnit(kFalling, 7), 4000);
+      expect(tierUnit(kFalling, 100), 4000);
+      expect(expectedLine(kFalling, 8, 4), 20000);
+      expect(expectedLine(kFalling, 8, 0), 32000);
+      expect(expectedLine(const {1: 25000, 7: 27000}, 8, 4), 108000);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  group(
+      'Diskontsiz: sof arzonlashuvchi pog\'ona (1 → 5000, 3+ → 4500, 7+ → 4000)',
+      () {
+    for (int n = 1; n <= 8; n++) {
+      final unit = tierUnit(kFalling, n);
+      testWidgets('bittadan $n marta skan → dona $unit, jami ${unit * n}',
+          (tester) async {
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scanN(tester, ctx, p, n);
+        final r = cart(p).single;
+        expectRow(r, kFalling, n, 0);
+        expect(r.price, unit);
+        expect(r.singleDiscount, 0);
+        expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(unit * n, 1));
+      });
+    }
+
+    for (final n in const [3, 7, 8]) {
+      testWidgets('x$n bir martada → ${tierUnit(kFalling, n)}', (tester) async {
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scan(tester, ctx, p, value: n.toDouble());
+        expectRow(cart(p).single, kFalling, n, 0);
+      });
+    }
+
+    testWidgets('OPD: 1 → 8 → 4 → 2 → 7 — har safar pog\'ona qayta tanlanadi',
+        (tester) async {
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p);
+      for (final n in const [8, 4, 2, 7]) {
+        await opdSetQty(p, 0, n.toDouble());
+        expectRow(cart(p).single, kFalling, n, 0, why: 'OPD → $n');
+        expect(cart(p).single.price, tierUnit(kFalling, n));
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  group('Buy X Get Y: o\'sha mahsulot, 1+1, takrorlanadigan', () {
+    for (int n = 1; n <= 8; n++) {
+      final free = n ~/ 2;
+      testWidgets(
+          '$n marta skan → $free tekin, to\'lanadigan dona '
+          '${expectedUnit(kFalling, n, free)}, jami ${expectedLine(kFalling, n, free)}',
+          (tester) async {
+        await addDiscount(tester, bxgy(buy: 1, repeatable: true));
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scanN(tester, ctx, p, n);
+        expectRow(cart(p).single, kFalling, n, free);
+        expect(ItemsSingleton.getTotalPrice(cart(p)),
+            closeTo(expectedLine(kFalling, n, free), 1));
+      });
+    }
+
+    testWidgets('x8 bir martada → 4 × 5000 = 20 000 (4000 emas)',
+        (tester) async {
+      await addDiscount(tester, bxgy(buy: 1, repeatable: true));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      final r = cart(p).single;
+      expect(r.realPrice, 5000, reason: 'ulgurji + tekin ustma-ust tushmasin');
+      expect(line(r), closeTo(20000, 0.01));
+      expect(r.singleDiscount * r.value, closeTo(4 * 5000, 0.01),
+          reason: 'chegirma = 4 tekin dona × 1-talik narx');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  group('Buy X Get Y: o\'sha mahsulot, 2 olsa 1 tekin, takrorlanadigan', () {
+    testWidgets('bittadan 1..9 skan — har qadamda biznes qoida',
+        (tester) async {
+      await addDiscount(tester, bxgy(buy: 2, repeatable: true));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      for (int n = 1; n <= 9; n++) {
+        await scan(tester, ctx, p);
+        expectRow(cart(p).single, kFalling, n, n ~/ 3, why: '(2+1, n=$n)');
+      }
+    });
+
+    testWidgets('x9 bir martada → 3 tekin, 6 × 5000 = 30 000', (tester) async {
+      await addDiscount(tester, bxgy(buy: 2, repeatable: true));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 9);
+      expectRow(cart(p).single, kFalling, 9, 3);
+      expect(line(cart(p).single), closeTo(30000, 0.01));
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  group('Buy X Get Y: takrorlanmaydigan', () {
+    testWidgets('1+1: bittadan 1..8 skan — faqat 1 ta tekin', (tester) async {
+      await addDiscount(tester, bxgy(buy: 1));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      for (int n = 1; n <= 8; n++) {
+        await scan(tester, ctx, p);
+        expectRow(cart(p).single, kFalling, n, n >= 2 ? 1 : 0,
+            why: '(1+1 bir martalik, n=$n)');
+      }
+      expect(line(cart(p).single), closeTo(7 * 5000, 0.01));
+    });
+
+    testWidgets('5+1: 5 ta → sof 4500 (tekin yo\'q), 6 ta → 5 × 5000',
+        (tester) async {
+      await addDiscount(tester, bxgy(buy: 5));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 5);
+      expectRow(cart(p).single, kFalling, 5, 0, why: '(shart bajarilmagan)');
+      expect(cart(p).single.price, 4500);
+
+      await scan(tester, ctx, p);
+      expectRow(cart(p).single, kFalling, 6, 1);
+      expect(line(cart(p).single), closeTo(25000, 0.01));
+
+      await scanN(tester, ctx, p, 2);
+      expectRow(cart(p).single, kFalling, 8, 1);
+      expect(line(cart(p).single), closeTo(35000, 0.01));
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  group('Buy X Get Y: shart bajarilmasa — sof pog\'ona saqlanadi', () {
+    testWidgets('20+1, bittadan 3 skan → 4500', (tester) async {
+      await addDiscount(tester, bxgy(buy: 20));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 3);
+      final r = cart(p).single;
+      expectRow(r, kFalling, 3, 0);
+      expect(r.price, 4500);
+      expect(r.singleDiscount, 0);
+    });
+
+    testWidgets('20+1, bittadan 8 skan → 4000', (tester) async {
+      await addDiscount(tester, bxgy(buy: 20));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 8);
+      final r = cart(p).single;
+      expectRow(r, kFalling, 8, 0);
+      expect(r.price, 4000);
+      expect(
+          r.productDiscount.where((d) => d.typeName == 'Buy X Get Y'), isEmpty);
+    });
+
+    testWidgets('20+1, x8 bir martada → 4000', (tester) async {
+      await addDiscount(tester, bxgy(buy: 20));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expect(cart(p).single.price, 4000);
+      expect(cart(p).single.realPrice, 4000);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  group('Buy X Get Y: boshqa GET mahsulot (A olsa B tekin)', () {
+    testWidgets('A × 3 + B × 1 → A sof 4500, B tekin (0)', (tester) async {
+      await addDiscount(tester, bxgy(buy: 3, getId: kGetId));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 3);
+      await scan(tester, ctx, p, id: kGetId);
+
+      expectRow(rowOf(p, kPid), kFalling, 3, 0, why: '(A — sotib olinadigan)');
+      expect(rowOf(p, kGetId).price, 0);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(13500, 1));
+    });
+
+    testWidgets('A × 3 + B × 3 → B ning to\'lanadigan 2 donasi 5000 da',
+        (tester) async {
+      await addDiscount(tester, bxgy(buy: 3, getId: kGetId));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 3);
+      await scanN(tester, ctx, p, 3, id: kGetId);
+
+      expectRow(rowOf(p, kPid), kFalling, 3, 0, why: '(A)');
+      expectRow(rowOf(p, kGetId), kFalling, 3, 1, why: '(B)');
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(13500 + 10000, 1));
+    });
+
+    testWidgets('takrorlanadigan: A × 6 + B × 3 → B dan 2 tekin',
+        (tester) async {
+      await addDiscount(tester, bxgy(buy: 3, getId: kGetId, repeatable: true));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 6);
+      await scanN(tester, ctx, p, 3, id: kGetId);
+
+      expectRow(rowOf(p, kPid), kFalling, 6, 0, why: '(A)');
+      expectRow(rowOf(p, kGetId), kFalling, 3, 2, why: '(B)');
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(27000 + 5000, 1));
+    });
+
+    testWidgets('A × 2 (shart yo\'q) + B × 3 → B sof 4500', (tester) async {
+      await addDiscount(tester, bxgy(buy: 3, getId: kGetId));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 2);
+      await scanN(tester, ctx, p, 3, id: kGetId);
+
+      expectRow(rowOf(p, kPid), kFalling, 2, 0, why: '(A)');
+      expectRow(rowOf(p, kGetId), kFalling, 3, 0, why: '(B)');
+      expect(rowOf(p, kGetId).price, 4500);
+    });
+
+    testWidgets(
+      '[BUG] A OPD da 3 → 2 ga tushsa B tekinini yo\'qotadi va sof 4500 ga qaytadi '
+      '(eski 5000 qolmasin)',
+      (tester) async {
+        await addDiscount(tester, bxgy(buy: 3, getId: kGetId));
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scanN(tester, ctx, p, 3);
+        await scanN(tester, ctx, p, 3, id: kGetId);
+        expect(rowOf(p, kGetId).realPrice, 5000,
+            reason: 'setup: B tekin bilan');
+
+        await opdSetQty(p, indexOf(p, kPid), 2);
+
+        expectRow(rowOf(p, kPid), kFalling, 2, 0, why: '(A)');
+        expectRow(rowOf(p, kGetId), kFalling, 3, 0,
+            why: '(B — chegirma yo\'q, sof pog\'ona 4500 bo\'lishi kerak)');
+      },
+      // BUG (eski, tuzatishdan oldin ham bor): discount_effects_controller.dart:214 B ning realPrice'ini 1-talikka yozadi; A shartdan tushganda _clearStale → resetItemDiscount (:555) price = realPrice (5000) qiladi, B qayta pog'onalanmaydi (pressDialogSaveButton faqat A ni reprice qiladi).
+      skip: true,
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  group('OPD: chegaradan o\'tib, qaytib tushish — eski 5000 qolmasin', () {
+    testWidgets('5+1 bir martalik: 1 → 8 → 5 → 2 → 6 → 3', (tester) async {
+      await addDiscount(tester, bxgy(buy: 5));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p);
+
+      const steps = {8: 1, 5: 0, 2: 0, 6: 1, 3: 0};
+      for (final e in steps.entries) {
+        await opdSetQty(p, 0, e.key.toDouble());
+        final r = cart(p).single;
+        expectRow(r, kFalling, e.key, e.value, why: '(OPD → ${e.key})');
+        if (e.value == 0) {
+          expect(r.price, tierUnit(kFalling, e.key),
+              reason: 'tekin yo\'q — sof pog\'ona (OPD → ${e.key})');
+          expect(r.singleDiscount, 0);
+        }
+      }
+    });
+
+    testWidgets('1+1 takrorlanadigan: x8 → OPD 3 → 1 → 7', (tester) async {
+      await addDiscount(tester, bxgy(buy: 1, repeatable: true));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expectRow(cart(p).single, kFalling, 8, 4);
+
+      for (final n in const [3, 1, 7]) {
+        await opdSetQty(p, 0, n.toDouble());
+        expectRow(cart(p).single, kFalling, n, n ~/ 2, why: '(OPD → $n)');
+      }
+    });
+
+    testWidgets(
+        'aksiya o\'chirilgach (WS type 17) o\'sha mahsulot OPD qilinsa — '
+        'sof 4000', (tester) async {
+      await addDiscount(tester, bxgy(buy: 1, repeatable: true));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expect(cart(p).single.realPrice, 5000, reason: 'setup');
+
+      await tester.runAsync(() => HiveBoxes.getDiscounts().clear());
+      await opdSetQty(p, 0, 8);
+
+      expectRow(cart(p).single, kFalling, 8, 0);
+      expect(cart(p).single.price, 4000);
+    });
+
+    testWidgets(
+      '[BUG] aksiya o\'chirilgach (WS type 17) boshqa mahsulot skan qilinsa — '
+      'tier mahsulot sof 4000 ga qaytadi',
+      (tester) async {
+        await addDiscount(tester, bxgy(buy: 1, repeatable: true));
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scan(tester, ctx, p, value: 8);
+        expect(rowOf(p, kPid).realPrice, 5000, reason: 'setup');
+
+        await tester.runAsync(() => HiveBoxes.getDiscounts().clear());
+        await scan(tester, ctx, p, id: kFlatId);
+
+        expectRow(rowOf(p, kPid), kFalling, 8, 0,
+            why: '(aksiya yo\'q — 8 dona sof 4000)');
+        expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(32000 + 3000, 1));
+      },
+      // BUG (eski): aksiya yo'qolgach _clearStale → resetItemDiscount (discount_effects_controller.dart:555) price = realPrice — realPrice esa :214 da 1-talik 5000 ga almashtirilgan; pog'ona 4000 faqat o'sha mahsulot qayta narxlanganda tiklanadi.
+      skip: true,
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  group('Buy X Get X: bitta qator, arzonlashuvchi pog\'ona', () {
+    testWidgets('3+1 bir martalik, bittadan 8 skan → 7 × 5000 (4000 emas)',
+        (tester) async {
+      await addDiscount(tester, bxgx(buy: 3));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 8);
+      expectRow(cart(p).single, kFalling, 8, 1);
+      expect(line(cart(p).single), closeTo(35000, 0.01));
+    });
+
+    testWidgets('1+1 takrorlanadigan, x8 → 4 × 5000 = 20 000', (tester) async {
+      await addDiscount(tester, bxgx(buy: 1, repeatable: true));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expectRow(cart(p).single, kFalling, 8, 4);
+    });
+
+    testWidgets('1+1 takrorlanadigan, x7 → 3 tekin, 4 × 5000', (tester) async {
+      await addDiscount(tester, bxgx(buy: 1, repeatable: true));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 7);
+      expectRow(cart(p).single, kFalling, 7, 3);
+    });
+
+    testWidgets('10+1: shart umuman yaqin emas (8 ta) → sof 4000',
+        (tester) async {
+      await addDiscount(tester, bxgx(buy: 10));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanN(tester, ctx, p, 8);
+      expectRow(cart(p).single, kFalling, 8, 0);
+      expect(cart(p).single.price, 4000);
+    });
+
+    testWidgets(
+      '[BUG] 3+1: 3 ta (tekin hali yo\'q, set = 4) → sof 4500 bo\'lishi kerak',
+      (tester) async {
+        await addDiscount(tester, bxgx(buy: 3));
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await scanN(tester, ctx, p, 3);
+        final r = cart(p).single;
+        expectRow(r, kFalling, 3, 0, why: '(tekin 0 — sof pog\'ona)');
+        expect(r.price, 4500);
+      },
+      // BUG (eski, tuzatish tegmagan useBuyXGetXProducts): discount_helpers.dart:383 (totalQty + 1 >= buy) ro'yxatga qo'shadi, discount_effects_controller.dart:403 tekin soni (0) hisoblanishidan OLDIN realPrice ni 1-talik 5000 ga ko'taradi.
+      skip: true,
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  group('Bitta pog\'onali mahsulot (faqat 1 → 5000) + BXGY 1+1 takrorlanadigan',
+      () {
+    const flat = {1: 5000};
+    testWidgets('bittadan 1..8 skan → doim 5000, tekin = n ~/ 2',
+        (tester) async {
+      await addDiscount(tester, bxgy(buy: 1, repeatable: true));
+      ItemsSingleton.products = [tierProduct(flat)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      for (int n = 1; n <= 8; n++) {
+        await scan(tester, ctx, p);
+        expectRow(cart(p).single, flat, n, n ~/ 2, why: '(n=$n)');
+      }
+    });
+
+    testWidgets('x8 → 4 × 5000 = 20 000', (tester) async {
+      await addDiscount(tester, bxgy(buy: 1, repeatable: true));
+      ItemsSingleton.products = [tierProduct(flat)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expect(cart(p).single.realPrice, 5000);
+      expect(line(cart(p).single), closeTo(20000, 0.01));
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  group('Teng pog\'onalar (1 → 5000, 7 → 5000)', () {
+    const equal = {1: 5000, 7: 5000};
+
+    testWidgets('diskontsiz: bittadan 1..8 → doim 5000', (tester) async {
+      ItemsSingleton.products = [tierProduct(equal)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      for (int n = 1; n <= 8; n++) {
+        await scan(tester, ctx, p);
+        expectRow(cart(p).single, equal, n, 0, why: '(n=$n)');
+        expect(cart(p).single.price, 5000);
+      }
+    });
+
+    testWidgets('BXGY 1+1 takrorlanadigan: bittadan 1..8 → 5000, tekin n ~/ 2',
+        (tester) async {
+      await addDiscount(tester, bxgy(buy: 1, repeatable: true));
+      ItemsSingleton.products = [tierProduct(equal)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      for (int n = 1; n <= 8; n++) {
+        await scan(tester, ctx, p);
+        expectRow(cart(p).single, equal, n, n ~/ 2, why: '(n=$n)');
+      }
+    });
+
+    testWidgets('BXGX 3+1: x8 → 7 × 5000', (tester) async {
+      await addDiscount(tester, bxgx(buy: 3));
+      ItemsSingleton.products = [tierProduct(equal)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expectRow(cart(p).single, equal, 8, 1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  group('Tartibsiz pog\'onalar (7 → 4000, 3 → 4500, 1 → 5000) + BXGY', () {
+    const unordered = {7: 4000, 3: 4500, 1: 5000};
+
+    testWidgets(
+        '1+1 takrorlanadigan, x8 → 1-talik 5000 (ro\'yxat boshi 4000 emas)',
+        (tester) async {
+      await addDiscount(tester, bxgy(buy: 1, repeatable: true));
+      ItemsSingleton.products = [tierProduct(unordered)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scan(tester, ctx, p, value: 8);
+      expectRow(cart(p).single, unordered, 8, 4);
+      expect(line(cart(p).single), closeTo(20000, 0.01));
+    });
+
+    testWidgets('diskontsiz: bittadan 1..8 → sof pog\'ona', (tester) async {
+      ItemsSingleton.products = [tierProduct(unordered)];
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      for (int n = 1; n <= 8; n++) {
+        await scan(tester, ctx, p);
+        expectRow(cart(p).single, unordered, n, 0, why: '(n=$n)');
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Blok qatori: `adjustedFirstTierPrice = 1-talik × boxValue`. Qatorlar
+  // to'g'ridan-to'g'ri quriladi (skan oqimi markirovka/blok shtrix-kodi talab
+  // qiladi) va diskont effekti qo'llanadi.
+  group('Blok qatori (boxValue = 6) + BXGY 5+1 — unit', () {
+    test('1 blok (6 dona, pog\'ona 4500) → blok narxi 6 × 5000, 1 tekin',
+        () async {
+      await HiveBoxes.getDiscounts().add(bxgy(buy: 5));
+      final p = freshProvider();
+      cart(p).add(makeSoldItem(
+          productId: kPid,
+          price: 4500 * 6,
+          value: 1,
+          saleType: 2,
+          boxValue: 6));
+      p.findFreeProducts();
+      p.useFreeProducts();
+
+      final box = cart(p).single;
+      expect(box.realPrice, 5000 * 6);
+      expect(line(box), closeTo(expectedLine(kFalling, 6, 1), 0.01));
+    });
+
+    test('1 blok + 2 dona (jami 8, pog\'ona 4000) → 7 × 5000', () async {
+      await HiveBoxes.getDiscounts().add(bxgy(buy: 5));
+      final p = freshProvider();
+      cart(p)
+        ..add(makeSoldItem(
+            productId: kPid,
+            price: 4000 * 6,
+            value: 1,
+            saleType: 2,
+            boxValue: 6))
+        ..add(makeSoldItem(productId: kPid, price: 4000, value: 2));
+      p.findFreeProducts();
+      p.useFreeProducts();
+
+      final box = cart(p).firstWhere((e) => e.saleType == 2);
+      final piece = cart(p).firstWhere((e) => e.saleType != 2);
+      expect(box.realPrice, 5000 * 6);
+      expect(piece.realPrice, 5000);
+      expect(piece.price, 5000);
+      expect(
+          line(box) + line(piece), closeTo(expectedLine(kFalling, 8, 1), 0.01));
+    });
+
+    test('shart bajarilmasa (20+1) blok pog\'ona narxida qoladi', () async {
+      await HiveBoxes.getDiscounts().add(bxgy(buy: 20));
+      final p = freshProvider();
+      cart(p).add(makeSoldItem(
+          productId: kPid,
+          price: 4500 * 6,
+          value: 1,
+          saleType: 2,
+          boxValue: 6));
+      p.findFreeProducts();
+      p.useFreeProducts();
+      expect(cart(p).single.price, 4500 * 6);
+      expect(cart(p).single.realPrice, 4500 * 6);
+    });
+  });
+}
+```
+
+</details>
+
+### 6.5. YANGI: `test/tier_cases_box_marking_kg_test.dart`
+
+<details>
+<summary>test/tier_cases_box_marking_kg_test.dart (997 qator)</summary>
+
+```dart
+// Pog'onali narx (tier) — qator SHAKLLARI bo'yicha: blok (saleType 2),
+// markirovkali (har skan alohida qator) va kilolik mahsulot.
+//
+// Tekshirilayotgan tuzatish (2026-10-08): `useFreeProducts` Buy X Get Y shart
+// bajarilganda narxni endi faqat pog'ona 1-talikdan ARZON bo'lsa 1-talikka
+// ko'taradi (blok qatorida 1-talik × boxValue bilan solishtiriladi). Pog'ona
+// QIMMAT bo'lsa (1 → 25 000, 7+ → 27 000) pog'ona narxi saqlanadi.
+//
+// Biznes qoidalar (kutilgan qiymatlar shulardan, koddan emas):
+//   * pog'ona = savatdagi shu mahsulot JAMI donasi (dona qatorlari value +
+//     blok qatorlari value × boxValue) dan oshmaydigan eng katta minQuantity;
+//     barcha qatorlar shu dona narxini oladi (blok = dona × boxValue);
+//   * Buy X Get Y: pog'ona 1-talikdan ARZON bo'lsa to'lanadigan donalar
+//     1-talik narxda (ulgurji + tekin ustma-ust tushmaydi); QIMMAT bo'lsa
+//     pog'ona narxi qoladi;
+//   * diskont yo'q → sof pog'ona narxi.
+//
+// Kirish yo'llari: blok — real skan (`onBarcodeScanned` → `_addBoxProduct`);
+// marka — `addSeperatedProduct` (KM tekshiruvidan keyingi real yo'l);
+// kg — `addProduct(isTarozi: true)` (tarozi yo'li, OPD dialogi ochilmaydi);
+// OPD / o'chirish / guruh tahriri — `pressDialogSaveButton` /
+// `pressDialogDeleteButton` (savat to'g'ridan-to'g'ri quriladi).
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/app_navigation.dart';
+import 'package:invan2/changes/models/product/item_model.dart';
+import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/changes/singletons/discounts/discount_singleton.dart';
+import 'package:invan2/features/get_discounts/model/discounts_response.dart';
+import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+import 'package:invan2/utils/helpers/size_config.dart';
+import 'package:invan2/utils/l10n/app_localizations.dart';
+
+import 'support/provider_harness.dart';
+
+const kShop = 'shop-1';
+const kPid = 'tier-blok-id';
+const kBoxEan = '4780000000017';
+// Sut mahsuloti (alkogol emas) — markirovka qatori `mxikCode!` ni o'qiydi.
+const kMxik = '04011001001000000';
+
+// Buy X Get Y uchun qat'iy GUIDlar (discount_helpers.dart dan).
+const gGroupBuyXGetY = '86951e75-960f-45d7-9505-9b9cd2ce17a7';
+const gTypeBuyXGetY = 'a9f3ceb1-4fa3-4f71-ab81-00889e26616b';
+
+/// Prod sozlamasi: 1 ta → 25 000, 7+ ta → 27 000 (ko'p olsa QIMMAT).
+const kRising = {1: 25000, 7: 27000};
+
+/// Odatiy ulgurji: 1 → 5000, 3+ → 4500, 7+ → 4000 (ko'p olsa ARZON).
+const kFalling = {1: 5000, 3: 4500, 7: 4000};
+
+ItemModel tierProduct(
+  Map<int, num> tiers, {
+  int boxValue = 6,
+  String unit = 'dona',
+  bool isMarking = false,
+}) {
+  final m = ItemModel();
+  m.id = kPid;
+  m.name = 'Saryog\' blok';
+  m.sku = '1';
+  m.barcode = [kPid];
+  m.packageCode = 'PACK-1';
+  m.mxikCode = kMxik;
+  m.isMarking = isMarking;
+  m.vat = Vat(percentage: 12);
+  m.measurementUnit = MeasurementUnit(shortName: unit);
+  m.hasBoxBarcode = true;
+  m.boxBarcode = kBoxEan;
+  m.boxBarcodeQuantity = boxValue;
+  m.shopPrices = ShopPrices(
+    shID: ShID(shopId: kShop, shopPriceTiers: [
+      for (final t in tiers.entries)
+        ShopPriceTiers(minQuantity: t.key, retailPrice: t.value)
+    ]),
+  );
+  return m;
+}
+
+/// Katalogga qo'yadi — blok skan `barcodeProducts` dan qidiradi.
+void useCatalog(ItemModel m) {
+  ItemsSingleton.products = [m];
+  ItemsSingleton.barcodeProducts = [m];
+}
+
+DiscountItem buyXGetY({
+  required int buy,
+  int get = 1,
+  bool repeatable = false,
+}) =>
+    DiscountItem(
+      id: 'bxgy',
+      name: 'Buy X Get Y',
+      displayName: 'Buy X Get Y',
+      discountGroupType: DiscountGroupType(id: gGroupBuyXGetY),
+      discountType: DiscountType(id: gTypeBuyXGetY),
+      isExpirable: false,
+      isForAllClients: true,
+      isRepeatable: repeatable,
+      shopIds: [ShopIds(id: kShop)],
+      buyXGetY: BuyXGetY(
+        productsToBuy: [ProductsToBuy(id: kPid, name: 'Saryog\'')],
+        buyProductsAmount: buy,
+        productToGet: ProductsToGet(id: kPid, name: 'Saryog\''),
+        getProductsAmount: get,
+      ),
+    );
+
+/// Prod'dagi aniq aksiya: o'sha mahsulot, 1 olsa 1 tekin, repeatable.
+DiscountItem prodPromo() => buyXGetY(buy: 1, repeatable: true);
+
+/// testWidgets ichida Hive IO faqat `runAsync` orqali.
+Future<void> addDiscount(WidgetTester tester, DiscountItem d) =>
+    tester.runAsync(() => HiveBoxes.getDiscounts().add(d));
+
+/// `addProduct` / marka / blok yo'llari `AppNavigation.navigatorKey` ni o'qiydi.
+/// [scaffoldKey] — tarozi yorlig'i yo'li `scaffoldKey.currentState!.context`
+/// ni o'qiydi.
+Future<BuildContext> appContext(WidgetTester tester,
+    {GlobalKey<ScaffoldState>? scaffoldKey}) async {
+  late BuildContext captured;
+  await tester.pumpWidget(MaterialApp(
+    navigatorKey: AppNavigation.navigatorKey,
+    locale: const Locale('uz'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(key: scaffoldKey, body: Builder(builder: (c) {
+      captured = c;
+      SizeConfig().init(c);
+      return const SizedBox();
+    })),
+  ));
+  return captured;
+}
+
+/// "Aksiya bor" dialogini kassir kabi yopadi (bo'lsa).
+Future<void> settle(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
+  final ok = find.text('Ok');
+  if (ok.evaluate().isNotEmpty) {
+    await tester.tap(ok.first, warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+/// Oddiy dona skan (shtrix-kod).
+Future<void> scanPiece(WidgetTester tester, BuildContext ctx,
+    OrderingProvider4 p,
+    {double value = 1}) async {
+  p.addProduct(
+      value: value,
+      product: ItemsSingleton.getProductById(kPid)!,
+      where: 'test',
+      context: ctx);
+  await settle(tester);
+}
+
+int _boxSerial = 0;
+
+/// Blok KM skani: `01` + GTIN-14 (0 + blok EAN-13) + `21` + seriya.
+Future<void> scanBox(WidgetTester tester, OrderingProvider4 p) async {
+  _boxSerial++;
+  final code = '010${kBoxEan}21S${_boxSerial.toString().padLeft(6, '0')}';
+  p.onBarcodeScanned(code, GlobalKey<ScaffoldState>());
+  await settle(tester);
+}
+
+int _markSerial = 0;
+
+/// Markirovkali dona: KM tekshiruvidan o'tgach chaqiriladigan real yo'l —
+/// har skan ALOHIDA qator (value 1).
+Future<void> scanMark(WidgetTester tester, OrderingProvider4 p) async {
+  _markSerial++;
+  final scanned = ItemModel()
+    ..id = kPid
+    ..mark = '0104780000000024215KM${_markSerial.toString().padLeft(6, '0')}';
+  p.addSeperatedProduct(scanned);
+  await settle(tester);
+}
+
+/// Tarozi yo'li — kg mahsulot qo'shilganda OPD dialogi ochilmaydi.
+Future<void> addKg(WidgetTester tester, BuildContext ctx, OrderingProvider4 p,
+    double kg) async {
+  p.addProduct(
+      value: kg,
+      product: ItemsSingleton.getProductById(kPid)!,
+      where: 'test',
+      context: ctx,
+      isTarozi: true);
+  await settle(tester);
+}
+
+/// Tarozi yorlig'i: `28` + PLU(5) + og'irlik (gramm × 10, 6 xona).
+/// PLU `00001` → katalogdagi SKU `1`.
+String taroziLabel(double kg) =>
+    '2800001${(kg * 10000).round().toString().padLeft(6, '0')}';
+
+Future<void> scanScale(WidgetTester tester, OrderingProvider4 p,
+    GlobalKey<ScaffoldState> key, double kg) async {
+  p.onBarcodeScanned(taroziLabel(kg), key);
+  await settle(tester);
+}
+
+List<ReceiptModelSoldItem4> cart(OrderingProvider4 p) =>
+    p.getCurrentClient.orderedProducts;
+
+List<ReceiptModelSoldItem4> active(OrderingProvider4 p) =>
+    cart(p).where((e) => !(e.isDeleted ?? false)).toList();
+
+ReceiptModelSoldItem4 boxRow(OrderingProvider4 p) =>
+    active(p).firstWhere((e) => e.saleType == 2);
+
+List<ReceiptModelSoldItem4> boxRows(OrderingProvider4 p) =>
+    active(p).where((e) => e.saleType == 2).toList();
+
+ReceiptModelSoldItem4 pieceRow(OrderingProvider4 p) =>
+    active(p).firstWhere((e) => e.saleType != 2);
+
+/// Savatning to'lanadigan summasi (yaxlitlashsiz): Σ price × value.
+double payable(OrderingProvider4 p) =>
+    active(p).fold<double>(0, (s, e) => s + e.price * e.value);
+
+/// Jami dona (blok = value × boxValue).
+num units(OrderingProvider4 p) => active(p).fold<num>(
+    0, (s, e) => s + (e.saleType == 2 ? e.value * e.boxValue : e.value));
+
+// ---- Savatni to'g'ridan-to'g'ri quruvchi yordamchilar (OPD testlari) ----
+
+ReceiptModelSoldItem4 box(int boxValue, {double unit = 1}) => makeSoldItem(
+      productId: kPid,
+      price: unit * boxValue,
+      value: 1,
+      saleType: 2,
+      boxValue: boxValue,
+      boxQuantity: 1,
+    );
+
+ReceiptModelSoldItem4 piece(double value, {double unit = 1}) =>
+    makeSoldItem(productId: kPid, price: unit, value: value);
+
+ReceiptModelSoldItem4 markRow(String km, {double unit = 1}) => makeSoldItem(
+    productId: kPid, price: unit, value: 1, marking: true, mark: km);
+
+/// OPD "Saqlash" — qator o'zgarishsiz (tier + diskont effektlari qayta).
+Future<void> saveRow(OrderingProvider4 p, int index) async {
+  p.tapIndexToEdit(index);
+  await p.pressDialogSaveButton(cart(p)[index]);
+}
+
+/// OPD dialogidagi qty o'zgarishi (dialog qator NUSXASINI beradi).
+Future<void> opdSetQty(OrderingProvider4 p, int index, double qty) async {
+  final row = cart(p)[index];
+  p.tapIndexToEdit(index);
+  await p.pressDialogSaveButton(makeSoldItem(
+    productId: row.productId,
+    price: row.price,
+    realPrice: row.realPrice,
+    onlyPrice: row.onlyPrice,
+    value: qty,
+    isKg: row.isKg,
+  ));
+}
+
+void deleteRow(OrderingProvider4 p, int index) {
+  p.tapIndexToEdit(index);
+  p.pressDialogDeleteButton();
+}
+
+int indexWhere(OrderingProvider4 p, bool Function(ReceiptModelSoldItem4) f) =>
+    cart(p).indexWhere(f);
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('tier_cases_box_marking_kg_test');
+    await Pref.setString(PrefKeys.storeId, kShop);
+  });
+  tearDownAll(tearDownPosTestEnv);
+
+  // testWidgets ichida Hive IO kutilsa osilib qoladi — sozlash shu yerda.
+  setUp(() async {
+    await Pref.setBool(PrefKeys.markCheckWithOfd, false);
+    await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
+    await Pref.setBool(PrefKeys.isRedDeleteActivated, false);
+    await HiveBoxes.getDiscounts().clear();
+    DiscountSingleton.resetAll();
+  });
+
+  // ===================================================================
+  // A. BLOK SKAN — diskontsiz, sof pog'ona
+  // ===================================================================
+  group('Blok skan — qimmatlashuvchi pog\'ona (1 → 25 000, 7+ → 27 000)', () {
+    testWidgets('1 blok (6 dona) → dona 25 000, blok 150 000', (tester) async {
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      final b = boxRow(p);
+      expect(b.saleType, 2);
+      expect(b.boxValue, 6);
+      expect(b.price, 25000 * 6);
+      expect(b.realPrice, 25000 * 6);
+    });
+
+    testWidgets('1 blok (8 dona) — blokning o\'zi 7+ pog\'onaga yetadi → '
+        'blok 8 × 27 000', (tester) async {
+      useCatalog(tierProduct(kRising, boxValue: 8));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      expect(boxRow(p).price, 27000 * 8);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), 216000);
+    });
+
+    testWidgets('2 blok (6 + 6 = 12) → ikkala blok ham 6 × 27 000',
+        (tester) async {
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      expect(boxRow(p).price, 25000 * 6, reason: '6 dona — hali 1-pog\'ona');
+      await scanBox(tester, p);
+      expect(boxRows(p), hasLength(2));
+      for (final b in boxRows(p)) {
+        expect(b.price, 27000 * 6);
+      }
+      expect(payable(p), 27000 * 12);
+    });
+
+    testWidgets('ARALASH: blok (6) + 1 dona = 7 → blok 162 000, dona 27 000',
+        (tester) async {
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      await scanPiece(tester, ctx, p);
+      expect(active(p), hasLength(2));
+      expect(boxRow(p).price, 27000 * 6);
+      expect(pieceRow(p).price, 27000);
+      expect(payable(p), 27000 * 7);
+    });
+
+    testWidgets('ARALASH teskari tartib: 1 dona, keyin blok (6) → '
+        'dona qatori ham 27 000 ga ko\'tariladi', (tester) async {
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanPiece(tester, ctx, p);
+      expect(pieceRow(p).price, 25000);
+      await scanBox(tester, p);
+      expect(pieceRow(p).price, 27000);
+      expect(pieceRow(p).realPrice, 27000);
+      expect(boxRow(p).price, 27000 * 6);
+    });
+
+    testWidgets('ARALASH: blok (4) + 2 dona = 6 → 25 000; +1 dona = 7 → 27 000',
+        (tester) async {
+      useCatalog(tierProduct(kRising, boxValue: 4));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      await scanPiece(tester, ctx, p, value: 2);
+      expect(units(p), 6);
+      expect(boxRow(p).price, 25000 * 4);
+      expect(pieceRow(p).price, 25000);
+      await scanPiece(tester, ctx, p);
+      expect(units(p), 7);
+      expect(boxRow(p).price, 27000 * 4);
+      expect(pieceRow(p).price, 27000);
+    });
+  });
+
+  group('Blok skan — arzonlashuvchi pog\'ona (1 → 5000, 3+ → 4500, 7+ → 4000)',
+      () {
+    testWidgets('1 blok (6) → dona 4500, blok 27 000', (tester) async {
+      useCatalog(tierProduct(kFalling, boxValue: 6));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      expect(boxRow(p).price, 4500 * 6);
+    });
+
+    testWidgets('1 blok (2) → 1-pog\'ona, blok 10 000', (tester) async {
+      useCatalog(tierProduct(kFalling, boxValue: 2));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      expect(boxRow(p).price, 5000 * 2);
+    });
+
+    testWidgets('ARALASH: blok (6) + 1 dona = 7 → blok 24 000, dona 4000',
+        (tester) async {
+      useCatalog(tierProduct(kFalling, boxValue: 6));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      await scanPiece(tester, ctx, p);
+      expect(boxRow(p).price, 4000 * 6);
+      expect(pieceRow(p).price, 4000);
+      expect(payable(p), 4000 * 7);
+    });
+
+    testWidgets('2 blok (6 + 6 = 12) → ikkalasi 24 000', (tester) async {
+      useCatalog(tierProduct(kFalling, boxValue: 6));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      await scanBox(tester, p);
+      for (final b in boxRows(p)) {
+        expect(b.price, 4000 * 6);
+      }
+    });
+  });
+
+  // ===================================================================
+  // B. BLOK + BUY X GET Y (tuzatishning blok shoxi: 1-talik × boxValue)
+  // ===================================================================
+  group('Blok + Buy X Get Y (prod: 1+1 repeatable)', () {
+    testWidgets(
+        'QIMMAT: 1 blok (8) → blok 216 000 saqlanadi, 4 tekin → 108 000',
+        (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kRising, boxValue: 8));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      final b = boxRow(p);
+      expect(b.realPrice, 27000 * 8,
+          reason: 'qimmat pog\'ona 1-talik × 8 ga tushmasin');
+      expect(payable(p), closeTo(4 * 27000, 0.01));
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(108000, 1));
+    });
+
+    testWidgets('QIMMAT: 1 blok (6) — 7 ga yetmaydi → 25 000, 3 tekin → 75 000',
+        (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      expect(boxRow(p).realPrice, 25000 * 6);
+      expect(payable(p), closeTo(3 * 25000, 0.01));
+    });
+
+    testWidgets(
+        'QIMMAT ARALASH: blok (6) + 2 dona = 8 → 27 000, 4 tekin → 108 000',
+        (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      await scanPiece(tester, ctx, p);
+      await scanPiece(tester, ctx, p);
+      expect(units(p), 8);
+      expect(boxRow(p).realPrice, 27000 * 6);
+      expect(pieceRow(p).realPrice, 27000);
+      expect(payable(p), closeTo(4 * 27000, 0.01));
+    });
+
+    testWidgets(
+        'QIMMAT ARALASH oraliq: blok (6) + 1 dona = 7 → 27 000, '
+        '3 tekin → 4 × 27 000', (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      expect(payable(p), closeTo(3 * 25000, 0.01), reason: '6 dona, 3 tekin');
+      await scanPiece(tester, ctx, p);
+      expect(boxRow(p).realPrice, 27000 * 6);
+      expect(pieceRow(p).realPrice, 27000);
+      expect(payable(p), closeTo(4 * 27000, 0.01));
+    });
+
+    testWidgets('QIMMAT: 2 blok (6 + 6) → 12 dona, 6 tekin → 6 × 27 000',
+        (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      await scanBox(tester, p);
+      for (final b in boxRows(p)) {
+        expect(b.realPrice, 27000 * 6);
+      }
+      expect(payable(p), closeTo(6 * 27000, 0.01));
+    });
+
+    testWidgets(
+        'ARZON: 1 blok (8) → 4000 emas, 1-talik × 8 = 40 000; '
+        '4 tekin → 4 × 5000', (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kFalling, boxValue: 8));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      expect(boxRow(p).realPrice, 5000 * 8,
+          reason: 'ulgurji + tekin ustma-ust tushmasin');
+      expect(payable(p), closeTo(4 * 5000, 0.01));
+    });
+
+    testWidgets(
+        'ARZON ARALASH: blok (6) + 2 dona = 8 → hammasi 1-talik, '
+        '4 tekin → 4 × 5000', (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kFalling, boxValue: 6));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      await scanPiece(tester, ctx, p);
+      await scanPiece(tester, ctx, p);
+      expect(boxRow(p).realPrice, 5000 * 6);
+      expect(pieceRow(p).realPrice, 5000);
+      expect(payable(p), closeTo(4 * 5000, 0.01));
+    });
+
+    testWidgets(
+        'repeatable EMAS (5 olsa 1 tekin), QIMMAT {1: 5000, 3: 7000}, '
+        'blok 12 → 11 × 7000', (tester) async {
+      await addDiscount(tester, buyXGetY(buy: 5));
+      useCatalog(tierProduct(const {1: 5000, 3: 7000}, boxValue: 12));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      expect(boxRow(p).realPrice, 7000 * 12);
+      expect(payable(p), closeTo(11 * 7000, 0.01));
+    });
+
+    testWidgets(
+        'repeatable EMAS (5 olsa 1 tekin), ARZON, blok 12 → 11 × 5000',
+        (tester) async {
+      await addDiscount(tester, buyXGetY(buy: 5));
+      useCatalog(tierProduct(kFalling, boxValue: 12));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      expect(boxRow(p).realPrice, 5000 * 12);
+      expect(payable(p), closeTo(11 * 5000, 0.01));
+    });
+
+    testWidgets('shart bajarilmasa (20 olsa 1 tekin) blok sof pog\'onada',
+        (tester) async {
+      await addDiscount(tester, buyXGetY(buy: 20));
+      useCatalog(tierProduct(kRising, boxValue: 8));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      expect(boxRow(p).price, 27000 * 8);
+      expect(boxRow(p).singleDiscount, 0);
+    });
+  });
+
+  // ===================================================================
+  // C. BLOK — OPD / o'chirish / guruh tahriri (savat to'g'ridan-to'g'ri)
+  // ===================================================================
+  group('Blok qatorlari — OPD yo\'llari', () {
+    test('OPD saqlash: blok (8) qimmat pog\'ona + aksiya → 4 × 27 000',
+        () async {
+      await HiveBoxes.getDiscounts().add(prodPromo());
+      useCatalog(tierProduct(kRising, boxValue: 8));
+      final p = freshProvider();
+      cart(p).add(box(8));
+      await saveRow(p, 0);
+      expect(cart(p).single.realPrice, 27000 * 8);
+      expect(payable(p), closeTo(4 * 27000, 0.01));
+    });
+
+    test('OPD saqlash: blok (8) arzon pog\'ona + aksiya → 4 × 5000', () async {
+      await HiveBoxes.getDiscounts().add(prodPromo());
+      useCatalog(tierProduct(kFalling, boxValue: 8));
+      final p = freshProvider();
+      cart(p).add(box(8));
+      await saveRow(p, 0);
+      expect(cart(p).single.realPrice, 5000 * 8);
+      expect(payable(p), closeTo(4 * 5000, 0.01));
+    });
+
+    test('dona qatori OPD da 1 → 3: blok (6) + 3 = 9 → blok ham 27 000 ga',
+        () async {
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      final p = freshProvider();
+      cart(p)
+        ..add(piece(1, unit: 25000))
+        ..add(box(6, unit: 25000));
+      await opdSetQty(p, 0, 3);
+      expect(boxRow(p).price, 27000 * 6);
+      expect(pieceRow(p).price, 27000);
+    });
+
+    test('dona qatori o\'chirilsa blok (6) yana 1-pog\'onaga tushadi',
+        () async {
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      final p = freshProvider();
+      cart(p)
+        ..add(piece(1, unit: 27000))
+        ..add(box(6, unit: 27000));
+      await saveRow(p, 0);
+      expect(boxRow(p).price, 27000 * 6);
+      deleteRow(p, indexWhere(p, (e) => e.saleType != 2));
+      expect(active(p), hasLength(1));
+      expect(boxRow(p).price, 25000 * 6);
+    });
+
+    test(
+        'aksiya bilan: blok (6) + 2 dona → dona o\'chirilsa '
+        '6 dona, 3 tekin → 3 × 25 000', () async {
+      await HiveBoxes.getDiscounts().add(prodPromo());
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      final p = freshProvider();
+      cart(p)
+        ..add(piece(2))
+        ..add(box(6));
+      await saveRow(p, 0);
+      expect(payable(p), closeTo(4 * 27000, 0.01));
+      deleteRow(p, indexWhere(p, (e) => e.saleType != 2));
+      expect(boxRow(p).realPrice, 25000 * 6);
+      expect(payable(p), closeTo(3 * 25000, 0.01));
+    });
+
+    test('blok guruhi 2 → 1 (12 → 6 dona): 27 000 → 25 000', () async {
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      final p = freshProvider();
+      cart(p)
+        ..add(box(6))
+        ..add(box(6));
+      await saveRow(p, 0);
+      expect(boxRows(p).map((e) => e.price), [27000 * 6, 27000 * 6]);
+      p.beginBoxGroupEdit(kPid);
+      p.tapIndexToEdit(0);
+      await p.pressDialogSaveButton(makeSoldItem(
+          productId: kPid,
+          price: 27000 * 6,
+          value: 1,
+          saleType: 2,
+          boxValue: 6));
+      p.endBoxGroupEdit();
+      expect(boxRows(p), hasLength(1));
+      expect(boxRow(p).price, 25000 * 6);
+    });
+
+    test(
+        'aksiya bilan blok guruhi 2 → 1: 6 × 27 000 → 3 × 25 000', () async {
+      await HiveBoxes.getDiscounts().add(prodPromo());
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      final p = freshProvider();
+      cart(p)
+        ..add(box(6))
+        ..add(box(6));
+      await saveRow(p, 0);
+      expect(payable(p), closeTo(6 * 27000, 0.01));
+      p.beginBoxGroupEdit(kPid);
+      p.tapIndexToEdit(0);
+      await p.pressDialogSaveButton(makeSoldItem(
+          productId: kPid,
+          price: 27000 * 6,
+          value: 1,
+          saleType: 2,
+          boxValue: 6));
+      p.endBoxGroupEdit();
+      expect(boxRow(p).realPrice, 25000 * 6);
+      expect(payable(p), closeTo(3 * 25000, 0.01));
+    });
+  });
+
+  // ===================================================================
+  // D. MARKIROVKA — har skan alohida qator (value 1)
+  // ===================================================================
+  group('Markirovkali qatorlar (har skan alohida qator)', () {
+    setUp(() async {
+      // Markirovka yoqiq: qatorlar `marking: true` va KM bilan tushadi.
+      await Pref.setBool(PrefKeys.markCheckWithOfd, true);
+    });
+
+    testWidgets('6 marka → hammasi 25 000; 7-marka → HAMMA qatorlar 27 000',
+        (tester) async {
+      useCatalog(tierProduct(kRising, isMarking: true));
+      await appContext(tester);
+      final p = freshProvider();
+      for (int i = 0; i < 6; i++) {
+        await scanMark(tester, p);
+      }
+      expect(active(p), hasLength(6));
+      expect(active(p).every((e) => e.marking && e.value == 1), isTrue);
+      expect(active(p).map((e) => e.price).toSet(), {25000});
+      await scanMark(tester, p);
+      expect(active(p), hasLength(7));
+      expect(active(p).map((e) => e.price).toSet(), {27000},
+          reason: 'pog\'ona JAMI qatorlar soni bo\'yicha');
+      expect(payable(p), 7 * 27000);
+    });
+
+    testWidgets('arzon pog\'ona: 3 marka → 4500, 7 marka → 4000',
+        (tester) async {
+      useCatalog(tierProduct(kFalling, isMarking: true));
+      await appContext(tester);
+      final p = freshProvider();
+      for (int i = 0; i < 3; i++) {
+        await scanMark(tester, p);
+      }
+      expect(active(p).map((e) => e.price).toSet(), {4500});
+      for (int i = 0; i < 4; i++) {
+        await scanMark(tester, p);
+      }
+      expect(active(p).map((e) => e.price).toSet(), {4000});
+    });
+
+    for (final n in const [6, 7, 8, 9]) {
+      final unit = n >= 7 ? 27000.0 : 25000.0;
+      final free = n ~/ 2;
+      testWidgets(
+          'PROD aksiya, QIMMAT: $n marka → dona $unit, $free tekin, '
+          'jami ${unit * (n - free)}', (tester) async {
+        await addDiscount(tester, prodPromo());
+        useCatalog(tierProduct(kRising, isMarking: true));
+        await appContext(tester);
+        final p = freshProvider();
+        for (int i = 0; i < n; i++) {
+          await scanMark(tester, p);
+        }
+        expect(active(p), hasLength(n));
+        expect(active(p).map((e) => e.realPrice).toSet(), {unit},
+            reason: 'qimmat pog\'ona 1-talikka tushmasin');
+        expect(active(p).where((e) => e.price == 0), hasLength(free),
+            reason: 'tekin qatorlar soni');
+        expect(payable(p), closeTo(unit * (n - free), 0.01));
+      });
+    }
+
+    testWidgets('PROD aksiya, ARZON: 8 marka → 1-talik, 4 × 5000',
+        (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kFalling, isMarking: true));
+      await appContext(tester);
+      final p = freshProvider();
+      for (int i = 0; i < 8; i++) {
+        await scanMark(tester, p);
+      }
+      expect(active(p).map((e) => e.realPrice).toSet(), {5000});
+      expect(payable(p), closeTo(4 * 5000, 0.01));
+    });
+
+    testWidgets('ARALASH: blok (6) + 1 marka = 7 → blok 162 000, marka 27 000',
+        (tester) async {
+      useCatalog(tierProduct(kRising, boxValue: 6, isMarking: true));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      await scanMark(tester, p);
+      expect(boxRow(p).price, 27000 * 6);
+      expect(pieceRow(p).price, 27000);
+      expect(pieceRow(p).marking, isTrue);
+    });
+
+    testWidgets(
+        'ARALASH + aksiya: blok (6) + 2 marka = 8 → 27 000, 4 tekin → 108 000',
+        (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kRising, boxValue: 6, isMarking: true));
+      await appContext(tester);
+      final p = freshProvider();
+      await scanBox(tester, p);
+      await scanMark(tester, p);
+      await scanMark(tester, p);
+      expect(units(p), 8);
+      for (final r in active(p)) {
+        expect(r.realPrice, r.saleType == 2 ? 27000 * 6 : 27000);
+      }
+      expect(payable(p), closeTo(4 * 27000, 0.01));
+    });
+
+    test('marka guruhi OPD 8 → 6: 27 000 → 25 000, aksiya 3 × 25 000',
+        () async {
+      await HiveBoxes.getDiscounts().add(prodPromo());
+      useCatalog(tierProduct(kRising, isMarking: true));
+      final p = freshProvider();
+      for (int i = 0; i < 8; i++) {
+        cart(p).add(markRow('KM-$i'));
+      }
+      await saveRow(p, 0);
+      expect(active(p).map((e) => e.realPrice).toSet(), {27000});
+      expect(payable(p), closeTo(4 * 27000, 0.01));
+
+      p.beginMarkGroupEdit(kPid);
+      p.tapIndexToEdit(0);
+      await p.pressDialogSaveButton(makeSoldItem(
+          productId: kPid, price: 27000, value: 6, marking: true));
+      p.endMarkGroupEdit();
+      expect(active(p), hasLength(6));
+      expect(active(p).map((e) => e.realPrice).toSet(), {25000});
+      expect(payable(p), closeTo(3 * 25000, 0.01));
+    });
+
+    test('bitta marka o\'chirilsa (7 → 6) qolganlar 25 000 ga tushadi',
+        () async {
+      useCatalog(tierProduct(kRising, isMarking: true));
+      final p = freshProvider();
+      for (int i = 0; i < 7; i++) {
+        cart(p).add(markRow('KM-$i'));
+      }
+      await saveRow(p, 0);
+      expect(active(p).map((e) => e.price).toSet(), {27000});
+      deleteRow(p, 0);
+      expect(active(p), hasLength(6));
+      expect(active(p).map((e) => e.price).toSet(), {25000});
+    });
+  });
+
+  group('Qizil o\'chirish (o\'chirilgan qator savatda qoladi)', () {
+    test(
+        '8 markadan 2 tasi qizil o\'chirilsa (6 aktiv) → 25 000, '
+        'aksiya 3 × 25 000', () async {
+      await Pref.setBool(PrefKeys.markCheckWithOfd, true);
+      await Pref.setBool(PrefKeys.isRedDeleteActivated, true);
+      await HiveBoxes.getDiscounts().add(prodPromo());
+      useCatalog(tierProduct(kRising, isMarking: true));
+      final p = freshProvider();
+      for (int i = 0; i < 8; i++) {
+        cart(p).add(markRow('KM-$i'));
+      }
+      await saveRow(p, 0);
+      expect(payable(p), closeTo(4 * 27000, 0.01));
+      deleteRow(p, 0);
+      deleteRow(p, 1);
+      expect(cart(p), hasLength(8), reason: 'qizil rejimda qator qoladi');
+      expect(active(p), hasLength(6));
+      expect(active(p).map((e) => e.realPrice).toSet(), {25000},
+          reason: 'o\'chirilgan qator pog\'ona soniga kirmaydi');
+      expect(payable(p), closeTo(3 * 25000, 0.01));
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(75000, 1));
+    });
+
+    test('blok (6) + 1 dona: dona qizil o\'chirilsa blok 150 000', () async {
+      await Pref.setBool(PrefKeys.isRedDeleteActivated, true);
+      useCatalog(tierProduct(kRising, boxValue: 6));
+      final p = freshProvider();
+      cart(p)
+        ..add(piece(1))
+        ..add(box(6));
+      await saveRow(p, 0);
+      expect(boxRow(p).price, 27000 * 6);
+      deleteRow(p, 0);
+      expect(cart(p), hasLength(2));
+      expect(boxRow(p).price, 25000 * 6);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), 150000);
+    });
+  });
+
+  // ===================================================================
+  // E. KILOLIK MAHSULOT
+  // ===================================================================
+  group('Kilolik mahsulot (kg) — qimmatlashuvchi pog\'ona', () {
+    final cases = <double, double>{
+      0.5: 25000,
+      1.0: 25000,
+      6.99: 25000,
+      7.0: 27000,
+      7.5: 27000,
+      12.25: 27000,
+    };
+    cases.forEach((kg, unit) {
+      testWidgets('$kg kg → $unit', (tester) async {
+        useCatalog(tierProduct(kRising, unit: 'kg'));
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await addKg(tester, ctx, p, kg);
+        final r = cart(p).single;
+        expect(r.isKg, isTrue);
+        expect(r.value, kg);
+        expect(r.price, unit);
+        expect(r.realPrice, unit);
+        expect(payable(p), closeTo(unit * kg, 0.01));
+      });
+    });
+
+    testWidgets('0.5 kg + 7 kg (bitta qatorga qo\'shiladi) = 7.5 → 27 000',
+        (tester) async {
+      useCatalog(tierProduct(kRising, unit: 'kg'));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await addKg(tester, ctx, p, 0.5);
+      expect(cart(p).single.price, 25000);
+      await addKg(tester, ctx, p, 7);
+      expect(cart(p).single.value, 7.5);
+      expect(cart(p).single.price, 27000);
+    });
+
+    test('OPD: 0.5 kg → 7.5 kg → 27 000; keyin 2.25 kg → yana 25 000',
+        () async {
+      useCatalog(tierProduct(kRising, unit: 'kg'));
+      final p = freshProvider();
+      cart(p).add(makeSoldItem(
+          productId: kPid, price: 25000, value: 0.5, isKg: true));
+      await opdSetQty(p, 0, 7.5);
+      expect(cart(p).single.price, 27000);
+      await opdSetQty(p, 0, 2.25);
+      expect(cart(p).single.price, 25000);
+    });
+
+    test('kirill "кг" birligi ham kg sifatida: 7.5 кг → 27 000', () async {
+      useCatalog(tierProduct(kRising, unit: 'кг'));
+      final p = freshProvider();
+      cart(p).add(
+          makeSoldItem(productId: kPid, price: 1, value: 7.5, isKg: true));
+      await saveRow(p, 0);
+      expect(cart(p).single.price, 27000);
+    });
+
+    testWidgets(
+        'PROD aksiya, QIMMAT: 7.5 kg → 27 000 saqlanadi, 3 kg tekin → '
+        '4.5 × 27 000', (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kRising, unit: 'kg'));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await addKg(tester, ctx, p, 7.5);
+      expect(cart(p).single.realPrice, 27000);
+      expect(payable(p), closeTo(4.5 * 27000, 0.01));
+    });
+  });
+
+  group('Tarozi yorlig\'i (real skan, kg)', () {
+    test('yorliq formati: 7.5 kg / 0.5 kg', () {
+      expect(taroziLabel(7.5), '2800001075000');
+      expect(taroziLabel(0.5), '2800001005000');
+    });
+
+    final cases = <double, double>{0.5: 25000, 6.5: 25000, 7.5: 27000};
+    cases.forEach((kg, unit) {
+      testWidgets('yorliq $kg kg → $unit', (tester) async {
+        useCatalog(tierProduct(kRising, unit: 'kg'));
+        final key = GlobalKey<ScaffoldState>();
+        await appContext(tester, scaffoldKey: key);
+        final p = freshProvider();
+        await scanScale(tester, p, key, kg);
+        final r = cart(p).single;
+        expect(r.isKg, isTrue);
+        expect(r.value, kg);
+        expect(r.price, unit);
+      });
+    });
+
+    testWidgets('ikki yorliq 0.5 + 7 kg = 7.5 → 27 000', (tester) async {
+      useCatalog(tierProduct(kRising, unit: 'kg'));
+      final key = GlobalKey<ScaffoldState>();
+      await appContext(tester, scaffoldKey: key);
+      final p = freshProvider();
+      await scanScale(tester, p, key, 0.5);
+      await scanScale(tester, p, key, 7);
+      expect(cart(p).single.value, 7.5);
+      expect(cart(p).single.price, 27000);
+    });
+
+    testWidgets('PROD aksiya: yorliq 7.5 kg → 27 000, 4.5 × 27 000',
+        (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kRising, unit: 'kg'));
+      final key = GlobalKey<ScaffoldState>();
+      await appContext(tester, scaffoldKey: key);
+      final p = freshProvider();
+      await scanScale(tester, p, key, 7.5);
+      expect(cart(p).single.realPrice, 27000);
+      expect(payable(p), closeTo(4.5 * 27000, 0.01));
+    });
+  });
+
+  group('Kilolik mahsulot (kg) — arzonlashuvchi pog\'ona', () {
+    final cases = <double, double>{0.5: 5000, 3.2: 4500, 7.5: 4000};
+    cases.forEach((kg, unit) {
+      testWidgets('$kg kg → $unit', (tester) async {
+        useCatalog(tierProduct(kFalling, unit: 'kg'));
+        final ctx = await appContext(tester);
+        final p = freshProvider();
+        await addKg(tester, ctx, p, kg);
+        expect(cart(p).single.price, unit);
+      });
+    });
+
+    testWidgets('PROD aksiya, ARZON: 7.5 kg → 1-talik, 4.5 × 5000',
+        (tester) async {
+      await addDiscount(tester, prodPromo());
+      useCatalog(tierProduct(kFalling, unit: 'kg'));
+      final ctx = await appContext(tester);
+      final p = freshProvider();
+      await addKg(tester, ctx, p, 7.5);
+      expect(cart(p).single.realPrice, 5000);
+      expect(payable(p), closeTo(4.5 * 5000, 0.01));
+    });
+  });
+}
+```
+
+</details>
+
+### 6.6. YANGI: `test/tier_cases_data_sync_test.dart`
+
+<details>
+<summary>test/tier_cases_data_sync_test.dart (666 qator)</summary>
+
+```dart
+// Pog'onali narx — ma'lumot va sinxron (notification) chekka holatlari.
+//
+// Tekshiriladigan tuzatish (2026-10-08, "Saryog' Lora 200gr"):
+//   * `useFreeProducts` qimmat pog'onani 1-talikka qaytarmaydi;
+//   * `onePrice` eng kichik `minQuantity` li pog'onani oladi (tiers[0] emas);
+//   * `ShopPriceTiersSub.fromJson` `min_quantity`/`retail_price` ni int /
+//     double / satr ko'rinishida xavfsiz o'qiydi.
+//
+// Bu fayl ma'lumot shakli (tartibsiz, dublikat, null/0 pog'ona, satr/double
+// JSON) va type 13 notification → Hive → kassa savati zanjirini tekshiradi.
+// Prod sozlamasi: Buy X Get Y, o'sha mahsulotning o'zi, 1 olsa 1 tekin,
+// repeatable; 1 ta → 25 000, 7+ ta → 27 000. Tekin = floor(n / 2).
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+import 'package:invan2/app_navigation.dart';
+import 'package:invan2/changes/models/product/item_model.dart';
+import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/changes/services/web_socket_service/product/model/product_price_edit_response.dart';
+import 'package:invan2/changes/singletons/discounts/discount_singleton.dart';
+import 'package:invan2/features/get_discounts/model/discounts_response.dart';
+import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+import 'package:invan2/utils/helpers/size_config.dart';
+import 'package:invan2/utils/l10n/app_localizations.dart';
+
+import 'support/provider_harness.dart';
+
+const kShop = 'shop-1';
+const kOtherShop = 'shop-2';
+const kPid = 'lora-id';
+const kBarcode = '4780000000777';
+
+// Buy X Get Y uchun qat'iy GUIDlar (discount_helpers.dart dan).
+const gGroupBuyXGetY = '86951e75-960f-45d7-9505-9b9cd2ce17a7';
+const gTypeBuyXGetY = 'a9f3ceb1-4fa3-4f71-ab81-00889e26616b';
+
+ShopPriceTiers t(int? q, num? p) =>
+    ShopPriceTiers(minQuantity: q, retailPrice: p);
+
+ShopPrices pricesOf(List<ShopPriceTiers> tiers, {String shop = kShop}) =>
+    ShopPrices(
+      shID: ShID(shopId: shop, supplyPrice: 20000, shopPriceTiers: tiers),
+    );
+
+/// Har chaqiruvda YANGI obyekt — HiveObject bir nechta box'ga/qayta
+/// yozilganda xato bermasligi uchun.
+ItemModel lora(List<ShopPriceTiers> tiers) {
+  final m = ItemModel();
+  m.id = kPid;
+  m.name = 'Saryog\' Lora 200gr';
+  m.sku = '1';
+  m.isActive = true;
+  m.isMarking = false;
+  m.barcode = [kBarcode];
+  m.packageCode = 'PACK-1';
+  m.vat = Vat(percentage: 12);
+  m.measurementUnit = MeasurementUnit(shortName: 'dona');
+  m.shopPrices = pricesOf(tiers);
+  return m;
+}
+
+/// Prod'dagi aniq aksiya: o'zi uchun 1 olsa 1 tekin, repeatable.
+DiscountItem prodDiscount() => DiscountItem(
+      id: 'bxgy-lora',
+      name: 'Buy X Get Y',
+      displayName: 'Buy X Get Y',
+      discountGroupType: DiscountGroupType(id: gGroupBuyXGetY),
+      discountType: DiscountType(id: gTypeBuyXGetY),
+      isExpirable: false,
+      isForAllClients: true,
+      isRepeatable: true,
+      shopIds: [ShopIds(id: kShop)],
+      buyXGetY: BuyXGetY(
+        productsToBuy: [ProductsToBuy(id: kPid, name: 'Lora')],
+        buyProductsAmount: 1,
+        productToGet: ProductsToGet(id: kPid, name: 'Lora'),
+        getProductsAmount: 1,
+      ),
+    );
+
+/// type 13 notification (server shakli).
+ProductPriceEdit priceEdit(List<Map<String, dynamic>> tiers,
+        {String shop = kShop, String pid = kPid}) =>
+    ProductPriceEdit.fromJson(<String, dynamic>{
+      'id': 'n-$pid-$shop',
+      'type': 13,
+      'data': <String, dynamic>{
+        'product_values': [
+          <String, dynamic>{
+            'product_id': pid,
+            'price': <String, dynamic>{
+              'shop_id': shop,
+              'retail_price': 25000,
+              'supply_price': 20000,
+              'shop_price_tiers': tiers,
+            },
+          },
+        ],
+      },
+    });
+
+Map<String, dynamic> j(dynamic q, dynamic p) =>
+    <String, dynamic>{'min_quantity': q, 'retail_price': p};
+
+/// `addProduct` ichida `AppNavigation.navigatorKey.currentContext` o'qiladi.
+Future<BuildContext> appContext(WidgetTester tester) async {
+  late BuildContext captured;
+  await tester.pumpWidget(MaterialApp(
+    navigatorKey: AppNavigation.navigatorKey,
+    locale: const Locale('uz'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: Builder(builder: (c) {
+      captured = c;
+      SizeConfig().init(c);
+      return const SizedBox();
+    })),
+  ));
+  return captured;
+}
+
+Future<void> scan(WidgetTester tester, BuildContext ctx, OrderingProvider4 p,
+    {double value = 1}) async {
+  p.addProduct(
+      value: value,
+      product: ItemsSingleton.getProductById(kPid)!,
+      where: 'test',
+      context: ctx);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
+  // "Aksiya bor" dialogini kassir kabi yopamiz.
+  final ok = find.text('Ok');
+  if (ok.evaluate().isNotEmpty) {
+    await tester.tap(ok.first, warnIfMissed: false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+Future<OrderingProvider4> sellOneByOne(
+    WidgetTester tester, BuildContext ctx, int n) async {
+  final p = freshProvider();
+  for (int i = 0; i < n; i++) {
+    await scan(tester, ctx, p);
+  }
+  return p;
+}
+
+List<ReceiptModelSoldItem4> cart(OrderingProvider4 p) =>
+    p.getCurrentClient.orderedProducts;
+
+/// Hive'ga mahsulotni yozadi (+ ixtiyoriy prod aksiyasi) va keshni yangilaydi.
+/// testWidgets ichida real IO faqat runAsync orqali.
+Future<void> seed(WidgetTester tester, List<ShopPriceTiers> tiers,
+    {bool withDiscount = true}) async {
+  await tester.runAsync(() async {
+    final box = HiveBoxes.getProducts();
+    await box.clear();
+    await box.put(kPid, lora(tiers));
+    if (withDiscount) {
+      await HiveBoxes.getDiscounts().add(prodDiscount());
+    }
+    await ItemsSingleton.storeProducts();
+  });
+}
+
+/// Notification'ni qo'llaydi (ProductsWsService type 13 bilan bir xil:
+/// editItem + oyna oxirida storeProducts).
+Future<int> applyEdit(WidgetTester tester, ProductPriceEdit e) async {
+  final changed = await tester.runAsync(() async {
+    final c = await ItemsSingleton.editItem(e);
+    await ItemsSingleton.storeProducts();
+    return c;
+  });
+  return changed ?? -1;
+}
+
+/// Prod qoidasi bo'yicha kutilgan qator summasi: dona narx × to'lanadigan son.
+double expectedLine(int n, {num tierFrom = 7}) {
+  final unit = n >= tierFrom ? 27000.0 : 25000.0;
+  return unit * (n - n ~/ 2);
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('tier_cases_data_sync_test');
+    await Pref.setString(PrefKeys.storeId, kShop);
+
+    void reg<T>(int typeId, TypeAdapter<T> adapter) {
+      if (!Hive.isAdapterRegistered(typeId)) Hive.registerAdapter(adapter);
+    }
+
+    reg(ItemModelAdapter().typeId, ItemModelAdapter());
+    reg(ShopPricesAdapter().typeId, ShopPricesAdapter());
+    reg(ShIDAdapter().typeId, ShIDAdapter());
+    reg(ShopPriceTiersAdapter().typeId, ShopPriceTiersAdapter());
+    reg(CategoriesFromProductsAdapter().typeId,
+        CategoriesFromProductsAdapter());
+    reg(MeasurementUnitAdapter().typeId, MeasurementUnitAdapter());
+    reg(VatAdapter().typeId, VatAdapter());
+    await Hive.openBox<ItemModel>(HiveBoxNames.items);
+  });
+  tearDownAll(tearDownPosTestEnv);
+
+  // testWidgets ichida Hive IO kutilsa osilib qoladi — sozlash shu yerda.
+  setUp(() async {
+    await Pref.setString(PrefKeys.storeId, kShop);
+    await Pref.setBool(PrefKeys.markCheckWithOfd, false);
+    await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
+    await Pref.setBool(PrefKeys.isRedDeleteActivated, false);
+    await HiveBoxes.getDiscounts().clear();
+    await HiveBoxes.getProducts().clear();
+    DiscountSingleton.resetAll();
+    ItemsSingleton.clearTheProducts();
+  });
+
+  // ---------------------------------------------------------------------
+  group('onePrice — ma\'lumot chekka holatlari', () {
+    test('tartibsiz [7 → 27 000, 1 → 25 000] → 25 000 (1-talik narx)', () {
+      final m = lora([t(7, 27000), t(1, 25000)]);
+      expect(ItemsSingleton.onePrice(m.shopPrices), 25000);
+      expect(ItemsSingleton.onePrice(m.shopPrices),
+          ItemsSingleton.finalPrice(m, 1, false));
+    });
+
+    test('tartibsiz uch pog\'ona [7, 3, 1] → 1 ning narxi', () {
+      final m = lora([t(7, 27000), t(3, 26000), t(1, 25000)]);
+      expect(ItemsSingleton.onePrice(m.shopPrices), 25000);
+    });
+
+    test('arzonlashuvchi tartibsiz [7 → 4000, 1 → 5000, 3 → 4500] → 5000', () {
+      final m = lora([t(7, 4000), t(1, 5000), t(3, 4500)]);
+      expect(ItemsSingleton.onePrice(m.shopPrices), 5000);
+    });
+
+    test('bitta pog\'ona [1 → 25 000] → 25 000', () {
+      expect(ItemsSingleton.onePrice(pricesOf([t(1, 25000)])), 25000);
+    });
+
+    test('bitta pog\'ona, minQuantity null → uning narxi', () {
+      final m = lora([t(null, 25000)]);
+      expect(ItemsSingleton.onePrice(m.shopPrices), 25000);
+      expect(ItemsSingleton.finalPrice(m, 1, false), 25000);
+    });
+
+    test('asos minQuantity 0 [0 → 25 000, 7 → 27 000] → 25 000', () {
+      final m = lora([t(0, 25000), t(7, 27000)]);
+      expect(ItemsSingleton.onePrice(m.shopPrices), 25000);
+      expect(ItemsSingleton.finalPrice(m, 1, false), 25000);
+    });
+
+    test('asos minQuantity null [null → 25 000, 7 → 27 000] → 25 000', () {
+      final m = lora([t(null, 25000), t(7, 27000)]);
+      expect(ItemsSingleton.onePrice(m.shopPrices), 25000);
+      expect(ItemsSingleton.finalPrice(m, 1, false), 25000);
+    });
+
+    test('bo\'sh / null holatlar → 0, xato yo\'q', () {
+      expect(ItemsSingleton.onePrice(null), 0);
+      expect(ItemsSingleton.onePrice(ShopPrices()), 0);
+      expect(ItemsSingleton.onePrice(ShopPrices(shID: ShID(shopId: kShop))), 0);
+      expect(ItemsSingleton.onePrice(pricesOf([])), 0);
+    });
+
+    test('asos pog\'onaning narxi null → 0', () {
+      expect(ItemsSingleton.onePrice(pricesOf([t(1, null), t(7, 27000)])), 0);
+    });
+
+    test('dublikat minQuantity [1, 1, 7] → 7+ narxi EMAS, 1-talik dan biri',
+        () {
+      final m = lora([t(1, 25000), t(1, 26000), t(7, 27000)]);
+      expect(ItemsSingleton.onePrice(m.shopPrices), isIn([25000, 26000]));
+    });
+
+    test(
+        'dublikat minQuantity: onePrice va finalPrice(1) bir xil pog\'onani '
+        'tanlaydi', () {
+      final m = lora([t(1, 26000), t(1, 25000), t(7, 27000)]);
+      expect(ItemsSingleton.onePrice(m.shopPrices),
+          ItemsSingleton.finalPrice(m, 1, false),
+          reason: 'BXGY "1-talik narx" savatdagi 1 dona narxi bilan bir xil '
+              'bo\'lishi kerak');
+    });
+
+    test(
+        'buzuq pog\'ona (minQuantity null/0) haqiqiy 1-talikdan KEYIN kelsa '
+        'ham 1-talik narx = 25 000', () {
+      final withNull = lora([t(1, 25000), t(null, 27000)]);
+      final withZero = lora([t(1, 25000), t(0, 30000)]);
+      // Savatda 1 dona shu narxda sotiladi:
+      expect(ItemsSingleton.finalPrice(withNull, 1, false), 25000);
+      expect(ItemsSingleton.finalPrice(withZero, 1, false), 25000);
+      // 1-talik narx ham shu bo'lishi kerak:
+      expect(ItemsSingleton.onePrice(withNull.shopPrices), 25000);
+      expect(ItemsSingleton.onePrice(withZero.shopPrices), 25000);
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  group('finalPrice — tartibsiz pog\'onalar va minQuantity 0/null', () {
+    void check(String name, List<ShopPriceTiers> tiers, Map<int, num> cases) {
+      test(name, () {
+        final m = lora(tiers);
+        cases.forEach((n, expected) {
+          expect(ItemsSingleton.finalPrice(m, n, false), expected,
+              reason: '$n ta');
+        });
+      });
+    }
+
+    check('qimmatlashuvchi tartibsiz [7 → 27 000, 1 → 25 000]', [
+      t(7, 27000),
+      t(1, 25000)
+    ], {
+      1: 25000,
+      2: 25000,
+      6: 25000,
+      7: 27000,
+      8: 27000,
+      100: 27000,
+    });
+
+    check('arzonlashuvchi tartibsiz [7 → 4000, 1 → 5000, 3 → 4500]', [
+      t(7, 4000),
+      t(1, 5000),
+      t(3, 4500)
+    ], {
+      1: 5000,
+      2: 5000,
+      3: 4500,
+      6: 4500,
+      7: 4000,
+      50: 4000,
+    });
+
+    check('asos minQuantity 0 [0 → 25 000, 7 → 27 000]',
+        [t(0, 25000), t(7, 27000)], {1: 25000, 6: 25000, 7: 27000, 9: 27000});
+
+    check('asos minQuantity null [7 → 27 000, null → 25 000]',
+        [t(7, 27000), t(null, 25000)], {1: 25000, 6: 25000, 7: 27000});
+  });
+
+  // ---------------------------------------------------------------------
+  group('ShopPriceTiersSub / ProductPriceEdit.fromJson', () {
+    test('min_quantity int 7 → 7', () {
+      final s = ShopPriceTiersSub.fromJson(j(7, 27000));
+      expect(s.minQuantity, 7);
+      expect(s.retailPrice, 27000);
+    });
+
+    test('min_quantity 3.0 (double) → 3 (int)', () {
+      final s = ShopPriceTiersSub.fromJson(j(3.0, 27000));
+      expect(s.minQuantity, 3);
+      expect(s.minQuantity, isA<int>());
+    });
+
+    test('min_quantity "3" va "3.0" (satr) → 3', () {
+      expect(ShopPriceTiersSub.fromJson(j('3', 27000)).minQuantity, 3);
+      expect(ShopPriceTiersSub.fromJson(j('3.0', 27000)).minQuantity, 3);
+    });
+
+    test('min_quantity null yoki kalit yo\'q → null, xato yo\'q', () {
+      expect(ShopPriceTiersSub.fromJson(j(null, 27000)).minQuantity, isNull);
+      expect(
+          ShopPriceTiersSub.fromJson(<String, dynamic>{'retail_price': 27000})
+              .minQuantity,
+          isNull);
+    });
+
+    test('min_quantity buzuq satr ("abc") → null, xato yo\'q', () {
+      expect(ShopPriceTiersSub.fromJson(j('abc', 27000)).minQuantity, isNull);
+    });
+
+    test('retail_price kalit yo\'q / null → null', () {
+      expect(
+          ShopPriceTiersSub.fromJson(<String, dynamic>{'min_quantity': 7})
+              .retailPrice,
+          isNull);
+      expect(ShopPriceTiersSub.fromJson(j(7, null)).retailPrice, isNull);
+    });
+
+    test('retail_price "27000" (satr) → 27000', () {
+      final s = ShopPriceTiersSub.fromJson(j(7, '27000'));
+      expect(s.retailPrice, 27000);
+      expect(s.retailPrice, isA<num>());
+    });
+
+    test('retail_price double 27000.0 va "27000.50" → son', () {
+      expect(ShopPriceTiersSub.fromJson(j(7, 27000.0)).retailPrice, 27000);
+      expect(ShopPriceTiersSub.fromJson(j(7, '27000.50')).retailPrice, 27000.5);
+    });
+
+    test('toJson → fromJson aylanishi qiymatni saqlaydi', () {
+      final s = ShopPriceTiersSub.fromJson(j('7', '27000'));
+      final back = ShopPriceTiersSub.fromJson(s.toJson());
+      expect(back.minQuantity, 7);
+      expect(back.retailPrice, 27000);
+    });
+
+    test('ProductPriceEdit: aralash shakldagi pog\'onalar to\'liq o\'qiladi',
+        () {
+      final e = priceEdit([
+        j(1, 25000),
+        j(7.0, 27000),
+        j('10', '28000'),
+        j(null, 29000),
+        <String, dynamic>{'min_quantity': 20},
+      ]);
+      final price = e.data!.productsValues!.single.price!;
+      expect(price.shopId, kShop);
+      expect(e.data!.productsValues!.single.productId, kPid);
+      final tiers = price.shopPriceTiers!;
+      expect(tiers.map((x) => x.minQuantity).toList(), [1, 7, 10, null, 20]);
+      expect(tiers.map((x) => x.retailPrice).toList(),
+          [25000, 27000, 28000, 29000, null]);
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  group('Hive: type 13 qo\'llanishi va saqlanishi', () {
+    test('7.0 / "27000" kelsa Hive\'ga int 7 va 27000 yoziladi', () async {
+      await HiveBoxes.getProducts().put(kPid, lora([t(1, 25000)]));
+      final changed = await ItemsSingleton.editItem(priceEdit([
+        j(1, 25000),
+        j(7.0, '27000'),
+      ]));
+      expect(changed, 1);
+      final tiers =
+          HiveBoxes.getProducts().get(kPid)!.shopPrices!.shID!.shopPriceTiers!;
+      expect(tiers, hasLength(2));
+      expect(tiers[1].minQuantity, 7);
+      expect(tiers[1].minQuantity, isA<int>());
+      expect(tiers[1].retailPrice, 27000);
+    });
+
+    test('box qayta ochilgandan keyin ham pog\'ona saqlanadi (restart)',
+        () async {
+      await HiveBoxes.getProducts().put(kPid, lora([t(1, 25000)]));
+      await ItemsSingleton.editItem(priceEdit([j(1, 25000), j('7', 27000)]));
+      await HiveBoxes.getProducts().close();
+      await Hive.openBox<ItemModel>(HiveBoxNames.items);
+      await ItemsSingleton.storeProducts();
+
+      final m = ItemsSingleton.getProductById(kPid)!;
+      expect(ItemsSingleton.onePrice(m.shopPrices), 25000);
+      expect(ItemsSingleton.finalPrice(m, 6, false), 25000);
+      expect(ItemsSingleton.finalPrice(m, 8, false), 27000);
+      expect(m.shopPrices!.shID!.shopId, kShop);
+      expect(m.shopPrices!.shID!.supplyPrice, 20000);
+    });
+
+    test('boshqa do\'kon type 13 → changed 0, pog\'onalar o\'zgarmaydi',
+        () async {
+      await HiveBoxes.getProducts().put(kPid, lora([t(1, 25000)]));
+      final changed = await ItemsSingleton.editItem(
+          priceEdit([j(1, 30000), j(7, 32000)], shop: kOtherShop));
+      expect(changed, 0);
+      final saved = HiveBoxes.getProducts().get(kPid)!;
+      expect(saved.shopPrices!.shID!.shopId, kShop);
+      expect(saved.shopPrices!.shID!.shopPriceTiers, hasLength(1));
+      expect(ItemsSingleton.onePrice(saved.shopPrices), 25000);
+    });
+
+    test('type 13 dan keyin mahsulot barcode bo\'yicha topiladi', () async {
+      await HiveBoxes.getProducts().put(kPid, lora([t(1, 25000)]));
+      await ItemsSingleton.editItem(
+          priceEdit([j(7, 27000), j(1, 25000)])); // tartibsiz
+      await ItemsSingleton.storeProducts();
+      expect(ItemsSingleton.getProductByBarcode(kBarcode)?.id, kPid);
+    });
+
+    test(
+        'bo\'sh pog\'ona qatori {null, null} kelsa ham mahsulot skanerdan '
+        'yo\'qolmaydi', () async {
+      await HiveBoxes.getProducts().put(kPid, lora([t(1, 25000)]));
+      await ItemsSingleton.editItem(priceEdit([
+        j(1, 25000),
+        j(7, 27000),
+        <String, dynamic>{'min_quantity': null, 'retail_price': null},
+      ]));
+      await ItemsSingleton.storeProducts();
+      // 1 dona hali ham 25 000 da sotiladi...
+      expect(
+          ItemsSingleton.finalPrice(
+              ItemsSingleton.getProductById(kPid)!, 1, false),
+          25000);
+      // ...demak barcode skaneri ham uni topishi kerak.
+      expect(ItemsSingleton.getProductByBarcode(kBarcode)?.id, kPid);
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  group('type 13 → savat (prod: 1+1 repeatable, 1 → 25 000, 7+ → 27 000)', () {
+    testWidgets(
+        'faqat 1 → 25 000 bor edi, notification 7.0 → 27 000 qo\'shdi → '
+        '8 ta: dona 27 000, jami 108 000', (tester) async {
+      await seed(tester, [t(1, 25000)]);
+      expect(
+          ItemsSingleton.finalPrice(
+              ItemsSingleton.getProductById(kPid)!, 8, false),
+          25000);
+
+      final changed = await applyEdit(
+          tester,
+          priceEdit([
+            j(1, 25000),
+            j(7.0, 27000),
+          ]));
+      expect(changed, 1);
+
+      final ctx = await appContext(tester);
+      final p = await sellOneByOne(tester, ctx, 8);
+      final row = cart(p).single;
+      expect(row.value, 8);
+      expect(row.realPrice, 27000, reason: 'pog\'ona narxi yo\'qolmasin');
+      expect(row.price * row.value, closeTo(108000, 0.01));
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(108000, 1));
+    });
+
+    // Notification'dan keyin 1..9 ta — butun jadval prod qoidasi bo'yicha.
+    for (final n in [1, 2, 6, 7, 9]) {
+      final unit = n >= 7 ? 27000.0 : 25000.0;
+      final line = expectedLine(n);
+      testWidgets(
+          'notification\'dan keyin $n ta → dona $unit, ${n ~/ 2} tekin, '
+          'jami $line', (tester) async {
+        await seed(tester, [t(1, 25000)]);
+        await applyEdit(tester, priceEdit([j(1, 25000), j(7.0, 27000)]));
+        final ctx = await appContext(tester);
+        final p = await sellOneByOne(tester, ctx, n);
+        final row = cart(p).single;
+        expect(row.value, n);
+        expect(row.realPrice, unit);
+        expect(row.price * row.value, closeTo(line, 0.01));
+        expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(line, 1));
+      });
+    }
+
+    testWidgets(
+        'satr va tartibsiz pog\'onalar ("7" → "27000" birinchi) — 8 ta '
+        '108 000, 1 ta 25 000', (tester) async {
+      await seed(tester, [t(1, 25000)]);
+      await applyEdit(tester, priceEdit([j('7', '27000'), j('1', 25000)]));
+      final ctx = await appContext(tester);
+
+      final p8 = await sellOneByOne(tester, ctx, 8);
+      expect(cart(p8).single.realPrice, 27000);
+      expect(ItemsSingleton.getTotalPrice(cart(p8)), closeTo(108000, 1));
+
+      final p1 = await sellOneByOne(tester, ctx, 1);
+      expect(cart(p1).single.realPrice, 25000);
+      expect(ItemsSingleton.getTotalPrice(cart(p1)), closeTo(25000, 1));
+    });
+
+    testWidgets(
+        'narx KAMAYDI: 27 000 pog\'onasi olib tashlandi → keyingi sotuv '
+        '25 000 (8 ta → 100 000)', (tester) async {
+      await seed(tester, [t(1, 25000), t(7, 27000)]);
+      final ctx = await appContext(tester);
+
+      final before = await sellOneByOne(tester, ctx, 8);
+      expect(cart(before).single.realPrice, 27000);
+      expect(ItemsSingleton.getTotalPrice(cart(before)), closeTo(108000, 1));
+
+      final changed = await applyEdit(tester, priceEdit([j(1, 25000)]));
+      expect(changed, 1);
+
+      final after = await sellOneByOne(tester, ctx, 8);
+      final row = cart(after).single;
+      expect(row.realPrice, 25000);
+      expect(row.price * row.value, closeTo(100000, 0.01));
+      expect(ItemsSingleton.getTotalPrice(cart(after)), closeTo(100000, 1));
+    });
+
+    testWidgets(
+        'narx KAMAYDI: 1-talik ham arzonladi (1 → 24 000) → 8 ta '
+        '4 × 24 000 = 96 000', (tester) async {
+      await seed(tester, [t(1, 25000), t(7, 27000)]);
+      await applyEdit(tester, priceEdit([j(1, 24000)]));
+      final ctx = await appContext(tester);
+      final p = await sellOneByOne(tester, ctx, 8);
+      expect(cart(p).single.realPrice, 24000);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(96000, 1));
+    });
+
+    testWidgets(
+        'boshqa do\'kon (shop-2) uchun 27 000 qo\'shilsa — bu kassa 25 000 da '
+        'qoladi (8 ta → 100 000)', (tester) async {
+      await seed(tester, [t(1, 25000)]);
+      final changed = await applyEdit(
+          tester, priceEdit([j(1, 25000), j(7, 27000)], shop: kOtherShop));
+      expect(changed, 0);
+      final ctx = await appContext(tester);
+      final p = await sellOneByOne(tester, ctx, 8);
+      expect(cart(p).single.realPrice, 25000);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(100000, 1));
+    });
+
+    testWidgets(
+        'boshqa do\'kon uchun pog\'ona olib tashlansa — bu kassa 27 000 da '
+        'qoladi (8 ta → 108 000)', (tester) async {
+      await seed(tester, [t(1, 25000), t(7, 27000)]);
+      final changed =
+          await applyEdit(tester, priceEdit([j(1, 20000)], shop: kOtherShop));
+      expect(changed, 0);
+      final ctx = await appContext(tester);
+      final p = await sellOneByOne(tester, ctx, 8);
+      expect(cart(p).single.realPrice, 27000);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(108000, 1));
+    });
+
+    testWidgets(
+        'savat ochiq turganda pog\'ona qo\'shildi → keyingi skan butun '
+        'qatorni 27 000 ga o\'tkazadi (9 ta → 5 × 27 000)', (tester) async {
+      await seed(tester, [t(1, 25000)]);
+      final ctx = await appContext(tester);
+      final p = await sellOneByOne(tester, ctx, 8);
+      expect(cart(p).single.realPrice, 25000);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(100000, 1));
+
+      await applyEdit(tester, priceEdit([j(1, 25000), j(7, 27000)]));
+      await scan(tester, ctx, p);
+
+      final row = cart(p).single;
+      expect(row.value, 9);
+      expect(row.realPrice, 27000);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(135000, 1));
+    });
+
+    testWidgets('aksiyasiz: notification\'dan keyin 8 ta → sof 8 × 27 000',
+        (tester) async {
+      await seed(tester, [t(1, 25000)], withDiscount: false);
+      await applyEdit(tester, priceEdit([j(1, 25000), j(7.0, 27000)]));
+      final ctx = await appContext(tester);
+      final p = await sellOneByOne(tester, ctx, 8);
+      expect(cart(p).single.realPrice, 27000);
+      expect(cart(p).single.price, 27000);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(216000, 1));
+    });
+
+    testWidgets(
+        'buzuq pog\'ona (min_quantity: null) keyin kelsa 1+1 da 2 ta → '
+        '1 × 25 000', (tester) async {
+      await seed(tester, [t(1, 25000)]);
+      await applyEdit(
+          tester,
+          priceEdit([
+            j(1, 25000),
+            j(null, 27000),
+          ]));
+      final ctx = await appContext(tester);
+      final p = await sellOneByOne(tester, ctx, 2);
+      final row = cart(p).single;
+      // Aksiyasiz ham 2 dona 25 000 dan (finalPrice null pog'onani
+      // e'tiborsiz qoldiradi) — tekin bilan 1 × 25 000.
+      expect(row.realPrice, 25000);
+      expect(ItemsSingleton.getTotalPrice(cart(p)), closeTo(25000, 1));
+    });
+  });
+}
+```
+
+</details>
+
+## 7. Tekshirish
+
+- To'liq to'plam (toza `ayyubxon` + shu commit, PRO): **1906 o'tdi, 4 skip**, 0 xato.
+- Tuzatishsiz prod sozlamasi testlari (7, 8, 9 ta, x8) yiqilishi tasdiqlangan — testlar bugni ushlaydi.
+- Mac (DEV) qo'lda: "loyqa suv", 1 → 150 000, 7+ → 160 000, BXGY 1+1: 7 ta → 640 000 (91 429 o'rtacha, 42.9%), 8 ta → 640 000 (80 000, 50%).
+- Do'kon sinovi kutilmoqda (Shorebird patch'dan keyin).
+
+## 8. Eslatmalar va ochiq savollar
+
+- **Skip qilingan 4 test — oldindan bor bug'lar** (shu task keltirib chiqarmagan, alohida task):
+  1. `removeLastAdded` pog'onani qayta tanlaydi, lekin BXGY/BXGX tekinlarini qayta hisoblamaydi (`cart_edit_controller.dart` `applyAfterRemove` → `refreshDiscountEffects` yo'q). Yagona chaqiruvchi — 0 kg dialogi.
+  2. Arzonlashuvchi pog'onada A→B aksiyasi bekor bo'lsa B da eskirgan 1-talik narx qoladi (`resetItemDiscount` `price = realPrice`).
+  3. Arzonlashuvchi pog'onada aksiya o'chirilsa (type 17 / muddati) 1-talik narx qoladi — xuddi shu ildiz; yechim: aksiya effektini olishda `RowRepricer.byTotalUnits` chaqirish.
+  4. BXGX bitta qatorda tekin hali yo'q bo'lsa ham 1-talik narxga ko'taradi (`forDialogOnly: true`); ko'p qatorli BXGX tarmog'ida 1-talik qoidasi umuman yo'q.
+- Sweep paytida topilgan boshqa (pog'onaga bog'liq emas) bug: utsenka QR qatori `isPriceOnlyChanged` bo'lgani uchun uning chegirmali narxi shu mahsulotning keyingi oddiy skanlariga tarqaladi (`applyExistingManualPrice`).
+- Chegirmali mijoz tanlangan qatorda OPD orqali son o'zgartirilsa qator "qo'lda narx" bo'lib qotadi (pog'ona almashmaydi, mijoz chegirmasi yo'qoladi) — alohida task.
+- Odoo forkiga: **kerak** — savat/diskont mantig'idagi bug fix.
 
 ---
 
