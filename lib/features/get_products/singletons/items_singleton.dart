@@ -115,15 +115,32 @@ class ItemsSingleton {
     return price;
   }
 
+  /// 1-talik (asosiy) narx — savatda 1 dona qaysi narxda sotilsa o'sha
+  /// (`finalPrice(.., 1, ..)` bilan aynan bir xil tanlov: `minQuantity <= 1`
+  /// lar ichidan eng kattasi, teng bo'lsa oxirgisi). Server pog'onalarni
+  /// tartiblab yuborishiga tayanilmaydi: `[3→7000, 1→5000]` → 5000; buzuq
+  /// `min_quantity: null` qatori 1-talikni bosib ketmaydi.
+  /// Hech bir pog'ona 1 dona uchun mos kelmasa (masalan faqat `3+`) — eng
+  /// kichik `minQuantity` li pog'ona (mahsulot skanerdan yo'qolmasin).
   static num onePrice(ShopPrices? shopPrices) {
-    double price = 0;
-    if (shopPrices != null &&
-        shopPrices.shID != null &&
-        shopPrices.shID!.shopPriceTiers != null &&
-        shopPrices.shID!.shopPriceTiers!.isNotEmpty) {
-      price = (shopPrices.shID!.shopPriceTiers![0].retailPrice ?? 0).toDouble();
+    final tiers = shopPrices?.shID?.shopPriceTiers;
+    if (tiers == null || tiers.isEmpty) return 0;
+    ShopPriceTiers? match;
+    int min = 0;
+    for (final t in tiers) {
+      final q = t.minQuantity ?? 0;
+      if (1 >= q && q >= min) {
+        match = t;
+        min = q;
+      }
     }
-    return price;
+    if (match == null) {
+      match = tiers.first;
+      for (final t in tiers) {
+        if ((t.minQuantity ?? 0) < (match!.minQuantity ?? 0)) match = t;
+      }
+    }
+    return (match!.retailPrice ?? 0).toDouble();
   }
 
   /// Qatorning fizik dona soni: blok qatorida value × boxValue, aks holda value

@@ -201,13 +201,19 @@ class DiscountEffectsController {
       num freeLeft = returnedProductQty;
 
       for (final item in eligibleItems) {
-        // 1. Har bir qator uchun 6050 ni majburiy qo'yamiz
+        // 1. Pog'ona narxi 1-talikdan ARZON bo'lsa (ulgurji chegirma) —
+        // tekin mahsulot bilan ikki marta chegirma bo'lmasin, 1-talik narx
+        // qo'yiladi. Pog'ona QIMMAT bo'lsa (ko'p olsa narx oshadi) tegilmaydi —
+        // aks holda kassa pog'ona narxini yo'qotib, 1-talikda sotardi.
+        // useBuyXGetXProducts bilan bir xil qoida.
         if (firstTierPrice > 0) {
           final adjustedFirstTierPrice = item.saleType == 2
               ? firstTierPrice * item.boxValue
               : firstTierPrice;
-          item.realPrice = adjustedFirstTierPrice;
-          item.onlyPrice = adjustedFirstTierPrice;
+          if (adjustedFirstTierPrice > item.realPrice) {
+            item.realPrice = adjustedFirstTierPrice;
+            item.onlyPrice = adjustedFirstTierPrice;
+          }
         }
 
         if (freeLeft <= 0) {

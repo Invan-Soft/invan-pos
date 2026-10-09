@@ -170,8 +170,23 @@ class ShopPriceTiersSub {
   ShopPriceTiersSub({this.minQuantity, this.retailPrice});
 
   ShopPriceTiersSub.fromJson(Map<String, dynamic> json) {
-    minQuantity = json['min_quantity'];
-    retailPrice = json['retail_price'];
+    // `3.0` (double) yoki "3" (satr) kelsa ham yiqilmasin — aks holda narx
+    // o'zgarishi kassaga yetib kelmaydi (katalogdagi ShopPriceTiers bilan bir xil).
+    minQuantity = _toInt(json['min_quantity']);
+    retailPrice = _toNum(json['retail_price']);
+  }
+
+  static int? _toInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return num.tryParse(v)?.toInt();
+    return null;
+  }
+
+  static num? _toNum(dynamic v) {
+    if (v is num) return v;
+    if (v is String) return num.tryParse(v);
+    return null;
   }
 
   Map<String, dynamic> toJson() {
