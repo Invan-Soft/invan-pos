@@ -184,6 +184,8 @@ String _getPaymentName(AppLocalizations loc, String id, String name) {
         return name.toUpperCase() == 'UZUM QR' ? 'UZUM QR' : 'UZUM';
       } else if (p.id == Pref.getString(PrefKeys.paymeId, "")) {
         return name.toUpperCase() == 'PAYME QR' ? 'PAYME QR' : 'PAYME GO';
+      } else if (p.id == Pref.getString(PrefKeys.yagonaQrId, "-")) {
+        return 'YagonaQR';
       } else {
         return p.name ?? 'NFC';
       }

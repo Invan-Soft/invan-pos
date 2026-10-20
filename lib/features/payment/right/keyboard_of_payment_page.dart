@@ -207,6 +207,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
     final String uzumId = Pref.getString(PrefKeys.uzumId, "");
     final String paynetId = Pref.getString(PrefKeys.paynetId, "");
     final String cardId = Pref.getString(PrefKeys.cardId, "");
+    final String yagonaQrId = Pref.getString(PrefKeys.yagonaQrId, "");
     final bool isCashHidden = orderingProvider.isCashPaymentHidden ||
         orderingProvider.isCashHiddenByCashsale ||
         orderingProvider.isBigTotalHidden;
@@ -356,6 +357,17 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
           return _functionalButton(
             loc.ha == 'Ha' ? 'Naqd pul' : 'Наличные',
             () => orderingProvider.allPaymentType(p),
+          );
+        }
+        // YagonaQr: admin paneldagi alohida tur, kassir belgilaydi. Fiskalda
+        // karta bo'lgani uchun "faqat karta" rejimida ham ko'rinadi.
+        if (yagonaQrId.isNotEmpty && id == yagonaQrId) {
+          // Admin "Apps" da o'chirilgan bo'lsa (`isAdded` — setOrgPrefs va
+          // WS type 40) tugma chiqmaydi.
+          if (p.isAdded != true) return const SizedBox.shrink();
+          return _functionalButton(
+            (p.title?.trim().isNotEmpty ?? false) ? p.title! : 'YagonaQR',
+            () => orderingProvider.typeYagonaQr(p),
           );
         }
         if (id == cardId) {

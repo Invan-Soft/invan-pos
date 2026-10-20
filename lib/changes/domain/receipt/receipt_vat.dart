@@ -16,9 +16,12 @@
 // docs/fiskal-tolov-turlari-va-qqs.md §2.2). Qog'oz chek bilan mos.
 // Click QR / Payme QR (qo'lda belgilanadigan, `@id`) va Uzum (Pass ham, QR
 // ham) — o'zgarishsiz `Other` (QQS 0). Qog'oz chekda ular ayrilMAYDI.
+// YagonaQr (2026-10-20): alohida to'lov turi, kassir belgilaydi → karta
+// (`ReceivedCard`, QQS to'liq); `ExtraInfo.CardType` 2 provider'da.
 //
-// Testlar: test/receipt_vat_test.dart
+// Testlar: test/receipt_vat_test.dart, test/yagonaqr_payment_test.dart
 
+import 'package:invan2/changes/domain/payment/yagona_qr.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
@@ -82,6 +85,7 @@ class FiscalPaymentSplit {
     final cashId = Pref.getString(PrefKeys.cashId, "cash");
     final cashbackId = Pref.getString(PrefKeys.cashbackId, "cash");
     final cardId = Pref.getString(PrefKeys.cardId, '');
+    final yagonaQrId = Pref.getString(PrefKeys.yagonaQrId, '');
 
     for (final p in receipt.payment) {
       final nameUpper = p.name.toUpperCase().trim();
@@ -93,6 +97,11 @@ class FiscalPaymentSplit {
           nameUpper == 'UZCARD' ||
           nameUpper == 'HUMO' ||
           id == cardId) {
+        card += p.value;
+      } else if (nameUpper == YagonaQr.code ||
+          (yagonaQrId.isNotEmpty && id == yagonaQrId)) {
+        // YagonaQr — soliqqa KARTA (ReceivedCard); cardType 2 provider'da.
+        // Aniq shox: Click/Payme/Uzum shoxlari oldin ushlab qolmasin.
         card += p.value;
       } else if (id == cashbackId) {
         cashback += p.value;

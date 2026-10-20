@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:hive/hive.dart';
+import 'package:invan2/changes/domain/payment/yagona_qr.dart';
 import 'package:invan2/changes/services/log_helper.dart';
 import 'package:invan2/changes/services/catalog_refresh_notice.dart';
 import 'package:invan2/changes/services/sync/catch_up_sync.dart';
@@ -195,6 +196,17 @@ class ProductsWsService {
 
   static Future<void> _paymentToggle(
       Map<String, dynamic> data, BuildContext context, bool mounted) async {
+    await applyPaymentToggle(data);
+    if (mounted && context.mounted) {
+      Provider.of<OrderingProvider4>(context, listen: false).notifyListeners();
+    }
+  }
+
+  /// type 40 — to'lov turi (admin "Apps") yoqildi/o'chirildi: Pref va
+  /// `other_payments` qutisidagi `isAdded` yangilanadi. To'lov ekrani
+  /// tugmalari shu holatdan chiziladi.
+  @visibleForTesting
+  static Future<void> applyPaymentToggle(Map<String, dynamic> data) async {
     final String name = data['name']?.toString() ?? '';
     final bool isUsed = data['is_used'] == true;
     final String id = data['id']?.toString() ?? '';
@@ -208,12 +220,19 @@ class ProductsWsService {
     } else if (name == 'PAYME') {
       await Pref.setBool(PrefKeys.paymeEnable, isUsed);
       await Pref.setString(PrefKeys.paymeId, id);
+    } else if (YagonaQr.isName(name) && id.isNotEmpty) {
+      // YagonaQr: yoqilgan/o'chirilgani qutidagi `isAdded` da (pastda) —
+      // tugma shundan. Id o'chirilganda ham qoladi: eski cheklar nomi va
+      // fiskal tasnifi to'g'ri qolsin.
+      await Pref.setString(PrefKeys.yagonaQrId, id);
     }
 
     final box = await Hive.openBox<Payment>('other_payments');
     final payments = box.values.toList();
     for (int i = 0; i < payments.length; i++) {
-      if (payments[i].name == name) {
+      // Avval id bo'yicha: xabardagi nom qutidagidan farq qilishi mumkin
+      // (masalan 'YAGONAQR' / 'YagonaQr') — o'chirilgan tugma qolib ketmasin.
+      if ((id.isNotEmpty && payments[i].id == id) || payments[i].name == name) {
         payments[i].isAdded = isUsed;
         await box.putAt(i, payments[i]);
         break;
@@ -221,9 +240,6 @@ class ProductsWsService {
     }
 
     await OrganizationSingleton.setOtherPayments();
-    if (mounted && context.mounted) {
-      Provider.of<OrderingProvider4>(context, listen: false).notifyListeners();
-    }
   }
 
   static int? _asInt(dynamic v) =>

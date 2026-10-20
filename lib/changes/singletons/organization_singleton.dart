@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:invan2/changes/domain/payment/yagona_qr.dart';
 import 'package:invan2/changes/models/epay/e_pay_model.dart';
 import 'package:invan2/changes/models/organization_model.dart';
 import 'package:invan2/utils/constants/constants.dart';
@@ -45,6 +46,8 @@ class OrganizationSingleton {
     String debtId = "";
     String creditId = "";
     String advanceId = "";
+    // YagonaQr — alohida tugma (`typeYagonaQr`), fiskalda karta.
+    String yagonaQrId = "";
 
     List<Payment> otherPayments = [];
     final box = await Hive.openBox<Payment>(_otherPaymentsBox);
@@ -68,6 +71,8 @@ class OrganizationSingleton {
         uzumId = v[i].id!;
       } else if (v[i].name == 'PAYNET') {
         await _onSubmittedPaynet(v[i]);
+      } else if (YagonaQr.isName(v[i].name)) {
+        yagonaQrId = v[i].id!;
       } else if (v[i].name == 'CARD') {
         card = v[i].isAdded!;
         cardId = v[i].id!;
@@ -121,6 +126,7 @@ class OrganizationSingleton {
     await Pref.setString(PrefKeys.nfcId, nfcId);
     await Pref.setString(PrefKeys.creditId, creditId);
     await Pref.setString(PrefKeys.advanceId, advanceId);
+    await Pref.setString(PrefKeys.yagonaQrId, yagonaQrId);
   }
 
   static Future<List<Payment>> getOtherPayments() async {
@@ -131,6 +137,20 @@ class OrganizationSingleton {
   static Future<void> setOtherPayments() async {
     otherPaymentsGlobal = [];
     otherPaymentsGlobal = await OrganizationSingleton.getOtherPayments();
+    await _restoreYagonaQrId();
+  }
+
+  /// To'lov turlari shu kod kelmasdan oldin (masalan Shorebird patch'dan
+  /// oldin) yuklangan bo'lsa, YagonaQr qutida bor, lekin id'si Pref'da yo'q.
+  /// Ishga tushishda tiklanadi — "Ma'lumotlarni yangilash" shart emas.
+  static Future<void> _restoreYagonaQrId() async {
+    if (Pref.getString(PrefKeys.yagonaQrId, '').isNotEmpty) return;
+    for (final p in otherPaymentsGlobal) {
+      if (YagonaQr.isName(p.name) && (p.id ?? '').isNotEmpty) {
+        await Pref.setString(PrefKeys.yagonaQrId, p.id!);
+        return;
+      }
+    }
   }
 
   static final _ePayHelper = EPayHelper.instance;

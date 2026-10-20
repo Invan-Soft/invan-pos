@@ -1,7 +1,7 @@
 # Port hujjati: BHM taskidan boshlab qilingan barcha o'zgarishlar
 
 **Manba loyiha:** InVan 2 POS — `pos-invan-2`, branch `ayyubxon`, versiya `1.1.2+129` (2026-10-02)
-**Hujjat holati:** 2026-10-20 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch; 14-task — commit bor, relizda emas)
+**Hujjat holati:** 2026-10-20 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch; 14–15-tasklar — 1.1.2+130 relizida, GitHub)
 **Kimga:** shu loyihaning boshqa nusxasini (boshqa ERP bilan integratsiya qilinayotgan nusxa — "InVan 1") InVan 2 bilan bir xil holatga keltiradigan dasturchi yoki Claude.
 
 ## Bu hujjat nima
@@ -36,7 +36,8 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 11 | 2026-10-02 | Smena navbati FIFO: server/internet yo'qligida har ochish/yopish serverga tartib bilan | **1.1.2+129** | Relizda; Mac + jonli dev API'da sinalgan, Windows sinovi kutilmoqda | `a24d0c9` |
 | 12 | 2026-10-02 | Shorebird build/patch olingani Telegram kanalga hisobot | **1.1.2+129** | Relizda; Mac sinov relizida kanalga yetgani tasdiqlangan | `f21c8d8` (+ `40bc8c2`) |
 | 13 | 2026-10-09 | Ko'p olsa narx OSHADIGAN pog'ona Buy X Get Y aksiyasida yo'qolardi (1-talikka tushardi); `onePrice` = `finalPrice(1)`; type 13 parse | 1.1.2+129 (Shorebird patch) | Commit bor; Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `65dc7ef` |
-| 14 | 2026-10-20 | Arcus2 terminal: faqat shu operatsiya log/chekiga ishonish (999 da pulsiz "ОДОБРЕНО" yopildi), `Одобрено`/TezQR tasdiq (`STORERC`), Uzcard + Humo INI profillari (Odoo forkidan) | relizda emas | Commit bor; Odoo forkida real terminalda sinalgan, InVan 2 Windows sinovi kutilmoqda | `4689618` |
+| 14 | 2026-10-20 | Arcus2 terminal: faqat shu operatsiya log/chekiga ishonish (999 da pulsiz "ОДОБРЕНО" yopildi), `Одобрено`/TezQR tasdiq (`STORERC`), Uzcard + Humo INI profillari (Odoo forkidan) | **1.1.2+130** | Relizda (GitHub, backendga hali yuklanmagan); Odoo forkida real terminalda sinalgan, InVan 2 Windows sinovi kutilmoqda | `4689618` |
+| 15 | 2026-10-20 | YagonaQr — admin paneldagi alohida to'lov turi (kassir belgilaydi): serverga o'z id'si, soliqqa karta (`ReceivedCard`, `CardType` 2), aralash to'lov, X/Z "Plastik" ichida; Apps'da o'chirilsa tugma yo'q | **1.1.2+130** | Relizda (GitHub, backendga hali yuklanmagan); jonli sinov kutilmoqda | `dd624bf` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -89,6 +90,7 @@ e5ba429 2026-10-02 fix(fiskal): elektron to'lov ID'lari chekda (ObjectBox +1)   
 c4e42e1 2026-10-02 release: 1.1.2+129                                                       (port qilinmaydi)
 65dc7ef 2026-10-09 fix(narx): ko'p olsa narx OSHADIGAN pog'ona BXGY'da yo'qolmasin         ← 13-task
 4689618 2026-10-20 fix(terminal): Arcus2 — faqat shu operatsiya natijasi, Одобрено/QR, profil ← 14-task
+dd624bf 2026-10-20 feat(to'lov): YagonaQr — alohida to'lov turi, soliqqa karta            ← 15-task
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -22839,7 +22841,7 @@ void main() {
 
 ---
 
-# 14-TASK — Arcus2 karta terminali: faqat shu operatsiya natijasiga ishonish, "Одобрено"/QR tasdiq, Uzcard + Humo profillari (relizda emas)
+# 14-TASK — Arcus2 karta terminali: faqat shu operatsiya natijasiga ishonish, "Одобрено"/QR tasdiq, Uzcard + Humo profillari (1.1.2+130)
 
 > **Commit:** `4689618` (2026-10-20), branch `fix/arcus-terminal` → `ayyubxon`. Reliz: hali yo'q (Shorebird patch bilan chiqsa bo'ladi — faqat Dart kodi).
 > **Manba:** Odoo forki (`odoo-pos-invan-2-ayyubxon`) — u yerda real terminallarda (SKappay, PAX, TezQR) sinalgan va ishlagan; InVan 2 ga 1:1 ko'chirildi (bitta farq — 8-bo'lim).
@@ -23582,6 +23584,1572 @@ Tashxis jadvali (Arcus2 logi, CP1251):
 - **Manbadan yagona farq:** Odoo forkidagi kod yo'llarni `'$arcusDir\\Logs'` bilan yig'adi. InVan 2 da `'$arcusDir${_sep}Logs'` (`_sep = Platform.pathSeparator`). Windows'da natija bir xil (`C:\Arcus2\Logs`); macOS/Linux'da esa `\` fayl nomining bir qismi bo'lgani uchun `\\` varianti bilan 3 test yiqilardi (fayl papka ichiga emas, yoniga yoziladi). InVan 1 ham shu variantni olsin.
 - Qamrovdan tashqari: sozlamalardagi terminal menyusi va balans (`humo_content.dart`: `/o98`, `/o25`) hali oxirgi `cheq.out` ni eski usulda o'qiydi; `shell_page.dart` test tugmalari; 984 ("band") uchun alohida xabar; QR ni hisobotda alohida to'lov turi qilish (biznes qarori).
 - Odoo forkiga: **kerak emas** — tuzatish o'sha yerdan kelgan; faqat `Platform.pathSeparator` farqi ixtiyoriy.
+
+---
+
+# 15-TASK — YagonaQr: admin paneldagi alohida to'lov turi, soliqqa karta (1.1.2+130)
+
+> **Commit:** `dd624bf` (2026-10-20), branch `feat/yagonaqr` → `ayyubxon`. Reliz: `1.1.2+130` (GitHub Release; backendga hali yuklanmagan).
+> **Manba:** Odoo forkidagi `YAGONAQR-INVAN-PORT-2026-10-20.md`; InVan 2 kodiga moslab qo'llangan + foydalanuvchi qo'shimcha talablari (8-bo'lim).
+> **Sessiya hujjati:** docs/sessions/2026-10-20-yagonaqr-tolov-turi.md
+> **Holat 2026-10-20:** commit bor, testlar o'tdi; adminka + fiskal modul bilan jonli sinov kutilmoqda.
+
+## 1. Nima va nima uchun
+
+Admin panelda kassaga **"YagonaQr"** to'lov turi qo'shiladi (admin "Apps" dan yoqiladi/o'chiriladi). Terminal integratsiyasi yo'q: mijoz Yagona QR orqali to'laydi, kassir to'lov ekranidagi **alohida tugma** bilan belgilaydi. Talablar:
+
+- serverga to'lov YagonaQr turining **o'z id'si** bilan (`payment_type_id`, `@` siz) — adminkada "YagonaQr'dan to'landi";
+- soliqqa (fiskal modul) **karta**: `ReceivedCard`, `ExtraInfo.CardType` = 2, QQS to'liq;
+- **aralash to'lov**: naqd + karta + YagonaQr va h.k.; qaytim faqat naqddan;
+- X/Z hisobotda **alohida qator yo'q** — summa "Plastik" (uzCard + humoCard) ichida;
+- admin nomni har xil yozishi mumkin (katta/kichik harf, bo'sh joy, `_`, `-`), lekin kassada bunday tur **bitta**;
+- tugma faqat serverdan kelgan va `is_added == true` bo'lsa; Apps'da o'chirilsa yoki umuman kelmasa — UI'da yo'q.
+
+## 2. Qanday ishlaydi
+
+```
+Admin: "YagonaQr" payment type (Apps'da yoqilgan)
+  → POS setOrgPrefs (aktivatsiya / "Ma'lumotlarni yangilash" → tashkilot)
+      YagonaQr.isName(name) → PrefKeys.yagonaQrId = id; tur `other_payments` qutisida (is_added bilan)
+  → ishga tushish: setOtherPayments → Pref bo'sh, qutida YagonaQr bor → id tiklanadi
+  → To'lov ekrani: id == yagonaQrId && isAdded == true → tugma (matn: title, bo'sh bo'lsa "YagonaQR")
+  → bosildi: OrderingProvider4.typeYagonaQr(p): type = null (kalit '@' siz) → allPaymentType
+        → summa yozilgan bo'lsa _lastCardType = 2 (→ ReceiptBuilder → receipt.cardType → ExtraInfo.CardType)
+  → ReceiptPayments.build: id == yagonaQr → name 'YAGONAQR'
+  → Fiskal: FiscalPaymentSplit.of: name 'YAGONAQR' yoki id == yagonaQrId → card → ReceivedCard
+  → Server: payment_type_id = YagonaQr id
+  → Smena (getCurrentHiveShift): case 'yagonaqr' → uzCardPayment ("Plastik")
+  → WS type 40 (Apps yoqildi/o'chirildi): applyPaymentToggle → qutida tur id (keyin nom) bo'yicha isAdded
+```
+
+Soliqqa nima ketadi (jami 100 000 so'm; modulga tiyinda):
+
+| Chek | ReceivedCash | ReceivedCard | Other |
+|---|---|---|---|
+| Faqat YagonaQr | 0 | 100 000 | 0 |
+| Naqd 30 000 + Uzcard 20 000 + YagonaQr 50 000 | 30 000 | 70 000 | 0 |
+| Naqd 50 000 (qaytim 20 000) + YagonaQr 70 000 | 30 000 | 70 000 | 0 |
+| Cashback 10 000 + YagonaQr 90 000 | 0 | 90 000 | 10 000 |
+| Click QR 40 000 + YagonaQr 60 000 | 0 | 60 000 | 40 000 |
+| Vozvrat | hammasi | 0 | 0 |
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/domain/payment/yagona_qr.dart` | YANGI | `YagonaQr.code = 'YAGONAQR'`, `isName()` |
+| `lib/utils/constants/pref_keys.dart` | o'zgargan | `yagonaQrId` |
+| `lib/changes/singletons/organization_singleton.dart` | o'zgargan | to'lov turlari siklida YagonaQr (CARD dan oldin), Pref; `_restoreYagonaQrId` |
+| `lib/changes/providers/ordering_provider_4.dart` | o'zgargan | `typeYagonaQr()`, `PaymentIds.yagonaQr`, `lastCardType` (@visibleForTesting) |
+| `lib/changes/domain/receipt/receipt_payments.dart` | o'zgargan | `PaymentIds.yagonaQr` (default `''`), nom `YAGONAQR` |
+| `lib/changes/domain/receipt/receipt_vat.dart` | o'zgargan | `FiscalPaymentSplit.of` — YagonaQr → karta |
+| `lib/features/payment/right/keyboard_of_payment_page.dart` | o'zgargan | tugma (`isAdded == true`), "faqat karta" rejimida ham |
+| `lib/changes/services/web_socket_service/product/products_ws_service.dart` | o'zgargan | type 40 holat qismi `applyPaymentToggle` ga ajratildi; YagonaQr id; qutida id bo'yicha moslash |
+| `lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart` | o'zgargan | `case 'yagonaqr'` → uzCard |
+| `lib/features/printing/api/printing_api_helper.dart` | o'zgargan | qog'oz chek nomi "YagonaQR" |
+| `lib/features/payment/left/left.dart` | o'zgargan | ro'yxatdagi nom, "Karta" summasi |
+| `lib/features/checks/features/check_view/check_view_bottom.dart` | o'zgargan | chek ko'rinishidagi nom |
+| `test/yagonaqr_payment_test.dart` | YANGI | 72 test: nom, yuklash/tiklash, Apps toggle, provider aralash to'lov, chek nomi, fiskal JSON matritsasi |
+| `test/yagonaqr_payment_button_test.dart` | YANGI | 9 widget test: tugma, o'chirilgan/kelmagan holat, "faqat karta" |
+| `test/yagonaqr_shift_report_test.dart` | YANGI | 3 test: smena "Plastik" (ObjectBox kutubxonasi kerak, bo'lmasa skip) |
+
+## 4. Bog'liqliklar
+
+- `FiscalPaymentSplit` (5-task, `receipt_vat.dart`) va `ReceiptPayments` / `PaymentIds` (`OrderingProvider4` dan ajratilgan). InVan 1 da fiskal tasnif `saleOnOFD` siklida bo'lsa — o'sha siklda karta shoxidan keyin xuddi shu shart.
+- `PaymentTallyController` (`paymentsMap`, `payByAll`) — InVan 1 da provider ichida bo'lishi mumkin; `typeYagonaQr` faqat `allPaymentType` ni chaqiradi.
+- `ProductsWsService._paymentToggle` (type 40) — InVan 1 da bo'lsa `applyPaymentToggle` ajratilishi ixtiyoriy, asosiysi YagonaQr id va id bo'yicha moslash.
+- Testlar `test/support/provider_harness.dart` va `test/support/epay_fixtures.dart` (9-task) ga tayanadi.
+
+## 5. Qo'llash tartibi
+
+1. `yagona_qr.dart` (6.2) va `PrefKeys.yagonaQrId`.
+2. `organization_singleton.dart` — sikl, Pref, `_restoreYagonaQrId` (6.1).
+3. `receipt_payments.dart`, `ordering_provider_4.dart` (`typeYagonaQr`, `PaymentIds`).
+4. `receipt_vat.dart` — fiskal shox.
+5. `keyboard_of_payment_page.dart` — tugma (`isAdded == true`).
+6. `products_ws_service.dart` — `applyPaymentToggle`.
+7. Smena `case 'yagonaqr'`, nomlar (printing, left, check_view_bottom).
+8. Testlar (6.3–6.5), `flutter test`.
+
+## 6. Kod
+
+### 6.1. Diff (`git show dd624bf -- lib/`, o'zgargan fayllar)
+
+```diff
+diff --git a/lib/changes/domain/receipt/receipt_payments.dart b/lib/changes/domain/receipt/receipt_payments.dart
+index 0c4faa7..cd650c7 100644
+--- a/lib/changes/domain/receipt/receipt_payments.dart
++++ b/lib/changes/domain/receipt/receipt_payments.dart
+@@ -4,7 +4,7 @@
+ // ko'rinishga aylantiriladi. Ikki ish bajariladi:
+ //   1. NOM normallashtiriladi — kassa sozlamasidagi to'lov IDsiga qarab
+ //      CASH / UZCARD / HUMO / CASHBACK / DEBT / PAYME GO / PAYME QR /
+-//      CLICK PASS / CLICK QR / UZUM / UZUM QR
++//      CLICK PASS / CLICK QR / UZUM / UZUM QR / YAGONAQR
+ //   2. Naqd qatoridan QAYTIM ayiriladi — kassir 120 000 bergan bo'lsa ham
+ //      chekda tovarga ketgan 100 000 turishi kerak
+ //
+@@ -14,6 +14,7 @@
+ //
+ // `OrderingProvider4.paymentsMapAsList` dan ajratildi — qoidalar o'zgarmagan.
+ 
++import 'package:invan2/changes/domain/payment/yagona_qr.dart';
+ import 'package:invan2/changes/models/organization_model.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+ 
+@@ -27,6 +28,7 @@ class PaymentIds {
+     required this.payme,
+     required this.click,
+     required this.uzum,
++    this.yagonaQr = '',
+   });
+ 
+   final String cash;
+@@ -36,6 +38,9 @@ class PaymentIds {
+   final String payme;
+   final String click;
+   final String uzum;
++
++  /// YagonaQr id'si — chekdagi nom 'YAGONAQR'.
++  final String yagonaQr;
+ }
+ 
+ class ReceiptPayments {
+@@ -73,6 +78,9 @@ class ReceiptPayments {
+       if (bare == ids.payme && e.value.type == 1) name = 'PAYME QR';
+       if (bare == ids.click && e.value.type == 1) name = 'CLICK QR';
+       if (bare == ids.uzum && e.value.type == 1) name = 'UZUM QR';
++      if (ids.yagonaQr.isNotEmpty && bare == ids.yagonaQr) {
++        name = YagonaQr.code;
++      }
+ 
+       paymentValue = double.parse(paymentValue.round().toStringAsFixed(3));
+       return ReceiptModelPaymentType4(
+diff --git a/lib/changes/domain/receipt/receipt_vat.dart b/lib/changes/domain/receipt/receipt_vat.dart
+index dc72dda..a3fbcf4 100644
+--- a/lib/changes/domain/receipt/receipt_vat.dart
++++ b/lib/changes/domain/receipt/receipt_vat.dart
+@@ -16,9 +16,12 @@
+ // docs/fiskal-tolov-turlari-va-qqs.md §2.2). Qog'oz chek bilan mos.
+ // Click QR / Payme QR (qo'lda belgilanadigan, `@id`) va Uzum (Pass ham, QR
+ // ham) — o'zgarishsiz `Other` (QQS 0). Qog'oz chekda ular ayrilMAYDI.
++// YagonaQr (2026-10-20): alohida to'lov turi, kassir belgilaydi → karta
++// (`ReceivedCard`, QQS to'liq); `ExtraInfo.CardType` 2 provider'da.
+ //
+-// Testlar: test/receipt_vat_test.dart
++// Testlar: test/receipt_vat_test.dart, test/yagonaqr_payment_test.dart
+ 
++import 'package:invan2/changes/domain/payment/yagona_qr.dart';
+ import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+ import 'package:invan2/utils/constants/pref_keys.dart';
+@@ -82,6 +85,7 @@ class FiscalPaymentSplit {
+     final cashId = Pref.getString(PrefKeys.cashId, "cash");
+     final cashbackId = Pref.getString(PrefKeys.cashbackId, "cash");
+     final cardId = Pref.getString(PrefKeys.cardId, '');
++    final yagonaQrId = Pref.getString(PrefKeys.yagonaQrId, '');
+ 
+     for (final p in receipt.payment) {
+       final nameUpper = p.name.toUpperCase().trim();
+@@ -94,6 +98,11 @@ class FiscalPaymentSplit {
+           nameUpper == 'HUMO' ||
+           id == cardId) {
+         card += p.value;
++      } else if (nameUpper == YagonaQr.code ||
++          (yagonaQrId.isNotEmpty && id == yagonaQrId)) {
++        // YagonaQr — soliqqa KARTA (ReceivedCard); cardType 2 provider'da.
++        // Aniq shox: Click/Payme/Uzum shoxlari oldin ushlab qolmasin.
++        card += p.value;
+       } else if (id == cashbackId) {
+         cashback += p.value;
+       } else if ((id == clickId && nameUpper.contains('CLICK')) ||
+diff --git a/lib/changes/providers/ordering_provider_4.dart b/lib/changes/providers/ordering_provider_4.dart
+index 3336c39..a3e02df 100644
+--- a/lib/changes/providers/ordering_provider_4.dart
++++ b/lib/changes/providers/ordering_provider_4.dart
+@@ -187,6 +187,11 @@ class OrderingProvider4 extends ChangeNotifier {
+   String _lastRRN = '';
+   String _lastCardNumber = '';
+   int _lastCardType = 0;
++
++  /// Chekka (`ReceiptBuilder` → fiskal `ExtraInfo.CardType`) ketadigan karta
++  /// turi — testlar uchun.
++  @visibleForTesting
++  int get lastCardType => _lastCardType;
+   final int _amountActions = 0;
+   double _newClientPersentageDiscount = 0;
+   bool _alcoholWarningShown = false;
+@@ -1822,6 +1827,7 @@ class OrderingProvider4 extends ChangeNotifier {
+           payme: Pref.getString(PrefKeys.paymeId, ""),
+           click: Pref.getString(PrefKeys.clickId, ""),
+           uzum: Pref.getString(PrefKeys.uzumId, ""),
++          yagonaQr: Pref.getString(PrefKeys.yagonaQrId, ""),
+         ),
+         sdacha: _sdachaa,
+         zdachaToCashBack: _zdachaToCashBack,
+@@ -2394,6 +2400,19 @@ class OrderingProvider4 extends ChangeNotifier {
+ 
+   void _payByAll(double v, Payment payment) => _tally.payByAll(v, payment);
+ 
++  /// YagonaQr — admin paneldagi alohida to'lov turi. Terminal integratsiyasi
++  /// yo'q: mijoz QR orqali to'laydi, kassir tugma bilan belgilaydi (summa —
++  /// klaviaturadagi yoki qolgan qoldiq, aralash to'lovda ham). Serverga
++  /// YagonaQr id'si bilan ketadi; fiskal chekda karta: ReceivedCard va
++  /// cardType 2 (`FiscalPaymentSplit.of`, `ReceiptSingleton4.saleOnOFD`).
++  void typeYagonaQr(Payment payment) {
++    payment.type = null; // '@' kalit emas — o'z id'si bilan yoziladi
++    allPaymentType(payment);
++    // Summa haqiqatan yozilgan bo'lsagina: to'liq to'langan chekda adashib
++    // bosilsa naqd chekka CardType 2 ketmasin.
++    if (paymentsMap.containsKey(payment.id)) _lastCardType = 2;
++  }
++
+   double getAvailableSumma() => _tally.getAvailableSumma();
+ 
+   double getSelectedPaymentSumma() => _tally.getSelectedPaymentSumma();
+diff --git a/lib/changes/services/web_socket_service/product/products_ws_service.dart b/lib/changes/services/web_socket_service/product/products_ws_service.dart
+index 4672f78..a1fb80c 100644
+--- a/lib/changes/services/web_socket_service/product/products_ws_service.dart
++++ b/lib/changes/services/web_socket_service/product/products_ws_service.dart
+@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
+ import 'package:flutter/material.dart';
+ import 'package:flutter/scheduler.dart';
+ import 'package:hive/hive.dart';
++import 'package:invan2/changes/domain/payment/yagona_qr.dart';
+ import 'package:invan2/changes/services/log_helper.dart';
+ import 'package:invan2/changes/services/catalog_refresh_notice.dart';
+ import 'package:invan2/changes/services/sync/catch_up_sync.dart';
+@@ -195,6 +196,17 @@ class ProductsWsService {
+ 
+   static Future<void> _paymentToggle(
+       Map<String, dynamic> data, BuildContext context, bool mounted) async {
++    await applyPaymentToggle(data);
++    if (mounted && context.mounted) {
++      Provider.of<OrderingProvider4>(context, listen: false).notifyListeners();
++    }
++  }
++
++  /// type 40 — to'lov turi (admin "Apps") yoqildi/o'chirildi: Pref va
++  /// `other_payments` qutisidagi `isAdded` yangilanadi. To'lov ekrani
++  /// tugmalari shu holatdan chiziladi.
++  @visibleForTesting
++  static Future<void> applyPaymentToggle(Map<String, dynamic> data) async {
+     final String name = data['name']?.toString() ?? '';
+     final bool isUsed = data['is_used'] == true;
+     final String id = data['id']?.toString() ?? '';
+@@ -208,12 +220,19 @@ class ProductsWsService {
+     } else if (name == 'PAYME') {
+       await Pref.setBool(PrefKeys.paymeEnable, isUsed);
+       await Pref.setString(PrefKeys.paymeId, id);
++    } else if (YagonaQr.isName(name) && id.isNotEmpty) {
++      // YagonaQr: yoqilgan/o'chirilgani qutidagi `isAdded` da (pastda) —
++      // tugma shundan. Id o'chirilganda ham qoladi: eski cheklar nomi va
++      // fiskal tasnifi to'g'ri qolsin.
++      await Pref.setString(PrefKeys.yagonaQrId, id);
+     }
+ 
+     final box = await Hive.openBox<Payment>('other_payments');
+     final payments = box.values.toList();
+     for (int i = 0; i < payments.length; i++) {
+-      if (payments[i].name == name) {
++      // Avval id bo'yicha: xabardagi nom qutidagidan farq qilishi mumkin
++      // (masalan 'YAGONAQR' / 'YagonaQr') — o'chirilgan tugma qolib ketmasin.
++      if ((id.isNotEmpty && payments[i].id == id) || payments[i].name == name) {
+         payments[i].isAdded = isUsed;
+         await box.putAt(i, payments[i]);
+         break;
+@@ -221,9 +240,6 @@ class ProductsWsService {
+     }
+ 
+     await OrganizationSingleton.setOtherPayments();
+-    if (mounted && context.mounted) {
+-      Provider.of<OrderingProvider4>(context, listen: false).notifyListeners();
+-    }
+   }
+ 
+   static int? _asInt(dynamic v) =>
+diff --git a/lib/changes/singletons/organization_singleton.dart b/lib/changes/singletons/organization_singleton.dart
+index dd9e9aa..f1b3a05 100644
+--- a/lib/changes/singletons/organization_singleton.dart
++++ b/lib/changes/singletons/organization_singleton.dart
+@@ -1,4 +1,5 @@
+ import 'package:hive/hive.dart';
++import 'package:invan2/changes/domain/payment/yagona_qr.dart';
+ import 'package:invan2/changes/models/epay/e_pay_model.dart';
+ import 'package:invan2/changes/models/organization_model.dart';
+ import 'package:invan2/utils/constants/constants.dart';
+@@ -45,6 +46,8 @@ class OrganizationSingleton {
+     String debtId = "";
+     String creditId = "";
+     String advanceId = "";
++    // YagonaQr — alohida tugma (`typeYagonaQr`), fiskalda karta.
++    String yagonaQrId = "";
+ 
+     List<Payment> otherPayments = [];
+     final box = await Hive.openBox<Payment>(_otherPaymentsBox);
+@@ -68,6 +71,8 @@ class OrganizationSingleton {
+         uzumId = v[i].id!;
+       } else if (v[i].name == 'PAYNET') {
+         await _onSubmittedPaynet(v[i]);
++      } else if (YagonaQr.isName(v[i].name)) {
++        yagonaQrId = v[i].id!;
+       } else if (v[i].name == 'CARD') {
+         card = v[i].isAdded!;
+         cardId = v[i].id!;
+@@ -121,6 +126,7 @@ class OrganizationSingleton {
+     await Pref.setString(PrefKeys.nfcId, nfcId);
+     await Pref.setString(PrefKeys.creditId, creditId);
+     await Pref.setString(PrefKeys.advanceId, advanceId);
++    await Pref.setString(PrefKeys.yagonaQrId, yagonaQrId);
+   }
+ 
+   static Future<List<Payment>> getOtherPayments() async {
+@@ -131,6 +137,20 @@ class OrganizationSingleton {
+   static Future<void> setOtherPayments() async {
+     otherPaymentsGlobal = [];
+     otherPaymentsGlobal = await OrganizationSingleton.getOtherPayments();
++    await _restoreYagonaQrId();
++  }
++
++  /// To'lov turlari shu kod kelmasdan oldin (masalan Shorebird patch'dan
++  /// oldin) yuklangan bo'lsa, YagonaQr qutida bor, lekin id'si Pref'da yo'q.
++  /// Ishga tushishda tiklanadi — "Ma'lumotlarni yangilash" shart emas.
++  static Future<void> _restoreYagonaQrId() async {
++    if (Pref.getString(PrefKeys.yagonaQrId, '').isNotEmpty) return;
++    for (final p in otherPaymentsGlobal) {
++      if (YagonaQr.isName(p.name) && (p.id ?? '').isNotEmpty) {
++        await Pref.setString(PrefKeys.yagonaQrId, p.id!);
++        return;
++      }
++    }
+   }
+ 
+   static final _ePayHelper = EPayHelper.instance;
+diff --git a/lib/features/checks/features/check_view/check_view_bottom.dart b/lib/features/checks/features/check_view/check_view_bottom.dart
+index b7f6bb2..288ea17 100644
+--- a/lib/features/checks/features/check_view/check_view_bottom.dart
++++ b/lib/features/checks/features/check_view/check_view_bottom.dart
+@@ -184,6 +184,8 @@ String _getPaymentName(AppLocalizations loc, String id, String name) {
+         return name.toUpperCase() == 'UZUM QR' ? 'UZUM QR' : 'UZUM';
+       } else if (p.id == Pref.getString(PrefKeys.paymeId, "")) {
+         return name.toUpperCase() == 'PAYME QR' ? 'PAYME QR' : 'PAYME GO';
++      } else if (p.id == Pref.getString(PrefKeys.yagonaQrId, "-")) {
++        return 'YagonaQR';
+       } else {
+         return p.name ?? 'NFC';
+       }
+diff --git a/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart b/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart
+index f99d94a..d166a5d 100644
+--- a/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart
++++ b/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart
+@@ -549,6 +549,8 @@ class ShiftSingleton4 {
+             humoCardPayment += p.value;
+             break;
+           case 'uzcard':
++          // YagonaQr — fiskalda karta: hisobotda karta (Plastik) ichida.
++          case 'yagonaqr':
+             uzCardPayment += p.value;
+             break;
+           case 'debt':
+diff --git a/lib/features/payment/left/left.dart b/lib/features/payment/left/left.dart
+index 6ac61f3..6a0f012 100644
+--- a/lib/features/payment/left/left.dart
++++ b/lib/features/payment/left/left.dart
+@@ -35,7 +35,8 @@ class Left extends StatelessWidget {
+         } else if (key == Pref.getString(PrefKeys.cardId, '') ||
+             key.replaceFirst('@', '') == Pref.getString(PrefKeys.cardId, '') ||
+             key == Pref.getString(PrefKeys.clickId, '') ||
+-            key == Pref.getString(PrefKeys.uzumId, '')) {
++            key == Pref.getString(PrefKeys.uzumId, '') ||
++            key == Pref.getString(PrefKeys.yagonaQrId, '-')) {
+           cardAmount += value.value ?? 0;
+         }
+       },
+@@ -525,6 +526,8 @@ class Left extends StatelessWidget {
+           return type == 1 ? 'UZUM QR' : 'UZUM';
+         } else if (p.id == Pref.getString(PrefKeys.paymeId, "")) {
+           return type == 1 ? 'PAYME QR' : 'PAYME GO';
++        } else if (p.id == Pref.getString(PrefKeys.yagonaQrId, "-")) {
++          return 'YagonaQR';
+         } else {
+           return p.name ?? 'NFC';
+         }
+diff --git a/lib/features/payment/right/keyboard_of_payment_page.dart b/lib/features/payment/right/keyboard_of_payment_page.dart
+index 3414225..d59a96d 100644
+--- a/lib/features/payment/right/keyboard_of_payment_page.dart
++++ b/lib/features/payment/right/keyboard_of_payment_page.dart
+@@ -207,6 +207,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
+     final String uzumId = Pref.getString(PrefKeys.uzumId, "");
+     final String paynetId = Pref.getString(PrefKeys.paynetId, "");
+     final String cardId = Pref.getString(PrefKeys.cardId, "");
++    final String yagonaQrId = Pref.getString(PrefKeys.yagonaQrId, "");
+     final bool isCashHidden = orderingProvider.isCashPaymentHidden ||
+         orderingProvider.isCashHiddenByCashsale ||
+         orderingProvider.isBigTotalHidden;
+@@ -358,6 +359,17 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
+             () => orderingProvider.allPaymentType(p),
+           );
+         }
++        // YagonaQr: admin paneldagi alohida tur, kassir belgilaydi. Fiskalda
++        // karta bo'lgani uchun "faqat karta" rejimida ham ko'rinadi.
++        if (yagonaQrId.isNotEmpty && id == yagonaQrId) {
++          // Admin "Apps" da o'chirilgan bo'lsa (`isAdded` — setOrgPrefs va
++          // WS type 40) tugma chiqmaydi.
++          if (p.isAdded != true) return const SizedBox.shrink();
++          return _functionalButton(
++            (p.title?.trim().isNotEmpty ?? false) ? p.title! : 'YagonaQR',
++            () => orderingProvider.typeYagonaQr(p),
++          );
++        }
+         if (id == cardId) {
+           return _functionalButton("${loc.plastik} ${loc.karta}", () async {
+             Pref.setBool("credit", false);
+diff --git a/lib/features/printing/api/printing_api_helper.dart b/lib/features/printing/api/printing_api_helper.dart
+index 01abde3..d7dd953 100644
+--- a/lib/features/printing/api/printing_api_helper.dart
++++ b/lib/features/printing/api/printing_api_helper.dart
+@@ -71,6 +71,10 @@ class PrintingApiHelper {
+         {
+           return "Uzum QR";
+         }
++      case 'yagonaqr':
++        {
++          return "YagonaQR";
++        }
+       case 'debt':
+         {
+           return "Qarz";
+diff --git a/lib/utils/constants/pref_keys.dart b/lib/utils/constants/pref_keys.dart
+index 02c6fca..ca22fb0 100644
+--- a/lib/utils/constants/pref_keys.dart
++++ b/lib/utils/constants/pref_keys.dart
+@@ -132,6 +132,10 @@ class PrefKeys {
+   static const String paymeId = "paymeId";
+   static const String paynetId = "paynetId";
+ 
++  /// YagonaQr — admin paneldagi alohida to'lov turi id'si (tugma, fiskalda
++  /// karta: ReceivedCard + cardType 2).
++  static const String yagonaQrId = "yagonaQrId";
++
+   static const String giftId = "gift_Id";
+   static const String debtId = "debt_Id";
+   static const String nfcId = "ntf_Id";
+```
+
+### 6.2. YANGI: `lib/changes/domain/payment/yagona_qr.dart`
+
+```dart
+// YagonaQr — admin paneldagi alohida to'lov turi (2026-10-20, Odoo forkidan).
+//
+// Terminal integratsiyasi yo'q: mijoz Yagona QR orqali to'laydi, kassir
+// to'lov ekranidagi tugmani bosib belgilaydi (`OrderingProvider4.typeYagonaQr`).
+// Serverga to'lov turining o'z id'si bilan ketadi (`PrefKeys.yagonaQrId`).
+// Fiskalda karta: `ReceivedCard` + `ExtraInfo.CardType` 2
+// (`FiscalPaymentSplit.of`). X/Z hisobotda alohida qator yo'q — "Plastik" ichida.
+//
+// Testlar: test/yagonaqr_payment_test.dart
+
+/// YagonaQr — admin paneldagi alohida to'lov turi (kassir belgilaydi).
+/// Chekdagi/hisobotdagi kanonik nom: 'YAGONAQR'. Fiskalda karta
+/// (ReceivedCard, cardType 2).
+class YagonaQr {
+  const YagonaQr._();
+
+  static const String code = 'YAGONAQR';
+
+  /// Admin nomni har xil yozishi mumkin — harf katta-kichikligi va harfdan
+  /// boshqa belgilar (bo'sh joy, `_`, `-`, `.`, `/` ...) hisobga olinmaydi:
+  /// "YagonaQr", "YAGONAQR", "yagonaqr", "Yagona QR", "yagona_qr",
+  /// "Yagona-QR", "Yagona.QR" → true. Kassada bunday tur bitta bo'ladi.
+  static bool isName(String? name) => (name ?? '')
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z]'), '')
+      .contains('yagonaqr');
+}
+```
+
+### 6.3. YANGI: `test/yagonaqr_payment_test.dart`
+
+<details>
+<summary>72 test — ochish</summary>
+
+```dart
+// YagonaQr — admin paneldagi alohida to'lov turi (2026-10-20, Odoo forkidan).
+//
+// Talab:
+//   - alohida tugma, kassir belgilaydi (terminal integratsiyasi yo'q);
+//   - serverga YagonaQr to'lov turining O'Z id'si bilan (`payment_type_id`);
+//   - soliqqa KARTA: `ReceivedCard`, `ExtraInfo.CardType` 2, QQS to'liq;
+//   - aralash to'lov (naqd + karta + YagonaQr va h.k.) to'g'ri taqsimlanadi;
+//   - chekdagi nom 'YAGONAQR'.
+//
+// Fiskal qismi modulga ketadigan haqiqiy JSON'ni tekshiradi: to'lov ekrani
+// xaritasi → `ReceiptPayments.build` → `saleOnOFD` → `FiscalReceiptModel`
+// (`support/epay_fixtures.dart`). Har holatda §10.2.1 va QQS bazasi
+// invariantlari (`expectModuleInvariants`).
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+import 'package:invan2/changes/domain/payment/yagona_qr.dart';
+import 'package:invan2/changes/domain/receipt/receipt_payments.dart';
+import 'package:invan2/changes/domain/receipt/receipt_vat.dart';
+import 'package:invan2/changes/models/organization_model.dart';
+import 'package:invan2/changes/models/six_client_model.dart';
+import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/changes/services/web_socket_service/product/products_ws_service.dart';
+import 'package:invan2/changes/singletons/organization_singleton.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/features/printing/api/printing_api_helper.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+
+import 'support/epay_fixtures.dart';
+import 'support/provider_harness.dart';
+
+const kYagonaId = 'pay-yagona';
+
+/// Fixture'dagi `ids` + YagonaQr.
+const yIds = PaymentIds(
+  cash: 'pay-cash',
+  card: 'pay-card',
+  cashback: 'pay-cashback',
+  debt: 'pay-debt',
+  payme: 'pay-payme',
+  click: 'pay-click',
+  uzum: 'pay-uzum',
+  yagonaQr: kYagonaId,
+);
+
+/// Admin yozgan nom (normallashtirishdan oldin).
+const kAdminName = 'YagonaQr';
+
+Payment pay(String id, String name, {int? type}) =>
+    Payment(id: id, name: name, title: name, enable: true, type: type);
+
+Payment get yagona => pay(kYagonaId, kAdminName);
+
+/// To'lov ekrani xaritasi (Kind'lar + YagonaQr) → haqiqiy `ReceiptPayments.build`.
+List<ReceiptModelPaymentType4> paysWithYagona(
+  Map<Kind, double> amounts, {
+  double yagona = 0,
+  double sdacha = 0,
+}) {
+  final map = <String, Payment>{
+    for (final e in amounts.entries)
+      e.key.key: Payment(
+        name: e.key.name,
+        id: e.key.key.replaceFirst('@', ''),
+        type: e.key.type,
+        value: e.value,
+      ),
+    if (yagona > 0)
+      kYagonaId: Payment(
+          name: kAdminName, id: kYagonaId, type: null, value: yagona),
+  };
+  return ReceiptPayments.build(map,
+      ids: yIds, sdacha: sdacha, zdachaToCashBack: 0);
+}
+
+/// YagonaQr ishtirokidagi chek (provider'dagidek cardType 2).
+ReceiptModel4 saleWithYagona(
+  List<ReceiptModelSoldItem4> rows,
+  Map<Kind, double> amounts, {
+  required double yagona,
+  double sdacha = 0,
+}) =>
+    receiptOf(rows, paysWithYagona(amounts, yagona: yagona, sdacha: sdacha))
+      ..cardType = 2;
+
+/// Kutilgan fiskal maydonlar: YagonaQr — karta.
+void expectBucketsWithYagona(
+  Map<String, dynamic> w,
+  Map<Kind, double> amounts,
+  double yagona,
+  String why, {
+  int rows = 1,
+}) {
+  double cash = 0, card = yagona, other = 0;
+  amounts.forEach((k, v) {
+    switch (k.bucket) {
+      case Bucket.cash:
+        cash += v;
+        break;
+      case Bucket.card:
+        card += v;
+        break;
+      case Bucket.other:
+        other += v;
+        break;
+    }
+  });
+  final rp = receiptPart(w);
+  expect(rp['ReceivedCash'], (cash * 100).round(), reason: '$why: ReceivedCash');
+  expect(rp['ReceivedCard'], (card * 100).round(), reason: '$why: ReceivedCard');
+  expect(sumOf(w, 'Other'), closeTo(other * 100, rows * 100.0),
+      reason: '$why: ΣOther');
+  if (other == 0) expect(sumOf(w, 'Other'), 0, reason: '$why: Other 0');
+}
+
+Map<String, dynamic> extraOf(Map<String, dynamic> w) =>
+    receiptPart(w)['ExtraInfo'] as Map<String, dynamic>;
+
+OrderingProvider4 paymentPage({double total = 100000}) {
+  final p = freshProvider();
+  p.initPaymentPageValues(
+    sixClientModel4: SixClientModel4(
+      clientNumber: 1,
+      lastAddedIndex: -1,
+      orderedProducts: [],
+      discountAmountFromNewClient: 0,
+    ),
+    totalPrice: total,
+    discountAmount: 0,
+  );
+  return p;
+}
+
+Map<String, ReceiptModelPaymentType4> chekOf(OrderingProvider4 p) =>
+    {for (final e in p.paymentsMapAsList) e.payId: e};
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('yagonaqr_payment_test', withEmployee: false);
+    // setOrgPrefs: Pref'ga OrganizationModel, `other_payments` qutisiga Payment.
+    final org = OrganizationModelAdapter(), payment = PaymentAdapter();
+    if (!Hive.isAdapterRegistered(org.typeId)) {
+      Hive.registerAdapter<OrganizationModel>(org);
+    }
+    if (!Hive.isAdapterRegistered(payment.typeId)) {
+      Hive.registerAdapter<Payment>(payment);
+    }
+    await Pref.setString(PrefKeys.mxikCode, kMxik);
+    await Pref.setString(PrefKeys.cashId, ids.cash);
+    await Pref.setString(PrefKeys.cardId, ids.card);
+    await Pref.setString(PrefKeys.cashbackId, ids.cashback);
+    await Pref.setString(PrefKeys.debtId, ids.debt);
+    await Pref.setString(PrefKeys.clickId, ids.click);
+    await Pref.setString(PrefKeys.paymeId, ids.payme);
+    await Pref.setString(PrefKeys.uzumId, ids.uzum);
+    await Pref.setString(PrefKeys.yagonaQrId, kYagonaId);
+  });
+  tearDownAll(tearDownPosTestEnv);
+
+  // ───────────────────────────────────────────────────────────────────────
+  group('YagonaQr.isName — admin nomini tanish', () {
+    for (final n in [
+      'YagonaQr',
+      'YAGONAQR',
+      'Yagona QR',
+      'yagona_qr',
+      'Yagona-QR',
+      'YAGONA_QR',
+      '  yagona qr  ',
+      'yagonaqr',
+      'YAGONA QR',
+      'Yagona.QR',
+      'Yagona / QR',
+      'yagona  qr',
+      'YaGoNa-Qr',
+    ]) {
+      test('"$n" → true', () => expect(YagonaQr.isName(n), isTrue));
+    }
+    for (final n in ['Card', 'CARD', 'CLICK QR', 'Payme QR', 'UZCARD', 'Yagona', '', null]) {
+      test('"$n" → false', () => expect(YagonaQr.isName(n), isFalse));
+    }
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  group('To\'lov turlarini yuklash (OrganizationSingleton)', () {
+    final cash = Payment(id: ids.cash, name: 'CASH', title: 'Naqd', isAdded: true);
+    final card = Payment(id: ids.card, name: 'CARD', title: 'Karta', isAdded: true);
+
+    Future<void> load(List<Payment> pl) =>
+        OrganizationSingleton.setOrgPrefs(OrganizationModel(name: 'Org'), pl);
+
+    tearDown(() async {
+      // Keyingi guruhlar uchun asl holat.
+      // setOrgPrefs ro'yxatda yo'q turlarning id'larini bo'shatadi.
+      await Pref.setString(PrefKeys.cashId, ids.cash);
+      await Pref.setString(PrefKeys.cardId, ids.card);
+      await Pref.setString(PrefKeys.cashbackId, ids.cashback);
+      await Pref.setString(PrefKeys.debtId, ids.debt);
+      await Pref.setString(PrefKeys.clickId, ids.click);
+      await Pref.setString(PrefKeys.paymeId, ids.payme);
+      await Pref.setString(PrefKeys.uzumId, ids.uzum);
+      await Pref.setString(PrefKeys.yagonaQrId, kYagonaId);
+      otherPaymentsGlobal = [];
+    });
+
+    test('YagonaQr id Pref\'ga yoziladi, karta id\'si ustidan yozilmaydi, '
+        'tugma ro\'yxatida bor', () async {
+      await load([
+        cash,
+        card,
+        Payment(id: 'srv-yagona', name: 'YagonaQr', title: 'Yagona QR', isAdded: true),
+      ]);
+      expect(Pref.getString(PrefKeys.yagonaQrId, ''), 'srv-yagona');
+      expect(Pref.getString(PrefKeys.cardId, ''), ids.card);
+      expect(Pref.getString(PrefKeys.cashId, ''), ids.cash);
+      expect(otherPaymentsGlobal.map((e) => e.id), contains('srv-yagona'));
+    });
+
+    test('server nomi "YAGONA_QR" bo\'lsa ham taniladi', () async {
+      await load([cash, Payment(id: 'srv-y2', name: 'YAGONA_QR', isAdded: true)]);
+      expect(Pref.getString(PrefKeys.yagonaQrId, ''), 'srv-y2');
+    });
+
+    test('admin YagonaQr ni olib tashlasa — id tozalanadi', () async {
+      await load([cash, card, Payment(id: 'srv-y3', name: 'YagonaQr', isAdded: true)]);
+      expect(Pref.getString(PrefKeys.yagonaQrId, ''), 'srv-y3');
+      await load([cash, card]);
+      expect(Pref.getString(PrefKeys.yagonaQrId, ''), '');
+    });
+
+    test('tur qutida bor, Pref bo\'sh (patch\'dan oldin yuklangan) — '
+        'ishga tushishda tiklanadi', () async {
+      await load([cash, card, Payment(id: 'srv-y4', name: 'Yagona QR', isAdded: true)]);
+      await Pref.setString(PrefKeys.yagonaQrId, ''); // eski kod yozmagan holat
+      await OrganizationSingleton.setOtherPayments(); // main.dart dagi chaqiruv
+      expect(Pref.getString(PrefKeys.yagonaQrId, ''), 'srv-y4');
+    });
+
+    test('qutida YagonaQr yo\'q — Pref bo\'sh qoladi', () async {
+      await load([cash, card]);
+      await OrganizationSingleton.setOtherPayments();
+      expect(Pref.getString(PrefKeys.yagonaQrId, ''), '');
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  group('Apps yoqish/o\'chirish (WS type 40)', () {
+    final cash = Payment(id: ids.cash, name: 'CASH', title: 'Naqd', isAdded: true);
+
+    Payment? yagonaInList() {
+      for (final e in otherPaymentsGlobal) {
+        if (e.id == 'srv-ya') return e;
+      }
+      return null;
+    }
+
+    tearDown(() async {
+      // setOrgPrefs ro'yxatda yo'q turlarning id'larini bo'shatadi.
+      await Pref.setString(PrefKeys.cashId, ids.cash);
+      await Pref.setString(PrefKeys.cardId, ids.card);
+      await Pref.setString(PrefKeys.cashbackId, ids.cashback);
+      await Pref.setString(PrefKeys.debtId, ids.debt);
+      await Pref.setString(PrefKeys.clickId, ids.click);
+      await Pref.setString(PrefKeys.paymeId, ids.payme);
+      await Pref.setString(PrefKeys.uzumId, ids.uzum);
+      await Pref.setString(PrefKeys.yagonaQrId, kYagonaId);
+      await Pref.setBool(PrefKeys.clickEnable, false);
+      otherPaymentsGlobal = [];
+    });
+
+    test('WS xabaridagi nom qutidagidan farq qilsa ham (YAGONAQR / YagonaQr) — id bo\'yicha o\'chadi',
+        () async {
+      await OrganizationSingleton.setOrgPrefs(OrganizationModel(name: 'Org'), [
+        cash,
+        Payment(id: 'srv-ya', name: 'YagonaQr', title: 'Yagona QR', isAdded: true),
+      ]);
+      await ProductsWsService.applyPaymentToggle(
+          {'name': 'YAGONAQR', 'id': 'srv-ya', 'is_used': false});
+      expect(yagonaInList()?.isAdded, isFalse);
+      await ProductsWsService.applyPaymentToggle(
+          {'name': 'YAGONAQR', 'id': 'srv-ya', 'is_used': true});
+      expect(yagonaInList()?.isAdded, isTrue);
+    });
+
+    test('o\'chirildi → isAdded false (id qoladi), yoqildi → isAdded true',
+        () async {
+      await OrganizationSingleton.setOrgPrefs(OrganizationModel(name: 'Org'), [
+        cash,
+        Payment(id: 'srv-ya', name: 'YagonaQr', title: 'Yagona QR', isAdded: true),
+      ]);
+      expect(yagonaInList()?.isAdded, isTrue);
+      expect(Pref.getString(PrefKeys.yagonaQrId, ''), 'srv-ya');
+
+      await ProductsWsService.applyPaymentToggle(
+          {'name': 'YagonaQr', 'id': 'srv-ya', 'is_used': false});
+      expect(yagonaInList()?.isAdded, isFalse);
+      expect(Pref.getString(PrefKeys.yagonaQrId, ''), 'srv-ya');
+      // Qutining o'zida ham (keyingi ishga tushishda ham o'chiq qoladi).
+      final fromBox = (await OrganizationSingleton.getOtherPayments())
+          .firstWhere((e) => e.id == 'srv-ya');
+      expect(fromBox.isAdded, isFalse);
+
+      await ProductsWsService.applyPaymentToggle(
+          {'name': 'YagonaQr', 'id': 'srv-ya', 'is_used': true});
+      expect(yagonaInList()?.isAdded, isTrue);
+      expect(Pref.getString(PrefKeys.yagonaQrId, ''), 'srv-ya');
+    });
+
+    test('Click toggle eski xatti-harakati: clickEnable va clickId', () async {
+      await OrganizationSingleton.setOrgPrefs(OrganizationModel(name: 'Org'), [
+        cash,
+        Payment(id: 'srv-click', name: 'CLICK', title: 'Click', isAdded: false),
+      ]);
+      await ProductsWsService.applyPaymentToggle(
+          {'name': 'CLICK', 'id': 'srv-click', 'is_used': true});
+      expect(Pref.getBool(PrefKeys.clickEnable, false), isTrue);
+      expect(Pref.getString(PrefKeys.clickId, ''), 'srv-click');
+      expect(
+          otherPaymentsGlobal.firstWhere((e) => e.id == 'srv-click').isAdded,
+          isTrue);
+      // Click toggle YagonaQr id'siga tegmaydi.
+      expect(Pref.getString(PrefKeys.yagonaQrId, ''), '');
+
+      await ProductsWsService.applyPaymentToggle(
+          {'name': 'CLICK', 'id': 'srv-click', 'is_used': false});
+      expect(Pref.getBool(PrefKeys.clickEnable, true), isFalse);
+      expect(
+          otherPaymentsGlobal.firstWhere((e) => e.id == 'srv-click').isAdded,
+          isFalse);
+    });
+  });
+
+  group('Provider: to\'lov ekrani (aralash to\'lov)', () {
+    test('naqd 30 000 + YagonaQr qoldiq 70 000 — chekda CASH va YAGONAQR', () {
+      final p = paymentPage(total: 100000);
+      p.controller.text = '30000';
+      p.allPaymentType(pay(ids.cash, 'CASH'));
+      p.typeYagonaQr(yagona);
+
+      expect(p.paymentsMap[ids.cash]?.value, 30000);
+      expect(p.paymentsMap[kYagonaId]?.value, 70000);
+      final chek = chekOf(p);
+      expect(chek[ids.cash]?.name, 'CASH');
+      expect(chek[kYagonaId]?.name, 'YAGONAQR');
+      expect(p.lastCardType, 2);
+    });
+
+    test('Uzcard 40 000 + YagonaQr 60 000 — kalit "@" siz (serverga o\'z id\'si)',
+        () {
+      final p = paymentPage(total: 100000);
+      p.controller.text = '40000';
+      p.allPaymentType(pay(ids.card, 'CARD'));
+      final y = pay(kYagonaId, kAdminName, type: 1); // eski tanlov qolsa ham
+      p.typeYagonaQr(y);
+
+      expect(p.paymentsMap.containsKey('@$kYagonaId'), isFalse);
+      expect(p.paymentsMap[kYagonaId]?.value, 60000);
+      expect(p.paymentsMap[ids.card]?.value, 40000);
+      final chek = chekOf(p);
+      expect(chek[ids.card]?.name, 'UZCARD');
+      expect(chek[kYagonaId]?.name, 'YAGONAQR');
+      // Serverga ketadigan JSON: payment_type_id = YagonaQr id.
+      expect(chek[kYagonaId]!.toJson(),
+          {'payment_type_id': kYagonaId, 'value': 60000.0});
+    });
+
+    test('Humo 25 000 + YagonaQr 75 000', () {
+      final p = paymentPage(total: 100000);
+      p.controller.text = '25000';
+      p.allPaymentType(pay(ids.card, 'CARD', type: 1));
+      p.typeYagonaQr(yagona);
+      final chek = chekOf(p);
+      expect(chek['@${ids.card}']?.name, 'HUMO');
+      expect(chek[kYagonaId]?.value, 75000);
+    });
+
+    test('avval YagonaQr 60 000 (klaviaturada), keyin naqd qoldiq 40 000', () {
+      final p = paymentPage(total: 100000);
+      p.controller.text = '60000';
+      p.typeYagonaQr(yagona);
+      p.allPaymentType(pay(ids.cash, 'CASH'));
+      expect(p.paymentsMap[kYagonaId]?.value, 60000);
+      expect(p.paymentsMap[ids.cash]?.value, 40000);
+    });
+
+    test('YagonaQr summadan oshmaydi (klaviaturada 90 000, jami 50 000)', () {
+      final p = paymentPage(total: 50000);
+      p.controller.text = '90000';
+      p.typeYagonaQr(yagona);
+      expect(p.paymentsMap[kYagonaId]?.value, 50000);
+    });
+
+    test('hammasi to\'langan bo\'lsa YagonaQr qo\'shilmaydi', () {
+      final p = paymentPage(total: 50000);
+      p.allPaymentType(pay(ids.cash, 'CASH'));
+      p.typeYagonaQr(yagona);
+      expect(p.paymentsMap.containsKey(kYagonaId), isFalse);
+      expect(p.paymentsMap[ids.cash]?.value, 50000);
+      // Adashib bosildi — naqd chekka CardType 2 ketmasin.
+      expect(p.lastCardType, 0);
+    });
+
+    test('qaytim faqat naqddan: YagonaQr 70 000 + naqd 50 000 (jami 100 000)',
+        () {
+      final p = paymentPage(total: 100000);
+      p.controller.text = '70000';
+      p.typeYagonaQr(yagona);
+      p.controller.text = '50000';
+      p.allPaymentType(pay(ids.cash, 'CASH'));
+
+      expect(p.getSdacha, 20000);
+      final chek = chekOf(p);
+      expect(chek[kYagonaId]?.value, 70000); // YagonaQr'dan ayrilmaydi
+      expect(chek[ids.cash]?.value, 30000); // 50 000 − qaytim 20 000
+    });
+
+    test('naqd + Uzcard + YagonaQr (uchtasi)', () {
+      final p = paymentPage(total: 100000);
+      p.controller.text = '30000';
+      p.allPaymentType(pay(ids.cash, 'CASH'));
+      p.controller.text = '20000';
+      p.allPaymentType(pay(ids.card, 'CARD'));
+      p.typeYagonaQr(yagona);
+      final chek = chekOf(p);
+      expect(chek.values.map((e) => e.name),
+          unorderedEquals(['CASH', 'UZCARD', 'YAGONAQR']));
+      expect(chek[kYagonaId]?.value, 50000);
+    });
+
+    test('cardType: boshida 0, YagonaQr → 2, yangi to\'lov sahifasi → 0', () {
+      final p = paymentPage(total: 100000);
+      expect(p.lastCardType, 0);
+      p.typeYagonaQr(yagona);
+      expect(p.lastCardType, 2);
+      p.initPaymentPageValues(
+        sixClientModel4: SixClientModel4(
+          clientNumber: 1,
+          lastAddedIndex: -1,
+          orderedProducts: [],
+          discountAmountFromNewClient: 0,
+        ),
+        totalPrice: 100000,
+        discountAmount: 0,
+      );
+      expect(p.lastCardType, 0);
+    });
+
+    test('faqat naqd — cardType 0 qoladi', () {
+      final p = paymentPage(total: 100000);
+      p.allPaymentType(pay(ids.cash, 'CASH'));
+      expect(p.lastCardType, 0);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  group('ReceiptPayments.build — chekdagi nom', () {
+    test('id bo\'yicha YAGONAQR (admin nomi qanday bo\'lishidan qat\'iy nazar)',
+        () {
+      for (final adminName in ['YagonaQr', 'Yagona QR', 'yagona_qr', 'Boshqa']) {
+        final list = ReceiptPayments.build(
+          {kYagonaId: Payment(id: kYagonaId, name: adminName, value: 1000)},
+          ids: yIds,
+          sdacha: 0,
+          zdachaToCashBack: 0,
+        );
+        expect(list.single.name, 'YAGONAQR', reason: adminName);
+        expect(list.single.payId, kYagonaId);
+      }
+    });
+
+    test('YagonaQr id sozlanmagan — nom o\'zgarmaydi (eski xatti-harakat)', () {
+      final list = ReceiptPayments.build(
+        {kYagonaId: Payment(id: kYagonaId, name: 'YagonaQr', value: 1000)},
+        ids: ids, // yagonaQr: ''
+        sdacha: 0,
+        zdachaToCashBack: 0,
+      );
+      expect(list.single.name, 'YagonaQr');
+    });
+
+    test('boshqa turlar nomi o\'zgarmaydi', () {
+      final list = paysWithYagona({
+        Kind.cash: 1,
+        Kind.uzcard: 1,
+        Kind.humo: 1,
+        Kind.clickPass: 1,
+        Kind.clickQr: 1,
+        Kind.paymeGo: 1,
+        Kind.paymeQr: 1,
+        Kind.uzum: 1,
+        Kind.uzumQr: 1,
+      }, yagona: 1);
+      expect(list.map((e) => e.name).toList(), [
+        'CASH',
+        'UZCARD',
+        'HUMO',
+        'CLICK PASS',
+        'CLICK QR',
+        'PAYME GO',
+        'PAYME QR',
+        'UZUM',
+        'UZUM QR',
+        'YAGONAQR',
+      ]);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  group('Fiskal JSON: faqat YagonaQr × savat', () {
+    for (final cart in [...carts, scaleCart]) {
+      test(cart.name, () {
+        final rows = cart.rows();
+        final r = saleWithYagona(rows, {}, yagona: cartTotal(rows));
+        final w = wireOf(r);
+        final why = 'YagonaQr / ${cart.name}';
+
+        expectModuleInvariants(w, why);
+        final rp = receiptPart(w);
+        expect(rp['ReceivedCash'], 0, reason: why);
+        expect(rp['ReceivedCard'], (r.payment.single.value * 100).round(),
+            reason: why);
+        expect(sumOf(w, 'Other'), 0, reason: '$why: Other 0');
+        expect(extraOf(w)['CardType'], 2, reason: '$why: CardType');
+        // Provayder bayroqlari yo'q — YagonaQr Click/Payme/Uzum emas.
+        expectFlags(paramsOf(r), <Kind>{}, why);
+        // Karta — QQS to'liq.
+        if (rows.any((x) => x.vatPercent > 0)) {
+          expect(sumOf(w, 'VAT'), greaterThan(0), reason: '$why: VAT');
+        }
+      });
+    }
+
+    test('aniq raqamlar: 112 000 (12%) — ReceivedCard 11 200 000, VAT 12 000 so\'m',
+        () {
+      final r = saleWithYagona([row(realPrice: 112000)], {}, yagona: 112000);
+      final w = wireOf(r);
+      expect(receiptPart(w)['ReceivedCard'], 11200000);
+      expect(receiptPart(w)['ReceivedCash'], 0);
+      expect(sumOf(w, 'Other'), 0);
+      expect(sumOf(w, 'VAT'), closeTo(1200000, 100));
+    });
+
+    test('qog\'oz chek QQS\'i fiskal bilan bir xil (karta — ayrilmaydi)', () {
+      final r = saleWithYagona([row(realPrice: 112000)], {}, yagona: 112000);
+      expect(ReceiptVat.total(r), closeTo(12000, 0.01));
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  group('Fiskal JSON: YagonaQr + har bir to\'lov turi (1/3 + 2/3)', () {
+    for (final k in Kind.values) {
+      test('${k.name} + YagonaQr', () {
+        for (final cart in carts) {
+          final rows = cart.rows();
+          final double total = cartTotal(rows);
+          final double first = (total / 3).floorToDouble();
+          final amounts = {k: first};
+          final r = saleWithYagona(rows, amounts, yagona: total - first);
+          final w = wireOf(r);
+          final why = '${k.name}+YagonaQr / ${cart.name}';
+          expectModuleInvariants(w, why);
+          expectBucketsWithYagona(w, amounts, total - first, why,
+              rows: rows.length);
+          expectFlags(paramsOf(r), {k}, why);
+          expect(extraOf(w)['CardType'], 2, reason: why);
+        }
+      });
+    }
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  group('Fiskal JSON: murakkab holatlar', () {
+    test('naqd 30 000 + Uzcard 20 000 + YagonaQr 50 000 → Cash 3 000 000, Card 7 000 000',
+        () {
+      final rows = [
+        row(realPrice: 37500, value: 2, name: 'A'),
+        row(realPrice: 25000, name: 'B'),
+      ];
+      final r = saleWithYagona(rows, {Kind.cash: 30000, Kind.uzcard: 20000},
+          yagona: 50000);
+      final w = wireOf(r);
+      expectModuleInvariants(w, 'naqd+karta+yagona');
+      expect(receiptPart(w)['ReceivedCash'], 3000000);
+      expect(receiptPart(w)['ReceivedCard'], 7000000);
+      expect(sumOf(w, 'Other'), 0);
+    });
+
+    test('naqd qaytim: naqd 50 000 (qaytim 20 000) + YagonaQr 70 000', () {
+      final r = saleWithYagona([row(realPrice: 100000)], {Kind.cash: 50000},
+          yagona: 70000, sdacha: 20000);
+      final w = wireOf(r);
+      expectModuleInvariants(w, 'sdacha');
+      expect(receiptPart(w)['ReceivedCash'], 3000000);
+      expect(receiptPart(w)['ReceivedCard'], 7000000);
+    });
+
+    test('cashback 10 000 + YagonaQr 90 000: Other = cashback, karta = YagonaQr',
+        () {
+      final r = saleWithYagona([row(realPrice: 100000)], {Kind.cashback: 10000},
+          yagona: 90000);
+      final w = wireOf(r);
+      expectModuleInvariants(w, 'cashback+yagona');
+      expect(receiptPart(w)['ReceivedCard'], 9000000);
+      expect(sumOf(w, 'Other'), 1000000);
+      // QQS bazasi faqat cashback'ga kamayadi: (100 000 − 10 000) × 12/112.
+      expect(sumOf(w, 'VAT'), closeTo(90000 * 12 / 112 * 100, 100));
+    });
+
+    test('Click QR 40 000 + YagonaQr 60 000: QR → Other, YagonaQr → karta', () {
+      final r = saleWithYagona([row(realPrice: 100000)], {Kind.clickQr: 40000},
+          yagona: 60000);
+      final w = wireOf(r);
+      expectModuleInvariants(w, 'clickQr+yagona');
+      expect(receiptPart(w)['ReceivedCard'], 6000000);
+      expect(sumOf(w, 'Other'), 4000000);
+      expect(paramsOf(r)['receivedClick'], false);
+    });
+
+    test('Click Pass + Payme Go + YagonaQr: hammasi karta, bayroqlar faqat Pass/Go',
+        () {
+      final r = saleWithYagona([row(realPrice: 90000)],
+          {Kind.clickPass: 30000, Kind.paymeGo: 30000},
+          yagona: 30000);
+      final w = wireOf(r);
+      expectModuleInvariants(w, 'pass+go+yagona');
+      expect(receiptPart(w)['ReceivedCard'], 9000000);
+      expectFlags(paramsOf(r), {Kind.clickPass, Kind.paymeGo}, 'pass+go+yagona');
+    });
+
+    test('hamma 11 tur + YagonaQr bitta chekda', () {
+      final rows = [
+        row(realPrice: 125000, name: 'X'),
+        row(realPrice: 55000, vatPercent: 0, name: 'Y'),
+      ];
+      final amounts = {for (final k in Kind.values) k: 15000.0};
+      final r = saleWithYagona(rows, amounts, yagona: 15000);
+      final w = wireOf(r);
+      expectModuleInvariants(w, 'hammasi');
+      expectBucketsWithYagona(w, amounts, 15000, 'hammasi', rows: 2);
+    });
+
+    test('tarozi (yarim so\'m) + naqd + YagonaQr: §10.2.1 balans saqlanadi', () {
+      final rows = scaleCart.rows();
+      final total = cartTotal(rows);
+      final r = saleWithYagona(rows, {Kind.cash: 10000}, yagona: total - 10000);
+      expectModuleInvariants(wireOf(r), 'tarozi');
+    });
+
+    test('serverdan qaytgan chek: nomi YAGONAQR, Pref id bo\'sh — baribir karta',
+        () async {
+      await Pref.setString(PrefKeys.yagonaQrId, '');
+      try {
+        final r = receiptOf([row(realPrice: 50000)], [
+          ReceiptModelPaymentType4(name: 'YAGONAQR', payId: 'other-id', value: 50000),
+        ]);
+        final w = wireOf(r);
+        expectModuleInvariants(w, 'server');
+        expect(receiptPart(w)['ReceivedCard'], 5000000);
+        expect(sumOf(w, 'Other'), 0);
+      } finally {
+        await Pref.setString(PrefKeys.yagonaQrId, kYagonaId);
+      }
+    });
+
+    test('nom normallashmagan ("YagonaQr"), id bo\'yicha — karta', () {
+      final r = receiptOf([row(realPrice: 50000)], [
+        ReceiptModelPaymentType4(name: 'Yagona QR', payId: kYagonaId, value: 50000),
+      ]);
+      expect(receiptPart(wireOf(r))['ReceivedCard'], 5000000);
+    });
+
+    test('vozvrat: YagonaQr chekining qaytarilishi — hammasi ReceivedCash', () {
+      final r = receiptOf(
+        [row(realPrice: 50000)],
+        [ReceiptModelPaymentType4(name: 'CASH', payId: ids.cash, value: 50000)],
+        isRefund: true,
+      );
+      // Asl to'lovlar qolgan bo'lsa ham (return_bloc faqat CASH yozadi).
+      final r2 = receiptOf(
+        [row(realPrice: 50000)],
+        [ReceiptModelPaymentType4(name: 'YAGONAQR', payId: kYagonaId, value: 50000)],
+        isRefund: true,
+      );
+      for (final x in [r, r2]) {
+        final w = wireOf(x);
+        expectModuleInvariants(w, 'vozvrat');
+        expect(receiptPart(w)['ReceivedCash'], 5000000);
+        expect(receiptPart(w)['ReceivedCard'], 0);
+      }
+    });
+
+    test('saleOnOFD qayta chaqirilsa (PreOfd qayta urinish) natija bir xil', () {
+      final rows = [row(realPrice: 100000)];
+      final r = saleWithYagona(rows, {Kind.cash: 40000}, yagona: 60000);
+      final a = receiptPart(wireOf(r));
+      final b = receiptPart(wireOf(r));
+      expect(a['ReceivedCash'], b['ReceivedCash']);
+      expect(a['ReceivedCard'], b['ReceivedCard']);
+      expect(a['ReceivedCard'], 6000000);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  group('Ko\'rinadigan nom', () {
+    test('qog\'oz chek: "yagonaqr" → "YagonaQR"', () {
+      expect(PrintingApiHelper.getTulovTuri('yagonaqr'), 'YagonaQR');
+      // sold_api_components.dart nomni kichik harfga o'giradi.
+      expect(PrintingApiHelper.getTulovTuri(YagonaQr.code.toLowerCase()),
+          'YagonaQR');
+    });
+  });
+}
+```
+
+</details>
+
+### 6.4. YANGI: `test/yagonaqr_payment_button_test.dart`
+
+<details>
+<summary>9 widget test — ochish</summary>
+
+```dart
+// YagonaQr — to'lov ekranidagi tugma (KeyboardOfPaymentPage._buildPayments).
+//
+// `PrefKeys.yagonaQrId` dagi tur uchun alohida tugma: matni admin `title`
+// (bo'sh bo'lsa "YagonaQR"), bosilganda `typeYagonaQr` — summa YagonaQr
+// id'si bilan yoziladi, cardType 2. Fiskalda karta bo'lgani uchun "faqat
+// karta" (kommunal MXIK) rejimida ham ko'rinadi.
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/models/organization_model.dart';
+import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/changes/singletons/organization_singleton.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/features/payment/right/complete_button/complete_bloc/comlete_bloc.dart';
+import 'package:invan2/features/payment/right/complete_button/pre_complete_bloc/per_comlete_bloc.dart';
+import 'package:invan2/features/payment/right/keyboard_of_payment_page.dart';
+import 'package:invan2/utils/constants/mxik_constants.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+import 'package:invan2/utils/helpers/size_config.dart';
+import 'package:invan2/utils/l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
+import 'package:visibility_detector/visibility_detector.dart';
+
+import 'support/provider_harness.dart';
+
+const kCashId = 'cash-id';
+const kYagonaId = 'yagona-qr-id';
+
+final cashPayment =
+    Payment(id: kCashId, name: 'CASH', title: 'Naqd', isAdded: true);
+
+Payment yagonaPayment({String? title = 'Yagona QR', bool? isAdded = true}) =>
+    Payment(
+        id: kYagonaId, name: 'YagonaQr', title: title, isAdded: isAdded);
+
+OrderingProvider4 paymentPage(List<ReceiptModelSoldItem4> rows,
+    {double total = 100000}) {
+  // goToPaymentPage dagidek: to'lov sahifasi joriy klient savati bilan ochiladi
+  final p = freshProvider();
+  p.getCurrentClient.orderedProducts.addAll(rows);
+  p.initPaymentPageValues(
+    sixClientModel4: p.getCurrentClient,
+    totalPrice: total,
+    discountAmount: 0,
+  );
+  return p;
+}
+
+Future<void> pumpKeyboard(WidgetTester tester, OrderingProvider4 p) async {
+  tester.view.physicalSize = const Size(1920, 1080);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+
+  await tester.pumpWidget(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<OrderingProvider4>.value(value: p),
+        BlocProvider<CmtBBloc>(create: (_) => CmtBBloc()),
+        BlocProvider<PreCmtBBloc>(create: (_) => PreCmtBBloc()),
+      ],
+      child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: const Locale('uz'),
+        home: Builder(builder: (context) {
+          SizeConfig().init(context);
+          return Scaffold(body: KeyboardOfPaymentPage(context));
+        }),
+      ),
+    ),
+  );
+  await tester.pump();
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('yagonaqr_payment_button');
+    // VisibilityDetector taymeri test oxirida "pending timer" qoldirmasin
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
+    await Pref.setString(PrefKeys.cashId, kCashId);
+  });
+  tearDownAll(tearDownPosTestEnv);
+
+  setUp(() async {
+    await Pref.setString(PrefKeys.yagonaQrId, kYagonaId);
+    otherPaymentsGlobal = [cashPayment, yagonaPayment()];
+  });
+  tearDown(() => otherPaymentsGlobal = []);
+
+  testWidgets('tugma admin title bilan chiqadi', (tester) async {
+    await pumpKeyboard(tester, paymentPage([makeSoldItem(productId: 'a')]));
+    expect(find.text('Yagona QR'), findsOneWidget);
+    expect(find.text('YagonaQr'), findsNothing); // xom name emas
+  });
+
+  testWidgets('admin "Apps" da o\'chirilgan (isAdded: false) — tugma yo\'q',
+      (tester) async {
+    otherPaymentsGlobal = [cashPayment, yagonaPayment(isAdded: false)];
+    await pumpKeyboard(tester, paymentPage([makeSoldItem(productId: 'a')]));
+    expect(find.text('Yagona QR'), findsNothing);
+    expect(find.text('YagonaQr'), findsNothing); // umumiy tugma ham emas
+    expect(find.text('Naqd pul'), findsOneWidget);
+  });
+
+  testWidgets('holati noma\'lum (isAdded: null) — tugma yo\'q', (tester) async {
+    otherPaymentsGlobal = [cashPayment, yagonaPayment(isAdded: null)];
+    await pumpKeyboard(tester, paymentPage([makeSoldItem(productId: 'a')]));
+    expect(find.text('Yagona QR'), findsNothing);
+    expect(find.text('YagonaQr'), findsNothing);
+  });
+
+  testWidgets('title bo\'sh — "YagonaQR"', (tester) async {
+    otherPaymentsGlobal = [cashPayment, yagonaPayment(title: '  ')];
+    await pumpKeyboard(tester, paymentPage([makeSoldItem(productId: 'a')]));
+    expect(find.text('YagonaQR'), findsOneWidget);
+  });
+
+  testWidgets('bosilganda qoldiq YagonaQr id\'si bilan yoziladi, cardType 2',
+      (tester) async {
+    final p = paymentPage([makeSoldItem(productId: 'a')]);
+    await pumpKeyboard(tester, p);
+
+    await tester.tap(find.text('Yagona QR'));
+    await tester.pump();
+
+    expect(p.paymentsMap.keys, [kYagonaId]);
+    final row = p.paymentsMapAsList.single;
+    expect(row.name, 'YAGONAQR');
+    expect(row.payId, kYagonaId);
+    expect(row.value, 100000);
+    expect(p.lastCardType, 2);
+  });
+
+  testWidgets('aralash: naqd 30 000 (klaviatura) + YagonaQr qoldiq',
+      (tester) async {
+    final p = paymentPage([makeSoldItem(productId: 'a')]);
+    await pumpKeyboard(tester, p);
+
+    p.controller.text = '30000';
+    await tester.tap(find.text('Naqd pul'));
+    await tester.pump();
+    await tester.tap(find.text('Yagona QR'));
+    await tester.pump();
+
+    final byId = {for (final e in p.paymentsMapAsList) e.payId: e};
+    expect(byId[kCashId]?.name, 'CASH');
+    expect(byId[kCashId]?.value, 30000);
+    expect(byId[kYagonaId]?.name, 'YAGONAQR');
+    expect(byId[kYagonaId]?.value, 70000);
+  });
+
+  testWidgets('"faqat karta" (kommunal MXIK): YagonaQr ko\'rinadi, naqd yo\'q',
+      (tester) async {
+    final kommunal = makeSoldItem(
+        productId: 'k', mxik: MxikConstants.cardOnlyMxikCodes.first);
+    final p = paymentPage([kommunal]);
+    await pumpKeyboard(tester, p);
+
+    expect(p.isCardOnlyPaymentRequired, isTrue);
+    expect(find.text('Yagona QR'), findsOneWidget);
+    expect(find.text('Naqd pul'), findsNothing);
+  });
+
+  testWidgets('serverdan YagonaQr umuman kelmasa (eski id qolgan bo\'lsa ham) — tugma yo\'q',
+      (tester) async {
+    otherPaymentsGlobal = [cashPayment]; // payment_types da YagonaQr yo'q
+    await pumpKeyboard(tester, paymentPage([makeSoldItem(productId: 'a')]));
+    expect(find.text('Yagona QR'), findsNothing);
+    expect(find.text('YagonaQR'), findsNothing);
+    expect(find.text('YagonaQr'), findsNothing);
+    expect(find.text('Naqd pul'), findsOneWidget);
+  });
+
+  testWidgets('yagonaQrId sozlanmagan — oddiy tugma (xom nom), cardType 0',
+      (tester) async {
+    // Hive yozuvi fake-async zonada tugamaydi — haqiqiy async'da.
+    await tester.runAsync(() => Pref.setString(PrefKeys.yagonaQrId, ''));
+    final p = paymentPage([makeSoldItem(productId: 'a')]);
+    await pumpKeyboard(tester, p);
+
+    expect(find.text('YagonaQr'), findsOneWidget); // eski umumiy tugma
+    await tester.tap(find.text('YagonaQr'));
+    await tester.pump();
+    expect(p.paymentsMap.keys, [kYagonaId]);
+    expect(p.lastCardType, 0);
+  });
+}
+```
+
+</details>
+
+### 6.5. YANGI: `test/yagonaqr_shift_report_test.dart`
+
+<details>
+<summary>3 test (ObjectBox) — ochish</summary>
+
+```dart
+// YagonaQr — smena (X/Z) hisoboti: alohida qator YO'Q, summa karta
+// ("Plastik" = uzCard + humoCard) ichida.
+//
+// `ShiftSingleton4.getCurrentHiveShift` smenani ObjectBox'dagi cheklardan
+// qayta hisoblaydi (`case 'yagonaqr'` → `uzCardPayment`).
+//
+// ObjectBox native kutubxonasi kerak (`libobjectbox.dylib` / `.so` / `.dll`
+// loyiha ildizida yoki tizimda). Topilmasa testlar SKIP qilinadi. Mac'da:
+//   cp build/macos/Build/Products/Debug/invan2.app/Contents/Frameworks/ObjectBox.framework/Versions/A/ObjectBox libobjectbox.dylib
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+import 'package:invan2/changes/models/shift/shift_hive_model.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
+import 'package:invan2/objectbox.g.dart' hide Box;
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+
+import 'support/epay_fixtures.dart';
+import 'support/provider_harness.dart';
+
+Store? _tryOpenStore() {
+  try {
+    final dir = Directory.systemTemp.createTempSync('yagonaqr_shift_obx');
+    return Store(getObjectBoxModel(), directory: dir.path);
+  } catch (_) {
+    return null;
+  }
+}
+
+ReceiptModelPaymentType4 p(String name, String id, double v) =>
+    ReceiptModelPaymentType4(name: name, payId: id, value: v);
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  final Store? store = _tryOpenStore();
+
+  group('Smena hisoboti: YagonaQr "Plastik" ichida', skip: store == null
+      ? "ObjectBox kutubxonasi topilmadi (libobjectbox) — fayl boshidagi izohga qarang"
+      : false, () {
+    setUpAll(() async {
+      await setUpPosTestEnv('yagonaqr_shift_report', withEmployee: false);
+      if (!Hive.isAdapterRegistered(ShiftModelHiveAdapter().typeId)) {
+        Hive.registerAdapter<ShiftModelHive>(ShiftModelHiveAdapter());
+      }
+      if (!Hive.isAdapterRegistered(CashDrawerHiveAdapter().typeId)) {
+        Hive.registerAdapter<CashDrawerHive>(CashDrawerHiveAdapter());
+      }
+      if (!Hive.isAdapterRegistered(SalesSummaryHiveAdapter().typeId)) {
+        Hive.registerAdapter<SalesSummaryHive>(SalesSummaryHiveAdapter());
+      }
+      if (!Hive.isAdapterRegistered(PaysHiveAdapter().typeId)) {
+        Hive.registerAdapter<PaysHive>(PaysHiveAdapter());
+      }
+      await Hive.openBox<ShiftModelHive>(HiveBoxNames.shifts);
+      MyObjectbox.saleStore = store!;
+
+      // Ochiq smena (Hive'da yozuv yo'q — getCurrentHiveShift tiklaydi).
+      final opened = DateTime.now().subtract(const Duration(hours: 1));
+      await Pref.setInt(PrefKeys.currentShiftKey, 7);
+      await Pref.setInt(PrefKeys.shiftOpenedTime, opened.millisecondsSinceEpoch);
+      await Pref.setBool(PrefKeys.shiftsOpened, true);
+    });
+    tearDownAll(() async {
+      store?.close();
+      await tearDownPosTestEnv();
+    });
+
+    test('naqd + YagonaQr, Uzcard, Humo + YagonaQr — YagonaQr uzCard ga qo\'shiladi',
+        () {
+      final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+      box.removeAll();
+      box.putMany([
+        receiptOf([row(realPrice: 100000)], [
+          p('CASH', ids.cash, 30000),
+          p('YAGONAQR', 'pay-yagona', 70000),
+        ]),
+        receiptOf([row(realPrice: 50000)], [p('UZCARD', ids.card, 50000)]),
+        receiptOf([row(realPrice: 50000)], [
+          p('HUMO', '@${ids.card}', 20000),
+          p('YAGONAQR', 'pay-yagona', 30000),
+        ]),
+      ]);
+
+      final s = ShiftSingleton4.getCurrentHiveShift()!.salesSummary!;
+      expect(s.uzCard, 150000); // 50 000 Uzcard + 70 000 + 30 000 YagonaQr
+      expect(s.humoCard, 20000);
+      // "Plastik" (X hisobot ekrani va chop etiladigan "Пластик").
+      expect((s.uzCard ?? 0) + (s.humoCard ?? 0), 170000);
+      expect(s.card, 170000);
+      expect(s.cash, 30000);
+      expect(s.other, 0); // alohida qator / "Other" ga tushmaydi
+      expect(s.grossSales, 200000);
+    });
+
+    test('nom normallashmagan eski chek: "YagonaQr" (registr farqi) — baribir Plastik',
+        () {
+      final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+      box.removeAll();
+      box.put(receiptOf(
+          [row(realPrice: 40000)], [p('YagonaQr', 'pay-yagona', 40000)]));
+
+      final s = ShiftSingleton4.getCurrentHiveShift()!.salesSummary!;
+      expect(s.uzCard, 40000); // switch nomni kichik harfga o'giradi
+      expect(s.card, 40000);
+      expect(s.other, 0);
+    });
+
+    test('nom normallashmagan, bo\'sh joyli ("Yagona QR") — "Other", lekin karta jamida',
+        () {
+      final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+      box.removeAll();
+      box.put(receiptOf(
+          [row(realPrice: 40000)], [p('Yagona QR', 'pay-yagona', 40000)]));
+
+      final s = ShiftSingleton4.getCurrentHiveShift()!.salesSummary!;
+      expect(s.other, 40000);
+      expect(s.uzCard, 0);
+      expect(s.card, 40000);
+      expect(s.grossSales, 40000);
+    });
+  });
+}
+```
+
+</details>
+
+## 7. Tekshirish
+
+- To'liq to'plam (`ayyubxon` 3af900f + shu commit): **2003 o'tdi, 7 skip** (3 tasi smena testi — ObjectBox kutubxonasiz). Mac build'idagi `ObjectBox.framework` vaqtincha `libobjectbox.dylib` qilib qo'yilganda smena testi 3/3.
+- `flutter analyze` — yangi ogohlantirish yo'q.
+- Jonli sinov kutilmoqda: adminkada YagonaQr (lotin harflarida, nomida "yagonaqr"), Apps'da yoqish → kassada "Ma'lumotlarni yangilash" → tugma → naqd + YagonaQr → fiskal chekda karta, adminkada "YagonaQr", X hisobotda "Plastik"; Apps'da o'chirish → tugma yo'qoladi.
+
+## 8. Eslatmalar va ochiq savollar
+
+- **Odoo MD dan farqlar:**
+  1. Fiskal shox `saleOnOFD` siklida emas, `FiscalPaymentSplit.of` da (qog'oz chek QQS'i ham shu qoidadan).
+  2. MD 4.8 (`_lineKind`, `credit_alone_rule`) — InVan'da yo'q, o'tkazildi.
+  3. `isName`: MD `[\s_\-]` ni olib tashlaydi; bu yerda harfdan boshqa hamma belgi (`[^a-z]`) — foydalanuvchi: "har xil yaratilishi mumkin, muhimi bitta bo'ladi".
+  4. Qo'shimcha: `_restoreYagonaQrId` (Shorebird patch'dan oldin yuklangan kassada id tiklanadi).
+  5. Qo'shimcha: tugma `isAdded == true` bo'lsagina; Apps yoqish/o'chirish (WS type 40) — qutida tur avval id bo'yicha.
+  6. `CardType` 2 faqat summa haqiqatan yozilganda (to'liq to'langan chekda adashib bosilsa naqd chekka 2 ketmasin).
+- Yangi to'lov turi kassaga faqat aktivatsiya yoki "Ma'lumotlarni yangilash" (tashkilot) bilan keladi — WS type 40 mavjud turni yoqadi/o'chiradi, yangisini qo'shmaydi.
+- Chop etiladigan smena hisobotida YagonaQr "Пластик" ostidagi "Uzcard" qatoriga qo'shiladi.
+- Tanilmaydigan nomlar: kirillcha ("ЯГОНА QR"), "qr" siz ("Yagona"). Admin YagonaQr ni `name: 'CARD'` bilan yaratsa haqiqiy karta id'sini egallaydi — backend'da nom o'zgartiriladi.
+- Vozvrat o'zgarmagan (hammasi naqd). Hisobotda alohida qator — talab qilinmagan.
+- Odoo forkiga: **kerak emas** — Odoo'dan kelgan; ixtiyoriy: id tiklash, Apps toggle id bo'yicha, keng `isName`.
 
 ---
 
