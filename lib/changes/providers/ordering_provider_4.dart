@@ -2472,7 +2472,9 @@ class OrderingProvider4 extends ChangeNotifier {
           if (isApproved) {
             allPaymentType(payment);
             controller.text = '0';
-            final paymentInfo = parseTerminalReceipt(asString2);
+            // Chekda topilmagan maydon (karta raqami, RRN) — shu operatsiya logidan.
+            final paymentInfo = TerminalReceiptParser.parseTerminalResult(
+                receipt: asString2, log: asString);
             _lastRRN = paymentInfo['rrn'] ?? '';
             _lastCardNumber = paymentInfo['cardNumber'] ?? '';
             _lastCardType = Pref.getInt('card_type', 2);
@@ -2576,7 +2578,9 @@ class OrderingProvider4 extends ChangeNotifier {
               value: payment.value,
             ));
             controller.text = '0';
-            final paymentInfo = parseTerminalReceipt(asString2);
+            // Chekda topilmagan maydon (karta raqami, RRN) — shu operatsiya logidan.
+            final paymentInfo = TerminalReceiptParser.parseTerminalResult(
+                receipt: asString2, log: asString);
             _lastRRN = paymentInfo['rrn'] ?? '';
             _lastCardNumber = paymentInfo['cardNumber'] ?? '';
             _lastCardType = Pref.getInt('card_type', 2);
