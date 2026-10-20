@@ -1,7 +1,7 @@
 # Port hujjati: BHM taskidan boshlab qilingan barcha o'zgarishlar
 
 **Manba loyiha:** InVan 2 POS — `pos-invan-2`, branch `ayyubxon`, versiya `1.1.2+129` (2026-10-02)
-**Hujjat holati:** 2026-10-09 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch)
+**Hujjat holati:** 2026-10-20 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch; 14-task — commit bor, relizda emas)
 **Kimga:** shu loyihaning boshqa nusxasini (boshqa ERP bilan integratsiya qilinayotgan nusxa — "InVan 1") InVan 2 bilan bir xil holatga keltiradigan dasturchi yoki Claude.
 
 ## Bu hujjat nima
@@ -36,6 +36,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 11 | 2026-10-02 | Smena navbati FIFO: server/internet yo'qligida har ochish/yopish serverga tartib bilan | **1.1.2+129** | Relizda; Mac + jonli dev API'da sinalgan, Windows sinovi kutilmoqda | `a24d0c9` |
 | 12 | 2026-10-02 | Shorebird build/patch olingani Telegram kanalga hisobot | **1.1.2+129** | Relizda; Mac sinov relizida kanalga yetgani tasdiqlangan | `f21c8d8` (+ `40bc8c2`) |
 | 13 | 2026-10-09 | Ko'p olsa narx OSHADIGAN pog'ona Buy X Get Y aksiyasida yo'qolardi (1-talikka tushardi); `onePrice` = `finalPrice(1)`; type 13 parse | 1.1.2+129 (Shorebird patch) | Commit bor; Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `65dc7ef` |
+| 14 | 2026-10-20 | Arcus2 terminal: faqat shu operatsiya log/chekiga ishonish (999 da pulsiz "ОДОБРЕНО" yopildi), `Одобрено`/TezQR tasdiq (`STORERC`), Uzcard + Humo INI profillari (Odoo forkidan) | relizda emas | Commit bor; Odoo forkida real terminalda sinalgan, InVan 2 Windows sinovi kutilmoqda | `4689618` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -87,6 +88,7 @@ e5ba429 2026-10-02 fix(fiskal): elektron to'lov ID'lari chekda (ObjectBox +1)   
 7b3d01b 2026-10-02 merge: fix/smena-navbat-fifo → ayyubxon (8, 9, 11, 12-task)
 c4e42e1 2026-10-02 release: 1.1.2+129                                                       (port qilinmaydi)
 65dc7ef 2026-10-09 fix(narx): ko'p olsa narx OSHADIGAN pog'ona BXGY'da yo'qolmasin         ← 13-task
+4689618 2026-10-20 fix(terminal): Arcus2 — faqat shu operatsiya natijasi, Одобрено/QR, profil ← 14-task
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -22834,6 +22836,752 @@ void main() {
 - Sweep paytida topilgan boshqa (pog'onaga bog'liq emas) bug: utsenka QR qatori `isPriceOnlyChanged` bo'lgani uchun uning chegirmali narxi shu mahsulotning keyingi oddiy skanlariga tarqaladi (`applyExistingManualPrice`).
 - Chegirmali mijoz tanlangan qatorda OPD orqali son o'zgartirilsa qator "qo'lda narx" bo'lib qotadi (pog'ona almashmaydi, mijoz chegirmasi yo'qoladi) — alohida task.
 - Odoo forkiga: **kerak** — savat/diskont mantig'idagi bug fix.
+
+---
+
+# 14-TASK — Arcus2 karta terminali: faqat shu operatsiya natijasiga ishonish, "Одобрено"/QR tasdiq, Uzcard + Humo profillari (relizda emas)
+
+> **Commit:** `4689618` (2026-10-20), branch `fix/arcus-terminal` → `ayyubxon`. Reliz: hali yo'q (Shorebird patch bilan chiqsa bo'ladi — faqat Dart kodi).
+> **Manba:** Odoo forki (`odoo-pos-invan-2-ayyubxon`) — u yerda real terminallarda (SKappay, PAX, TezQR) sinalgan va ishlagan; InVan 2 ga 1:1 ko'chirildi (bitta farq — 8-bo'lim).
+> **Sessiya hujjati:** docs/sessions/2026-10-20-arcus-terminal-tuzatishlari.md
+> **Holat 2026-10-20:** commit bor; testlar o'tdi; InVan 2 ning o'zida Windows kassa + terminal sinovi kutilmoqda.
+
+## 1. Nima va nima uchun
+
+Karta to'lovi `C:\Arcus2\CommandLineTool\bin\CommandLineTool.exe /o1 /a<tiyin> /c860` orqali qilinadi; natija `C:\Arcus2\Logs\*.log` va `C:\Arcus2\cheq.out` dan o'qiladi (`OrderingProvider4.typeUzcard()` / `typeHumo()`).
+
+| # | Muammo | Belgisi | Tuzatish |
+|---|---|---|---|
+| 1 | Yangi terminal (SKappay) tasdiqni `Одобрено` deb kichik harfda yozadi; kod faqat `ОДОБРЕНО` ni qidirardi | Pul yechildi, dastur "To'lov amalga oshmadi" dedi | `TerminalReceiptParser.isTerminalApproved()` — javob kodi `STORERC:000` bo'yicha, bo'lmasa harf katta-kichikligiga qaramay matn |
+| 2 | QR (TezQR / UzQR) to'lovda terminal `STORERC:` ni **bo'sh** yuboradi | QR bilan to'landi, dastur xato dedi | Regex faqat shu qatordagi raqamni oladi (`[ \t]*`, `\s*` emas); bo'sh kod bo'lsa matnga qaraladi |
+| 3 | **XAVFLI:** Arcus2 ishga tushmasa (INI papkasi yo'q, kod 999) yangi log yozilmaydi; kod `Logs` dagi **oxirgi eski** logni va eski `cheq.out` ni o'qirdi | Terminalga so'rov bormasdan "ОДОБРЕНО" chiqdi, eski chek chop etildi, savdo pulsiz yozildi | `ArcusResultReader` — faqat operatsiya boshlangandan keyin yozilgan log/chekka ishonadi |
+| 4 | Bir kompyuterda ikki terminal (Uzcard + Humo), Arcus2 esa bitta sozlama papkasini o'qiydi | Ikkinchi terminal ishlamaydi | `ArcusProfile` — to'lovdan oldin `INI-uzcard` yoki `INI-humo` fayllari `C:\Arcus2\INI` ga ko'chiriladi |
+
+QR to'lov fiskal chekka **karta** (`ReceivedCard`) sifatida ketadi — kod o'zgarishi kerak emas: QR ham "Plastik Karta" → Uzcard/Humo tugmasi orqali o'tadi, `FiscalPaymentSplit.of` (`receipt_vat.dart`, 5-task) UZCARD/HUMO nomli yoki `PrefKeys.cardId` li to'lovni `card` ga qo'shadi.
+
+## 2. Qanday ishlaydi
+
+Tartib (ikkala metodda): `ArcusProfile.activate(terminal)` → `ArcusResultReader.markStart()` → `CommandLineTool` → `ArcusResultReader.read(startedAt)` → `isApproved = isFresh && isTerminalApproved(log)`.
+
+| Holat | Eski | Yangi |
+|---|---|---|
+| Karta, `STORERC:000` + "Одобрено" | rad ("To'lov amalga oshmadi") | tasdiq |
+| TezQR, `STORERC:` bo'sh + "Одобрено" | rad | tasdiq |
+| `STORERC:051` + matnda "Одобрено" | tasdiq (matn bo'yicha) | rad (kod ustun) |
+| Arcus2 ishga tushmadi (999), Logs da oldingi muvaffaqiyatli log | **tasdiq + eski chek chop etiladi** | rad; xato dialogida "Terminal yoki bank bilan aloqa yo'q" (log matnida `НЕТ СВЯЗИ`) |
+| Log yangi, `cheq.out` eski | eski chek chop etilardi | chek bo'sh |
+| `INI-uzcard`/`INI-humo` yo'q (bitta terminal) | — | `INI` ga tegilmaydi (eski xatti-harakat) |
+| Profil papkasi bo'sh / ko'chirib bo'lmadi | — | snackbar xato, to'lov boshlanmaydi |
+
+Arcus2 `IniPath` reyestrda doim `C:\Arcus2\INI\` bo'lib qoladi — sotuvchining `ChangeIniPathHumo.bat` / `ChangeIniPathUzcard.bat` usuli (reyestrni o'zgartirish) har to'lovda administrator huquqi talab qiladi, shuning uchun ishlatilmadi.
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/domain/terminal/terminal_receipt_parser.dart` | o'zgargan | `static bool isTerminalApproved(String log)` qo'shildi (`terminalErrorMessage` dan oldin) |
+| `lib/changes/services/payment/arcus_result_reader.dart` | YANGI | `ArcusRunResult`, `ArcusResultReader.markStart()` / `read()` |
+| `lib/changes/services/payment/arcus_profile.dart` | YANGI | `enum ArcusTerminal { uzcard, humo }`, `ArcusProfile.activate()` |
+| `lib/changes/providers/ordering_provider_4.dart` | o'zgargan | `typeUzcard()` / `typeHumo()`: log o'qish + tasdiq qismi; ishlatilmay qolgan `dart:io`, `windows1251`, `package:file/local.dart`, `fs` olib tashlandi |
+| `test/terminal_approval_test.dart` | YANGI | 9 test — real SKappay/TezQR loglari |
+| `test/arcus_result_reader_test.dart` | YANGI | 4 test — eski log/chekka ishonmaslik |
+| `test/arcus_profile_test.dart` | YANGI | 3 test — INI profillarini almashtirish |
+
+## 4. Bog'liqliklar
+
+- `TerminalReceiptParser` — InVan 2 da `OrderingProvider4` dan ajratilgan (2026-08-05). InVan 1 da bo'lmasa (parser provider ichida bo'lsa) — `lib/changes/domain/terminal/terminal_receipt_parser.dart` ni faqat `isTerminalApproved` bilan yarating.
+- `showTerminalErrorDialog` / `terminalErrorMessage` — mavjud bo'lishi kerak (xato dialogi "НЕТ СВЯЗИ" ni tushunarli xabarga o'giradi). Bo'lmasa — eski xato ko'rsatish usuli qoladi, `arcus.log` matni baribir tushuntiradi.
+- Paketlar: `windows1251` (allaqachon bor), `shell` (allaqachon bor). Yangi paket yo'q, `pubspec` o'zgarmaydi.
+
+## 5. Qo'llash tartibi
+
+1. Joylarni toping: `grep -rn "isApproved\|isApprovedH\|ОДОБРЕНО\|TASDIQLANDI" lib --include='*.dart'`.
+2. `isTerminalApproved()` ni qo'shing (6.1, birinchi hunk). Regexda `\t` haqiqiy TAB bo'lib qolmasin (`od -c` / `cat -A` bilan tekshiring).
+3. `arcus_result_reader.dart` (6.2) va `arcus_profile.dart` (6.3) ni yarating.
+4. `typeUzcard()` / `typeHumo()` ni 6.1 dagi diff bo'yicha o'zgartiring (Humo da o'zgaruvchi `isApprovedH`). `.then` blokining qolgan qismi (`allPaymentType`, `printHumoRecipts`, `showTerminalErrorDialog`, `.catchError`) o'zgarmaydi.
+5. Analyzer "unused" degan importlarni olib tashlang (odatda `dart:io`, `windows1251`, `package:file/local.dart` va `const fs = ...`) — **faqat** analyzer aytsa.
+6. Testlar (6.4–6.6), `flutter test`.
+7. Kassa sozlamasi (kod emas): ikki terminalli kassada `C:\Arcus2\INI-uzcard\` va `C:\Arcus2\INI-humo\` (`cashreg.ini` faqat `PORT=` bilan farq qiladi, `ops.ini`, `rc_res.ini`). Sotuvchining `.bat` fayllarini ishga tushirmang.
+
+## 6. Kod
+
+### 6.1. Diff (`git show 4689618 -- lib/changes/domain/terminal/ lib/changes/providers/`)
+
+```diff
+diff --git a/lib/changes/domain/terminal/terminal_receipt_parser.dart b/lib/changes/domain/terminal/terminal_receipt_parser.dart
+index a84823c..c5b54a6 100644
+--- a/lib/changes/domain/terminal/terminal_receipt_parser.dart
++++ b/lib/changes/domain/terminal/terminal_receipt_parser.dart
+@@ -3,7 +3,7 @@
+ // Sof funksiyalar: holatga, Hive'ga, tarmoqqa yoki Flutter'ga bog'liq emas.
+ // OrderingProvider4 dan ajratildi (2026-08-05) — tanalar o'zgartirilmadi.
+ //
+-// Testlar: test/terminal_receipt_test.dart
++// Testlar: test/terminal_receipt_test.dart, test/terminal_approval_test.dart
+ 
+ class TerminalReceiptParser {
+   const TerminalReceiptParser._();
+@@ -79,6 +79,35 @@ class TerminalReceiptParser {
+     };
+   }
+ 
++  /// Arcus logi bo'yicha terminal to'lovni tasdiqlaganmi.
++  ///
++  /// 1) Agar logda terminal javob kodi (`RECV <- STORERC:NNN`) bo'lsa — faqat
++  ///    shu kod hal qiladi: 0 (masalan `000`) = tasdiqlandi, boshqasi = rad.
++  /// 2) Kod bo'lmasa yoki bo'sh bo'lsa (QR to'lov) — chek matnidagi
++  ///    "ОДОБРЕНО"/"TASDIQLANDI" so'zi harf katta-kichikligiga qaramay
++  ///    qidiriladi ("НЕ ОДОБРЕНО" bundan mustasno). Yangi terminallar
++  ///    (SKappay) "Одобрено" deb yozadi.
++  ///
++  /// rc.out fayliga tayanilmaydi: ulanish xatosida u yangilanmasligi va
++  /// oldingi muvaffaqiyatli to'lovning `000` kodi qolib ketishi mumkin.
++  static bool isTerminalApproved(String log) {
++    // Faqat shu qatordagi raqamlar: QR (TezQR) to'lovda terminal kodni bo'sh
++    // yuboradi ("STORERC:") — keyingi qatordagi sanani kod deb olmaslik kerak.
++    final rcMatches = RegExp(r'STORERC:[ \t]*(\d*)').allMatches(log);
++    if (rcMatches.isNotEmpty) {
++      final code = int.tryParse(rcMatches.last.group(1) ?? '');
++      if (code != null) return code == 0;
++    }
++
++    final text = log.toUpperCase();
++    if (text.contains('НЕ ОДОБРЕНО') || text.contains('НЕОДОБРЕНО')) {
++      return false;
++    }
++    return text.contains('ОДОБРЕНО') ||
++        text.contains('TASDIQLANDI') ||
++        (text.contains('ОДО') && text.contains('РЕНО'));
++  }
++
+   /// Terminal (Arcus) javobidagi (log + chek) tanish xato sabablarini
+   /// tushunarli xabarga o'giradi. Topilmasa bo'sh string qaytaradi.
+   static String terminalErrorMessage(String log, String receipt, bool isUz) {
+diff --git a/lib/changes/providers/ordering_provider_4.dart b/lib/changes/providers/ordering_provider_4.dart
+index e98a874..3336c39 100644
+--- a/lib/changes/providers/ordering_provider_4.dart
++++ b/lib/changes/providers/ordering_provider_4.dart
+@@ -1,5 +1,4 @@
+ import 'dart:convert';
+-import 'dart:io';
+ import 'package:collection/collection.dart';
+ import 'package:flutter/cupertino.dart';
+ import 'package:flutter/foundation.dart';
+@@ -45,6 +44,8 @@ import 'package:invan2/changes/domain/marking/mark_validator.dart';
+ import 'package:invan2/changes/domain/marking/marked_cart.dart';
+ import 'package:invan2/changes/domain/marking/mxik_rules.dart';
+ import 'package:invan2/changes/domain/terminal/terminal_receipt_parser.dart';
++import 'package:invan2/changes/services/payment/arcus_profile.dart';
++import 'package:invan2/changes/services/payment/arcus_result_reader.dart';
+ import 'package:invan2/changes/models/ofd/epos_response_model.dart';
+ import 'package:invan2/changes/models/ofd/incom_response_model.dart';
+ import 'package:invan2/changes/models/ofd/payment_result_model.dart';
+@@ -73,8 +74,6 @@ import 'package:invan2/utils/utils.dart';
+ import 'package:invan2/widgets/my_snackbar.dart';
+ import 'package:provider/provider.dart';
+ import 'package:shell/shell.dart';
+-import 'package:windows1251/windows1251.dart';
+-import 'package:file/local.dart' as fl;
+ import '../../alice_service.dart';
+ import '../services/discount_service.dart';
+ import '../../features/home/features/operation_on_product/operation_on_product.dart';
+@@ -2417,7 +2416,6 @@ class OrderingProvider4 extends ChangeNotifier {
+             : available - currentPaymentValue)
+         : available - currentPaymentValue;
+ 
+-    const fs = fl.LocalFileSystem();
+     final shell = Shell();
+ 
+     if (!(Pref.getBool(PrefKeys.isUzcardEnabled, false))) {
+@@ -2430,27 +2428,27 @@ class OrderingProvider4 extends ChangeNotifier {
+     if (summa > 0) {
+       String summaAsString = summa.toStringAsFixed(2);
+       summaAsString = (double.parse(summaAsString) * 100).round().toString();
++      // Ikki terminal: kerakli Arcus2 sozlamasini (INI-uzcard) faollashtiramiz.
++      final profileError = await ArcusProfile.activate(ArcusTerminal.uzcard);
++      if (profileError != null) {
++        ScaffoldMessenger.of(context)
++            .showSnackBar(mySnackBar(context, msg: profileError));
++        return;
++      }
++      final arcusStartedAt = ArcusResultReader.markStart();
+       await shell.startAndReadAsString(
+         'C:/Arcus2/CommandLineTool/bin/CommandLineTool.exe',
+         arguments: ['/o1', '/a$summaAsString', '/c860'],
+       ).then(
+         (value) async {
+-          var logsDirectory = fs.directory('C:\\Arcus2\\Logs\\');
+-          var log = await logsDirectory
+-              .list(recursive: true, followLinks: false)
+-              .last;
+-          final file = File(log.path);
+-          var data = await file.readAsBytes();
+-          String asString = windows1251.decode(data);
+-          var receiptDirectory = fs.directory('C:\\Arcus2\\cheq.out');
+-          final file2 = File(receiptDirectory.path);
+-          var data2 = await file2.readAsBytes();
+-          String asString2 = windows1251.decode(data2);
+-
+-          final bool isApproved =
+-              asString.contains("ОДО") && asString.contains("РЕНО") ||
+-                  asString.contains("ОДОБРЕНО") ||
+-                  asString.contains("TASDIQLANDI");
++          // Faqat shu operatsiyada yozilgan log/chekka ishonamiz — Arcus2
++          // ishga tushmasa eski muvaffaqiyatli to'lov qayta "tasdiqlanmasin".
++          final arcus = await ArcusResultReader.read(startedAt: arcusStartedAt);
++          final String asString = arcus.log;
++          final String asString2 = arcus.receipt;
++
++          final bool isApproved = arcus.isFresh &&
++              TerminalReceiptParser.isTerminalApproved(asString);
+ 
+           if (isApproved) {
+             allPaymentType(payment);
+@@ -2496,7 +2494,6 @@ class OrderingProvider4 extends ChangeNotifier {
+             : available - currentPaymentValue)
+         : available - currentPaymentValue;
+ 
+-    const fs = fl.LocalFileSystem();
+     final shell = Shell();
+ 
+     if (!(Pref.getBool(PrefKeys.isHumoEnabled, false))) {
+@@ -2522,27 +2519,27 @@ class OrderingProvider4 extends ChangeNotifier {
+     if (summa > 0) {
+       String summaAsString = summa.toStringAsFixed(2);
+       summaAsString = (double.parse(summaAsString) * 100).round().toString();
++      // Ikki terminal: kerakli Arcus2 sozlamasini (INI-humo) faollashtiramiz.
++      final profileError = await ArcusProfile.activate(ArcusTerminal.humo);
++      if (profileError != null) {
++        ScaffoldMessenger.of(context)
++            .showSnackBar(mySnackBar(context, msg: profileError));
++        return;
++      }
++      final arcusStartedAt = ArcusResultReader.markStart();
+       await shell.startAndReadAsString(
+         'C:/Arcus2/CommandLineTool/bin/CommandLineTool.exe',
+         arguments: ['/o1', '/a$summaAsString', '/c860'],
+       ).then(
+         (value) async {
+-          var logsDirectory = fs.directory('C:\\Arcus2\\Logs\\');
+-          var log = await logsDirectory
+-              .list(recursive: true, followLinks: false)
+-              .last;
+-          final file = File(log.path);
+-          var data = await file.readAsBytes();
+-          String asString = windows1251.decode(data);
+-          var reciptDirectory = fs.directory('C:\\Arcus2\\cheq.out');
+-          final file2 = File(reciptDirectory.path);
+-          var data2 = await file2.readAsBytes();
+-          String asString2 = windows1251.decode(data2);
+-
+-          final bool isApprovedH =
+-              asString.contains("ОДО") && asString.contains("РЕНО") ||
+-                  asString.contains("ОДОБРЕНО") ||
+-                  asString.contains("TASDIQLANDI");
++          // Faqat shu operatsiyada yozilgan log/chekka ishonamiz — Arcus2
++          // ishga tushmasa eski muvaffaqiyatli to'lov qayta "tasdiqlanmasin".
++          final arcus = await ArcusResultReader.read(startedAt: arcusStartedAt);
++          final String asString = arcus.log;
++          final String asString2 = arcus.receipt;
++
++          final bool isApprovedH = arcus.isFresh &&
++              TerminalReceiptParser.isTerminalApproved(asString);
+ 
+           if (isApprovedH) {
+             allPaymentType(Payment(
+```
+
+### 6.2. YANGI: `lib/changes/services/payment/arcus_result_reader.dart`
+
+```dart
+// Arcus2 (karta terminali) natijasini o'qish — faqat SHU operatsiyaga tegishli
+// fayllarga ishonadi.
+//
+// Sabab (2026-10-20): Arcus2 INI papkasi topilmay, 999 bilan darhol chiqib
+// ketganda yangi log/cheq.out yozilmadi. Eski kod `Logs` dagi oxirgi faylni va
+// eski `cheq.out` ni o'qib, oldingi muvaffaqiyatli to'lovni yangi to'lov deb
+// qabul qildi: terminalga so'rov bormasdan "ОДОБРЕНО" chiqdi va eski chek
+// chop etildi. Endi fayl operatsiya boshlangandan keyin yozilgan bo'lishi shart.
+//
+// Yo'l ajratgichi `Platform.pathSeparator`: Windows'da `\` (avvalgidek
+// `C:\Arcus2\Logs`), testlar macOS/Linux'da ham to'g'ri papkaga yozadi.
+
+import 'dart:io';
+
+import 'package:windows1251/windows1251.dart';
+
+class ArcusRunResult {
+  /// Shu operatsiya logi; yangi log bo'lmasa — tushuntirish matni.
+  final String log;
+
+  /// Shu operatsiya cheq.out matni; yangi bo'lmasa — bo'sh.
+  final String receipt;
+
+  /// Log shu operatsiya davomida yozilganmi. `false` bo'lsa natijaga
+  /// ishonib bo'lmaydi — to'lov tasdiqlangan deb hisoblanmasligi kerak.
+  final bool isFresh;
+
+  const ArcusRunResult({
+    required this.log,
+    required this.receipt,
+    required this.isFresh,
+  });
+}
+
+class ArcusResultReader {
+  const ArcusResultReader._();
+
+  static const String defaultDir = r'C:\Arcus2';
+
+  /// Fayl vaqti tizim soati bilan bir xil manbadan, lekin yaxlitlash
+  /// (FAT/NTFS) farqi uchun kichik zaxira.
+  static const Duration _tolerance = Duration(seconds: 2);
+
+  static final String _sep = Platform.pathSeparator;
+
+  /// Operatsiyani boshlashdan OLDIN chaqiriladi.
+  static DateTime markStart() => DateTime.now();
+
+  /// [startedAt] dan keyin yozilgan eng yangi log va cheq.out ni o'qiydi.
+  static Future<ArcusRunResult> read({
+    required DateTime startedAt,
+    String arcusDir = defaultDir,
+  }) async {
+    final threshold = startedAt.subtract(_tolerance);
+
+    File? newestLog;
+    DateTime? newestTime;
+    final logsDir = Directory('$arcusDir${_sep}Logs');
+    if (await logsDir.exists()) {
+      await for (final e in logsDir.list(recursive: true, followLinks: false)) {
+        if (e is! File) continue;
+        final t = (await e.stat()).modified;
+        if (newestTime == null || t.isAfter(newestTime)) {
+          newestTime = t;
+          newestLog = e;
+        }
+      }
+    }
+
+    final bool logFresh = newestLog != null && !newestTime!.isBefore(threshold);
+
+    if (!logFresh) {
+      final rc = await _readOutputRc(arcusDir);
+      return ArcusRunResult(
+        log: 'Arcus2 bu operatsiya uchun log yozmadi'
+            '${rc.isNotEmpty ? ' (kod: $rc)' : ''}.\n'
+            'Arcus2 ishga tushmadi yoki sozlama (INI) topilmadi.\n'
+            'Terminalga so\'rov yuborilmadi.\n'
+            'Arcus2 не записал лог этой операции. НЕТ СВЯЗИ С ПИН-ПАДОМ',
+        receipt: '',
+        isFresh: false,
+      );
+    }
+
+    final log = windows1251.decode(await newestLog.readAsBytes());
+
+    String receipt = '';
+    final cheq = File('$arcusDir${_sep}cheq.out');
+    if (await cheq.exists()) {
+      final t = (await cheq.stat()).modified;
+      if (!t.isBefore(threshold)) {
+        receipt = windows1251.decode(await cheq.readAsBytes());
+      }
+    }
+
+    return ArcusRunResult(log: log, receipt: receipt, isFresh: true);
+  }
+
+  /// output.dat ning birinchi qatori — Arcus javob kodi (masalan 999).
+  static Future<String> _readOutputRc(String arcusDir) async {
+    try {
+      final f = File('$arcusDir${_sep}output.dat');
+      if (!await f.exists()) return '';
+      final lines = windows1251.decode(await f.readAsBytes()).split('\n');
+      return lines.isEmpty ? '' : lines.first.trim();
+    } catch (_) {
+      return '';
+    }
+  }
+}
+```
+
+### 6.3. YANGI: `lib/changes/services/payment/arcus_profile.dart`
+
+```dart
+// Bir kompyuterda ikki karta terminali (Uzcard + Humo) — Arcus2 profillari.
+//
+// Arcus2 CommandLineTool sozlamani faqat `C:\Arcus2\INI` dan o'qiydi, INI
+// yo'lini beradigan parametr yo'q (ARCUS2.1 admin qo'llanmasi, 1_4_1).
+// Shuning uchun har terminal uchun alohida papka saqlanadi:
+//   C:\Arcus2\INI-uzcard\  (masalan PORT=COM9)
+//   C:\Arcus2\INI-humo\    (masalan PORT=COM6)
+// va to'lovdan OLDIN kerakli papka fayllari `C:\Arcus2\INI` ga ko'chiriladi.
+//
+// Profil papkasi bo'lmasa (bitta terminalli oddiy o'rnatish) — `INI` ga
+// tegilmaydi, eski xatti-harakat saqlanadi.
+//
+// Yo'l ajratgichi `Platform.pathSeparator` — Windows'da `\`, testlarda `/`.
+
+import 'dart:io';
+
+enum ArcusTerminal { uzcard, humo }
+
+class ArcusProfile {
+  const ArcusProfile._();
+
+  static const String defaultDir = r'C:\Arcus2';
+
+  static final String _sep = Platform.pathSeparator;
+
+  static String profileDirName(ArcusTerminal t) => 'INI-${t.name}';
+
+  /// [t] terminal sozlamasini faollashtiradi.
+  ///
+  /// Muvaffaqiyatli bo'lsa yoki profil papkasi yo'q bo'lsa `null` qaytaradi.
+  /// Ko'chirib bo'lmasa — kassirga ko'rsatiladigan xato matni (bu holda
+  /// to'lovni boshlamaslik kerak: noto'g'ri terminalga so'rov ketishi mumkin).
+  static Future<String?> activate(
+    ArcusTerminal t, {
+    String arcusDir = defaultDir,
+  }) async {
+    final src = Directory('$arcusDir$_sep${profileDirName(t)}');
+    if (!await src.exists()) return null;
+
+    final dst = Directory('$arcusDir${_sep}INI');
+    try {
+      if (!await dst.exists()) await dst.create(recursive: true);
+      var copied = 0;
+      await for (final e in src.list(followLinks: false)) {
+        if (e is! File) continue;
+        final name = e.uri.pathSegments.last;
+        await e.copy('${dst.path}$_sep$name');
+        copied++;
+      }
+      if (copied == 0) {
+        return '${src.path} papkasi bo\'sh — terminal sozlamasi topilmadi.';
+      }
+      return null;
+    } catch (e) {
+      return 'Terminal sozlamasini (${profileDirName(t)}) faollashtirib '
+          'bo\'lmadi: $e';
+    }
+  }
+}
+```
+
+### 6.4. YANGI: `test/terminal_approval_test.dart`
+
+<details>
+<summary>9 test — ochish</summary>
+
+```dart
+// Terminal (Arcus) to'lov tasdiqini aniqlash — TerminalReceiptParser.isTerminalApproved.
+//
+// Sabab: 2026-10-20 da SKappay terminali (UZCARD, 100 so'm) "Одобрено" deb
+// kichik harflarda yozdi, eski tekshiruv faqat "ОДОБРЕНО" ni qidirgani uchun
+// pul yechilgan bo'lsa ham dastur "To'lov amalga oshmadi" dedi.
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/domain/terminal/terminal_receipt_parser.dart';
+
+bool approved(String log) => TerminalReceiptParser.isTerminalApproved(log);
+
+void main() {
+  group('isTerminalApproved', () {
+    test('SKappay: STORERC:000 va "Одобрено" (haqiqiy log) — tasdiqlandi', () {
+      const log = '''
+2026/10/20 13:02:09 SEND -> 11860100.00
+2026/10/20 13:02:09 RECV <- GETTAGS:
+2026/10/20 13:02:14 ERROR: recive message: empty
+2026/10/20 13:02:14 SEND -> NAK
+2026/10/20 13:02:15 RECV <- STORERC:000
+2026/10/20 13:02:16 RECV <- PRINT:Тип:                          UZCARD
+2026/10/20 13:02:16 RECV <- PRINT:               Оплата
+2026/10/20 13:02:16 RECV <- PRINT:             100.00 UZS
+2026/10/20 13:02:17 RECV <- PRINT:              Одобрено
+2026/10/20 13:02:17 RECV <- PRINT:          Код ответа:000
+2026/10/20 13:02:17 RECV <- ENDTR
+''';
+      expect(approved(log), isTrue);
+    });
+
+    test('TezQR: STORERC bo\'sh, keyingi qatorda sana, "Одобрено" — tasdiqlandi',
+        () {
+      const log = '''
+2026/10/20 13:19:54 SEND -> NAK
+2026/10/20 13:19:59 RECV <- STORERC:
+2026/10/20 13:19:59 SEND -> OK
+2026/10/20 13:20:00 RECV <- PRINT:Тип:                          Tez QR
+2026/10/20 13:20:01 RECV <- PRINT:          Оплата по TezQR
+2026/10/20 13:20:01 RECV <- PRINT:            100.00  UZS
+2026/10/20 13:20:01 RECV <- PRINT:              Одобрено
+2026/10/20 13:20:01 RECV <- PRINT:Операция подтверждена приложением PA
+2026/10/20 13:20:01 RECV <- ENDTR
+''';
+      expect(approved(log), isTrue);
+    });
+
+    test('STORERC bo\'sh va tasdiq so\'zi yo\'q — rad', () {
+      const log = '''
+2026/10/20 13:19:59 RECV <- STORERC:
+2026/10/20 13:19:59 RECV <- ENDTR
+''';
+      expect(approved(log), isFalse);
+    });
+
+    test('STORERC nolga teng bo\'lmasa — matnda "Одобрено" bo\'lsa ham rad', () {
+      const log = '''
+RECV <- STORERC:051
+RECV <- PRINT:Одобрено
+''';
+      expect(approved(log), isFalse);
+    });
+
+    test('STORERC yo\'q, katta harfli "ОДОБРЕНО" (eski terminal) — tasdiqlandi',
+        () {
+      expect(approved('RECV <- PRINT:      ОДОБРЕНО'), isTrue);
+    });
+
+    test('STORERC yo\'q, "TASDIQLANDI" — tasdiqlandi', () {
+      expect(approved('RECV <- PRINT: TASDIQLANDI'), isTrue);
+    });
+
+    test('"Не одобрено" — rad', () {
+      expect(approved('RECV <- PRINT: Не одобрено'), isFalse);
+    });
+
+    test('ulanish xatosi — rad', () {
+      const log = '''
+2026/10/16 17:33:47 ITPos
+2026/10/16 17:33:48 COM10
+2026/10/16 17:33:48 Connection ERROR
+''';
+      expect(approved(log), isFalse);
+    });
+
+    test('terminal jim (faqat NAK) — rad', () {
+      const log = '''
+SEND -> 11860100.00
+ERROR: recive message: empty
+SEND -> NAK
+''';
+      expect(approved(log), isFalse);
+    });
+  });
+}
+```
+
+</details>
+
+### 6.5. YANGI: `test/arcus_result_reader_test.dart`
+
+<details>
+<summary>4 test — ochish</summary>
+
+```dart
+// ArcusResultReader — eski (oldingi operatsiya) log/chekka ishonmaslik.
+//
+// Sabab: 2026-10-20 da INI papkasi topilmay Arcus2 999 bilan chiqib ketdi,
+// yangi log yozilmadi; eski kod oxirgi muvaffaqiyatli logni o'qib, terminalga
+// so'rov bormasdan "ОДОБРЕНО" dedi va eski chekni chop etdi.
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/domain/terminal/terminal_receipt_parser.dart';
+import 'package:invan2/changes/services/payment/arcus_result_reader.dart';
+import 'package:windows1251/windows1251.dart';
+
+const _approvedLog = '''
+2026/10/20 13:30:15 RECV <- STORERC:000
+2026/10/20 13:30:16 RECV <- PRINT:Одобрено
+2026/10/20 13:30:16 RECV <- ENDTR
+''';
+
+final _sep = Platform.pathSeparator;
+
+void main() {
+  late Directory dir;
+
+  setUp(() async {
+    dir = await Directory.systemTemp.createTemp('arcus_reader_test');
+    await Directory('${dir.path}${_sep}Logs').create();
+  });
+
+  tearDown(() async {
+    if (await dir.exists()) await dir.delete(recursive: true);
+  });
+
+  Future<File> writeCp1251(String name, String text, {DateTime? at}) async {
+    final f = File('${dir.path}$_sep$name');
+    await f.writeAsBytes(windows1251.encode(text));
+    if (at != null) await f.setLastModified(at);
+    return f;
+  }
+
+  test('Arcus2 yangi log yozmasa — eski tasdiqlangan log qabul qilinmaydi',
+      () async {
+    final old = DateTime.now().subtract(const Duration(minutes: 48));
+    await writeCp1251('Logs${_sep}261020133015.log', _approvedLog, at: old);
+    await writeCp1251('cheq.out', 'TASDIQLANDI\nRRN :629308797462', at: old);
+    await writeCp1251('output.dat', '999\n\n\n10000\n860\n');
+
+    final r = await ArcusResultReader.read(
+      startedAt: DateTime.now(),
+      arcusDir: dir.path,
+    );
+
+    expect(r.isFresh, isFalse);
+    expect(r.receipt, isEmpty);
+    expect(r.log, contains('999'));
+    // Provider shartini takrorlaymiz: isFresh && isTerminalApproved.
+    expect(
+        r.isFresh && TerminalReceiptParser.isTerminalApproved(r.log), isFalse);
+  });
+
+  test('operatsiya davomida yozilgan log va chek o\'qiladi', () async {
+    final started = DateTime.now();
+    await writeCp1251('Logs${_sep}old.log', 'eski',
+        at: started.subtract(const Duration(hours: 1)));
+    await writeCp1251('Logs${_sep}new.log', _approvedLog);
+    await writeCp1251('cheq.out', 'Одобрено\nRRN 032150038197');
+
+    final r = await ArcusResultReader.read(
+      startedAt: started,
+      arcusDir: dir.path,
+    );
+
+    expect(r.isFresh, isTrue);
+    expect(r.log, contains('STORERC:000'));
+    expect(r.receipt, contains('032150038197'));
+    expect(TerminalReceiptParser.isTerminalApproved(r.log), isTrue);
+  });
+
+  test('log yangi, lekin cheq.out eski — chek bo\'sh qaytadi', () async {
+    final started = DateTime.now();
+    await writeCp1251('Logs${_sep}new.log', 'Connection ERROR');
+    await writeCp1251('cheq.out', 'eski chek',
+        at: started.subtract(const Duration(hours: 1)));
+
+    final r = await ArcusResultReader.read(
+      startedAt: started,
+      arcusDir: dir.path,
+    );
+
+    expect(r.isFresh, isTrue);
+    expect(r.receipt, isEmpty);
+  });
+
+  test('Logs papkasi umuman yo\'q — isFresh false', () async {
+    await Directory('${dir.path}${_sep}Logs').delete(recursive: true);
+
+    final r = await ArcusResultReader.read(
+      startedAt: DateTime.now(),
+      arcusDir: dir.path,
+    );
+
+    expect(r.isFresh, isFalse);
+  });
+}
+```
+
+</details>
+
+### 6.6. YANGI: `test/arcus_profile_test.dart`
+
+<details>
+<summary>3 test — ochish</summary>
+
+```dart
+// ArcusProfile — bir kompyuterda Uzcard va Humo terminallari uchun
+// INI-uzcard / INI-humo papkalaridan C:\Arcus2\INI ni almashtirish.
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/services/payment/arcus_profile.dart';
+
+final _sep = Platform.pathSeparator;
+
+void main() {
+  late Directory dir;
+
+  setUp(() async {
+    dir = await Directory.systemTemp.createTemp('arcus_profile_test');
+  });
+
+  tearDown(() async {
+    if (await dir.exists()) await dir.delete(recursive: true);
+  });
+
+  Future<void> makeProfile(String name, String port) async {
+    final d = await Directory('${dir.path}$_sep$name').create();
+    await File('${d.path}${_sep}cashreg.ini').writeAsString('PORT=$port\n');
+    await File('${d.path}${_sep}ops.ini').writeAsString('1=1,1,OPLATA\n');
+  }
+
+  String activePort() =>
+      File('${dir.path}${_sep}INI${_sep}cashreg.ini').readAsStringSync().trim();
+
+  test('INI yo\'q bo\'lsa yaratiladi va kerakli profil ko\'chiriladi',
+      () async {
+    await makeProfile('INI-uzcard', 'COM9');
+    await makeProfile('INI-humo', 'COM6');
+
+    expect(await ArcusProfile.activate(ArcusTerminal.humo, arcusDir: dir.path),
+        isNull);
+    expect(activePort(), 'PORT=COM6');
+    expect(File('${dir.path}${_sep}INI${_sep}ops.ini').existsSync(), isTrue);
+
+    expect(
+        await ArcusProfile.activate(ArcusTerminal.uzcard, arcusDir: dir.path),
+        isNull);
+    expect(activePort(), 'PORT=COM9');
+  });
+
+  test('profil papkasi yo\'q (bitta terminal) — INI ga tegilmaydi', () async {
+    final ini = await Directory('${dir.path}${_sep}INI').create();
+    await File('${ini.path}${_sep}cashreg.ini').writeAsString('PORT=COM10\n');
+
+    expect(await ArcusProfile.activate(ArcusTerminal.humo, arcusDir: dir.path),
+        isNull);
+    expect(activePort(), 'PORT=COM10');
+  });
+
+  test('profil papkasi bo\'sh — xato matni qaytadi', () async {
+    await Directory('${dir.path}${_sep}INI-humo').create();
+
+    final err =
+        await ArcusProfile.activate(ArcusTerminal.humo, arcusDir: dir.path);
+    expect(err, isNotNull);
+  });
+}
+```
+
+</details>
+
+## 7. Tekshirish
+
+- `flutter test test/terminal_approval_test.dart test/arcus_result_reader_test.dart test/arcus_profile_test.dart test/terminal_receipt_test.dart` — 36 o'tdi (16 yangi + 20 eski).
+- To'liq to'plam (`ayyubxon` d6c5a7f + shu commit): **1922 o'tdi, 4 skip**, 0 xato.
+- `flutter analyze` — yangi ogohlantirish yo'q.
+- Odoo forkida real terminallarda ishlagan. InVan 2 ning o'zida Windows kassa sinovi kutilmoqda: Uzcard, Humo, TezQR, Arcus2 o'chiq holat (999 → xato dialogi, chek chop etilmasin).
+
+Tashxis jadvali (Arcus2 logi, CP1251):
+
+| Logda | Ma'nosi |
+|---|---|
+| `COMx` + `Connection ERROR` | Port yo'q yoki terminal ulanishga javob bermadi |
+| `RECV <- GETTAGS:` | Terminal so'rovni qabul qildi (port to'g'ri) |
+| `ERROR: recive message: empty` + `SEND -> NAK` (har 5 s) | Terminal jim — karta kutmoqda yoki ECR rejimi o'chiq |
+| `STORERC:000` | Tasdiqlandi (karta) |
+| `STORERC:` (bo'sh) + `Одобрено` | Tasdiqlandi (TezQR/UzQR) |
+| `STORERC:984` | Pin-pad oldingi operatsiya bilan band — terminalda qizil tugma bilan bekor qilish |
+| cheq.out `Код ошибки:999 НЕТ СВЯЗИ С ПИН-ПАДОМ` | Arcus2 terminalga ulana olmadi / INI topilmadi |
+
+## 8. Eslatmalar va ochiq savollar
+
+- **Manbadan yagona farq:** Odoo forkidagi kod yo'llarni `'$arcusDir\\Logs'` bilan yig'adi. InVan 2 da `'$arcusDir${_sep}Logs'` (`_sep = Platform.pathSeparator`). Windows'da natija bir xil (`C:\Arcus2\Logs`); macOS/Linux'da esa `\` fayl nomining bir qismi bo'lgani uchun `\\` varianti bilan 3 test yiqilardi (fayl papka ichiga emas, yoniga yoziladi). InVan 1 ham shu variantni olsin.
+- Qamrovdan tashqari: sozlamalardagi terminal menyusi va balans (`humo_content.dart`: `/o98`, `/o25`) hali oxirgi `cheq.out` ni eski usulda o'qiydi; `shell_page.dart` test tugmalari; 984 ("band") uchun alohida xabar; QR ni hisobotda alohida to'lov turi qilish (biznes qarori).
+- Odoo forkiga: **kerak emas** — tuzatish o'sha yerdan kelgan; faqat `Platform.pathSeparator` farqi ixtiyoriy.
 
 ---
 
