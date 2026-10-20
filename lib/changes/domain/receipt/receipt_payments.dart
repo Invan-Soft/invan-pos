@@ -4,7 +4,7 @@
 // ko'rinishga aylantiriladi. Ikki ish bajariladi:
 //   1. NOM normallashtiriladi — kassa sozlamasidagi to'lov IDsiga qarab
 //      CASH / UZCARD / HUMO / CASHBACK / DEBT / PAYME GO / PAYME QR /
-//      CLICK PASS / CLICK QR / UZUM / UZUM QR
+//      CLICK PASS / CLICK QR / UZUM / UZUM QR / YAGONAQR
 //   2. Naqd qatoridan QAYTIM ayiriladi — kassir 120 000 bergan bo'lsa ham
 //      chekda tovarga ketgan 100 000 turishi kerak
 //
@@ -14,6 +14,7 @@
 //
 // `OrderingProvider4.paymentsMapAsList` dan ajratildi — qoidalar o'zgarmagan.
 
+import 'package:invan2/changes/domain/payment/yagona_qr.dart';
 import 'package:invan2/changes/models/organization_model.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 
@@ -27,6 +28,7 @@ class PaymentIds {
     required this.payme,
     required this.click,
     required this.uzum,
+    this.yagonaQr = '',
   });
 
   final String cash;
@@ -36,6 +38,9 @@ class PaymentIds {
   final String payme;
   final String click;
   final String uzum;
+
+  /// YagonaQr id'si — chekdagi nom 'YAGONAQR'.
+  final String yagonaQr;
 }
 
 class ReceiptPayments {
@@ -73,6 +78,9 @@ class ReceiptPayments {
       if (bare == ids.payme && e.value.type == 1) name = 'PAYME QR';
       if (bare == ids.click && e.value.type == 1) name = 'CLICK QR';
       if (bare == ids.uzum && e.value.type == 1) name = 'UZUM QR';
+      if (ids.yagonaQr.isNotEmpty && bare == ids.yagonaQr) {
+        name = YagonaQr.code;
+      }
 
       paymentValue = double.parse(paymentValue.round().toStringAsFixed(3));
       return ReceiptModelPaymentType4(

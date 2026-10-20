@@ -132,6 +132,10 @@ class PrefKeys {
   static const String paymeId = "paymeId";
   static const String paynetId = "paynetId";
 
+  /// YagonaQr — admin paneldagi alohida to'lov turi id'si (tugma, fiskalda
+  /// karta: ReceivedCard + cardType 2).
+  static const String yagonaQrId = "yagonaQrId";
+
   static const String giftId = "gift_Id";
   static const String debtId = "debt_Id";
   static const String nfcId = "ntf_Id";

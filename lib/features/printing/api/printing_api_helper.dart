@@ -71,6 +71,10 @@ class PrintingApiHelper {
         {
           return "Uzum QR";
         }
+      case 'yagonaqr':
+        {
+          return "YagonaQR";
+        }
       case 'debt':
         {
           return "Qarz";

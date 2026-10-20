@@ -187,6 +187,11 @@ class OrderingProvider4 extends ChangeNotifier {
   String _lastRRN = '';
   String _lastCardNumber = '';
   int _lastCardType = 0;
+
+  /// Chekka (`ReceiptBuilder` → fiskal `ExtraInfo.CardType`) ketadigan karta
+  /// turi — testlar uchun.
+  @visibleForTesting
+  int get lastCardType => _lastCardType;
   final int _amountActions = 0;
   double _newClientPersentageDiscount = 0;
   bool _alcoholWarningShown = false;
@@ -1822,6 +1827,7 @@ class OrderingProvider4 extends ChangeNotifier {
           payme: Pref.getString(PrefKeys.paymeId, ""),
           click: Pref.getString(PrefKeys.clickId, ""),
           uzum: Pref.getString(PrefKeys.uzumId, ""),
+          yagonaQr: Pref.getString(PrefKeys.yagonaQrId, ""),
         ),
         sdacha: _sdachaa,
         zdachaToCashBack: _zdachaToCashBack,
@@ -2393,6 +2399,19 @@ class OrderingProvider4 extends ChangeNotifier {
   }
 
   void _payByAll(double v, Payment payment) => _tally.payByAll(v, payment);
+
+  /// YagonaQr — admin paneldagi alohida to'lov turi. Terminal integratsiyasi
+  /// yo'q: mijoz QR orqali to'laydi, kassir tugma bilan belgilaydi (summa —
+  /// klaviaturadagi yoki qolgan qoldiq, aralash to'lovda ham). Serverga
+  /// YagonaQr id'si bilan ketadi; fiskal chekda karta: ReceivedCard va
+  /// cardType 2 (`FiscalPaymentSplit.of`, `ReceiptSingleton4.saleOnOFD`).
+  void typeYagonaQr(Payment payment) {
+    payment.type = null; // '@' kalit emas — o'z id'si bilan yoziladi
+    allPaymentType(payment);
+    // Summa haqiqatan yozilgan bo'lsagina: to'liq to'langan chekda adashib
+    // bosilsa naqd chekka CardType 2 ketmasin.
+    if (paymentsMap.containsKey(payment.id)) _lastCardType = 2;
+  }
 
   double getAvailableSumma() => _tally.getAvailableSumma();
 

@@ -35,7 +35,8 @@ class Left extends StatelessWidget {
         } else if (key == Pref.getString(PrefKeys.cardId, '') ||
             key.replaceFirst('@', '') == Pref.getString(PrefKeys.cardId, '') ||
             key == Pref.getString(PrefKeys.clickId, '') ||
-            key == Pref.getString(PrefKeys.uzumId, '')) {
+            key == Pref.getString(PrefKeys.uzumId, '') ||
+            key == Pref.getString(PrefKeys.yagonaQrId, '-')) {
           cardAmount += value.value ?? 0;
         }
       },
@@ -525,6 +526,8 @@ class Left extends StatelessWidget {
           return type == 1 ? 'UZUM QR' : 'UZUM';
         } else if (p.id == Pref.getString(PrefKeys.paymeId, "")) {
           return type == 1 ? 'PAYME QR' : 'PAYME GO';
+        } else if (p.id == Pref.getString(PrefKeys.yagonaQrId, "-")) {
+          return 'YagonaQR';
         } else {
           return p.name ?? 'NFC';
         }

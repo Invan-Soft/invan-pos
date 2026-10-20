@@ -549,6 +549,8 @@ class ShiftSingleton4 {
             humoCardPayment += p.value;
             break;
           case 'uzcard':
+          // YagonaQr — fiskalda karta: hisobotda karta (Plastik) ichida.
+          case 'yagonaqr':
             uzCardPayment += p.value;
             break;
           case 'debt':
