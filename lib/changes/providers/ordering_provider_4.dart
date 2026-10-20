@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -45,6 +44,8 @@ import 'package:invan2/changes/domain/marking/mark_validator.dart';
 import 'package:invan2/changes/domain/marking/marked_cart.dart';
 import 'package:invan2/changes/domain/marking/mxik_rules.dart';
 import 'package:invan2/changes/domain/terminal/terminal_receipt_parser.dart';
+import 'package:invan2/changes/services/payment/arcus_profile.dart';
+import 'package:invan2/changes/services/payment/arcus_result_reader.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
 import 'package:invan2/changes/models/ofd/incom_response_model.dart';
 import 'package:invan2/changes/models/ofd/payment_result_model.dart';
@@ -73,8 +74,6 @@ import 'package:invan2/utils/utils.dart';
 import 'package:invan2/widgets/my_snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:shell/shell.dart';
-import 'package:windows1251/windows1251.dart';
-import 'package:file/local.dart' as fl;
 import '../../alice_service.dart';
 import '../services/discount_service.dart';
 import '../../features/home/features/operation_on_product/operation_on_product.dart';
@@ -2417,7 +2416,6 @@ class OrderingProvider4 extends ChangeNotifier {
             : available - currentPaymentValue)
         : available - currentPaymentValue;
 
-    const fs = fl.LocalFileSystem();
     final shell = Shell();
 
     if (!(Pref.getBool(PrefKeys.isUzcardEnabled, false))) {
@@ -2430,27 +2428,27 @@ class OrderingProvider4 extends ChangeNotifier {
     if (summa > 0) {
       String summaAsString = summa.toStringAsFixed(2);
       summaAsString = (double.parse(summaAsString) * 100).round().toString();
+      // Ikki terminal: kerakli Arcus2 sozlamasini (INI-uzcard) faollashtiramiz.
+      final profileError = await ArcusProfile.activate(ArcusTerminal.uzcard);
+      if (profileError != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(mySnackBar(context, msg: profileError));
+        return;
+      }
+      final arcusStartedAt = ArcusResultReader.markStart();
       await shell.startAndReadAsString(
         'C:/Arcus2/CommandLineTool/bin/CommandLineTool.exe',
         arguments: ['/o1', '/a$summaAsString', '/c860'],
       ).then(
         (value) async {
-          var logsDirectory = fs.directory('C:\\Arcus2\\Logs\\');
-          var log = await logsDirectory
-              .list(recursive: true, followLinks: false)
-              .last;
-          final file = File(log.path);
-          var data = await file.readAsBytes();
-          String asString = windows1251.decode(data);
-          var receiptDirectory = fs.directory('C:\\Arcus2\\cheq.out');
-          final file2 = File(receiptDirectory.path);
-          var data2 = await file2.readAsBytes();
-          String asString2 = windows1251.decode(data2);
+          // Faqat shu operatsiyada yozilgan log/chekka ishonamiz — Arcus2
+          // ishga tushmasa eski muvaffaqiyatli to'lov qayta "tasdiqlanmasin".
+          final arcus = await ArcusResultReader.read(startedAt: arcusStartedAt);
+          final String asString = arcus.log;
+          final String asString2 = arcus.receipt;
 
-          final bool isApproved =
-              asString.contains("ОДО") && asString.contains("РЕНО") ||
-                  asString.contains("ОДОБРЕНО") ||
-                  asString.contains("TASDIQLANDI");
+          final bool isApproved = arcus.isFresh &&
+              TerminalReceiptParser.isTerminalApproved(asString);
 
           if (isApproved) {
             allPaymentType(payment);
@@ -2496,7 +2494,6 @@ class OrderingProvider4 extends ChangeNotifier {
             : available - currentPaymentValue)
         : available - currentPaymentValue;
 
-    const fs = fl.LocalFileSystem();
     final shell = Shell();
 
     if (!(Pref.getBool(PrefKeys.isHumoEnabled, false))) {
@@ -2522,27 +2519,27 @@ class OrderingProvider4 extends ChangeNotifier {
     if (summa > 0) {
       String summaAsString = summa.toStringAsFixed(2);
       summaAsString = (double.parse(summaAsString) * 100).round().toString();
+      // Ikki terminal: kerakli Arcus2 sozlamasini (INI-humo) faollashtiramiz.
+      final profileError = await ArcusProfile.activate(ArcusTerminal.humo);
+      if (profileError != null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(mySnackBar(context, msg: profileError));
+        return;
+      }
+      final arcusStartedAt = ArcusResultReader.markStart();
       await shell.startAndReadAsString(
         'C:/Arcus2/CommandLineTool/bin/CommandLineTool.exe',
         arguments: ['/o1', '/a$summaAsString', '/c860'],
       ).then(
         (value) async {
-          var logsDirectory = fs.directory('C:\\Arcus2\\Logs\\');
-          var log = await logsDirectory
-              .list(recursive: true, followLinks: false)
-              .last;
-          final file = File(log.path);
-          var data = await file.readAsBytes();
-          String asString = windows1251.decode(data);
-          var reciptDirectory = fs.directory('C:\\Arcus2\\cheq.out');
-          final file2 = File(reciptDirectory.path);
-          var data2 = await file2.readAsBytes();
-          String asString2 = windows1251.decode(data2);
+          // Faqat shu operatsiyada yozilgan log/chekka ishonamiz — Arcus2
+          // ishga tushmasa eski muvaffaqiyatli to'lov qayta "tasdiqlanmasin".
+          final arcus = await ArcusResultReader.read(startedAt: arcusStartedAt);
+          final String asString = arcus.log;
+          final String asString2 = arcus.receipt;
 
-          final bool isApprovedH =
-              asString.contains("ОДО") && asString.contains("РЕНО") ||
-                  asString.contains("ОДОБРЕНО") ||
-                  asString.contains("TASDIQLANDI");
+          final bool isApprovedH = arcus.isFresh &&
+              TerminalReceiptParser.isTerminalApproved(asString);
 
           if (isApprovedH) {
             allPaymentType(Payment(

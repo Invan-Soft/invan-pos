@@ -3,7 +3,7 @@
 // Sof funksiyalar: holatga, Hive'ga, tarmoqqa yoki Flutter'ga bog'liq emas.
 // OrderingProvider4 dan ajratildi (2026-08-05) — tanalar o'zgartirilmadi.
 //
-// Testlar: test/terminal_receipt_test.dart
+// Testlar: test/terminal_receipt_test.dart, test/terminal_approval_test.dart
 
 class TerminalReceiptParser {
   const TerminalReceiptParser._();
@@ -77,6 +77,35 @@ class TerminalReceiptParser {
       'date': date,
       'cardType': cardType,
     };
+  }
+
+  /// Arcus logi bo'yicha terminal to'lovni tasdiqlaganmi.
+  ///
+  /// 1) Agar logda terminal javob kodi (`RECV <- STORERC:NNN`) bo'lsa — faqat
+  ///    shu kod hal qiladi: 0 (masalan `000`) = tasdiqlandi, boshqasi = rad.
+  /// 2) Kod bo'lmasa yoki bo'sh bo'lsa (QR to'lov) — chek matnidagi
+  ///    "ОДОБРЕНО"/"TASDIQLANDI" so'zi harf katta-kichikligiga qaramay
+  ///    qidiriladi ("НЕ ОДОБРЕНО" bundan mustasno). Yangi terminallar
+  ///    (SKappay) "Одобрено" deb yozadi.
+  ///
+  /// rc.out fayliga tayanilmaydi: ulanish xatosida u yangilanmasligi va
+  /// oldingi muvaffaqiyatli to'lovning `000` kodi qolib ketishi mumkin.
+  static bool isTerminalApproved(String log) {
+    // Faqat shu qatordagi raqamlar: QR (TezQR) to'lovda terminal kodni bo'sh
+    // yuboradi ("STORERC:") — keyingi qatordagi sanani kod deb olmaslik kerak.
+    final rcMatches = RegExp(r'STORERC:[ \t]*(\d*)').allMatches(log);
+    if (rcMatches.isNotEmpty) {
+      final code = int.tryParse(rcMatches.last.group(1) ?? '');
+      if (code != null) return code == 0;
+    }
+
+    final text = log.toUpperCase();
+    if (text.contains('НЕ ОДОБРЕНО') || text.contains('НЕОДОБРЕНО')) {
+      return false;
+    }
+    return text.contains('ОДОБРЕНО') ||
+        text.contains('TASDIQLANDI') ||
+        (text.contains('ОДО') && text.contains('РЕНО'));
   }
 
   /// Terminal (Arcus) javobidagi (log + chek) tanish xato sabablarini
