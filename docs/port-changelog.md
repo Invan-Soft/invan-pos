@@ -1,7 +1,7 @@
 # Port hujjati: BHM taskidan boshlab qilingan barcha o'zgarishlar
 
 **Manba loyiha:** InVan 2 POS — `pos-invan-2`, branch `ayyubxon`, versiya `1.1.2+129` (2026-10-02)
-**Hujjat holati:** 2026-10-20 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch; 14–15-tasklar — 1.1.2+130 relizida, GitHub)
+**Hujjat holati:** 2026-10-20 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch; 14–15-tasklar — 1.1.2+130 relizida, GitHub; 16-task — 1.1.2+130 ga Shorebird patch)
 **Kimga:** shu loyihaning boshqa nusxasini (boshqa ERP bilan integratsiya qilinayotgan nusxa — "InVan 1") InVan 2 bilan bir xil holatga keltiradigan dasturchi yoki Claude.
 
 ## Bu hujjat nima
@@ -38,6 +38,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 13 | 2026-10-09 | Ko'p olsa narx OSHADIGAN pog'ona Buy X Get Y aksiyasida yo'qolardi (1-talikka tushardi); `onePrice` = `finalPrice(1)`; type 13 parse | 1.1.2+129 (Shorebird patch) | Commit bor; Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `65dc7ef` |
 | 14 | 2026-10-20 | Arcus2 terminal: faqat shu operatsiya log/chekiga ishonish (999 da pulsiz "ОДОБРЕНО" yopildi), `Одобрено`/TezQR tasdiq (`STORERC`), Uzcard + Humo INI profillari (Odoo forkidan) | **1.1.2+130** | Relizda (GitHub, backendga hali yuklanmagan); Odoo forkida real terminalda sinalgan, InVan 2 Windows sinovi kutilmoqda | `4689618` |
 | 15 | 2026-10-20 | YagonaQr — admin paneldagi alohida to'lov turi (kassir belgilaydi): serverga o'z id'si, soliqqa karta (`ReceivedCard`, `CardType` 2), aralash to'lov, X/Z "Plastik" ichida; Apps'da o'chirilsa tugma yo'q | **1.1.2+130** | Relizda (GitHub, backendga hali yuklanmagan); jonli sinov kutilmoqda | `dd624bf` |
+| 16 | 2026-10-20 | Karta raqami (`ExtraInfo.CardNumber`) yangi terminal formatlarida ham (korporativ Uzcard'da bo'sh ketardi); chekda yo'q bo'lsa logdan | 1.1.2+130 (Shorebird patch) | Commit bor; yangi terminalda sinov kutilmoqda | `d5b6432` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -91,6 +92,8 @@ c4e42e1 2026-10-02 release: 1.1.2+129                                           
 65dc7ef 2026-10-09 fix(narx): ko'p olsa narx OSHADIGAN pog'ona BXGY'da yo'qolmasin         ← 13-task
 4689618 2026-10-20 fix(terminal): Arcus2 — faqat shu operatsiya natijasi, Одобрено/QR, profil ← 14-task
 dd624bf 2026-10-20 feat(to'lov): YagonaQr — alohida to'lov turi, soliqqa karta            ← 15-task
+eb59e59 2026-10-20 release: 1.1.2+130                                                       (port qilinmaydi)
+d5b6432 2026-10-20 fix(terminal): karta raqami yangi terminal formatlarida ham olinadi     ← 16-task
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -25150,6 +25153,301 @@ void main() {
 - Tanilmaydigan nomlar: kirillcha ("ЯГОНА QR"), "qr" siz ("Yagona"). Admin YagonaQr ni `name: 'CARD'` bilan yaratsa haqiqiy karta id'sini egallaydi — backend'da nom o'zgartiriladi.
 - Vozvrat o'zgarmagan (hammasi naqd). Hisobotda alohida qator — talab qilinmagan.
 - Odoo forkiga: **kerak emas** — Odoo'dan kelgan; ixtiyoriy: id tiklash, Apps toggle id bo'yicha, keng `isName`.
+
+---
+
+# 16-TASK — Karta raqami (ExtraInfo.CardNumber) yangi terminal formatlarida ham olinadi (1.1.2+130 ga Shorebird patch)
+
+> **Commit:** `d5b6432` (2026-10-20), branch `fix/uzcard-karta-raqami` → `ayyubxon`. Reliz: `1.1.2+130` ga Shorebird patch.
+> **Sessiya hujjati:** yo'q (bir sessiyalik task).
+> **Holat 2026-10-20:** commit bor, testlar o'tdi; yangi terminalda korporativ Uzcard bilan sinov kutilmoqda.
+
+## 1. Nima va nima uchun
+
+**Simptom (2026-10-20, yangi terminallar):** korporativ karta tanlanib Uzcard bilan to'langanda fiskal `ExtraInfo.CardNumber` bo'sh ketdi; xuddi shu korporativ Humo'da karta raqami bor edi.
+
+**Sabab:** karta raqami terminal chekidan (`cheq.out`) regex bilan olinadi (`TerminalReceiptParser.parseTerminalReceipt`). Regex 2026-04 (v97) dan beri faqat `4916********3620`, `986017******4357`, `9860 **** **** 1220` ko'rinishlarini bilardi. BIN ichida bo'sh joy (`8600 49** **** 1234`), faqat oxirgi 4 raqam (`************1234`) yoki `X`/`•` niqobli raqam topilmasdi. 14-task (Arcus) bu regex'ga tegmagan.
+
+**Yechim:** eski regex o'zgarishsiz birinchi; topilmasa umumiy niqoblangan raqam qidiriladi (13–19 belgi, kamida 4 niqob, oxiri 4 raqam). Chekda topilmagan maydon (karta raqami, RRN) shu operatsiya Arcus logidagi `RECV <- PRINT:` qatorlaridan olinadi.
+
+## 2. Qanday ishlaydi
+
+| Chekdagi qator | Eski | Yangi |
+|---|---|---|
+| `9860 **** **** 1220` | `9860********1220` | o'zgarmagan |
+| `986017******4357` | `986017******4357` | o'zgarmagan |
+| `Карта: 8600 49** **** 1234` | bo'sh | `860049******1234` |
+| `Номер карты: ************1234` | bo'sh | `************1234` |
+| `PAN: 8600XXXXXXXX1234` | bo'sh | `8600********1234` |
+| `RRN: 629308797462`, `PPTID 031921779051`, `TID: 12345678` | — | karta raqami emas (niqob yo'q) |
+| chekda raqam yo'q, logda bor | bo'sh | logdan |
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/domain/terminal/terminal_receipt_parser.dart` | o'zgargan | `_maskedPan`, `parseTerminalResult(receipt, log)` |
+| `lib/changes/providers/ordering_provider_4.dart` | o'zgargan | `typeUzcard`/`typeHumo`: `parseTerminalReceipt(asString2)` → `parseTerminalResult(receipt: asString2, log: asString)` |
+| `test/terminal_card_number_test.dart` | YANGI | 32 test: eski/yangi formatlar, "karta emas", logdan olish |
+
+## 4. Bog'liqliklar
+
+- 14-task (`ArcusResultReader`): `asString` = shu operatsiya logi, `asString2` = shu operatsiya cheki. InVan 1 da 14-task qo'llanmagan bo'lsa ham `parseTerminalResult` ishlaydi (log/chek matnini qaerdan o'qisa).
+- `TerminalReceiptParser` — InVan 1 da bo'lmasa provider ichidagi `parseTerminalReceipt` ga xuddi shu o'zgarish.
+
+## 5. Qo'llash tartibi
+
+1. `_maskedPan` va `parseTerminalResult` ni qo'shing, karta raqami qatorini almashtiring (6.1).
+2. `typeUzcard`/`typeHumo` dagi chaqiruvni almashtiring (6.1).
+3. Test (6.2), `flutter test`.
+
+## 6. Kod
+
+### 6.1. Diff (`git show d5b6432 -- lib/`)
+
+```diff
+diff --git a/lib/changes/domain/terminal/terminal_receipt_parser.dart b/lib/changes/domain/terminal/terminal_receipt_parser.dart
+index c5b54a6..7d1dc07 100644
+--- a/lib/changes/domain/terminal/terminal_receipt_parser.dart
++++ b/lib/changes/domain/terminal/terminal_receipt_parser.dart
+@@ -32,11 +32,9 @@ class TerminalReceiptParser {
+         if (m != null) rrn = m.group(1);
+       }
+ 
+-      // Karta raqami: "4916********3620", "986017******4357", "9860 **** **** 1220"
+-      if (cardNumber == null) {
+-        final m = RegExp(r'(\d{4,8}[\*\s]{4,12}\d{4})').firstMatch(content);
+-        if (m != null) cardNumber = m.group(1)?.replaceAll(RegExp(r'\s+'), '');
+-      }
++      // Karta raqami: "4916********3620", "986017******4357", "9860 **** **** 1220",
++      // yangi terminallar: "8600 49** **** 1234", "************1234", "8600XXXXXXXX1234"
++      cardNumber ??= _maskedPan(content);
+ 
+       // Avtorizatsiya kodi
+       if (authCode == null) {
+@@ -79,6 +77,49 @@ class TerminalReceiptParser {
+     };
+   }
+ 
++  /// Chek (`cheq.out`) va shu operatsiya Arcus logi bo'yicha to'lov
++  /// ma'lumotlari: chekda topilmagan maydon logdagi `RECV <- PRINT:`
++  /// qatorlaridan olinadi (chek ustun).
++  ///
++  /// Sabab (2026-10-20): yangi terminalda korporativ Uzcard to'lovida fiskal
++  /// `ExtraInfo.CardNumber` bo'sh ketdi (Humo'da to'g'ri) — karta raqami chekda
++  /// eski regex bilmaydigan ko'rinishda yoki chekda umuman yo'q bo'lishi mumkin.
++  static Map<String, String?> parseTerminalResult({
++    required String receipt,
++    required String log,
++  }) {
++    final fromReceipt = parseTerminalReceipt(receipt);
++    if (log.isEmpty || !fromReceipt.values.contains(null)) return fromReceipt;
++    final fromLog = parseTerminalReceipt(log);
++    return {
++      for (final e in fromReceipt.entries) e.key: e.value ?? fromLog[e.key],
++    };
++  }
++
++  /// Eski (2026-04) format — o'zgarishsiz.
++  static final RegExp _panLegacy = RegExp(r'(\d{4,8}[\*\s]{4,12}\d{4})');
++
++  /// Umumiy niqoblangan raqam: raqam / niqob belgilari (`*`, `X`, `•`, `#`),
++  /// orada bittadan bo'sh joy, oxiri 4 raqam.
++  static final RegExp _panCandidate =
++      RegExp(r'[\d*Xx•#](?:[\d*Xx•#]| (?=[\d*Xx•#])){8,24}\d{4}');
++
++  /// Qatordagi niqoblangan karta raqami (bo'sh joysiz, niqob `*`) yoki `null`.
++  /// Kamida 4 ta niqob belgisi va 13–19 belgi talab qilinadi — RRN, PPTID,
++  /// TID kabi to'liq raqamlar karta raqami deb olinmaydi.
++  static String? _maskedPan(String line) {
++    final legacy = _panLegacy.firstMatch(line);
++    if (legacy != null) return legacy.group(1)!.replaceAll(RegExp(r'\s+'), '');
++
++    for (final m in _panCandidate.allMatches(line)) {
++      final pan =
++          m.group(0)!.replaceAll(' ', '').replaceAll(RegExp(r'[Xx•#]'), '*');
++      final masks = '*'.allMatches(pan).length;
++      if (pan.length >= 13 && pan.length <= 19 && masks >= 4) return pan;
++    }
++    return null;
++  }
++
+   /// Arcus logi bo'yicha terminal to'lovni tasdiqlaganmi.
+   ///
+   /// 1) Agar logda terminal javob kodi (`RECV <- STORERC:NNN`) bo'lsa — faqat
+diff --git a/lib/changes/providers/ordering_provider_4.dart b/lib/changes/providers/ordering_provider_4.dart
+index a3e02df..2a2a8a8 100644
+--- a/lib/changes/providers/ordering_provider_4.dart
++++ b/lib/changes/providers/ordering_provider_4.dart
+@@ -2472,7 +2472,9 @@ class OrderingProvider4 extends ChangeNotifier {
+           if (isApproved) {
+             allPaymentType(payment);
+             controller.text = '0';
+-            final paymentInfo = parseTerminalReceipt(asString2);
++            // Chekda topilmagan maydon (karta raqami, RRN) — shu operatsiya logidan.
++            final paymentInfo = TerminalReceiptParser.parseTerminalResult(
++                receipt: asString2, log: asString);
+             _lastRRN = paymentInfo['rrn'] ?? '';
+             _lastCardNumber = paymentInfo['cardNumber'] ?? '';
+             _lastCardType = Pref.getInt('card_type', 2);
+@@ -2576,7 +2578,9 @@ class OrderingProvider4 extends ChangeNotifier {
+               value: payment.value,
+             ));
+             controller.text = '0';
+-            final paymentInfo = parseTerminalReceipt(asString2);
++            // Chekda topilmagan maydon (karta raqami, RRN) — shu operatsiya logidan.
++            final paymentInfo = TerminalReceiptParser.parseTerminalResult(
++                receipt: asString2, log: asString);
+             _lastRRN = paymentInfo['rrn'] ?? '';
+             _lastCardNumber = paymentInfo['cardNumber'] ?? '';
+             _lastCardType = Pref.getInt('card_type', 2);
+```
+
+### 6.2. YANGI: `test/terminal_card_number_test.dart`
+
+<details>
+<summary>32 test — ochish</summary>
+
+```dart
+// Terminal chekidan karta raqami — fiskal ExtraInfo.CardNumber manbai.
+//
+// Sabab (2026-10-20): yangi terminalda korporativ Uzcard to'lovida
+// ExtraInfo.CardNumber bo'sh ketdi, Humo'da esa to'g'ri. Eski regex
+// (2026-04) faqat "4916********3620", "986017******4357",
+// "9860 **** **** 1220" ko'rinishlarini bilardi; BIN ichida bo'sh joy,
+// faqat oxirgi 4 raqam yoki X niqobli raqamni topmasdi. Chekda topilmasa
+// endi shu operatsiya logidagi `RECV <- PRINT:` qatorlaridan olinadi.
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/domain/terminal/terminal_receipt_parser.dart';
+
+String? pan(String text) =>
+    TerminalReceiptParser.parseTerminalReceipt(text)['cardNumber'];
+
+void main() {
+  group('Eski formatlar — o\'zgarishsiz', () {
+    test('4916********3620', () => expect(pan('KARTA: 4916********3620'), '4916********3620'));
+    test('986017******4357', () => expect(pan('986017******4357'), '986017******4357'));
+    test('"9860 **** **** 1220" → probelsiz',
+        () => expect(pan('9860 **** **** 1220'), '9860********1220'));
+    test('"8600 **** **** 1234"',
+        () => expect(pan('8600 **** **** 1234'), '8600********1234'));
+  });
+
+  group('Yangi terminal formatlari', () {
+    final cases = {
+      'Карта: 8600 49** **** 1234': '860049******1234',
+      'Карта:    8600 49** **** 1234': '860049******1234',
+      'Номер карты: ************1234': '************1234',
+      '**** **** **** 1234': '************1234',
+      'PAN: 8600XXXXXXXX1234': '8600********1234',
+      '8600 xxxx xxxx 1234': '8600********1234',
+      '8600••••••••1234': '8600********1234',
+      'Карта: 860049******1234   UZCARD': '860049******1234',
+      '9860 06** **** 4357': '986006******4357',
+      '4916 39** **** 3620 VISA': '491639******3620',
+    };
+    cases.forEach((line, expected) {
+      test('"$line" → $expected', () => expect(pan(line), expected));
+    });
+
+    test('log qatori (RECV <- PRINT: prefiksi bilan)', () {
+      expect(pan('2026/10/20 13:02:16 RECV <- PRINT:Карта:   8600 49** **** 1234'),
+          '860049******1234');
+    });
+  });
+
+  group('Karta raqami EMAS — olinmaydi', () {
+    for (final line in [
+      'RRN: 629308797462',
+      'RRN :608610728951',
+      'PPTID 031921779051',
+      'TID: 12345678',
+      'MID: 000000001234567',
+      'Код авторизации: 123456',
+      '20.10.2026 13:02:17',
+      '2026/10/20 13:02:09 SEND -> 11860100.00',
+      '100.00 UZS',
+      'Код ответа:000',
+      'RECV <- STORERC:000',
+      '12 ****', // juda qisqa
+    ]) {
+      test('"$line" → null', () => expect(pan(line), isNull));
+    }
+  });
+
+  group('parseTerminalResult — chek ustun, yetishmagani logdan', () {
+    const log = '''
+2026/10/20 13:02:09 SEND -> 11860100.00
+2026/10/20 13:02:09 RECV <- GETTAGS:
+2026/10/20 13:02:15 RECV <- STORERC:000
+2026/10/20 13:02:16 RECV <- PRINT:Тип:                          UZCARD
+2026/10/20 13:02:16 RECV <- PRINT:Карта:          8600 49** **** 1234
+2026/10/20 13:02:16 RECV <- PRINT:               Оплата
+2026/10/20 13:02:16 RECV <- PRINT:             100.00 UZS
+2026/10/20 13:02:17 RECV <- PRINT:RRN:            629308797462
+2026/10/20 13:02:17 RECV <- PRINT:              Одобрено
+2026/10/20 13:02:17 RECV <- ENDTR
+''';
+
+    test('chekda karta raqami yo\'q — logdan olinadi, RRN chekdan', () {
+      final r = TerminalReceiptParser.parseTerminalResult(
+        receipt: 'UZCARD\nОплата\nRRN 032150038197\nОдобрено',
+        log: log,
+      );
+      expect(r['cardNumber'], '860049******1234');
+      expect(r['rrn'], '032150038197'); // chek ustun
+      expect(r['cardType'], 'UZCARD');
+    });
+
+    test('chek bo\'sh (cheq.out yangilanmagan) — hammasi logdan', () {
+      final r = TerminalReceiptParser.parseTerminalResult(receipt: '', log: log);
+      expect(r['cardNumber'], '860049******1234');
+      expect(r['rrn'], '629308797462');
+    });
+
+    test('chekda bor bo\'lsa logga qaralmaydi', () {
+      final r = TerminalReceiptParser.parseTerminalResult(
+        receipt: 'KARTA: 986017******4357\nRRN :608610728951\nHUMO',
+        log: log,
+      );
+      expect(r['cardNumber'], '986017******4357');
+      expect(r['rrn'], '608610728951');
+    });
+
+    test('log bo\'sh — faqat chek', () {
+      final r = TerminalReceiptParser.parseTerminalResult(
+          receipt: 'RRN :608610728951', log: '');
+      expect(r['cardNumber'], isNull);
+      expect(r['rrn'], '608610728951');
+    });
+
+    test('Arcus2 ishga tushmagan (ArcusResultReader matni) — karta raqami yo\'q',
+        () {
+      final r = TerminalReceiptParser.parseTerminalResult(
+        receipt: '',
+        log: 'Arcus2 bu operatsiya uchun log yozmadi (kod: 999).\n'
+            'Arcus2 ishga tushmadi yoki sozlama (INI) topilmadi.\n'
+            'Terminalga so\'rov yuborilmadi.\n'
+            'Arcus2 не записал лог этой операции. НЕТ СВЯЗИ С ПИН-ПАДОМ',
+      );
+      expect(r['cardNumber'], isNull);
+      expect(r['rrn'], isNull);
+    });
+  });
+}
+```
+
+</details>
+
+## 7. Tekshirish
+
+- To'liq to'plam (`ayyubxon` eb59e59 + shu commit): **2035 o'tdi, 7 skip**.
+- Yangi terminalda korporativ Uzcard to'lovi bilan sinov kutilmoqda (fiskal chekda `CardNumber`).
+
+## 8. Eslatmalar va ochiq savollar
+
+- Yangi terminal Uzcard chekidagi aniq ko'rinish hali ko'rilmagan — `C:\Arcus2\cheq.out` va shu operatsiya logi (`C:\Arcus2\Logs\`) namunasi bilan tasdiqlash kerak. Agar chek umuman yangilanmasa (POS printerda terminal cheki chiqmasa) — logdan olish shuni ham yopadi.
+- Odoo forkiga: **kerak** — terminal/fiskal mantig'i, Arcus kodi bir xil.
 
 ---
 
