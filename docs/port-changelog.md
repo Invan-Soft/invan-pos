@@ -1,7 +1,7 @@
 # Port hujjati: BHM taskidan boshlab qilingan barcha o'zgarishlar
 
 **Manba loyiha:** InVan 2 POS — `pos-invan-2`, branch `ayyubxon`, versiya `1.1.2+129` (2026-10-02)
-**Hujjat holati:** 2026-10-20 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch; 14–15-tasklar — 1.1.2+130 relizida, GitHub; 16-task — 1.1.2+130 ga Shorebird patch)
+**Hujjat holati:** 2026-10-21 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch; 14–15-tasklar — 1.1.2+130 relizida, GitHub; 16-task — 1.1.2+130 ga Shorebird patch; 17-task — commit bor, relizda emas)
 **Kimga:** shu loyihaning boshqa nusxasini (boshqa ERP bilan integratsiya qilinayotgan nusxa — "InVan 1") InVan 2 bilan bir xil holatga keltiradigan dasturchi yoki Claude.
 
 ## Bu hujjat nima
@@ -39,6 +39,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 14 | 2026-10-20 | Arcus2 terminal: faqat shu operatsiya log/chekiga ishonish (999 da pulsiz "ОДОБРЕНО" yopildi), `Одобрено`/TezQR tasdiq (`STORERC`), Uzcard + Humo INI profillari (Odoo forkidan) | **1.1.2+130** | Relizda (GitHub, backendga hali yuklanmagan); Odoo forkida real terminalda sinalgan, InVan 2 Windows sinovi kutilmoqda | `4689618` |
 | 15 | 2026-10-20 | YagonaQr — admin paneldagi alohida to'lov turi (kassir belgilaydi): serverga o'z id'si, soliqqa karta (`ReceivedCard`, `CardType` 2), aralash to'lov, X/Z "Plastik" ichida; Apps'da o'chirilsa tugma yo'q | **1.1.2+130** | Relizda (GitHub, backendga hali yuklanmagan); jonli sinov kutilmoqda | `dd624bf` |
 | 16 | 2026-10-20 | Karta raqami (`ExtraInfo.CardNumber`) yangi terminal formatlarida ham (korporativ Uzcard'da bo'sh ketardi); chekda yo'q bo'lsa logdan | 1.1.2+130 (Shorebird patch) | Commit bor; yangi terminalda sinov kutilmoqda | `d5b6432` |
+| 17 | 2026-10-21 | KM to'g'ridan skanerlanganda mahsulot topilmasdi: KM ichidagi GTIN-14 (`00049000033939`) katalogdagi UPC-12/EAN-13 (`049000033939`/`0049000033939`) ga GS1 tengligi bilan moslanadi — dona, blok, narxi 0; oddiy skan/SKU o'zgarmagan | relizda emas (1.1.2+130 ga Shorebird patch rejada) | Commit bor, relizda emas; do'kon sinovi kutilmoqda | `38e40f3` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -94,6 +95,7 @@ c4e42e1 2026-10-02 release: 1.1.2+129                                           
 dd624bf 2026-10-20 feat(to'lov): YagonaQr — alohida to'lov turi, soliqqa karta            ← 15-task
 eb59e59 2026-10-20 release: 1.1.2+130                                                       (port qilinmaydi)
 d5b6432 2026-10-20 fix(terminal): karta raqami yangi terminal formatlarida ham olinadi     ← 16-task
+38e40f3 2026-10-21 fix(markirovka): KM to'g'ridan skanda GTIN boshidagi nollar          ← 17-task
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -25448,6 +25450,1274 @@ void main() {
 
 - Yangi terminal Uzcard chekidagi aniq ko'rinish hali ko'rilmagan — `C:\Arcus2\cheq.out` va shu operatsiya logi (`C:\Arcus2\Logs\`) namunasi bilan tasdiqlash kerak. Agar chek umuman yangilanmasa (POS printerda terminal cheki chiqmasa) — logdan olish shuni ham yopadi.
 - Odoo forkiga: **kerak** — terminal/fiskal mantig'i, Arcus kodi bir xil.
+
+---
+
+# 17-TASK — KM to'g'ridan skanerlanganda GTIN boshidagi nollar sababli mahsulot topilmasdi (relizda emas → Shorebird patch 1.1.2+130)
+
+> **Commit:** `38e40f3` (2026-10-21), branch `fix/markirovka-gtin-nollar` (`ayyubxon` b1fd08d dan). Reliz: hali yo'q — `1.1.2+130` ga Shorebird patch rejada (faqat Dart; pubspec/ObjectBox o'zgarmagan).
+> **Sessiya hujjati:** docs/sessions/2026-10-21-markirovka-gtin-nollar.md
+> **Holat 2026-10-21:** commit bor, relizda emas; to'liq to'plam o'tdi; do'kon sinovi kutilmoqda.
+
+## 1. Nima va nima uchun
+
+**Simptom (do'kon, 2026-10-21):** "Ichimlik Fanta 355ml" (SKU 25619) markirovka kodi (KM, GS1 DataMatrix) kassada to'g'ridan skanerlansa — "Mahsulot topilmadi". Kassir avval mahsulotning oddiy shtrix-kodini skanerlab, keyin markirovka dialogida KM ni skanerlasa — ishlaydi.
+
+Adminkada mahsulotda 8 ta shtrix-kod: `049000014242`, `0049000014242`, `049000067729`, `0049000067729`, `049000033939`, `0049000033939`, `049000014273`, `0049000014273`. KM: `01` + GTIN-14 `00049000033939` + `21` + seriya (13 belgi) + GS (0x1D) + `93` + kripto (4 belgi), masalan `0100049000033939217MG7fVVkzf5Y?<GS>93abcd`.
+
+**Sabab:** skaner yo'lidagi qidiruv (`ScannedProductLookup.find`) KM dan GTIN-14 ni ajratib, boshidagi nollarni olib tashlaydi (`00049000033939` → `49000033939`, 11 xona) va katalogdan **aynan teng** shtrix-kod qidiradi (`ItemsSingleton.getProductByBarcode`: `b == trimmed`). Katalogda esa nollar saqlangan: UPC-12 `049000033939`, EAN-13 `0049000033939` — mos emas. Keyingi qadamlar (butun KM satri bo'yicha aynan teng, narxi 0 mahsulot) ham topmaydi. Dialog yo'li ishlaydi, chunki `MarkValidator.matchesProduct` nollarni IKKALA tomondan olib tashlaydi. Xuddi shu xato blok kodi (`findBoxProduct`: EAN-13 / nolsiz / GTIN-14 variantlari bor, UPC-12 yo'q) va narxi 0 yo'lida (`findZeroPriceProduct`: aynan teng) ham bor edi.
+
+Tasnif va muddat to'siq emas: GS (0x1D) Dart `RegExp(r'\s')` ga kirmaydi (kod `product` bo'lib qoladi), `parseExpiry` → null (`21` dan oldin `17`/`15` yo'q). Bug b1fd08d da test bilan qayta hosil qilindi.
+
+**Yechim:** GS1 qoidasi — GTIN-8/12/13/14 chapdan nol bilan 14 xonagacha to'ldirilganda teng bo'lsa, bu bitta tovar. Shu tenglik (`Gs1.isSameGtin`) skaner yo'lining uch joyida — dona, blok, narxi 0 — **faqat KM/GS1 dan ajratilgan GTIN uchun** va **faqat aynan teng qidiruvlar hech narsa topmaganda** (har yo'lda oxirgi qadam) qo'llanadi. Oddiy shtrix-kod va SKU qidiruvi bayt-ba-bayt o'zgarmagan.
+
+## 2. Qanday ishlaydi
+
+**GS1 tengligi** — `Gs1.isSameGtin(barcode, gtinKey)`:
+- `gtinKey` — skanerlangan GTIN ning boshidagi NOLLARSIZ raqamlari (chaqiruvchi bir marta hisoblaydi; bo'sh = hammasi nol GTIN → hech narsa mos emas).
+- `barcode` (katalogdagi kod) faqat **8..14 xonali SOF RAQAM** bo'lsa qatnashadi: 8 — eng qisqa GTIN (GTIN-8); qisqaroq raqam bu tizimda SKU (`<= 5`) yoki ichki kod (6-7) — ularni nol bilan to'ldirish fragment moslik bo'lardi ("0206" ≠ "206" qoidasi); 14 — eng uzun GTIN. Harf/belgi/bo'sh joy aralash kod normalizatsiya qilinmaydi.
+- Tenglik: `barcode` ning boshidagi nollari olib tashlangani `gtinKey` ga teng. Faqat BOSHIDAGI nollar ahamiyatsiz: `149000033939`, `4900003393`, `490000339390` mos emas. Indikator raqami saqlanadi: `14780000000001` (karton) ≠ `4780000000001` (dona).
+- Arzon: avval uzunlik va `endsWith(gtinKey)` — regex faqat oxiri mos kelgan nomzodlarda. Har qidiruv katalog bo'ylab bitta o'tish (30 000 mahsulot — 11 ms, test rejimi).
+- `MarkValidator.matchesProduct` bundan KENGROQ (uzunlik cheklovisiz nollarsiz tenglik) — skaner GS1 bo'yicha topgan mahsulot KM tekshiruvidan doim o'tadi (testda mixlangan). `MarkValidator` o'zgarmagan.
+
+**Skaner yo'li tartibi** (`onBarcodeScanned`; yangi qadamlar **qalin**):
+
+1. Tasnif, muddat (`parseExpiry`) — o'zgarmagan, qidiruvdan OLDIN.
+2. Blok — `findBoxProduct`: `boxBarcode` == EAN-13 (`gtin14.substring(1)`) → == nolsiz → == GTIN-14 → **`boxBarcode` GS1 teng (UPC-12 va h.k.)**. Topilsa `_addBoxProduct`.
+3. Dona — `find`: `(01)` shoxi — nolsiz GTIN aynan → qavssiz `01`+GTIN14 shoxi — nolsiz GTIN aynan → butun satr aynan (+ SKU) → **oddiy shtrix-kodlardan biri GS1 teng** (`barcodeProducts`, `boxBarcode` emas). GS1 bilan topilsa `item.mark` GTIN shoxlaridagidek: markirovkali bo'lsa tozalangan KM, aks holda `null`.
+4. Narxi 0 — `findZeroPriceProduct(triedPatterns, gtins:)`: `triedPatterns` aynan (trim) → **`gtins` bo'yicha GS1 teng (katalog kodi trim bilan)**.
+5. Topilmasa — "Mahsulot topilmadi".
+
+| Skan | Katalog | Eski | Yangi |
+|---|---|---|---|
+| KM `0100049000033939 21…` | `049000033939` / `0049000033939` (yoki 8 tasi) | topilmadi | **topiladi**, KM biriktiriladi → `_markingCheck` → savatga marka qatori |
+| xuddi shu, qavsli `(01)00049000033939(21)…(93)…` yoki GS siz | ″ | topilmadi | **topiladi** |
+| KM | `49000033939` (nollari tushib qolgan) | topiladi (aynan) | o'zgarmagan |
+| KM | butun KM satri shtrix-kod qilib saqlangan ("Yaratish" bilan) | topiladi, `mark = null` | o'zgarmagan (aynan teng birinchi) |
+| KM, boshqa GTIN (`…033946`) | Fanta | topilmadi | topilmadi |
+| KM, OFD o'chiq / markirovkasiz mahsulot | `049000033939` | topilmadi | **topiladi**, `mark = null`, oddiy qator |
+| blok KM `0100049000099991 21…` | `boxBarcode = 049000099991` | blok topilmadi | **blok qatori** |
+| KM, narxi 0 mahsulot | `049000033939` | "topilmadi" | **narxi 0 yo'li** ("narxi 0" dialogi) |
+| oddiy `49000033939` | `049000033939` | topilmadi | o'zgarmagan (topilmadi) |
+| oddiy `0049000033939` | `0049000033939` | topiladi → markirovka dialogi | o'zgarmagan |
+| oddiy GTIN-14 `00049000033939` (KM emas) | `0049000033939` | topilmadi | o'zgarmagan |
+| `0100049000033939` (16 belgi, seriyasiz) | Fanta | topilmadi | o'zgarmagan |
+| SKU `25619` / `025619` | sku `25619` | topiladi / topilmadi | o'zgarmagan |
+| muddati o'tgan KM (`…17` `250101` `21…`) | Fanta | "Срок годности…" | o'zgarmagan |
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/domain/marking/gs1.dart` | o'zgargan | `Gs1.isSameGtin(barcode, gtinKey)` — sof funksiya, ikki statik regex |
+| `lib/changes/domain/barcode/scanned_product_lookup.dart` | o'zgargan | `ScannedProductMatch.gtins` (ixtiyoriy, default `[]`); `findBoxProduct` oxirida `_boxProductByGtin`; `find` da `gtins` yig'iladi va oxirida `_productByGtin`; `findZeroPriceProduct(triedPatterns, {gtins})` |
+| `lib/changes/providers/ordering_provider_4.dart` | o'zgargan | `onBarcodeScanned`: `findZeroPriceProduct(triedPatterns, gtins: match.gtins)` (1 qator) |
+| `test/gs1_test.dart` | o'zgargan | +12: `isSameGtin` — 4 shakl, GTIN-8, uzunlik chegaralari, harf, fragment, indikator, bo'sh kalit |
+| `test/scanned_product_lookup_test.dart` | o'zgargan | +81: Fanta 2 KM × 4 ko'rinish, har shtrix-kod yolg'iz, aynan teng ustunligi, oddiy skan/SKU o'zgarmagani, boshqa mahsulotga ulanmaslik, blok UPC-12, narxi 0, `gtins`, `MarkValidator` muvofiqligi, 30 000 katalog |
+| `test/barcode_classifier_test.dart` | o'zgargan | +4: GS li KM `product` (freeText emas), muddat null; `01`+GTIN14(nollar)+`17` o'qiladi |
+| `test/km_direct_scan_e2e_test.dart` | YANGI | 12 testWidgets: `onBarcodeScanned` → savat (KM1, KM1+KM2, takror, muddat, boshqa GTIN, oddiy skan, OFD o'chiq, dialog yo'li, blok UPC-12, narxi 0) |
+
+## 4. Bog'liqliklar
+
+- `ScannedProductLookup` (Faza 9.4, `onBarcodeScanned` dan ajratilgan) va `Gs1` (2026-08-05) — InVan 2 domen sinflari. InVan 1 da bo'lmasa — minimal variant: `isSameGtin` ni skaner handler'i yoniga qo'ying; `onBarcodeScanned` ichida (a) blok qidiruvining oxiriga `boxBarcode` GS1 teng, (b) GS1 GTIN shoxlari + butun satr aynan qidiruvidan keyin oddiy shtrix-kodlar GS1 teng, (c) narxi 0 qidiruvining oxiriga GS1 teng qadamini qo'shing. Tartib muhim: GS1 tengligi har yo'lda OXIRGI.
+- `package:collection` (`firstWhereOrNull`) — bor.
+- `MarkValidator.matchesProduct` nollarni ikki tomondan olib tashlashi kerak (InVan 2 da shunday). Agar InVan 1 dagi KM tekshiruvi aynan teng solishtirsa — skaner topgan mahsulot "boshqa mahsulotga tegishli" xatosiga tushadi; tekshiruvni ham shu qoidaga keltiring.
+- e2e test: `test/support/provider_harness.dart` (`setUpPosTestEnv`, `freshProvider`).
+
+## 5. Qo'llash tartibi
+
+1. `Gs1.isSameGtin` (6.1, `gs1.dart`).
+2. `ScannedProductLookup`: `ScannedProductMatch.gtins`, `_boxProductByGtin`, `_productByGtin`, `find` dagi `gtins` + oxirgi qadam, `findZeroPriceProduct` (6.1).
+3. `onBarcodeScanned` dagi `findZeroPriceProduct` chaqiruviga `gtins: match.gtins` (6.1).
+4. Testlar (6.2, 6.3), `flutter test`.
+
+## 6. Kod
+
+### 6.1. Diff (`git show 38e40f3 -- lib/`)
+
+```diff
+diff --git a/lib/changes/domain/barcode/scanned_product_lookup.dart b/lib/changes/domain/barcode/scanned_product_lookup.dart
+index e50f6a6..2041538 100644
+--- a/lib/changes/domain/barcode/scanned_product_lookup.dart
++++ b/lib/changes/domain/barcode/scanned_product_lookup.dart
+@@ -6,21 +6,30 @@
+ //   2. odatiy qidiruv — GS1 dan GTIN ajratish, keyin AYNAN teng moslik
+ //   3. narxi 0 bo'lgan mahsulot — sinab ko'rilgan variantlar bo'yicha
+ //
++// GS1 tengligi (`Gs1.isSameGtin`, 2026-10-21): KM/blok kodidan ajratilgan
++// GTIN uchun, faqat AYNAN teng moslik hech narsa topmaganda — har yo'lda
++// oxirgi qadam. Oddiy shtrix-kod va SKU qidiruviga TEGILMAGAN.
++//
+ // `OrderingProvider4.onBarcodeScanned` dan ko'chirildi (Faza 9.4) — tanalar
+ // o'zgarmagan. Ilgari bu kodni UMUMAN testlab bo'lmasdi: unga faqat
+ // `GlobalKey<ScaffoldState>` va dialoglar bilan borilardi.
+ 
+ import 'package:collection/collection.dart';
++import 'package:invan2/changes/domain/marking/gs1.dart';
+ import 'package:invan2/changes/models/product/item_model.dart';
+ import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+ 
+ /// Qidiruv natijasi. [triedPatterns] — narxi=0 tekshiruvi uchun sinab
+ /// ko'rilgan barcode variantlari (asl kod + ajratib olingan GTIN lar).
++/// [gtins] — KM/GS1 dan ajratilgan GTIN lar (boshidagi nollarsiz, bo'sh
++/// emas) — narxi=0 tekshiruvidagi GS1 tengligi uchun.
+ class ScannedProductMatch {
+-  const ScannedProductMatch(this.item, this.triedPatterns);
++  const ScannedProductMatch(this.item, this.triedPatterns,
++      {this.gtins = const []});
+ 
+   final ItemModel? item;
+   final List<String> triedPatterns;
++  final List<String> gtins;
+ 
+   bool get found => item != null;
+ }
+@@ -30,6 +39,8 @@ class ScannedProductLookup {
+ 
+   /// Blok shtrix-kodi (GS1 "01" + GTIN14) bo'yicha mahsulot.
+   /// Uch variant ketma-ket sinaladi: EAN13, boshidagi nolsiz GTIN14, GTIN14.
++  /// Hech biri aynan teng bo'lmasa — GS1 tengligi (masalan blok kodi UPC-12
++  /// `049000033939` ko'rinishida saqlangan bo'lsa uchala variantga tushmaydi).
+   static ItemModel? findBoxProduct(String barcode) {
+     if (!(barcode.startsWith('01') && barcode.length > 16)) return null;
+     final boxGtinMatch = RegExp(r'^01(\d{14})').firstMatch(barcode);
+@@ -41,9 +52,25 @@ class ScannedProductLookup {
+ 
+     return ItemsSingleton.getProductByBoxBarcodeOnly(ean13) ??
+         ItemsSingleton.getProductByBoxBarcodeOnly(gtin14NoLeadZero) ??
+-        ItemsSingleton.getProductByBoxBarcodeOnly(gtin14);
++        ItemsSingleton.getProductByBoxBarcodeOnly(gtin14) ??
++        _boxProductByGtin(gtin14NoLeadZero);
+   }
+ 
++  /// Blok kodi [gtinKey] bilan GS1 bo'yicha teng mahsulot (bitta o'tish).
++  static ItemModel? _boxProductByGtin(String gtinKey) =>
++      ItemsSingleton.barcodeProducts.firstWhereOrNull((product) =>
++          product.hasBoxBarcode == true &&
++          product.boxBarcode != null &&
++          Gs1.isSameGtin(product.boxBarcode!, gtinKey));
++
++  /// Oddiy shtrix-kodlaridan biri [gtinKey] bilan GS1 bo'yicha teng
++  /// mahsulot (bitta o'tish). Blok kodi bu yerda SOLISHTIRILMAYDI — blok
++  /// [findBoxProduct] da; `MarkValidator` ham faqat oddiy shtrix-kodlarga
++  /// qaraydi, KM shu bilan bir xil qoidada tekshiriladi.
++  static ItemModel? _productByGtin(String gtinKey) =>
++      ItemsSingleton.barcodeProducts.firstWhereOrNull((product) =>
++          product.barcode?.any((b) => Gs1.isSameGtin(b, gtinKey)) ?? false);
++
+   /// Odatiy mahsulot qidiruvi.
+   ///
+   /// [isMarkable] / [cleanMark] — topilgan mahsulotga markirovka kodini
+@@ -58,6 +85,8 @@ class ScannedProductLookup {
+ 
+   // Narxi=0 tekshiruvi uchun sinab ko'rilgan barcode variantlarini yig'amiz
+   final List<String> triedPatterns = [barcode];
++  // KM/GS1 dan ajratilgan GTIN lar — GS1 tengligi uchun (pastda)
++  final List<String> gtins = [];
+ 
+   if (barcode.contains('(01)')) {
+     final gtinMatch = RegExp(r'\(01\)(\d{13,14})').firstMatch(barcode);
+@@ -65,6 +94,7 @@ class ScannedProductLookup {
+       String gtin = gtinMatch.group(1)!;
+       gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
+       triedPatterns.add(gtin);
++      if (gtin.isNotEmpty) gtins.add(gtin);
+       item = ItemsSingleton.getProductByBarcode(gtin);
+       if (item != null) {
+         item.mark = isMarkable(item) ? cleanMark(barcode) : null;
+@@ -78,6 +108,7 @@ class ScannedProductLookup {
+       String gtin = gtinMatch.group(1)!;
+       gtin = gtin.replaceFirst(RegExp(r'^0+'), '');
+       triedPatterns.add(gtin);
++      if (gtin.isNotEmpty) gtins.add(gtin);
+       item = ItemsSingleton.getProductByBarcode(gtin);
+       if (item != null) {
+         item.mark = isMarkable(item) ? cleanMark(barcode) : null;
+@@ -102,17 +133,45 @@ class ScannedProductLookup {
+     }
+   }
+ 
+-    return ScannedProductMatch(item, triedPatterns);
++  if (item == null) {
++    // GS1 tengligi — FAQAT KM/GS1 dan ajratilgan GTIN uchun va faqat yuqoridagi
++    // aynan teng qidiruvlar hech narsa topmaganda (avval ishlagan skan
++    // o'zgarmaydi). KM ichida GTIN-14 (`00049000033939`) keladi, katalogda esa
++    // UPC-12 `049000033939` / EAN-13 `0049000033939` — nolsiz `49000033939`
++    // ularga aynan teng emas edi va KM to'g'ridan skanerlanganda mahsulot
++    // topilmasdi (dialog yo'li `MarkValidator` ikkala tomondan nolni olib
++    // tashlagani uchun ishlardi).
++    for (final gtin in gtins) {
++      item = _productByGtin(gtin);
++      if (item != null) {
++        item.mark = isMarkable(item) ? cleanMark(barcode) : null;
++        break;
++      }
++    }
++  }
++
++    return ScannedProductMatch(item, triedPatterns, gtins: gtins);
+   }
+ 
+   /// Narxi 0 bo'lgani uchun odatiy qidiruvga tushmagan mahsulot.
+-  static ItemModel? findZeroPriceProduct(List<String> triedPatterns) {
++  /// Avval [triedPatterns] bo'yicha aynan teng moslik; topilmasa [gtins]
++  /// (KM/GS1 dan ajratilgan GTIN lar) bo'yicha GS1 tengligi.
++  static ItemModel? findZeroPriceProduct(List<String> triedPatterns,
++      {List<String> gtins = const []}) {
+   ItemModel? zeroPriceItem;
+   for (final tried in triedPatterns) {
+     zeroPriceItem = ItemsSingleton.products.firstWhereOrNull(
+       (p) => p.barcode?.any((b) => b.trim() == tried.trim()) ?? false,
+     );
+     if (zeroPriceItem != null) break;
++  }
++  if (zeroPriceItem == null) {
++    for (final gtin in gtins) {
++      zeroPriceItem = ItemsSingleton.products.firstWhereOrNull(
++        (p) => p.barcode?.any((b) => Gs1.isSameGtin(b.trim(), gtin)) ?? false,
++      );
++      if (zeroPriceItem != null) break;
++    }
+   }
+     return zeroPriceItem;
+   }
+diff --git a/lib/changes/domain/marking/gs1.dart b/lib/changes/domain/marking/gs1.dart
+index 3416438..bbf643f 100644
+--- a/lib/changes/domain/marking/gs1.dart
++++ b/lib/changes/domain/marking/gs1.dart
+@@ -2,6 +2,7 @@
+ //
+ // Sof funksiya: holatga, Hive'ga, tarmoqqa yoki Flutter'ga bog'liq emas.
+ // OrderingProvider4 dan ajratildi (2026-08-05) — tana o'zgartirilmadi.
++// `isSameGtin` — 2026-10-21 (KM to'g'ridan skanerlanganda GTIN nollari).
+ //
+ // Testlar: test/gs1_test.dart
+ 
+@@ -25,4 +26,38 @@ class Gs1 {
+       return null;
+     }
+   }
++
++  static final _digitsOnly = RegExp(r'^\d+$');
++  static final _leadingZeros = RegExp(r'^0+');
++
++  /// GS1 GTIN tengligi: katalogdagi [barcode] skanerlangan GTIN bilan BITTA
++  /// tovarmi.
++  ///
++  /// GS1 qoidasi: GTIN-8/12/13/14 chapdan nol bilan 14 xonagacha
++  /// to'ldirilganda teng bo'lsa — bu bitta tovar. Masalan `049000033939`
++  /// (UPC-12) = `0049000033939` (EAN-13) = `00049000033939` (KM ichidagi
++  /// GTIN-14) = `49000033939` (nollari tushib qolgan yozuv).
++  ///
++  /// [gtinKey] — skanerlangan GTIN ning boshidagi NOLLARSIZ raqamlari
++  /// (chaqiruvchi bir marta hisoblaydi; bo'sh bo'lsa hech narsa mos emas).
++  ///
++  /// [barcode] faqat 8..14 xonali SOF RAQAM bo'lsa solishtiriladi:
++  ///   * 8 — eng qisqa GTIN (GTIN-8). Qisqaroq raqam GTIN emas: <= 5 belgi
++  ///     bu tizimda SKU (narx yorlig'i), 6-7 — ichki kodlar. Ularni nol bilan
++  ///     to'ldirib moslash fragment moslik bo'lardi ("206" ≠ "0206" qoidasi).
++  ///   * 14 — eng uzun GTIN; uzunroq raqam GTIN emas.
++  ///   * harf/belgi aralash kod hech qachon normalizatsiya qilinmaydi.
++  ///
++  /// `MarkValidator.matchesProduct` bundan kengroq (uzunlik cheklovisiz
++  /// nollarsiz tenglik) — shuning uchun shu qoida bilan topilgan mahsulot
++  /// KM tekshiruvidan doim o'tadi.
++  static bool isSameGtin(String barcode, String gtinKey) =>
++      gtinKey.isNotEmpty &&
++      barcode.length >= 8 &&
++      barcode.length <= 14 &&
++      // Arzon filtr birinchi: katalog bo'ylab o'tishda regex faqat
++      // shu oxiri mos kelgan nomzodlarda ishlaydi.
++      barcode.endsWith(gtinKey) &&
++      _digitsOnly.hasMatch(barcode) &&
++      barcode.replaceFirst(_leadingZeros, '') == gtinKey;
+ }
+diff --git a/lib/changes/providers/ordering_provider_4.dart b/lib/changes/providers/ordering_provider_4.dart
+index 2a2a8a8..c9107cc 100644
+--- a/lib/changes/providers/ordering_provider_4.dart
++++ b/lib/changes/providers/ordering_provider_4.dart
+@@ -2995,7 +2995,8 @@ class OrderingProvider4 extends ChangeNotifier {
+     }
+     {
+       final zeroPriceItem =
+-          ScannedProductLookup.findZeroPriceProduct(triedPatterns);
++          ScannedProductLookup.findZeroPriceProduct(triedPatterns,
++              gtins: match.gtins);
+       if (zeroPriceItem != null) {
+         // ignore: use_build_context_synchronously
+         addProduct(
+```
+
+### 6.2. YANGI: `test/km_direct_scan_e2e_test.dart`
+
+<details>
+<summary>12 testWidgets — ochish</summary>
+
+```dart
+// KM (GS1 DataMatrix) kassada TO'G'RIDAN skanerlanganda — to'liq yo'l:
+// `onBarcodeScanned` → tasnif → muddat → blok → `ScannedProductLookup` →
+// `marking()` → `_markingCheck` (`MarkValidator`) → savat qatori.
+//
+// Do'kondagi bug (2026-10-21): "Ichimlik Fanta 355ml" (SKU 25619) KM i
+// `0100049000033939 21…` to'g'ridan skanerlansa mahsulot topilmasdi —
+// KM ichidagi GTIN-14 `00049000033939`, katalogda esa UPC-12
+// `049000033939` / EAN-13 `0049000033939`. Avval oddiy shtrix-kod, keyin
+// dialogda KM berilsa ishlardi. Bu test ikkala yo'lni ham mixlaydi.
+//
+// ONKM so'rovi o'chiq (`validation_onkm` = false) — tarmoq yo'q.
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/app_navigation.dart';
+import 'package:invan2/changes/dialogs/markirovka_dialog.dart';
+import 'package:invan2/changes/dialogs/not_found_product_dialog.dart';
+import 'package:invan2/changes/models/product/item_model.dart';
+import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/changes/singletons/discounts/discount_singleton.dart';
+import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+import 'package:invan2/utils/helpers/size_config.dart';
+import 'package:invan2/utils/l10n/app_localizations.dart';
+
+import 'support/provider_harness.dart';
+
+const kShop = 'shop-1';
+const kFantaId = 'fanta-25619';
+
+/// Adminkadagi 8 ta shtrix-kod (hammasi bitta mahsulotda).
+const kFantaBarcodes = [
+  '049000014242',
+  '0049000014242',
+  '049000067729',
+  '0049000067729',
+  '049000033939',
+  '0049000033939',
+  '049000014273',
+  '0049000014273',
+];
+
+const kGs = '\x1D';
+const kKm1 = '0100049000033939217MG7fVVkzf5Y?${kGs}93abcd';
+const kKm2 = '0100049000033939217/VG5xQ2pLm8a${kGs}93Wz1k';
+const kKm1Clean = '0100049000033939217MG7fVVkzf5Y?';
+const kKm2Clean = '0100049000033939217/VG5xQ2pLm8a';
+
+/// Shirin ichimlik (02202 — markirovka ro'yxatida, alkogol emas).
+const kMxik = '02202001001000000';
+
+ItemModel fanta({
+  List<String> barcodes = kFantaBarcodes,
+  num price = 9000,
+  bool? isMarking = true,
+}) {
+  final m = ItemModel();
+  m.id = kFantaId;
+  m.name = 'Ichimlik Fanta 355ml';
+  m.sku = '25619';
+  m.barcode = barcodes;
+  m.mxikCode = kMxik;
+  m.packageCode = '1501234';
+  m.isMarking = isMarking;
+  m.vat = Vat(percentage: 12);
+  m.measurementUnit = MeasurementUnit(shortName: 'dona');
+  m.shopPrices = ShopPrices(
+    shID: ShID(shopId: kShop, shopPriceTiers: [
+      ShopPriceTiers(minQuantity: 1, retailPrice: price),
+    ]),
+  );
+  return m;
+}
+
+/// Katalog: [products] — hammasi, [barcodeProducts] — narxi bor va
+/// shtrix-kodli (skaner shu ro'yxatdan qidiradi, `storeProducts` qoidasi).
+void useCatalog(List<ItemModel> items) {
+  ItemsSingleton.products = items;
+  ItemsSingleton.barcodeProducts = items
+      .where((e) =>
+          (e.barcode?.isNotEmpty ?? false) &&
+          ItemsSingleton.onePrice(e.shopPrices) > 0)
+      .toList();
+}
+
+Future<GlobalKey<ScaffoldState>> pumpApp(WidgetTester tester) async {
+  final key = GlobalKey<ScaffoldState>();
+  await tester.pumpWidget(MaterialApp(
+    navigatorKey: AppNavigation.navigatorKey,
+    locale: const Locale('uz'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(
+        key: key,
+        body: Builder(builder: (c) {
+          SizeConfig().init(c);
+          return const SizedBox();
+        })),
+  ));
+  return key;
+}
+
+Future<void> pumpFew(WidgetTester tester) async {
+  for (var i = 0; i < 5; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+/// Ochiq xabar dialogini kassir kabi "Ok" bilan yopadi.
+Future<void> tapOk(WidgetTester tester) async {
+  final ok = find.text('Ok');
+  if (ok.evaluate().isNotEmpty) {
+    await tester.tap(ok.first, warnIfMissed: false);
+    await pumpFew(tester);
+  }
+}
+
+Future<void> scan(WidgetTester tester, OrderingProvider4 p,
+    GlobalKey<ScaffoldState> key, String code) async {
+  p.onBarcodeScanned(code, key);
+  await pumpFew(tester);
+}
+
+List<ReceiptModelSoldItem4> active(OrderingProvider4 p) =>
+    p.getCurrentClient.orderedProducts
+        .where((e) => !(e.isDeleted ?? false))
+        .toList();
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('km_direct_scan_e2e_test');
+    await Pref.setString(PrefKeys.storeId, kShop);
+  });
+  tearDownAll(tearDownPosTestEnv);
+
+  // testWidgets ichida Hive IO kutilsa osilib qoladi — sozlash shu yerda.
+  setUp(() async {
+    await Pref.setBool(PrefKeys.markCheckWithOfd, true);
+    await Pref.setBool(PrefKeys.sellProductsWithMarking, true);
+    await Pref.setBool('validation_onkm', false);
+    await Pref.setBool(PrefKeys.isRedDeleteActivated, false);
+    await Pref.setBool(PrefKeys.autoGenerate, false);
+    await HiveBoxes.getDiscounts().clear();
+    DiscountSingleton.resetAll();
+  });
+
+  group('KM to\'g\'ridan skan — Fanta 355ml', () {
+    testWidgets('KM1 → Fanta qatori, KM bilan (dialogsiz)', (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, kKm1);
+
+      expect(find.byType(NotFoundProductDialog), findsNothing);
+      expect(find.byType(MarkingDialog), findsNothing,
+          reason: 'KM skan vaqtida berildi — dialog kerak emas');
+      final rows = active(p);
+      expect(rows, hasLength(1));
+      expect(rows.single.productId, kFantaId);
+      expect(rows.single.mark, kKm1Clean);
+      expect(rows.single.marking, isTrue);
+      expect(rows.single.value, 1);
+    });
+
+    testWidgets('KM1 + KM2 → ikki alohida marka qatori', (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, kKm1);
+      await scan(tester, p, key, kKm2);
+
+      final marks = active(p).map((e) => e.mark).toSet();
+      expect(marks, {kKm1Clean, kKm2Clean});
+      expect(active(p).every((e) => e.productId == kFantaId), isTrue);
+    });
+
+    testWidgets('shu KM qayta skanerlansa — "oldin qo\'shilgan", qator yo\'q',
+        (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, kKm1);
+      await scan(tester, p, key, kKm1);
+
+      expect(find.textContaining('oldin qo\'shilgan'), findsOneWidget);
+      await tapOk(tester);
+      expect(active(p), hasLength(1));
+    });
+
+    for (final b in ['049000033939', '0049000033939']) {
+      testWidgets('katalogda faqat $b bo\'lsa ham topiladi', (tester) async {
+        useCatalog([
+          fanta(barcodes: [b])
+        ]);
+        final key = await pumpApp(tester);
+        final p = freshProvider();
+
+        await scan(tester, p, key, kKm1);
+
+        expect(active(p).single.mark, kKm1Clean);
+      });
+    }
+
+    testWidgets('muddati o\'tgan KM (17 = 250101) — xabar, savat bo\'sh',
+        (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, '0100049000033939172501012112345${kGs}93ab');
+
+      expect(find.textContaining('Срок годности'), findsOneWidget);
+      await tapOk(tester);
+      expect(active(p), isEmpty);
+    });
+
+    testWidgets('boshqa GTIN dagi KM — "topilmadi", savat bo\'sh',
+        (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, '0100049000033946217MG7fVVkzf5Y?${kGs}93ab');
+
+      expect(find.byType(NotFoundProductDialog), findsOneWidget);
+      await tapOk(tester);
+      expect(active(p), isEmpty);
+    });
+
+    testWidgets(
+        'oddiy "49000033939" skani (KM emas) — o\'zgarishsiz topilmaydi',
+        (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, '49000033939');
+
+      expect(find.byType(NotFoundProductDialog), findsOneWidget);
+      await tapOk(tester);
+      expect(active(p), isEmpty);
+    });
+
+    testWidgets('OFD o\'chiq: KM bilan topiladi, oddiy qator, KM yozilmaydi',
+        (tester) async {
+      await tester
+          .runAsync(() => Pref.setBool(PrefKeys.markCheckWithOfd, false));
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, kKm1);
+
+      final rows = active(p);
+      expect(rows, hasLength(1));
+      expect(rows.single.productId, kFantaId);
+      expect(rows.single.mark, isNull);
+      expect(rows.single.marking, isFalse);
+    });
+  });
+
+  group('Avvalgi yo\'l: oddiy shtrix-kod, keyin dialogda KM (o\'zgarmagan)',
+      () {
+    testWidgets('0049000033939 → dialog → KM1 → marka qatori', (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, '0049000033939');
+      expect(find.byType(MarkingDialog), findsOneWidget);
+
+      await tester.enterText(
+          find.descendant(
+              of: find.byType(MarkingDialog), matching: find.byType(TextField)),
+          kKm1);
+      await tester.tap(find.descendant(
+          of: find.byType(MarkingDialog),
+          matching: find.byType(ElevatedButton)));
+      await pumpFew(tester);
+
+      final rows = active(p);
+      expect(rows, hasLength(1));
+      expect(rows.single.productId, kFantaId);
+      expect(rows.single.mark, kKm1Clean);
+    });
+  });
+
+  group('Blok va narxi 0 yo\'llari', () {
+    testWidgets('blok kodi UPC-12 (049000099991) → blok qatori',
+        (tester) async {
+      final blok = fanta(barcodes: ['0049000033939'])
+        ..hasBoxBarcode = true
+        ..boxBarcode = '049000099991'
+        ..boxBarcodeQuantity = 24;
+      useCatalog([blok]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, '010004900009999121BLOK00000001');
+
+      final rows = active(p);
+      expect(rows, hasLength(1));
+      expect(rows.single.saleType, 2);
+      expect(rows.single.boxValue, 24);
+    });
+
+    testWidgets('narxi 0 Fanta KM bilan — "topilmadi" emas, narx 0 yo\'li',
+        (tester) async {
+      useCatalog([fanta(price: 0)]);
+      expect(ItemsSingleton.barcodeProducts, isEmpty);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, kKm1);
+
+      expect(find.byType(NotFoundProductDialog), findsNothing,
+          reason: 'narxi 0 mahsulot GS1 tengligi bilan topiladi');
+      await tapOk(tester);
+      expect(active(p), isEmpty, reason: 'narxi 0 — savatga tushmaydi');
+    });
+  });
+}
+```
+
+</details>
+
+### 6.3. Testlar diff (`git show 38e40f3 -- test/gs1_test.dart test/scanned_product_lookup_test.dart test/barcode_classifier_test.dart`)
+
+<details>
+<summary>+97 test (gs1 +12, scanned_product_lookup +81, barcode_classifier +4) — ochish</summary>
+
+```diff
+diff --git a/test/barcode_classifier_test.dart b/test/barcode_classifier_test.dart
+index 83ea9e8..1a0c2d1 100644
+--- a/test/barcode_classifier_test.dart
++++ b/test/barcode_classifier_test.dart
+@@ -50,6 +50,22 @@ void main() {
+     test('markirovka (01+GTIN+21+serial)', () {
+       expect(kindOf('010478006900050521ABC123'), ScannedCodeKind.product);
+     });
++
++    // 2026-10-21, do'kondagi KM (Fanta 355ml): GS (0x1D) belgisi va `?`, `/`
++    // kabi seriya belgilari freeText ga tushirmaydi — KM qidiruvga yetadi.
++    for (final km in [
++      '0100049000033939217MG7fVVkzf5Y?\x1D93abcd',
++      '0100049000033939217/VG5xQ2pLm8a\x1D93Wz1k',
++      '0100049000033939217MG7fVVkzf5Y?93abcd',
++    ]) {
++      test('KM (GS1 DataMatrix) → product: ${km.substring(0, 20)}…', () {
++        final clean = BarcodeClassifier.sanitize(km);
++        expect(clean, km, reason: 'GS belgisi sanitize da saqlanadi');
++        expect(kindOf(clean), ScannedCodeKind.product);
++        expect(BarcodeClassifier.parseExpiry(clean), isNull,
++            reason: '21 (seriya) dan oldin 17/15 yo\'q — muddat yo\'q');
++      });
++    }
+   });
+ 
+   group('Rad etiladigan kodlar', () {
+@@ -195,6 +211,14 @@ void main() {
+       expect(BarcodeClassifier.parseExpiry('4780069000505'), isNull);
+     });
+ 
++    test('KM: 01+GTIN14 (nollar bilan) + 17 + 21 seriya — muddat o\'qiladi', () {
++      expect(
++        BarcodeClassifier.parseExpiry(
++            '0100049000033939172501012112345\x1D93abcd'),
++        DateTime(2025, 1, 1),
++      );
++    });
++
+     // ⚠️ QAYD ETILGAN XATTI-HARAKAT (tuzatilmadi)
+     // Gs1.parseDate oy/kun chegarasini TEKSHIRMAYDI. `999999` -> yy=99,
+     // mm=99, dd=99 va Dart'ning DateTime(1999, 99, 99) oshib ketishni
+diff --git a/test/gs1_test.dart b/test/gs1_test.dart
+index 9b283d1..7d6ec70 100644
+--- a/test/gs1_test.dart
++++ b/test/gs1_test.dart
+@@ -1,4 +1,4 @@
+-// GS1 sana tahlili — test.
++// GS1 sana tahlili va GTIN tengligi — test.
+ //
+ // Faza 1 da OrderingProvider4 dan `Gs1` ga ko'chirildi. Ilgari `private`
+ // (`_parseGS1Date`) bo'lgani uchun testlab bo'lmasdi.
+@@ -65,4 +65,71 @@ void main() {
+       expect(Gs1.parseDate('260805123'), DateTime(2026, 8, 5));
+     });
+   });
++
++  // 2026-10-21: KM ichidagi GTIN-14 `00049000033939` (Fanta 355ml) katalogdagi
++  // UPC-12 / EAN-13 yozuvlariga mos kelmasdi.
++  group('Gs1.isSameGtin — GS1 GTIN tengligi (chapdan nol bilan 14 xonagacha)',
++      () {
++    // KM dan: 00049000033939 → boshidagi nollarsiz kalit
++    const key = '49000033939';
++
++    for (final b in [
++      '49000033939', // nollari tushib qolgan (11)
++      '049000033939', // UPC-12
++      '0049000033939', // EAN-13
++      '00049000033939', // GTIN-14
++    ]) {
++      test('$b ↔ $key — bitta tovar', () {
++        expect(Gs1.isSameGtin(b, key), isTrue);
++      });
++    }
++
++    test('GTIN-8 (8 xona) ham qatnashadi', () {
++      expect(Gs1.isSameGtin('40170725', '40170725'), isTrue);
++      expect(Gs1.isSameGtin('01234565', '1234565'), isTrue);
++    });
++
++    test('8 xonadan qisqa kod qatnashmaydi (SKU / ichki kod)', () {
++      expect(Gs1.isSameGtin('0012345', '12345'), isFalse);
++      expect(Gs1.isSameGtin('206', '206'), isFalse);
++    });
++
++    test('14 xonadan uzun kod qatnashmaydi (GTIN emas)', () {
++      expect(Gs1.isSameGtin('000049000033939', key), isFalse);
++    });
++
++    test('harf/belgi aralash kod normalizatsiya qilinmaydi', () {
++      expect(Gs1.isSameGtin('0A49000033939', key), isFalse);
++      expect(Gs1.isSameGtin('O49000033939', key), isFalse, reason: 'lotin O');
++      expect(Gs1.isSameGtin(' 049000033939', key), isFalse);
++      expect(Gs1.isSameGtin('049000033939 ', key), isFalse);
++    });
++
++    test('fragment moslik yo\'q: faqat BOSHIDAGI nollar ahamiyatsiz', () {
++      expect(Gs1.isSameGtin('149000033939', key), isFalse,
++          reason: 'boshida noldan boshqa raqam — boshqa GTIN');
++      expect(Gs1.isSameGtin('4900003393', key), isFalse,
++          reason: 'oxirgi raqam yetishmaydi');
++      expect(Gs1.isSameGtin('490000339390', key), isFalse,
++          reason: 'oxirida ortiqcha raqam');
++      expect(Gs1.isSameGtin('049000033946', key), isFalse,
++          reason: 'bitta raqam farq — boshqa tovar');
++    });
++
++    test('indikator raqami (GTIN-14 boshidagi 1..9) — boshqa tovar', () {
++      // 14780000000001 (karton) ≠ 4780000000001 (dona)
++      expect(Gs1.isSameGtin('4780000000001', '14780000000001'), isFalse);
++      expect(Gs1.isSameGtin('14780000000001', '14780000000001'), isTrue);
++    });
++
++    test('bo\'sh kalit (hammasi nol GTIN) hech narsaga mos emas', () {
++      expect(Gs1.isSameGtin('00000000', ''), isFalse);
++      expect(Gs1.isSameGtin('049000033939', ''), isFalse);
++    });
++
++    test('kalit nollarsiz bo\'lishi shart (shartnoma)', () {
++      expect(Gs1.isSameGtin('049000033939', '049000033939'), isFalse,
++          reason: 'chaqiruvchi kalitni boshidagi nollarsiz beradi');
++    });
++  });
+ }
+diff --git a/test/scanned_product_lookup_test.dart b/test/scanned_product_lookup_test.dart
+index eda4746..fc2b89b 100644
+--- a/test/scanned_product_lookup_test.dart
++++ b/test/scanned_product_lookup_test.dart
+@@ -8,6 +8,8 @@
+ // `barcode_classifier_test` bilan qoplangan — bu yerda faqat QIDIRUV.
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:invan2/changes/domain/barcode/scanned_product_lookup.dart';
++import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
++import 'package:invan2/changes/domain/marking/mark_validator.dart';
+ import 'package:invan2/changes/models/product/item_model.dart';
+ import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+ 
+@@ -45,6 +47,59 @@ ScannedProductMatch lookup(String barcode,
+       cleanMark: (_) => cleaned,
+     );
+ 
++// ---- 2026-10-21: KM to'g'ridan skanerlanganda GTIN boshidagi nollar ----
++//
++// Do'kondagi haqiqiy holat: "Ichimlik Fanta 355ml" (SKU 25619). KM ichida
++// GTIN-14 `00049000033939`; katalogda UPC-12 / EAN-13 yozuvlari. Avval
++// faqat nolsiz `49000033939` AYNAN qidirilardi — topilmasdi. Oddiy
++// shtrix-kodni skanerlab, keyin dialogga KM berilsa ishlardi
++// (`MarkValidator` ikkala tomondan nolni olib tashlaydi).
++
++/// Adminkadagi 8 ta shtrix-kod (hammasi bitta mahsulotda).
++const kFantaBarcodes = [
++  '049000014242',
++  '0049000014242',
++  '049000067729',
++  '0049000067729',
++  '049000033939',
++  '0049000033939',
++  '049000014273',
++  '0049000014273',
++];
++
++const kGs = '\x1D';
++
++/// 01 + GTIN14 + 21 + seriya(13) + `<GS>` + 93 + kripto(4).
++const kKm1 = '0100049000033939217MG7fVVkzf5Y?${kGs}93abcd';
++const kKm2 = '0100049000033939217/VG5xQ2pLm8a${kGs}93Wz1k';
++
++/// Skaner GS belgisini yubormasa.
++const kKm1NoGs = '0100049000033939217MG7fVVkzf5Y?93abcd';
++
++/// Qavsli (HRI) ko'rinish.
++const kKm1Paren = '(01)00049000033939(21)7MG7fVVkzf5Y?(93)abcd';
++
++const kKm1Clean = '0100049000033939217MG7fVVkzf5Y?';
++const kKm2Clean = '0100049000033939217/VG5xQ2pLm8a';
++
++const kAllKms = {
++  'KM1 (GS bilan)': kKm1,
++  'KM2 (GS bilan)': kKm2,
++  'KM1 (GS siz)': kKm1NoGs,
++  'KM1 (qavsli)': kKm1Paren,
++};
++
++ItemModel fanta({List<String> barcodes = kFantaBarcodes}) =>
++    product(id: 'fanta', sku: '25619', barcodes: barcodes);
++
++/// Real KM tozalovchi bilan — savatga aynan nima yozilishini ko'rish uchun.
++ScannedProductMatch scanKm(String km, {bool markable = true}) =>
++    ScannedProductLookup.find(
++      km,
++      isMarkable: (_) => markable,
++      cleanMark: MarkCleaner.scanTime,
++    );
++
+ void main() {
+   setUp(() => seed([]));
+ 
+@@ -240,4 +295,407 @@ void main() {
+       expect(ScannedProductLookup.findZeroPriceProduct([]), isNull);
+     });
+   });
++
++  // ===================================================================
++  // KM to'g'ridan skan — GTIN boshidagi nollar (2026-10-21)
++  // ===================================================================
++  group('KM to\'g\'ridan skan — Fanta 355ml (do\'kondagi holat)', () {
++    kAllKms.forEach((name, km) {
++      test('$name → Fanta topiladi, KM biriktiriladi', () {
++        seed([fanta()]);
++        final m = scanKm(km);
++        expect(m.item?.id, 'fanta');
++        expect(m.item!.mark, MarkCleaner.scanTime(km));
++      });
++    });
++
++    test('savatga yoziladigan KM: kripto qismsiz, 01/21 raqamlari bilan', () {
++      seed([fanta()]);
++      expect(scanKm(kKm1).item!.mark, kKm1Clean);
++      expect(scanKm(kKm1NoGs).item!.mark, kKm1Clean);
++      expect(scanKm(kKm1Paren).item!.mark, kKm1Clean);
++      expect(scanKm(kKm2).item!.mark, kKm2Clean);
++    });
++
++    test('blok qidiruvi Fanta KM ini blok deb olmaydi', () {
++      seed([fanta()]);
++      expect(ScannedProductLookup.findBoxProduct(kKm1), isNull);
++      expect(ScannedProductLookup.findBoxProduct(kKm2), isNull);
++    });
++
++    test('markirovkasiz mahsulotga KM biriktirilMAYDI', () {
++      seed([fanta()]);
++      final m = scanKm(kKm1, markable: false);
++      expect(m.item?.id, 'fanta');
++      expect(m.item!.mark, isNull);
++    });
++
++    test('isMarkable topilgan mahsulotning o\'zi bilan chaqiriladi', () {
++      seed([fanta()]);
++      ItemModel? asked;
++      ScannedProductLookup.find(kKm1,
++          isMarkable: (p) {
++            asked = p;
++            return true;
++          },
++          cleanMark: MarkCleaner.scanTime);
++      expect(asked?.id, 'fanta');
++    });
++
++    test('ESKI KOD: nolsiz GTIN aynan qidirilsa katalogda yo\'q (bug sababi)',
++        () {
++      seed([fanta()]);
++      expect(ItemsSingleton.getProductByBarcode('49000033939'), isNull);
++    });
++  });
++
++  group('KM — har bir shtrix-kod yolg\'iz o\'zi bo\'lsa ham', () {
++    // KM1/KM2 GTIN i 00049000033939 — faqat shu GTIN ning yozuvlari mos.
++    for (final b in [
++      '049000033939',
++      '0049000033939',
++      '49000033939',
++      '00049000033939',
++    ]) {
++      for (final km in [kKm1, kKm2]) {
++        test('katalogda faqat $b, KM ${km.substring(16, 22)}… → topiladi', () {
++          seed([fanta(barcodes: [b])]);
++          expect(scanKm(km).item?.id, 'fanta');
++        });
++      }
++    }
++
++    // Qolgan 6 ta (014242 / 067729 / 014273) — har biri O'Z GTIN i bilan.
++    for (final b in kFantaBarcodes) {
++      test('$b → o\'z GTIN-14 i bilan KM topadi', () {
++        seed([fanta(barcodes: [b])]);
++        final gtin14 = b.padLeft(14, '0');
++        expect(scanKm('01${gtin14}21SERIAL0000001${kGs}93abcd').item?.id,
++            'fanta');
++      });
++    }
++
++    test('boshqa GTIN dagi shtrix-kod Fanta KM iga mos EMAS', () {
++      // 049000014242 — Fanta'ning boshqa o'lchami; KM 00049000033939
++      seed([fanta(barcodes: ['049000014242', '0049000014242'])]);
++      expect(scanKm(kKm1).item, isNull);
++    });
++  });
++
++  group('Avvalgi xatti-harakat o\'zgarmagan — aynan teng moslik ustun', () {
++    test('nolsiz GTIN ga aynan teng mahsulot GS1 tengidan oldin', () {
++      seed([
++        product(id: 'ean13', barcodes: ['0049000033939']),
++        product(id: 'nolsiz', barcodes: ['49000033939']),
++      ]);
++      expect(scanKm(kKm1).item?.id, 'nolsiz',
++          reason: 'katalog tartibi emas — avval aynan teng qidiruv');
++    });
++
++    test('butun KM ga aynan teng barcode (eski "Yaratish") ustun, mark null',
++        () {
++      seed([
++        fanta(),
++        product(id: 'km-barcode', barcodes: [kKm1]),
++      ]);
++      final m = scanKm(kKm1);
++      expect(m.item?.id, 'km-barcode');
++      expect(m.item!.mark, isNull);
++    });
++
++    test('mavjud ishlagan holatlar: nolsiz / to\'liq EAN13', () {
++      seed([product(id: 'suv', barcodes: ['4780000000001'])]);
++      expect(scanKm('010478000000000121ABC').item?.id, 'suv');
++      expect(scanKm('(01)04780000000001(21)ABC').item?.id, 'suv');
++    });
++  });
++
++  group('Oddiy skan va SKU — normalizatsiya YO\'Q (o\'zgarishsiz)', () {
++    test('oddiy "49000033939" skani 049000033939 ni topmaydi', () {
++      seed([fanta(barcodes: ['049000033939'])]);
++      expect(lookup('49000033939').item, isNull);
++    });
++
++    test('oddiy "049000033939" skani 0049000033939 ni topmaydi', () {
++      seed([fanta(barcodes: ['0049000033939'])]);
++      expect(lookup('049000033939').item, isNull);
++    });
++
++    test('oddiy GTIN-14 "00049000033939" skani (KM emas) topmaydi', () {
++      seed([fanta(barcodes: ['0049000033939'])]);
++      expect(lookup('00049000033939').item, isNull);
++    });
++
++    test('16 belgili "01"+GTIN14 (seriyasiz) KM hisoblanmaydi', () {
++      seed([fanta()]);
++      expect(lookup('0100049000033939').item, isNull);
++      expect(ScannedProductLookup.findBoxProduct('0100049000033939'), isNull);
++    });
++
++    test('oddiy skanning o\'zi aynan teng bo\'lsa topiladi (o\'zgarmagan)', () {
++      seed([fanta()]);
++      for (final b in kFantaBarcodes) {
++        final m = lookup(b, markable: true);
++        expect(m.item?.id, 'fanta', reason: b);
++        expect(m.item!.mark, isNull, reason: 'oddiy skanda KM yo\'q');
++      }
++    });
++
++    test('oddiy skanda gtins bo\'sh — GS1 tengligi ishlamaydi', () {
++      expect(lookup('49000033939').gtins, isEmpty);
++      expect(lookup('49000033939').triedPatterns, ['49000033939']);
++    });
++
++    test('SKU bo\'yicha (25619) topiladi, "025619" topilmaydi', () {
++      seed([fanta(barcodes: [])]);
++      expect(lookup('25619').item?.id, 'fanta');
++      expect(lookup('025619').item, isNull);
++    });
++  });
++
++  group('KM boshqa mahsulotga ulanmaydi', () {
++    test('KM GTIN i boshqa mahsulotniki → o\'sha mahsulot, Fanta emas', () {
++      seed([
++        fanta(),
++        product(id: 'pepsi', barcodes: ['04780000000017']),
++      ]);
++      final m = scanKm('0104780000000017215KM000001${kGs}93abcd');
++      expect(m.item?.id, 'pepsi');
++    });
++
++    test('GTIN da bitta raqam farq → topilmaydi', () {
++      seed([fanta()]);
++      expect(scanKm('0100049000033946217MG7fVVkzf5Y?${kGs}93abcd').item,
++          isNull);
++    });
++
++    test('indikator raqamli GTIN-14 (10049000033939, karton) dona emas', () {
++      seed([fanta()]);
++      expect(scanKm('0110049000033939217MG7fVVkzf5Y?${kGs}93abcd').item,
++          isNull);
++    });
++
++    test('harf aralash shtrix-kod normalizatsiya qilinmaydi', () {
++      seed([
++        fanta(barcodes: ['049000033939A', 'O49000033939', ' 049000033939'])
++      ]);
++      expect(scanKm(kKm1).item, isNull);
++    });
++
++    test('fragment: oxiri yetishmaydigan / ortiqcha / boshqa prefiksli kod',
++        () {
++      seed([
++        fanta(barcodes: ['4900003393', '490000339390', '149000033939'])
++      ]);
++      expect(scanKm(kKm1).item, isNull);
++    });
++
++    test('14 xonadan uzun shtrix-kod GTIN emas — qatnashmaydi', () {
++      seed([fanta(barcodes: ['000049000033939'])]);
++      expect(scanKm(kKm1).item, isNull);
++    });
++
++    test('8 xonadan qisqa kod nol bilan to\'ldirilmaydi', () {
++      // GTIN-14 00000000012345 → kalit 12345 (SKU uzunligi)
++      seed([product(id: 'ichki', barcodes: ['0012345'])]);
++      expect(scanKm('0100000000012345' '21SERIAL${kGs}93ab').item, isNull);
++    });
++
++    test('GTIN-8 (8 xona) KM ichida 14 xonagacha to\'ldirilgan — topiladi', () {
++      seed([product(id: 'gtin8', barcodes: ['40170725'])]);
++      expect(scanKm('0100000040170725' '21SERIAL${kGs}93ab').item?.id, 'gtin8');
++      // Boshida nol bor GTIN-8: nolsiz kalit 7 xona — faqat GS1 tengligi bilan
++      seed([product(id: 'gtin8-0', barcodes: ['01234565'])]);
++      expect(scanKm('0100000001234565' '21SERIAL${kGs}93ab').item?.id,
++          'gtin8-0');
++    });
++
++    test('hammasi nol GTIN — hech narsa topilmaydi', () {
++      seed([product(id: 'nol', barcodes: ['00000000'])]);
++      final m = scanKm('0100000000000000' '21SERIAL');
++      expect(m.item, isNull);
++      expect(m.gtins, isEmpty);
++    });
++
++    test('narxi bor mahsulotlar ro\'yxatidan (barcodeProducts) qidiriladi', () {
++      ItemsSingleton.products = [fanta()];
++      ItemsSingleton.barcodeProducts = [];
++      expect(scanKm(kKm1).item, isNull, reason: 'narxi 0 — alohida yo\'l');
++    });
++  });
++
++  group('Blok shtrix-kodi — GS1 tengligi', () {
++    // Blok GTIN-14 = 00049000099991
++    const kBoxKm = '0100049000099991' '21BLOK00000001';
++
++    test('blok kodi UPC-12 (049000099991) → topiladi', () {
++      seed([product(id: 'blok', boxBarcode: '049000099991')]);
++      expect(ScannedProductLookup.findBoxProduct(kBoxKm)?.id, 'blok');
++    });
++
++    for (final b in ['0049000099991', '49000099991', '00049000099991']) {
++      test('blok kodi $b (aynan teng variant) → topiladi', () {
++        seed([product(id: 'blok', boxBarcode: b)]);
++        expect(ScannedProductLookup.findBoxProduct(kBoxKm)?.id, 'blok');
++      });
++    }
++
++    test('aynan teng variant GS1 tengidan oldin', () {
++      seed([
++        product(id: 'upc12', boxBarcode: '049000099991'),
++        product(id: 'ean13', boxBarcode: '0049000099991'),
++      ]);
++      expect(ScannedProductLookup.findBoxProduct(kBoxKm)?.id, 'ean13');
++    });
++
++    test('oddiy shtrix-kod blok qidiruviga tushmaydi', () {
++      seed([product(id: 'dona', barcodes: ['049000099991'])]);
++      expect(ScannedProductLookup.findBoxProduct(kBoxKm), isNull);
++    });
++
++    test('hasBoxBarcode false bo\'lsa blok kodi hisobga olinmaydi', () {
++      final m = product(id: 'blok', boxBarcode: '049000099991')
++        ..hasBoxBarcode = false;
++      seed([m]);
++      expect(ScannedProductLookup.findBoxProduct(kBoxKm), isNull);
++    });
++
++    test('harf aralash / 14 dan uzun blok kodi qatnashmaydi', () {
++      seed([
++        product(id: 'a', boxBarcode: 'B49000099991'),
++        product(id: 'b', boxBarcode: '000049000099991'),
++      ]);
++      expect(ScannedProductLookup.findBoxProduct(kBoxKm), isNull);
++    });
++  });
++
++  group('Narxi 0 mahsulot — GS1 tengligi', () {
++    void seedZeroPrice(List<ItemModel> items) {
++      ItemsSingleton.products = items;
++      ItemsSingleton.barcodeProducts = []; // narxi 0 — skaner ro'yxatida yo'q
++    }
++
++    test('KM → narxi 0 Fanta topiladi (gtins bilan)', () {
++      seedZeroPrice([fanta()]);
++      final m = scanKm(kKm1);
++      expect(m.item, isNull);
++      expect(m.gtins, ['49000033939']);
++      expect(
++          ScannedProductLookup.findZeroPriceProduct(m.triedPatterns,
++                  gtins: m.gtins)
++              ?.id,
++          'fanta');
++    });
++
++    test('gtins berilmasa — eski xatti-harakat (topilmaydi)', () {
++      seedZeroPrice([fanta()]);
++      final m = scanKm(kKm1);
++      expect(ScannedProductLookup.findZeroPriceProduct(m.triedPatterns),
++          isNull);
++    });
++
++    test('oddiy skan (gtins bo\'sh) — normalizatsiya yo\'q', () {
++      seedZeroPrice([fanta(barcodes: ['049000033939'])]);
++      final m = lookup('49000033939');
++      expect(
++          ScannedProductLookup.findZeroPriceProduct(m.triedPatterns,
++              gtins: m.gtins),
++          isNull);
++    });
++
++    test('aynan teng variant GS1 tengidan oldin', () {
++      seedZeroPrice([
++        product(id: 'upc12', barcodes: ['049000033939']),
++        product(id: 'nolsiz', barcodes: ['49000033939']),
++      ]);
++      final m = scanKm(kKm1);
++      expect(
++          ScannedProductLookup.findZeroPriceProduct(m.triedPatterns,
++                  gtins: m.gtins)
++              ?.id,
++          'nolsiz');
++    });
++
++    test('katalog kodidagi bo\'shliqlar e\'tiborga olinmaydi (trim)', () {
++      seedZeroPrice([fanta(barcodes: [' 049000033939 '])]);
++      final m = scanKm(kKm1);
++      expect(
++          ScannedProductLookup.findZeroPriceProduct(m.triedPatterns,
++                  gtins: m.gtins)
++              ?.id,
++          'fanta');
++    });
++  });
++
++  group('gtins — KM/GS1 dan ajratilgan GTIN lar', () {
++    test('qavssiz KM', () {
++      expect(scanKm(kKm1).gtins, ['49000033939']);
++    });
++
++    test('qavsli KM', () {
++      expect(scanKm(kKm1Paren).gtins, ['49000033939']);
++    });
++
++    test('triedPatterns avvalgidek: asl kod + nolsiz GTIN', () {
++      expect(scanKm(kKm1).triedPatterns, [kKm1, '49000033939']);
++    });
++
++    test('topilgan holatda ham gtins to\'ldiriladi', () {
++      seed([fanta()]);
++      expect(scanKm(kKm1).gtins, ['49000033939']);
++    });
++  });
++
++  group('MarkValidator bilan muvofiqlik (dialog yo\'li)', () {
++    // Skaner topgan mahsulot `_markingCheck` dagi `MarkValidator` dan o'tishi
++    // shart — aks holda "boshqa mahsulotga tegishli" xatosi chiqardi.
++    for (final b in [
++      ...kFantaBarcodes.where((b) => b.endsWith('33939')),
++      '49000033939',
++      '00049000033939',
++    ]) {
++      kAllKms.forEach((name, km) {
++        test('katalogda $b, $name: topiladi VA tekshiruvdan o\'tadi', () {
++          seed([fanta(barcodes: [b])]);
++          final found = scanKm(km).item;
++          expect(found?.id, 'fanta');
++          final v = MarkValidator.validate(found!.mark!, found);
++          expect(v.issue, MarkIssue.none);
++          expect(v.gtin, '49000033939');
++        });
++      });
++    }
++
++    test('dialog yo\'li (avval ham ishlagan) o\'zgarmagan', () {
++      expect(MarkValidator.validate(kKm1Clean, fanta()).issue, MarkIssue.none);
++      expect(
++          MarkValidator.validate(kKm1Clean, fanta(barcodes: ['049000014242']))
++              .issue,
++          MarkIssue.wrongProduct);
++    });
++  });
++
++  group('Unumdorlik — katta katalog', () {
++    test('30 000 mahsulot, Fanta oxirida: KM qidiruvi tez', () {
++      final items = [
++        for (var i = 0; i < 30000; i++)
++          product(id: 'p$i', barcodes: [
++            '478${i.toString().padLeft(10, '0')}',
++            'X$i',
++          ], boxBarcode: i.isEven ? '1478${i.toString().padLeft(10, '0')}' : null),
++        fanta(),
++      ];
++      seed(items);
++      final sw = Stopwatch()..start();
++      final box = ScannedProductLookup.findBoxProduct(kKm1);
++      final m = scanKm(kKm1);
++      sw.stop();
++      // ignore: avoid_print
++      print('30 000 katalog: blok + KM qidiruvi ${sw.elapsedMilliseconds} ms');
++      expect(box, isNull);
++      expect(m.item?.id, 'fanta');
++      // Odatda bir necha o'n ms; chegara CI uchun keng.
++      expect(sw.elapsedMilliseconds, lessThan(1500));
++    });
++  });
+ }
+```
+
+</details>
+
+## 7. Tekshirish
+
+- Baza (`ayyubxon` b1fd08d): to'liq to'plam **2035 o'tdi, 7 skip**.
+- Shu commit (`38e40f3`): to'liq to'plam **2144 o'tdi, 7 skip** (+109 yangi test).
+- `test/km_direct_scan_e2e_test.dart` b1fd08d da ishga tushirildi: 8 ta bug testi yiqiladi (KM1, KM1+KM2, takror, 2 × yolg'iz shtrix-kod, OFD o'chiq, blok UPC-12, narxi 0), 4 ta "o'zgarmagan" testi o'tadi (muddat, boshqa GTIN, oddiy skan, dialog yo'li) — testlar bugni haqiqatan ushlaydi.
+- `flutter analyze` (o'zgargan lib fayllar): 28 ta oldindan bor info (`use_build_context_synchronously` va h.k.), yangi ogohlantirish yo'q — baza bilan solishtirildi.
+- Do'kon sinovi kutilmoqda: Fanta KM ini to'g'ridan skanerlash → marka qatori; shu KM qayta → "oldin qo'shilgan"; oddiy shtrix-kod → dialog → KM (eski yo'l).
+
+## 8. Eslatmalar va ochiq savollar
+
+- **Do'konda sezilishi mumkin bo'lgan o'zgarish:** avval "Mahsulot topilmadi" chiqqan KM/blok skanlari endi mahsulotni topadi (faqat katalogdagi kod GS1 bo'yicha teng va 8..14 xonali sof raqam bo'lsa). Avval topilgan har bir skan aynan avvalgidek.
+- Katalog xatosi holatlari (amalda uchramasligi kerak): (a) bitta GTIN bir mahsulotda blok kodi (nollari boshqacha yozilgan), boshqasida dona shtrix-kodi (aynan nolsiz) bo'lsa — endi blok yo'li yutadi (blok yo'li avvaldan birinchi); (b) narxi 0 dublikat (aynan nolsiz kod) va narxi bor dublikat (GS1 teng kod) bo'lsa — endi narxi bor mahsulot topiladi (avval narxi 0 dialogi).
+- Ataylab tuzatilmagan (mavjud, real KM da uchramaydi): GTIN kaliti `<= 5` xona bo'lsa 1-qadam SKU qidiruviga tushadi; `(01)` + 13 xonali qavsli kodda lookup va `MarkValidator.extractGtin` turlicha GTIN oladi; `21` seriyadan KEYIN kelgan `17` muddat o'qilmaydi; `item.mark` katalog obyektiga yoziladi (markirovka hujjati §21-p).
+- Qo'lda qidiruv (qidiruv dialogi / typeahead) o'zgarmagan — u yerga KM yozilsa GS1 tengligi ishlamaydi (skaner yo'li emas).
+- `docs/markirovka-tizimi.md` (InVan 2 asosiy worktree'sida, hali commit qilinmagan) §7.3 ga qo'shilishi kerak: blok — "uch variantdan keyin `boxBarcode` GS1 teng"; dona — "butun satr aynan qidiruvidan keyin `gtins` bo'yicha oddiy shtrix-kodlar GS1 teng (`Gs1.isSameGtin`, 8..14 xonali sof raqam), `item.mark` GTIN shoxlaridagidek"; narxi 0 — "`triedPatterns` aynan → `gtins` GS1 teng". §21 ga: "KM to'g'ridan skanerlanganda GTIN nollari — 17-taskda tuzatildi".
+- Odoo forkiga: **kerak** — skaner/markirovka qidiruvi mantig'i (savat), InVan backend'iga bog'liq emas.
 
 ---
 
