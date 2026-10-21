@@ -98,4 +98,31 @@ void main() {
       expect(twice, once);
     });
   });
+
+  // 2026-10-21: skaner KM boshiga `-` qo'yadi — dialogga kiritilgan KM ham
+  // scanTime dan o'tadi, soliqqa `-` siz ketishi kerak.
+  group('Skaner prefiksi (`-` = FNC1, AIM ]d2)', () {
+    const km = '0100049000033939217MG7fVVkzf5Y?';
+
+    test('`-` + haqiqiy GS93 → toza KM', () {
+      expect(MarkCleaner.scanTime('-$km${gs}93abcd'), km);
+    });
+
+    test('`-` rejimi: `-93` ajratuvchi → toza KM (oxirida `-` yo\'q)', () {
+      expect(MarkCleaner.scanTime('-$km-93abcd'), km);
+    });
+
+    test('`-` rejimi, tamaki: narx (8005) saqlanadi, `-` lar yo\'q', () {
+      expect(MarkCleaner.scanTime('-0104780069000505218AbCdEf-8005012345-93ab'),
+          '0104780069000505218AbCdEf8005012345');
+    });
+
+    test(']d2 + KM → toza KM', () {
+      expect(MarkCleaner.scanTime(']d2$km${gs}93abcd'), km);
+    });
+
+    test('prefikssiz KM natijasi o\'zgarmagan', () {
+      expect(MarkCleaner.scanTime('$km${gs}93abcd'), km);
+    });
+  });
 }

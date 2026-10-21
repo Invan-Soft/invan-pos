@@ -53,9 +53,14 @@ class BarcodeClassifier {
   /// 63233 = U+F701). Private-use (0xE000-0xF8FF) belgilarni olib
   /// tashlaymiz — ular hech qachon haqiqiy barcode qismi emas. Aks holda
   /// aniq/nol-farqli qidiruv mos kelmay mahsulot "topilmadi" bo'lardi.
-  static String sanitize(String raw) => String.fromCharCodes(
-        raw.codeUnits.where((c) => c < 0xE000 || c > 0xF8FF),
-      ).trim();
+  ///
+  /// So'ng KM boshidagi skaner prefiksi (`-`, AIM `]d2`) olib tashlanadi —
+  /// [Gs1.stripScannerPrefix].
+  static String sanitize(String raw) => Gs1.stripScannerPrefix(
+        String.fromCharCodes(
+          raw.codeUnits.where((c) => c < 0xE000 || c > 0xF8FF),
+        ).trim(),
+      );
 
   /// Kod turini aniqlaydi. Kirish [barcode] avval [sanitize] dan o'tgan
   /// bo'lishi kutiladi.
