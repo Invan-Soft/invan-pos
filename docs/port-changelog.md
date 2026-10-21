@@ -1,7 +1,7 @@
 # Port hujjati: BHM taskidan boshlab qilingan barcha o'zgarishlar
 
 **Manba loyiha:** InVan 2 POS — `pos-invan-2`, branch `ayyubxon`, versiya `1.1.2+129` (2026-10-02)
-**Hujjat holati:** 2026-10-21 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch; 14–15-tasklar — 1.1.2+130 relizida, GitHub; 16-task — 1.1.2+130 ga Shorebird patch; 17-task — commit bor, relizda emas)
+**Hujjat holati:** 2026-10-21 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch; 14–15-tasklar — 1.1.2+130 relizida, GitHub; 16-task — 1.1.2+130 ga Shorebird patch; 17–18-tasklar — commit bor, ayyubxon'ga merge qilingan, 1.1.2+130 ga Shorebird patch rejada)
 **Kimga:** shu loyihaning boshqa nusxasini (boshqa ERP bilan integratsiya qilinayotgan nusxa — "InVan 1") InVan 2 bilan bir xil holatga keltiradigan dasturchi yoki Claude.
 
 ## Bu hujjat nima
@@ -40,6 +40,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 15 | 2026-10-20 | YagonaQr — admin paneldagi alohida to'lov turi (kassir belgilaydi): serverga o'z id'si, soliqqa karta (`ReceivedCard`, `CardType` 2), aralash to'lov, X/Z "Plastik" ichida; Apps'da o'chirilsa tugma yo'q | **1.1.2+130** | Relizda (GitHub, backendga hali yuklanmagan); jonli sinov kutilmoqda | `dd624bf` |
 | 16 | 2026-10-20 | Karta raqami (`ExtraInfo.CardNumber`) yangi terminal formatlarida ham (korporativ Uzcard'da bo'sh ketardi); chekda yo'q bo'lsa logdan | 1.1.2+130 (Shorebird patch) | Commit bor; yangi terminalda sinov kutilmoqda | `d5b6432` |
 | 17 | 2026-10-21 | KM to'g'ridan skanerlanganda mahsulot topilmasdi: KM ichidagi GTIN-14 (`00049000033939`) katalogdagi UPC-12/EAN-13 (`049000033939`/`0049000033939`) ga GS1 tengligi bilan moslanadi — dona, blok, narxi 0; oddiy skan/SKU o'zgarmagan | relizda emas (1.1.2+130 ga Shorebird patch rejada) | Commit bor, relizda emas; do'kon sinovi kutilmoqda | `38e40f3` |
+| 18 | 2026-10-21 | Telegram log'idagi `Employee` joriy kassir (`static final` qotib qolardi). Vozvrat OFD xatosi 65274 tahlili: bizniki emas, fiskal modul OFD serveriga ulana olmagan | relizda emas (1.1.2+130 ga Shorebird patch rejada) | Commit bor, ayyubxon'ga merge qilingan; do'kon sinovi kutilmoqda | `4de89e6` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -96,6 +97,7 @@ dd624bf 2026-10-20 feat(to'lov): YagonaQr — alohida to'lov turi, soliqqa karta
 eb59e59 2026-10-20 release: 1.1.2+130                                                       (port qilinmaydi)
 d5b6432 2026-10-20 fix(terminal): karta raqami yangi terminal formatlarida ham olinadi     ← 16-task
 38e40f3 2026-10-21 fix(markirovka): KM to'g'ridan skanda GTIN boshidagi nollar          ← 17-task
+4de89e6 2026-10-21 fix(log): Telegram log'idagi xodim — joriy kassir                       ← 18-task
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -26718,6 +26720,207 @@ index eda4746..fc2b89b 100644
 - Qo'lda qidiruv (qidiruv dialogi / typeahead) o'zgarmagan — u yerga KM yozilsa GS1 tengligi ishlamaydi (skaner yo'li emas).
 - `docs/markirovka-tizimi.md` (InVan 2 asosiy worktree'sida, hali commit qilinmagan) §7.3 ga qo'shilishi kerak: blok — "uch variantdan keyin `boxBarcode` GS1 teng"; dona — "butun satr aynan qidiruvidan keyin `gtins` bo'yicha oddiy shtrix-kodlar GS1 teng (`Gs1.isSameGtin`, 8..14 xonali sof raqam), `item.mark` GTIN shoxlaridagidek"; narxi 0 — "`triedPatterns` aynan → `gtins` GS1 teng". §21 ga: "KM to'g'ridan skanerlanganda GTIN nollari — 17-taskda tuzatildi".
 - Odoo forkiga: **kerak** — skaner/markirovka qidiruvi mantig'i (savat), InVan backend'iga bog'liq emas.
+
+---
+
+# 18-TASK — Telegram log'idagi "Employee" joriy kassir bo'lishi (relizda emas)
+
+> **Commit:** `4de89e6` (2026-10-21), branch `fix/vozvrat-ofd-xato` (asos `ayyubxon` b1fd08d). Reliz: relizda emas.
+> **Sessiya hujjati:** `docs/sessions/2026-10-21-vozvrat-ofd-xato.md` (vozvrat OFD xatosi 65274 ning to'liq tahlili).
+> **Holat 2026-10-21:** commit bor, testlar o'tdi; `ayyubxon` ga merge qilinmagan.
+
+## 1. Nima va nima uchun
+
+**Simptom (2026-10-21, Tiin Optom, Kassa 5):** vozvrat xatosi Telegram'ga `Employee: Dilorom` bilan keldi, o'sha so'rovning fiskal body'sida esa `staffName: "Aqliddin"`.
+
+**Sabab:** `LogRepository._currentEmployee` `static final` maydon edi. Dart'da bunday maydon birinchi o'qilganda BIR MARTA hisoblanadi va keyin o'zgarmaydi. Natijada ilova ochilgandan keyin birinchi log yozilgan paytdagi kassir (Dilorom) qotib qolardi. Keyingi kassir PIN bilan kirganda ham (`goHomePage` → `Pref cashierId/cashierName`) barcha Telegram log'larida eski ism chiqdi. Fiskal `staffName` to'g'ri edi: `saleOnOFD` har chekda `Pref cashierName` ni o'qiydi. Bug 2026-03-26 (boshlang'ich commit) dan beri bor edi.
+
+**Yechim:** maydon getter'ga aylantirildi, shuning uchun `HiveBoxes.getCurrentEmployee` har log'da qaytadan o'qiladi. Xato bo'lsa (masalan, quti yopiq) `null` qaytadi, chunki log yozish exception tashlamasligi kerak.
+
+**Ushbu task bilan bog'liq, lekin kodga TEGILMAGAN:** vozvrat xatosining o'zi (`При регистрации чека возврата и при проверки информации об отозванном чеке (RefundInfo) возникла ошибка подключения к серверу ОФД`) bizning xatomiz emas. FiscalDriveAPI `Api.SendRefundReceipt` ga JSON-RPC `error.code = 65274` qaytargan, ya'ni modul RefundInfo'ni tekshirish uchun OFD serveriga ulana olmagan. Matn `ErrorModel.toMessage()` dagi kod jadvalidan olinadi. Vozvrat oqimi xatoda to'g'ri ishladi: hech narsa saqlanmadi va serverga ketmadi, "Qayta urinish" xavfsiz (3-task, `return_bloc.dart`). Tafsilot sessiya hujjatida.
+
+## 2. Qanday ishlaydi
+
+| Holat | Eski | Yangi |
+|---|---|---|
+| Ilova ochildi, Dilorom kirdi, birinchi log | `Employee: Dilorom` | `Employee: Dilorom` |
+| Keyin Aqliddin PIN bilan kirdi, log | `Employee: Dilorom` ❌ | `Employee: Aqliddin` |
+| Hech kim kirmagan (cashierId topilmaydi) | birinchi qiymat qotadi | `null` |
+| `employees` qutisi ochilmagan / xato | birinchi o'qishda exception | `null`, log yoziladi |
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/repository/log_repository.dart` | o'zgargan | `static final Employee? _currentEmployee = ...` → `static Employee? get _currentEmployee` (try/catch) |
+| `test/log_repository_employee_test.dart` | YANGI | 3 test: `addLog` va `requestSend` da kassir almashsa xodim ham almashadi; xodim topilmasa `"null"` |
+
+## 4. Bog'liqliklar
+
+- Yo'q. InVan 1 da `LogRepository` boshqacha bo'lsa, Telegram log'iga xodim ismini qayerdan olishini qidiring. Agar u `static final` / `late final` / konstruktorda bir marta o'qiladigan maydon bo'lsa, xuddi shu o'zgarishni qiling.
+- Test Hive adapterlariga tayanadi: `LogModelAdapter` (27), `EmployeeAdapter` (0), `EmployeeAccessAdapter` (2), `EmployeeUserAdapter` (101), `EmployeeRoleAdapter` (102). Qutilar: `prefs`, `logs`, `tg_logs`, `employees`. InVan 1 da typeId'lar boshqa bo'lsa moslang.
+
+## 5. Qo'llash tartibi
+
+1. `log_repository.dart` dagi maydonni getter'ga almashtiring (6.1).
+2. Testni qo'shing (6.2), keyin `flutter test test/log_repository_employee_test.dart` va to'liq `flutter test`.
+
+## 6. Kod
+
+### 6.1. Diff (`git show 4de89e6 -- lib/`)
+
+```diff
+diff --git a/lib/changes/repository/log_repository.dart b/lib/changes/repository/log_repository.dart
+index 4a47f61..a184bda 100644
+--- a/lib/changes/repository/log_repository.dart
++++ b/lib/changes/repository/log_repository.dart
+@@ -17,7 +17,19 @@ LogRepository {
+   static final String _deviceInfo =
+       Pref.getString(PrefKeys.deviceInfo, "not initialized");
+   static final String _version = AppConstants.version;
+-  static final Employee? _currentEmployee = HiveBoxes.getCurrentEmployee;
++  /// Joriy (PIN bilan kirgan) kassir — HAR log uchun qaytadan o'qiladi.
++  /// Ilgari `static final` edi: ilova ochilgandan keyingi birinchi log'da bir
++  /// marta o'qilib qotib qolardi, kassir almashsa ham Telegram'da eski ism
++  /// chiqardi (2026-10-21: fiskal `staffName` Aqliddin, log'da Dilorom).
++  /// Log yozish hech qachon xato tashlamasligi kerak — quti yopiq bo'lsa `null`.
++  static Employee? get _currentEmployee {
++    try {
++      return HiveBoxes.getCurrentEmployee;
++    } catch (_) {
++      return null;
++    }
++  }
++
+   static bool successToTelegram = false;
+ 
+   // Internet/tarmoq bilan bog'liq xatolar Telegramga jo'natilmaydi.
+```
+
+### 6.2. YANGI: `test/log_repository_employee_test.dart`
+
+<details>
+<summary>To'liq fayl (3 test)</summary>
+
+```dart
+// Telegram log'idagi "Employee" — log yozilgan PAYTDAGI kassir bo'lishi kerak.
+//
+// 2026-10-21 (Tiin Optom, Kassa 5) vozvrat xatosi: fiskal body'da
+// `staffName: "Aqliddin"` (PIN bilan kirgan joriy kassir), Telegram log'ida
+// esa `Employee: Dilorom`. Sabab: `LogRepository._currentEmployee` `static
+// final` edi — ilova ochilgandan keyingi BIRINCHI log'da bir marta o'qilib,
+// keyin kassir PIN bilan almashsa ham o'zgarmasdi. Natijada barcha keyingi
+// log'larda birinchi kassir ismi chiqardi.
+
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+import 'package:invan2/changes/models/log/log_model.dart';
+import 'package:invan2/changes/repository/log_repository.dart';
+import 'package:invan2/features/get_employees/model/employees_find_response.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Directory tempDir;
+
+  setUpAll(() async {
+    tempDir = await Directory.systemTemp.createTemp('log_repo_employee_test');
+    Hive.init(tempDir.path);
+
+    void reg<T>(int typeId, TypeAdapter<T> adapter) {
+      if (!Hive.isAdapterRegistered(typeId)) Hive.registerAdapter(adapter);
+    }
+
+    reg(27, LogModelAdapter());
+    reg(0, EmployeeAdapter());
+    reg(2, EmployeeAccessAdapter());
+    reg(101, EmployeeUserAdapter());
+    reg(102, EmployeeRoleAdapter());
+
+    await Hive.openBox<dynamic>('prefs');
+    await Hive.openBox<LogModel>('logs');
+    await Hive.openBox<LogModel>('tg_logs');
+    final Box<Employee> employees = await Hive.openBox<Employee>('employees');
+
+    await employees.put(
+        'u-dilorom',
+        Employee(
+            user: EmployeeUser(id: 'u-dilorom', firstName: 'Dilorom')));
+    await employees.put(
+        'u-aqliddin',
+        Employee(
+            user: EmployeeUser(id: 'u-aqliddin', firstName: 'Aqliddin')));
+
+    // Telegramga haqiqiy xabar ketmasin: `success: true` + successToTelegram
+    // o'chiq bo'lsa log lokal qutiga yoziladi va Telegramdan oldin qaytadi.
+    await Pref.setBool(PrefKeys.successToTelegram, false);
+  });
+
+  tearDownAll(() async {
+    await Hive.close();
+    try {
+      await tempDir.delete(recursive: true);
+    } catch (_) {}
+  });
+
+  /// Kassir PIN bilan kirgandagi kabi (lock_buttons_with_shortcuts.dart
+  /// `goHomePage`): ism va ID Pref'ga yoziladi.
+  Future<void> login(String id, String name) async {
+    await Pref.setString(PrefKeys.cashierId, id);
+    await Pref.setString(PrefKeys.cashierName, name);
+  }
+
+  String? lastUserName() => Hive.box<LogModel>('logs').values.last.userName;
+
+  test('addLog: kassir almashsa log\'dagi xodim ham almashadi', () async {
+    await login('u-dilorom', 'Dilorom');
+    await LogRepository.addLog('birinchi', where: 'test', success: true);
+    expect(lastUserName(), 'Dilorom');
+
+    await login('u-aqliddin', 'Aqliddin');
+    await LogRepository.addLog('ikkinchi', where: 'test', success: true);
+    expect(lastUserName(), 'Aqliddin',
+        reason: 'ilgari birinchi log\'dagi kassir (Dilorom) qotib qolardi');
+  });
+
+  test('requestSend: kassir almashsa log\'dagi xodim ham almashadi', () async {
+    await login('u-dilorom', 'Dilorom');
+    await LogRepository.requestSend('birinchi',
+        where: 'test', file: 'f', method: 'POST', path: 'p', success: true);
+    expect(lastUserName(), 'Dilorom');
+
+    await login('u-aqliddin', 'Aqliddin');
+    await LogRepository.requestSend('ikkinchi',
+        where: 'test', file: 'f', method: 'POST', path: 'p', success: true);
+    expect(lastUserName(), 'Aqliddin');
+  });
+
+  test('xodim topilmasa (hali hech kim kirmagan) — "null"', () async {
+    await login('yo\'q-id', '');
+    await LogRepository.addLog('kirishdan oldin', where: 'test', success: true);
+    expect(lastUserName(), 'null');
+  });
+}
+```
+
+</details>
+
+## 7. Tekshirish
+
+- `test/log_repository_employee_test.dart`: tuzatishdan oldin 3/3 yiqildi (`Expected: 'Aqliddin'`, `Actual: 'Dilorom'`), tuzatishdan keyin 3/3 o'tdi.
+- To'liq to'plam (`b1fd08d` + shu commit): **2038 o'tdi, 7 skip, 0 yiqildi**.
+- `flutter analyze` (o'zgargan 2 fayl): xato yo'q.
+- Do'kon sinovi: kassir almashgandan keyingi birinchi Telegram xabarida yangi ism chiqishi kerak.
+
+## 8. Eslatmalar va ochiq savollar
+
+- Taklif (qilinmagan): INCOM'siz yo'lda `LocalService.sell` xato log'i haqiqiy manzil o'rniga `URL: http://localhost:8080/invan` (`AppConstants.localhost`) yozadi. Haqiqiy manzil FiscalDriveAPI `http://127.0.0.1:3448/rpc/api`. Shu log `Status Code: 0` ham yozadi, chunki `_statusCode` faqat INCOM yo'lida to'ldiriladi. Bu ikkalasi va JSON-RPC `error.code` ning log'da yo'qligi tahlilni chalg'itadi. Tuzatilsa log'ga `AppLinks.baseUrl` va kod yozilsin. Status 0 ni 200 ga almashtirmaslik kerak, aks holda log Telegramga bormaydi (`isSend`: faqat <200 yoki >300).
+- Taklif: 65274 uchun kassirga tushunarli matn (uz/ru), masalan "Fiskal modul soliq (OFD) serveriga ulana olmadi. Bir necha daqiqadan keyin qayta urinib ko'ring; takrorlansa, kompyuterning internetini va OFD portini (3447) tekshiring".
+- Odoo forkiga: **kerak**. `LogRepository` umumiy kod, bu diagnostika bug fix (InVan backendga bog'liq emas).
 
 ---
 

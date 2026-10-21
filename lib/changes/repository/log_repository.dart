@@ -17,7 +17,19 @@ LogRepository {
   static final String _deviceInfo =
       Pref.getString(PrefKeys.deviceInfo, "not initialized");
   static final String _version = AppConstants.version;
-  static final Employee? _currentEmployee = HiveBoxes.getCurrentEmployee;
+  /// Joriy (PIN bilan kirgan) kassir — HAR log uchun qaytadan o'qiladi.
+  /// Ilgari `static final` edi: ilova ochilgandan keyingi birinchi log'da bir
+  /// marta o'qilib qotib qolardi, kassir almashsa ham Telegram'da eski ism
+  /// chiqardi (2026-10-21: fiskal `staffName` Aqliddin, log'da Dilorom).
+  /// Log yozish hech qachon xato tashlamasligi kerak — quti yopiq bo'lsa `null`.
+  static Employee? get _currentEmployee {
+    try {
+      return HiveBoxes.getCurrentEmployee;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static bool successToTelegram = false;
 
   // Internet/tarmoq bilan bog'liq xatolar Telegramga jo'natilmaydi.
