@@ -2995,7 +2995,8 @@ class OrderingProvider4 extends ChangeNotifier {
     }
     {
       final zeroPriceItem =
-          ScannedProductLookup.findZeroPriceProduct(triedPatterns);
+          ScannedProductLookup.findZeroPriceProduct(triedPatterns,
+              gtins: match.gtins);
       if (zeroPriceItem != null) {
         // ignore: use_build_context_synchronously
         addProduct(

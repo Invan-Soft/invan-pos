@@ -50,6 +50,22 @@ void main() {
     test('markirovka (01+GTIN+21+serial)', () {
       expect(kindOf('010478006900050521ABC123'), ScannedCodeKind.product);
     });
+
+    // 2026-10-21, do'kondagi KM (Fanta 355ml): GS (0x1D) belgisi va `?`, `/`
+    // kabi seriya belgilari freeText ga tushirmaydi — KM qidiruvga yetadi.
+    for (final km in [
+      '0100049000033939217MG7fVVkzf5Y?\x1D93abcd',
+      '0100049000033939217/VG5xQ2pLm8a\x1D93Wz1k',
+      '0100049000033939217MG7fVVkzf5Y?93abcd',
+    ]) {
+      test('KM (GS1 DataMatrix) → product: ${km.substring(0, 20)}…', () {
+        final clean = BarcodeClassifier.sanitize(km);
+        expect(clean, km, reason: 'GS belgisi sanitize da saqlanadi');
+        expect(kindOf(clean), ScannedCodeKind.product);
+        expect(BarcodeClassifier.parseExpiry(clean), isNull,
+            reason: '21 (seriya) dan oldin 17/15 yo\'q — muddat yo\'q');
+      });
+    }
   });
 
   group('Rad etiladigan kodlar', () {
@@ -193,6 +209,14 @@ void main() {
 
     test('muddat yo\'q -> null', () {
       expect(BarcodeClassifier.parseExpiry('4780069000505'), isNull);
+    });
+
+    test('KM: 01+GTIN14 (nollar bilan) + 17 + 21 seriya — muddat o\'qiladi', () {
+      expect(
+        BarcodeClassifier.parseExpiry(
+            '0100049000033939172501012112345\x1D93abcd'),
+        DateTime(2025, 1, 1),
+      );
     });
 
     // ⚠️ QAYD ETILGAN XATTI-HARAKAT (tuzatilmadi)
