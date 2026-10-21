@@ -1,4 +1,4 @@
-// GS1 sana tahlili — test.
+// GS1 sana tahlili va GTIN tengligi — test.
 //
 // Faza 1 da OrderingProvider4 dan `Gs1` ga ko'chirildi. Ilgari `private`
 // (`_parseGS1Date`) bo'lgani uchun testlab bo'lmasdi.
@@ -63,6 +63,73 @@ void main() {
 
     test('6 belgidan uzun bo\'lsa birinchi 6 tasi olinadi', () {
       expect(Gs1.parseDate('260805123'), DateTime(2026, 8, 5));
+    });
+  });
+
+  // 2026-10-21: KM ichidagi GTIN-14 `00049000033939` (Fanta 355ml) katalogdagi
+  // UPC-12 / EAN-13 yozuvlariga mos kelmasdi.
+  group('Gs1.isSameGtin — GS1 GTIN tengligi (chapdan nol bilan 14 xonagacha)',
+      () {
+    // KM dan: 00049000033939 → boshidagi nollarsiz kalit
+    const key = '49000033939';
+
+    for (final b in [
+      '49000033939', // nollari tushib qolgan (11)
+      '049000033939', // UPC-12
+      '0049000033939', // EAN-13
+      '00049000033939', // GTIN-14
+    ]) {
+      test('$b ↔ $key — bitta tovar', () {
+        expect(Gs1.isSameGtin(b, key), isTrue);
+      });
+    }
+
+    test('GTIN-8 (8 xona) ham qatnashadi', () {
+      expect(Gs1.isSameGtin('40170725', '40170725'), isTrue);
+      expect(Gs1.isSameGtin('01234565', '1234565'), isTrue);
+    });
+
+    test('8 xonadan qisqa kod qatnashmaydi (SKU / ichki kod)', () {
+      expect(Gs1.isSameGtin('0012345', '12345'), isFalse);
+      expect(Gs1.isSameGtin('206', '206'), isFalse);
+    });
+
+    test('14 xonadan uzun kod qatnashmaydi (GTIN emas)', () {
+      expect(Gs1.isSameGtin('000049000033939', key), isFalse);
+    });
+
+    test('harf/belgi aralash kod normalizatsiya qilinmaydi', () {
+      expect(Gs1.isSameGtin('0A49000033939', key), isFalse);
+      expect(Gs1.isSameGtin('O49000033939', key), isFalse, reason: 'lotin O');
+      expect(Gs1.isSameGtin(' 049000033939', key), isFalse);
+      expect(Gs1.isSameGtin('049000033939 ', key), isFalse);
+    });
+
+    test('fragment moslik yo\'q: faqat BOSHIDAGI nollar ahamiyatsiz', () {
+      expect(Gs1.isSameGtin('149000033939', key), isFalse,
+          reason: 'boshida noldan boshqa raqam — boshqa GTIN');
+      expect(Gs1.isSameGtin('4900003393', key), isFalse,
+          reason: 'oxirgi raqam yetishmaydi');
+      expect(Gs1.isSameGtin('490000339390', key), isFalse,
+          reason: 'oxirida ortiqcha raqam');
+      expect(Gs1.isSameGtin('049000033946', key), isFalse,
+          reason: 'bitta raqam farq — boshqa tovar');
+    });
+
+    test('indikator raqami (GTIN-14 boshidagi 1..9) — boshqa tovar', () {
+      // 14780000000001 (karton) ≠ 4780000000001 (dona)
+      expect(Gs1.isSameGtin('4780000000001', '14780000000001'), isFalse);
+      expect(Gs1.isSameGtin('14780000000001', '14780000000001'), isTrue);
+    });
+
+    test('bo\'sh kalit (hammasi nol GTIN) hech narsaga mos emas', () {
+      expect(Gs1.isSameGtin('00000000', ''), isFalse);
+      expect(Gs1.isSameGtin('049000033939', ''), isFalse);
+    });
+
+    test('kalit nollarsiz bo\'lishi shart (shartnoma)', () {
+      expect(Gs1.isSameGtin('049000033939', '049000033939'), isFalse,
+          reason: 'chaqiruvchi kalitni boshidagi nollarsiz beradi');
     });
   });
 }
