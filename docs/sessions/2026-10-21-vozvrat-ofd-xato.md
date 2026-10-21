@@ -1,7 +1,8 @@
 # Task: Vozvrat OFD xatosi (RefundInfo — OFD serveriga ulanish xatosi) tahlili
 
 **Boshlangan:** 2026-10-21
-**Holat:** in-progress
+**Holat:** done (log fix Patch 2 da; vozvrat xatosi — do'kon tomonida tekshiriladi)
+**Yakunlangan:** 2026-10-21
 **Branch:** fix/vozvrat-ofd-xato (asos: `ayyubxon` b1fd08d = 1.1.2+130 + Shorebird patch)
 
 ## Maqsad
@@ -78,7 +79,7 @@ Tiin Optom, Kassa 5 (DESKTOP-AOC7AML) dan Telegramga kelgan vozvrat xatosini tah
 - [x] `docs/port-changelog.md` — 18-task bo'limi (jadval, xronologiya, bo'lim). Odoo forkiga: kerak
 
 ## Keyingi qadamlar (prioritet bo'yicha)
-- [ ] Foydalanuvchi: commitni ko'rib `ayyubxon` ga merge qilish / Shorebird patch qarori
+- [x] `ayyubxon` ga merge (`075932e`) → 1.1.2+130 ga Shorebird **Patch 2**, `stable` (2026-10-21, run 39651233319)
 - [ ] Do'kon (Kassa 5): FiscalDriveAPI ↔ OFD aloqasini tekshirish (pastda "Do'konga tavsiya")
 - [ ] Ixtiyoriy (taklif, qilinmagan): `LocalService.sell` INCOM'siz yo'lda log'ga haqiqiy URL
       (`AppLinks.baseUrl`) va JSON-RPC `error.code` ni yozish (local_selling_service.dart:186-207);

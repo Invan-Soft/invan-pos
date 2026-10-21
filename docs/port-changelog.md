@@ -1,7 +1,7 @@
 # Port hujjati: BHM taskidan boshlab qilingan barcha o'zgarishlar
 
 **Manba loyiha:** InVan 2 POS — `pos-invan-2`, branch `ayyubxon`, versiya `1.1.2+129` (2026-10-02)
-**Hujjat holati:** 2026-10-21 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch; 14–15-tasklar — 1.1.2+130 relizida, GitHub; 16-task — 1.1.2+130 ga Shorebird patch; 17–18-tasklar — commit bor, ayyubxon'ga merge qilingan, 1.1.2+130 ga Shorebird patch rejada)
+**Hujjat holati:** 2026-10-21 (1–6-tasklar 1.1.2+127 relizida; 7–12-tasklar 1.1.2+129 relizida; ikkalasi PRO backendga yuklangan; 13-task — 1.1.2+129 ga Shorebird patch; 14–15-tasklar — 1.1.2+130 relizida, GitHub; 16-task — 1.1.2+130 ga Shorebird patch; 17–18-tasklar — 1.1.2+130 ga Shorebird Patch 2, stable, 2026-10-21)
 **Kimga:** shu loyihaning boshqa nusxasini (boshqa ERP bilan integratsiya qilinayotgan nusxa — "InVan 1") InVan 2 bilan bir xil holatga keltiradigan dasturchi yoki Claude.
 
 ## Bu hujjat nima
@@ -39,8 +39,8 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 14 | 2026-10-20 | Arcus2 terminal: faqat shu operatsiya log/chekiga ishonish (999 da pulsiz "ОДОБРЕНО" yopildi), `Одобрено`/TezQR tasdiq (`STORERC`), Uzcard + Humo INI profillari (Odoo forkidan) | **1.1.2+130** | Relizda (GitHub, backendga hali yuklanmagan); Odoo forkida real terminalda sinalgan, InVan 2 Windows sinovi kutilmoqda | `4689618` |
 | 15 | 2026-10-20 | YagonaQr — admin paneldagi alohida to'lov turi (kassir belgilaydi): serverga o'z id'si, soliqqa karta (`ReceivedCard`, `CardType` 2), aralash to'lov, X/Z "Plastik" ichida; Apps'da o'chirilsa tugma yo'q | **1.1.2+130** | Relizda (GitHub, backendga hali yuklanmagan); jonli sinov kutilmoqda | `dd624bf` |
 | 16 | 2026-10-20 | Karta raqami (`ExtraInfo.CardNumber`) yangi terminal formatlarida ham (korporativ Uzcard'da bo'sh ketardi); chekda yo'q bo'lsa logdan | 1.1.2+130 (Shorebird patch) | Commit bor; yangi terminalda sinov kutilmoqda | `d5b6432` |
-| 17 | 2026-10-21 | KM to'g'ridan skanerlanganda mahsulot topilmasdi: KM ichidagi GTIN-14 (`00049000033939`) katalogdagi UPC-12/EAN-13 (`049000033939`/`0049000033939`) ga GS1 tengligi bilan moslanadi — dona, blok, narxi 0; oddiy skan/SKU o'zgarmagan | relizda emas (1.1.2+130 ga Shorebird patch rejada) | Commit bor, relizda emas; do'kon sinovi kutilmoqda | `38e40f3`, `0bb3faa` |
-| 18 | 2026-10-21 | Telegram log'idagi `Employee` joriy kassir (`static final` qotib qolardi). Vozvrat OFD xatosi 65274 tahlili: bizniki emas, fiskal modul OFD serveriga ulana olmagan | relizda emas (1.1.2+130 ga Shorebird patch rejada) | Commit bor, ayyubxon'ga merge qilingan; do'kon sinovi kutilmoqda | `4de89e6` |
+| 17 | 2026-10-21 | KM to'g'ridan skanerlanganda mahsulot topilmasdi: KM ichidagi GTIN-14 (`00049000033939`) katalogdagi UPC-12/EAN-13 (`049000033939`/`0049000033939`) ga GS1 tengligi bilan moslanadi — dona, blok, narxi 0; oddiy skan/SKU o'zgarmagan | 1.1.2+130 (Shorebird Patch 2, stable) | Patch chiqdi (2026-10-21); do'kon sinovi kutilmoqda | `38e40f3`, `0bb3faa` |
+| 18 | 2026-10-21 | Telegram log'idagi `Employee` joriy kassir (`static final` qotib qolardi). Vozvrat OFD xatosi 65274 tahlili: bizniki emas, fiskal modul OFD serveriga ulana olmagan | 1.1.2+130 (Shorebird Patch 2, stable) | Patch chiqdi (2026-10-21); do'kon sinovi kutilmoqda | `4de89e6` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -25460,7 +25460,7 @@ void main() {
 
 > **Commit:** `38e40f3` (2026-10-21), branch `fix/markirovka-gtin-nollar` (`ayyubxon` b1fd08d dan); qo'shimcha `0bb3faa` (skaner `-` prefiksi, §9), branch `fix/markirovka-skaner-minus`. Reliz: hali yo'q — `1.1.2+130` ga Shorebird patch rejada (faqat Dart; pubspec/ObjectBox o'zgarmagan).
 > **Sessiya hujjati:** docs/sessions/2026-10-21-markirovka-gtin-nollar.md
-> **Holat 2026-10-21:** commit bor, relizda emas; to'liq to'plam o'tdi; do'kon sinovi kutilmoqda.
+> **Holat 2026-10-21:** `ayyubxon` ga merge (`9122c02`, `80376fe`), **1.1.2+130 ga Shorebird Patch 2 (stable)** — GitHub Actions run 39651233319 (`80376fe`); do'kon sinovi kutilmoqda.
 
 ## 1. Nima va nima uchun
 

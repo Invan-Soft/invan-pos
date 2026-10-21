@@ -61,7 +61,7 @@ KM: `01` + GTIN-14 `00049000033939` + `21` + seriya(13) + GS + `93` + kripto(4),
   → Testlar +24 (fix'siz 12 tasi yiqiladi); to'liq to'plam 2171 o'tdi, 7 skip. Port: 17-task §9.
 
 ## Keyingi qadamlar (prioritet bo'yicha)
-- [ ] Shorebird patch (`1.1.2+130` ga, `stable`; faqat Dart o'zgarishi, ObjectBox/pubspec yo'q)
+- [x] Shorebird **Patch 2** → `1.1.2+130`, `stable` (2026-10-21, run 39651233319, `80376fe`; native/asset ogohlantirishsiz)
 - [ ] Do'kondagi `-` qo'yadigan skanerning to'liq xom satrini (fiskal so'rov logidagi `Label`) ko'rib tasdiqlash: ichki GS ham `-` bo'lib keladimi
 - [ ] Do'konda: Fanta KM ini to'g'ridan skanerlash → marka qatori; shu KM qayta → "oldin qo'shilgan"
 - [ ] `docs/markirovka-tizimi.md` (asosiy worktree'da, commit qilinmagan) §7.3 va §21 ga shu o'zgarishni qo'shish — 17-task port bo'limidagi matn bilan
