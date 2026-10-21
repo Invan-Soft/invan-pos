@@ -259,4 +259,33 @@ void main() {
       expect(BarcodeClassifier.isExpired(tomorrow), isFalse);
     });
   });
+
+  group('sanitize — KM boshidagi skaner prefiksi (2026-10-21)', () {
+    const gs = '\x1D';
+    const km = '0100049000033939217MG7fVVkzf5Y?';
+
+    test('`-` + KM → `01` bilan boshlanadi, mahsulot turi', () {
+      final clean = BarcodeClassifier.sanitize('-$km${gs}93abcd');
+      expect(clean, '$km${gs}93abcd');
+      expect(kindOf(clean), ScannedCodeKind.product);
+      expect(BarcodeClassifier.parseExpiry(clean), isNull);
+    });
+
+    test('`-` rejimi: ichki `-93` → GS93', () {
+      expect(BarcodeClassifier.sanitize('-$km-93abcd'), '$km${gs}93abcd');
+    });
+
+    test('`-` + muddatli KM: muddat o\'qiladi', () {
+      final clean =
+          BarcodeClassifier.sanitize('-0100049000033939172501012112345-93ab');
+      expect(clean, '0100049000033939172501012112345${gs}93ab');
+      expect(BarcodeClassifier.parseExpiry(clean), DateTime(2025, 1, 1));
+    });
+
+    test('oddiy kodlar o\'zgarmaydi', () {
+      for (final c in ['4780069000505', '10977', '-123']) {
+        expect(BarcodeClassifier.sanitize(c), c);
+      }
+    });
+  });
 }

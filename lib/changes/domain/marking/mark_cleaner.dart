@@ -11,6 +11,8 @@
 //
 // Testlar: test/marking_paren_strip_test.dart, test/mark_cleaner_test.dart
 
+import 'package:invan2/changes/domain/marking/gs1.dart';
+
 class MarkCleaner {
   const MarkCleaner._();
 
@@ -20,6 +22,11 @@ class MarkCleaner {
   /// (ichidagi 01/21 raqami SAQLANADI), boshqaruv belgilari o'chiriladi.
   static String scanTime(String rawMark) {
     if (rawMark.trim().isEmpty) return rawMark;
+
+    // Skaner prefiksi (`-` = FNC1, AIM `]d2`) — dialogga skanerlangan KM
+    // ham shu yo'ldan o'tadi (asosiy ekran skani `BarcodeClassifier.sanitize`
+    // da tozalanadi; ikki marta chaqirilsa ham natija bir xil).
+    rawMark = Gs1.stripScannerPrefix(rawMark);
 
     // Kripto marker bormi? — (93) qavsli yoki <GS>93 ajratuvchili.
     // Bu qaror faqat SHU YERDA (skan vaqti) to'g'ri: marker hali joyida.

@@ -54,9 +54,15 @@ KM: `01` + GTIN-14 `00049000033939` + `21` + seriya(13) + GS + `93` + kripto(4),
 - [x] Commit `38e40f3` (kod + testlar); `docs/port-changelog.md` 17-task bo'limi, jadval va xronologiya (alohida docs commit)
   → Sabab: CLAUDE.md "PORT HUJJATI" qoidasi; "Odoo forkiga: kerak" — skaner/markirovka qidiruvi mantig'i.
 
+- [x] `fix/markirovka-gtin-nollar` va `fix/vozvrat-ofd-xato` (18-task) → `ayyubxon` merge (`9122c02`, `075932e`); merge qilingan kodda to'liq to'plam 2147 o'tdi
+- [x] Qo'shimcha (foydalanuvchi so'rovi): ba'zi skanerlar KM boshiga `-` qo'yadi (`-0100049…`) — topilmasdi. `Gs1.stripScannerPrefix`: faqat orqasidan `01`+GTIN14 / `(01)`+GTIN14 kelsa boshidagi `-` va AIM `]d2`/`]C1`/`]Q3` olinadi; `-` rejimida (haqiqiy GS yo'q bo'lsa) `-93` / `-8005` → GS. Commit `0bb3faa` (branch `fix/markirovka-skaner-minus`)
+  → lib/changes/domain/marking/gs1.dart (`stripScannerPrefix`), lib/changes/domain/barcode/barcode_classifier.dart (`sanitize`), lib/changes/domain/marking/mark_cleaner.dart (`scanTime` boshi)
+  → Sabab: `-` ilovadan emas — `MyBarcodeListener` `keyEvent.character` ni oladi, `fixKeyboardLayout` faqat kirill harflarini almashtiradi; skaner FNC1 ni `-` qilib uzatadi. Ichki GS ham `-` bo'lishi mumkin — aks holda KM `…Y?-` bilan soliqqa ketardi.
+  → Testlar +24 (fix'siz 12 tasi yiqiladi); to'liq to'plam 2171 o'tdi, 7 skip. Port: 17-task §9.
+
 ## Keyingi qadamlar (prioritet bo'yicha)
-- [ ] `fix/markirovka-gtin-nollar` → `ayyubxon` merge (foydalanuvchi)
-- [ ] Shorebird patch (`1.1.2+130` ga; faqat Dart o'zgarishi, ObjectBox/pubspec yo'q) — avval `staging`
+- [ ] Shorebird patch (`1.1.2+130` ga, `stable`; faqat Dart o'zgarishi, ObjectBox/pubspec yo'q)
+- [ ] Do'kondagi `-` qo'yadigan skanerning to'liq xom satrini (fiskal so'rov logidagi `Label`) ko'rib tasdiqlash: ichki GS ham `-` bo'lib keladimi
 - [ ] Do'konda: Fanta KM ini to'g'ridan skanerlash → marka qatori; shu KM qayta → "oldin qo'shilgan"
 - [ ] `docs/markirovka-tizimi.md` (asosiy worktree'da, commit qilinmagan) §7.3 va §21 ga shu o'zgarishni qo'shish — 17-task port bo'limidagi matn bilan
 

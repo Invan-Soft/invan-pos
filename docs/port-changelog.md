@@ -39,7 +39,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 14 | 2026-10-20 | Arcus2 terminal: faqat shu operatsiya log/chekiga ishonish (999 da pulsiz "ОДОБРЕНО" yopildi), `Одобрено`/TezQR tasdiq (`STORERC`), Uzcard + Humo INI profillari (Odoo forkidan) | **1.1.2+130** | Relizda (GitHub, backendga hali yuklanmagan); Odoo forkida real terminalda sinalgan, InVan 2 Windows sinovi kutilmoqda | `4689618` |
 | 15 | 2026-10-20 | YagonaQr — admin paneldagi alohida to'lov turi (kassir belgilaydi): serverga o'z id'si, soliqqa karta (`ReceivedCard`, `CardType` 2), aralash to'lov, X/Z "Plastik" ichida; Apps'da o'chirilsa tugma yo'q | **1.1.2+130** | Relizda (GitHub, backendga hali yuklanmagan); jonli sinov kutilmoqda | `dd624bf` |
 | 16 | 2026-10-20 | Karta raqami (`ExtraInfo.CardNumber`) yangi terminal formatlarida ham (korporativ Uzcard'da bo'sh ketardi); chekda yo'q bo'lsa logdan | 1.1.2+130 (Shorebird patch) | Commit bor; yangi terminalda sinov kutilmoqda | `d5b6432` |
-| 17 | 2026-10-21 | KM to'g'ridan skanerlanganda mahsulot topilmasdi: KM ichidagi GTIN-14 (`00049000033939`) katalogdagi UPC-12/EAN-13 (`049000033939`/`0049000033939`) ga GS1 tengligi bilan moslanadi — dona, blok, narxi 0; oddiy skan/SKU o'zgarmagan | relizda emas (1.1.2+130 ga Shorebird patch rejada) | Commit bor, relizda emas; do'kon sinovi kutilmoqda | `38e40f3` |
+| 17 | 2026-10-21 | KM to'g'ridan skanerlanganda mahsulot topilmasdi: KM ichidagi GTIN-14 (`00049000033939`) katalogdagi UPC-12/EAN-13 (`049000033939`/`0049000033939`) ga GS1 tengligi bilan moslanadi — dona, blok, narxi 0; oddiy skan/SKU o'zgarmagan | relizda emas (1.1.2+130 ga Shorebird patch rejada) | Commit bor, relizda emas; do'kon sinovi kutilmoqda | `38e40f3`, `0bb3faa` |
 | 18 | 2026-10-21 | Telegram log'idagi `Employee` joriy kassir (`static final` qotib qolardi). Vozvrat OFD xatosi 65274 tahlili: bizniki emas, fiskal modul OFD serveriga ulana olmagan | relizda emas (1.1.2+130 ga Shorebird patch rejada) | Commit bor, ayyubxon'ga merge qilingan; do'kon sinovi kutilmoqda | `4de89e6` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
@@ -97,6 +97,7 @@ dd624bf 2026-10-20 feat(to'lov): YagonaQr — alohida to'lov turi, soliqqa karta
 eb59e59 2026-10-20 release: 1.1.2+130                                                       (port qilinmaydi)
 d5b6432 2026-10-20 fix(terminal): karta raqami yangi terminal formatlarida ham olinadi     ← 16-task
 38e40f3 2026-10-21 fix(markirovka): KM to'g'ridan skanda GTIN boshidagi nollar          ← 17-task
+0bb3faa 2026-10-21 fix(markirovka): skaner KM boshiga `-` qo'ysa mahsulot topilmasdi    ← 17-task (§9)
 4de89e6 2026-10-21 fix(log): Telegram log'idagi xodim — joriy kassir                       ← 18-task
 ```
 
@@ -25457,7 +25458,7 @@ void main() {
 
 # 17-TASK — KM to'g'ridan skanerlanganda GTIN boshidagi nollar sababli mahsulot topilmasdi (relizda emas → Shorebird patch 1.1.2+130)
 
-> **Commit:** `38e40f3` (2026-10-21), branch `fix/markirovka-gtin-nollar` (`ayyubxon` b1fd08d dan). Reliz: hali yo'q — `1.1.2+130` ga Shorebird patch rejada (faqat Dart; pubspec/ObjectBox o'zgarmagan).
+> **Commit:** `38e40f3` (2026-10-21), branch `fix/markirovka-gtin-nollar` (`ayyubxon` b1fd08d dan); qo'shimcha `0bb3faa` (skaner `-` prefiksi, §9), branch `fix/markirovka-skaner-minus`. Reliz: hali yo'q — `1.1.2+130` ga Shorebird patch rejada (faqat Dart; pubspec/ObjectBox o'zgarmagan).
 > **Sessiya hujjati:** docs/sessions/2026-10-21-markirovka-gtin-nollar.md
 > **Holat 2026-10-21:** commit bor, relizda emas; to'liq to'plam o'tdi; do'kon sinovi kutilmoqda.
 
@@ -26720,6 +26721,400 @@ index eda4746..fc2b89b 100644
 - Qo'lda qidiruv (qidiruv dialogi / typeahead) o'zgarmagan — u yerga KM yozilsa GS1 tengligi ishlamaydi (skaner yo'li emas).
 - `docs/markirovka-tizimi.md` (InVan 2 asosiy worktree'sida, hali commit qilinmagan) §7.3 ga qo'shilishi kerak: blok — "uch variantdan keyin `boxBarcode` GS1 teng"; dona — "butun satr aynan qidiruvidan keyin `gtins` bo'yicha oddiy shtrix-kodlar GS1 teng (`Gs1.isSameGtin`, 8..14 xonali sof raqam), `item.mark` GTIN shoxlaridagidek"; narxi 0 — "`triedPatterns` aynan → `gtins` GS1 teng". §21 ga: "KM to'g'ridan skanerlanganda GTIN nollari — 17-taskda tuzatildi".
 - Odoo forkiga: **kerak** — skaner/markirovka qidiruvi mantig'i (savat), InVan backend'iga bog'liq emas.
+
+## 9. Qo'shimcha (`0bb3faa`): skaner KM boshiga `-` qo'yadi
+
+**Simptom (do'kon, 2026-10-21):** ba'zi skanerlar markirovka kodini o'qiganda boshiga `-` qo'yadi: `-0100049000033939217MG7…`. Kod `01` bilan boshlanmagani uchun GTIN ajratilmaydi, oqibatda "Mahsulot topilmadi" chiqadi. Ilovaning o'zi `-` qo'shmaydi: `MyBarcodeListener` belgilarni `keyEvent.character` dan oladi, `fixKeyboardLayout` esa faqat kirill harflarini lotinchaga almashtiradi. Demak `-` ni skaner yuboradi. Taxmin: DataMatrix boshidagi FNC1 belgisi `-` qilib uzatilyapti (skaner sozlamasi).
+
+**Yechim — `Gs1.stripScannerPrefix(code)`:**
+- Faqat orqasidan GS1 `01`+GTIN14 (yoki `(01)`+GTIN14) kelsa ishlaydi. Oddiy shtrix-kod `-` yoki `]` bilan boshlanmaydi, shuning uchun boshqa kodlar o'zgarmaydi.
+- Boshidagi `-` (bir nechta bo'lsa ham) olib tashlanadi.
+- **`-` rejimi:** bunday skaner kod ichidagi FNC1 ajratuvchisini (odatda GS, 0x1D) ham `-` qilib yuborishi mumkin. Shuning uchun kodda haqiqiy ajratuvchi (GS/FS/RS/US) bo'lmasa, `01`+GTIN14 dan keyingi qismda kripto (`93`) va narx (`8005`, tamaki) AI'lari oldidagi `-` GS ga qaytariladi. Aks holda `MarkCleaner.scanTime` ning markersiz fallback'i KM'ni `…Y?-` bilan qoldirardi va u soliqqa buzuq ketardi. Seriyadagi boshqa `-` lar o'zgarmaydi.
+- Qavsli `(01)` shaklida faqat boshidagi `-` olinadi, ajratuvchi qavslarning o'zi.
+- AIM simvologiya identifikatori `]d2` / `]C1` / `]Q3` ham olinadi (skaner sozlamasida yoqilgan bo'lsa).
+- Idempotent: ikki marta chaqirilsa natija bir xil.
+
+**Chaqiriladigan joylar:**
+1. `BarcodeClassifier.sanitize` — asosiy ekran skani (`onBarcodeScanned` ning birinchi qadami). Tasnif, muddat, blok va dona qidiruvi hammasi tozalangan kodni ko'radi.
+2. `MarkCleaner.scanTime` — dialogga kiritilgan KM (`_markirovka`) va skan vaqtidagi KM biriktirish.
+
+| Skan | Eski | Yangi |
+|---|---|---|
+| `-0100049000033939217MG7fVVkzf5Y?<GS>93abcd` | topilmadi | topiladi, KM `0100049000033939217MG7fVVkzf5Y?` |
+| `-0100049000033939217MG7fVVkzf5Y?-93abcd` (GS ham `-`) | topilmadi | topiladi, KM toza (oxirida `-` yo'q) |
+| `-0104780069000505218AbCdEf-8005012345-93ab` (tamaki) | topilmadi | KM `0104780069000505218AbCdEf8005012345` |
+| `]d20100049000033939217MG7…<GS>93…` | topilmadi | topiladi |
+| dialogga `-0100049…-93abcd` | KM `-` bilan saqlanardi | KM toza |
+| `-123`, `-4780069000505`, `4780069000505` | — | o'zgarmagan |
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/domain/marking/gs1.dart` | o'zgargan | `Gs1.stripScannerPrefix` + 4 regex |
+| `lib/changes/domain/barcode/barcode_classifier.dart` | o'zgargan | `sanitize` oxirida `Gs1.stripScannerPrefix` |
+| `lib/changes/domain/marking/mark_cleaner.dart` | o'zgargan | `scanTime` boshida `Gs1.stripScannerPrefix` (+ import) |
+| `test/gs1_test.dart`, `test/mark_cleaner_scan_test.dart`, `test/barcode_classifier_test.dart`, `test/km_direct_scan_e2e_test.dart` | o'zgargan | +24 test |
+
+**Bog'liqlik / minimal variant (InVan 1):** sof funksiya, faqat `dart:core`. Skaner handler'ining eng boshida (tasnifdan oldin) va KM tozalash funksiyasining boshida chaqiring.
+
+**Qo'llash tartibi:** `gs1.dart` → `barcode_classifier.dart` → `mark_cleaner.dart` → testlar → `flutter test`.
+
+### 9.1. Diff (`git show 0bb3faa -- lib/`)
+
+```diff
+diff --git a/lib/changes/domain/barcode/barcode_classifier.dart b/lib/changes/domain/barcode/barcode_classifier.dart
+index 27c695e..cfd9852 100644
+--- a/lib/changes/domain/barcode/barcode_classifier.dart
++++ b/lib/changes/domain/barcode/barcode_classifier.dart
+@@ -53,9 +53,14 @@ class BarcodeClassifier {
+   /// 63233 = U+F701). Private-use (0xE000-0xF8FF) belgilarni olib
+   /// tashlaymiz — ular hech qachon haqiqiy barcode qismi emas. Aks holda
+   /// aniq/nol-farqli qidiruv mos kelmay mahsulot "topilmadi" bo'lardi.
+-  static String sanitize(String raw) => String.fromCharCodes(
+-        raw.codeUnits.where((c) => c < 0xE000 || c > 0xF8FF),
+-      ).trim();
++  ///
++  /// So'ng KM boshidagi skaner prefiksi (`-`, AIM `]d2`) olib tashlanadi —
++  /// [Gs1.stripScannerPrefix].
++  static String sanitize(String raw) => Gs1.stripScannerPrefix(
++        String.fromCharCodes(
++          raw.codeUnits.where((c) => c < 0xE000 || c > 0xF8FF),
++        ).trim(),
++      );
+ 
+   /// Kod turini aniqlaydi. Kirish [barcode] avval [sanitize] dan o'tgan
+   /// bo'lishi kutiladi.
+diff --git a/lib/changes/domain/marking/gs1.dart b/lib/changes/domain/marking/gs1.dart
+index bbf643f..8356ea0 100644
+--- a/lib/changes/domain/marking/gs1.dart
++++ b/lib/changes/domain/marking/gs1.dart
+@@ -3,6 +3,7 @@
+ // Sof funksiya: holatga, Hive'ga, tarmoqqa yoki Flutter'ga bog'liq emas.
+ // OrderingProvider4 dan ajratildi (2026-08-05) — tana o'zgartirilmadi.
+ // `isSameGtin` — 2026-10-21 (KM to'g'ridan skanerlanganda GTIN nollari).
++// `stripScannerPrefix` — 2026-10-21 (skaner KM boshiga `-` qo'yadi).
+ //
+ // Testlar: test/gs1_test.dart
+ 
+@@ -60,4 +61,39 @@ class Gs1 {
+       barcode.endsWith(gtinKey) &&
+       _digitsOnly.hasMatch(barcode) &&
+       barcode.replaceFirst(_leadingZeros, '') == gtinKey;
++
++  static const _gs1Start = r'(?=01\d{14}|\(01\)\d{14})';
++  static final _dashPrefix = RegExp(r'^-+' + _gs1Start);
++  static final _aimPrefix = RegExp(r'^\][dCQ]\d' + _gs1Start);
++  static final _realSeparator = RegExp(r'[\x1D\x1C\x1E\x1F]');
++  static final _dashSeparator = RegExp(r'-(?=93|8005)');
++
++  /// Skaner GS1 kodi (KM) boshiga qo'shib yuboradigan ortiqcha belgilarni
++  /// olib tashlaydi. Aks holda kod `01` bilan boshlanmaydi va mahsulot
++  /// "topilmadi" bo'ladi.
++  ///
++  ///   * `-` — ba'zi skanerlar DataMatrix boshidagi FNC1 belgisini `-` qilib
++  ///     uzatadi: `-0100049000033939217MG7...` (2026-10-21, do'kondan). Bunday
++  ///     skaner kod ichidagi FNC1 ajratuvchisini (odatda GS, 0x1D) ham `-`
++  ///     qilib yuboradi — shuning uchun shu holatda, kodda haqiqiy ajratuvchi
++  ///     bo'lmasa, kripto (`93`) va narx (`8005`) AI oldidagi `-` GS ga
++  ///     qaytariladi: aks holda KM `...Y?-` bilan tugab, soliqqa buzuq ketardi.
++  ///   * `]d2` / `]C1` / `]Q3` — AIM simvologiya identifikatori (skaner
++  ///     sozlamasida yoqilgan bo'lsa).
++  ///
++  /// Faqat orqasidan GS1 `01`+GTIN14 (yoki `(01)`+GTIN14) kelsa ishlaydi —
++  /// oddiy shtrix-kod hech qachon `-` yoki `]` bilan boshlanmaydi, shuning
++  /// uchun boshqa kodlar o'zgarmaydi.
++  static String stripScannerPrefix(String code) {
++    final dash = _dashPrefix.firstMatch(code);
++    if (dash == null) return code.replaceFirst(_aimPrefix, '');
++
++    final body = code.substring(dash.end);
++    // Qavsli `(01)` shaklida ajratuvchi qavslarning o'zi; haqiqiy GS bo'lsa
++    // skaner uni to'g'ri uzatgan — ichki `-` lar seriyaning o'zi.
++    if (!body.startsWith('01') || _realSeparator.hasMatch(body)) return body;
++    // "01" + GTIN14 = 16 belgi; ajratuvchi faqat undan keyin bo'lishi mumkin.
++    return body.substring(0, 16) +
++        body.substring(16).replaceAll(_dashSeparator, '\x1D');
++  }
+ }
+diff --git a/lib/changes/domain/marking/mark_cleaner.dart b/lib/changes/domain/marking/mark_cleaner.dart
+index 29b5b3a..0893aac 100644
+--- a/lib/changes/domain/marking/mark_cleaner.dart
++++ b/lib/changes/domain/marking/mark_cleaner.dart
+@@ -11,6 +11,8 @@
+ //
+ // Testlar: test/marking_paren_strip_test.dart, test/mark_cleaner_test.dart
+ 
++import 'package:invan2/changes/domain/marking/gs1.dart';
++
+ class MarkCleaner {
+   const MarkCleaner._();
+ 
+@@ -21,6 +23,11 @@ class MarkCleaner {
+   static String scanTime(String rawMark) {
+     if (rawMark.trim().isEmpty) return rawMark;
+ 
++    // Skaner prefiksi (`-` = FNC1, AIM `]d2`) — dialogga skanerlangan KM
++    // ham shu yo'ldan o'tadi (asosiy ekran skani `BarcodeClassifier.sanitize`
++    // da tozalanadi; ikki marta chaqirilsa ham natija bir xil).
++    rawMark = Gs1.stripScannerPrefix(rawMark);
++
+     // Kripto marker bormi? — (93) qavsli yoki <GS>93 ajratuvchili.
+     // Bu qaror faqat SHU YERDA (skan vaqti) to'g'ri: marker hali joyida.
+     final hasMarker = RegExp(r'\(93\)').hasMatch(rawMark) ||
+```
+
+### 9.2. Testlar diff (`git show 0bb3faa -- test/`)
+
+<details>
+<summary>test/ diff</summary>
+
+```diff
+diff --git a/test/barcode_classifier_test.dart b/test/barcode_classifier_test.dart
+index 1a0c2d1..f7c4c2f 100644
+--- a/test/barcode_classifier_test.dart
++++ b/test/barcode_classifier_test.dart
+@@ -259,4 +259,33 @@ void main() {
+       expect(BarcodeClassifier.isExpired(tomorrow), isFalse);
+     });
+   });
++
++  group('sanitize — KM boshidagi skaner prefiksi (2026-10-21)', () {
++    const gs = '\x1D';
++    const km = '0100049000033939217MG7fVVkzf5Y?';
++
++    test('`-` + KM → `01` bilan boshlanadi, mahsulot turi', () {
++      final clean = BarcodeClassifier.sanitize('-$km${gs}93abcd');
++      expect(clean, '$km${gs}93abcd');
++      expect(kindOf(clean), ScannedCodeKind.product);
++      expect(BarcodeClassifier.parseExpiry(clean), isNull);
++    });
++
++    test('`-` rejimi: ichki `-93` → GS93', () {
++      expect(BarcodeClassifier.sanitize('-$km-93abcd'), '$km${gs}93abcd');
++    });
++
++    test('`-` + muddatli KM: muddat o\'qiladi', () {
++      final clean =
++          BarcodeClassifier.sanitize('-0100049000033939172501012112345-93ab');
++      expect(clean, '0100049000033939172501012112345${gs}93ab');
++      expect(BarcodeClassifier.parseExpiry(clean), DateTime(2025, 1, 1));
++    });
++
++    test('oddiy kodlar o\'zgarmaydi', () {
++      for (final c in ['4780069000505', '10977', '-123']) {
++        expect(BarcodeClassifier.sanitize(c), c);
++      }
++    });
++  });
+ }
+diff --git a/test/gs1_test.dart b/test/gs1_test.dart
+index 7d6ec70..9763f4d 100644
+--- a/test/gs1_test.dart
++++ b/test/gs1_test.dart
+@@ -132,4 +132,72 @@ void main() {
+           reason: 'chaqiruvchi kalitni boshidagi nollarsiz beradi');
+     });
+   });
++
++  // 2026-10-21: ba'zi skanerlar KM boshiga `-` qo'yadi (`-0100049…`) —
++  // kod `01` bilan boshlanmagani uchun mahsulot topilmasdi.
++  group('Gs1.stripScannerPrefix — skaner prefiksi', () {
++    const gs = '\x1D';
++    const km = '0100049000033939217MG7fVVkzf5Y?';
++
++    test('boshidagi `-` olinadi, haqiqiy GS saqlanadi', () {
++      expect(Gs1.stripScannerPrefix('-$km${gs}93abcd'), '$km${gs}93abcd');
++    });
++
++    test('bir nechta `-` ham olinadi', () {
++      expect(Gs1.stripScannerPrefix('--$km${gs}93abcd'), '$km${gs}93abcd');
++    });
++
++    test('`-` rejimi: GS o\'rnidagi `-93` → GS93', () {
++      expect(Gs1.stripScannerPrefix('-$km-93abcd'), '$km${gs}93abcd');
++    });
++
++    test('`-` rejimi, tamaki: `-8005` va `-93` → GS', () {
++      expect(
++          Gs1.stripScannerPrefix('-0104780069000505218AbCdEf-8005012345-93ab'),
++          '0104780069000505218AbCdEf${gs}8005012345${gs}93ab');
++    });
++
++    test('`-` rejimi: seriyadagi boshqa `-` o\'zgarmaydi', () {
++      expect(Gs1.stripScannerPrefix('-01000490000339392112-AB-CD-93ab'),
++          '01000490000339392112-AB-CD${gs}93ab');
++    });
++
++    test('haqiqiy GS bo\'lsa ichki `-` ga tegilmaydi', () {
++      expect(Gs1.stripScannerPrefix('-01000490000339392112-93XY${gs}93ab'),
++          '01000490000339392112-93XY${gs}93ab');
++    });
++
++    test('qavsli (01) shakli: faqat `-` olinadi', () {
++      expect(Gs1.stripScannerPrefix('-(01)00049000033939(21)AB-93(93)xy'),
++          '(01)00049000033939(21)AB-93(93)xy');
++    });
++
++    test('AIM identifikatori ]d2 / ]C1 / ]Q3 olinadi', () {
++      for (final aim in [']d2', ']C1', ']Q3']) {
++        expect(Gs1.stripScannerPrefix('$aim$km${gs}93abcd'), '$km${gs}93abcd');
++      }
++    });
++
++    test('GS1 01+GTIN14 bo\'lmasa hech narsa o\'zgarmaydi', () {
++      for (final c in [
++        '-123',
++        '-4780069000505',
++        '-010004900003393', // 01 + 13 raqam — GTIN14 emas
++        '-02000490000339392112', // 02 — bu yerda qamralmagan
++        ']d24780069000505',
++        '4780069000505',
++        '0100049000033939217MG7fVVkzf5Y?-93ab', // `-` boshida emas
++        '',
++      ]) {
++        expect(Gs1.stripScannerPrefix(c), c, reason: c);
++      }
++    });
++
++    test('ikki marta chaqirilsa natija bir xil (idempotent)', () {
++      for (final c in ['-$km-93abcd', '-$km${gs}93abcd', ']d2$km${gs}93ab']) {
++        final once = Gs1.stripScannerPrefix(c);
++        expect(Gs1.stripScannerPrefix(once), once, reason: c);
++      }
++    });
++  });
+ }
+diff --git a/test/km_direct_scan_e2e_test.dart b/test/km_direct_scan_e2e_test.dart
+index c07b6f2..77c5c38 100644
+--- a/test/km_direct_scan_e2e_test.dart
++++ b/test/km_direct_scan_e2e_test.dart
+@@ -326,4 +326,81 @@ void main() {
+       expect(active(p), isEmpty, reason: 'narxi 0 — savatga tushmaydi');
+     });
+   });
++
++  // 2026-10-21: ba'zi skanerlar KM boshiga `-` qo'yadi (`-0100049…`) —
++  // mahsulot topilmasdi. Endi `-` (va ichki `-93`) tozalanadi.
++  group('Skaner KM boshiga `-` qo\'yadi', () {
++    testWidgets('`-` + KM1 (haqiqiy GS) → Fanta qatori, KM `-` siz',
++        (tester) async {
++      useCatalog([fanta()]);
++      final key = await pumpApp(tester);
++      final p = freshProvider();
++
++      await scan(tester, p, key, '-$kKm1');
++
++      expect(find.byType(NotFoundProductDialog), findsNothing);
++      final rows = active(p);
++      expect(rows, hasLength(1));
++      expect(rows.single.productId, kFantaId);
++      expect(rows.single.mark, kKm1Clean);
++    });
++
++    testWidgets('`-` rejimi (GS ham `-`) → Fanta qatori, KM toza',
++        (tester) async {
++      useCatalog([fanta()]);
++      final key = await pumpApp(tester);
++      final p = freshProvider();
++
++      await scan(tester, p, key, '-$kKm1Clean-93abcd');
++
++      expect(find.byType(NotFoundProductDialog), findsNothing);
++      expect(active(p).single.mark, kKm1Clean);
++    });
++
++    testWidgets('AIM ]d2 + KM1 → Fanta qatori', (tester) async {
++      useCatalog([fanta()]);
++      final key = await pumpApp(tester);
++      final p = freshProvider();
++
++      await scan(tester, p, key, ']d2$kKm1');
++
++      expect(active(p).single.mark, kKm1Clean);
++    });
++
++    testWidgets('`-` + boshqa GTIN dagi KM — baribir "topilmadi"',
++        (tester) async {
++      useCatalog([fanta()]);
++      final key = await pumpApp(tester);
++      final p = freshProvider();
++
++      await scan(tester, p, key, '-0100049000033946217MG7fVVkzf5Y?${kGs}93ab');
++
++      expect(find.byType(NotFoundProductDialog), findsOneWidget);
++      await tapOk(tester);
++      expect(active(p), isEmpty);
++    });
++
++    testWidgets('dialog yo\'li: shtrix-kod → dialogga `-` KM → toza KM',
++        (tester) async {
++      useCatalog([fanta()]);
++      final key = await pumpApp(tester);
++      final p = freshProvider();
++
++      await scan(tester, p, key, '0049000033939');
++      expect(find.byType(MarkingDialog), findsOneWidget);
++
++      await tester.enterText(
++          find.descendant(
++              of: find.byType(MarkingDialog), matching: find.byType(TextField)),
++          '-$kKm1Clean-93abcd');
++      await tester.tap(find.descendant(
++          of: find.byType(MarkingDialog),
++          matching: find.byType(ElevatedButton)));
++      await pumpFew(tester);
++
++      final rows = active(p);
++      expect(rows, hasLength(1));
++      expect(rows.single.mark, kKm1Clean);
++    });
++  });
+ }
+diff --git a/test/mark_cleaner_scan_test.dart b/test/mark_cleaner_scan_test.dart
+index 66ee933..494c0fc 100644
+--- a/test/mark_cleaner_scan_test.dart
++++ b/test/mark_cleaner_scan_test.dart
+@@ -98,4 +98,31 @@ void main() {
+       expect(twice, once);
+     });
+   });
++
++  // 2026-10-21: skaner KM boshiga `-` qo'yadi — dialogga kiritilgan KM ham
++  // scanTime dan o'tadi, soliqqa `-` siz ketishi kerak.
++  group('Skaner prefiksi (`-` = FNC1, AIM ]d2)', () {
++    const km = '0100049000033939217MG7fVVkzf5Y?';
++
++    test('`-` + haqiqiy GS93 → toza KM', () {
++      expect(MarkCleaner.scanTime('-$km${gs}93abcd'), km);
++    });
++
++    test('`-` rejimi: `-93` ajratuvchi → toza KM (oxirida `-` yo\'q)', () {
++      expect(MarkCleaner.scanTime('-$km-93abcd'), km);
++    });
++
++    test('`-` rejimi, tamaki: narx (8005) saqlanadi, `-` lar yo\'q', () {
++      expect(MarkCleaner.scanTime('-0104780069000505218AbCdEf-8005012345-93ab'),
++          '0104780069000505218AbCdEf8005012345');
++    });
++
++    test(']d2 + KM → toza KM', () {
++      expect(MarkCleaner.scanTime(']d2$km${gs}93abcd'), km);
++    });
++
++    test('prefikssiz KM natijasi o\'zgarmagan', () {
++      expect(MarkCleaner.scanTime('$km${gs}93abcd'), km);
++    });
++  });
+ }
+```
+
+</details>
+
+### 9.3. Tekshirish
+
+- To'liq to'plam (`0bb3faa`, 17/18-tasklar merge qilingan `ayyubxon` ustida): **2171 o'tdi, 7 skip**.
+- Fix'siz (`lib/` o'zgarishlarisiz) yangi testlardan 12 tasi yiqiladi.
+- `flutter analyze` (o'zgargan lib + test fayllar): yangi ogohlantirish yo'q.
+- Ochiq savol: do'kondagi skanerning to'liq xom satri (ichki GS ham `-` bo'lib keladimi) ko'rilmagan. Ikkala holat ham qamralgan. Sotuvdan keyin fiskal so'rov logidagi `Label` dan tasdiqlash kerak.
 
 ---
 

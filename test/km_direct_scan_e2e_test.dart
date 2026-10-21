@@ -326,4 +326,81 @@ void main() {
       expect(active(p), isEmpty, reason: 'narxi 0 — savatga tushmaydi');
     });
   });
+
+  // 2026-10-21: ba'zi skanerlar KM boshiga `-` qo'yadi (`-0100049…`) —
+  // mahsulot topilmasdi. Endi `-` (va ichki `-93`) tozalanadi.
+  group('Skaner KM boshiga `-` qo\'yadi', () {
+    testWidgets('`-` + KM1 (haqiqiy GS) → Fanta qatori, KM `-` siz',
+        (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, '-$kKm1');
+
+      expect(find.byType(NotFoundProductDialog), findsNothing);
+      final rows = active(p);
+      expect(rows, hasLength(1));
+      expect(rows.single.productId, kFantaId);
+      expect(rows.single.mark, kKm1Clean);
+    });
+
+    testWidgets('`-` rejimi (GS ham `-`) → Fanta qatori, KM toza',
+        (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, '-$kKm1Clean-93abcd');
+
+      expect(find.byType(NotFoundProductDialog), findsNothing);
+      expect(active(p).single.mark, kKm1Clean);
+    });
+
+    testWidgets('AIM ]d2 + KM1 → Fanta qatori', (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, ']d2$kKm1');
+
+      expect(active(p).single.mark, kKm1Clean);
+    });
+
+    testWidgets('`-` + boshqa GTIN dagi KM — baribir "topilmadi"',
+        (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, '-0100049000033946217MG7fVVkzf5Y?${kGs}93ab');
+
+      expect(find.byType(NotFoundProductDialog), findsOneWidget);
+      await tapOk(tester);
+      expect(active(p), isEmpty);
+    });
+
+    testWidgets('dialog yo\'li: shtrix-kod → dialogga `-` KM → toza KM',
+        (tester) async {
+      useCatalog([fanta()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, '0049000033939');
+      expect(find.byType(MarkingDialog), findsOneWidget);
+
+      await tester.enterText(
+          find.descendant(
+              of: find.byType(MarkingDialog), matching: find.byType(TextField)),
+          '-$kKm1Clean-93abcd');
+      await tester.tap(find.descendant(
+          of: find.byType(MarkingDialog),
+          matching: find.byType(ElevatedButton)));
+      await pumpFew(tester);
+
+      final rows = active(p);
+      expect(rows, hasLength(1));
+      expect(rows.single.mark, kKm1Clean);
+    });
+  });
 }

@@ -132,4 +132,72 @@ void main() {
           reason: 'chaqiruvchi kalitni boshidagi nollarsiz beradi');
     });
   });
+
+  // 2026-10-21: ba'zi skanerlar KM boshiga `-` qo'yadi (`-0100049…`) —
+  // kod `01` bilan boshlanmagani uchun mahsulot topilmasdi.
+  group('Gs1.stripScannerPrefix — skaner prefiksi', () {
+    const gs = '\x1D';
+    const km = '0100049000033939217MG7fVVkzf5Y?';
+
+    test('boshidagi `-` olinadi, haqiqiy GS saqlanadi', () {
+      expect(Gs1.stripScannerPrefix('-$km${gs}93abcd'), '$km${gs}93abcd');
+    });
+
+    test('bir nechta `-` ham olinadi', () {
+      expect(Gs1.stripScannerPrefix('--$km${gs}93abcd'), '$km${gs}93abcd');
+    });
+
+    test('`-` rejimi: GS o\'rnidagi `-93` → GS93', () {
+      expect(Gs1.stripScannerPrefix('-$km-93abcd'), '$km${gs}93abcd');
+    });
+
+    test('`-` rejimi, tamaki: `-8005` va `-93` → GS', () {
+      expect(
+          Gs1.stripScannerPrefix('-0104780069000505218AbCdEf-8005012345-93ab'),
+          '0104780069000505218AbCdEf${gs}8005012345${gs}93ab');
+    });
+
+    test('`-` rejimi: seriyadagi boshqa `-` o\'zgarmaydi', () {
+      expect(Gs1.stripScannerPrefix('-01000490000339392112-AB-CD-93ab'),
+          '01000490000339392112-AB-CD${gs}93ab');
+    });
+
+    test('haqiqiy GS bo\'lsa ichki `-` ga tegilmaydi', () {
+      expect(Gs1.stripScannerPrefix('-01000490000339392112-93XY${gs}93ab'),
+          '01000490000339392112-93XY${gs}93ab');
+    });
+
+    test('qavsli (01) shakli: faqat `-` olinadi', () {
+      expect(Gs1.stripScannerPrefix('-(01)00049000033939(21)AB-93(93)xy'),
+          '(01)00049000033939(21)AB-93(93)xy');
+    });
+
+    test('AIM identifikatori ]d2 / ]C1 / ]Q3 olinadi', () {
+      for (final aim in [']d2', ']C1', ']Q3']) {
+        expect(Gs1.stripScannerPrefix('$aim$km${gs}93abcd'), '$km${gs}93abcd');
+      }
+    });
+
+    test('GS1 01+GTIN14 bo\'lmasa hech narsa o\'zgarmaydi', () {
+      for (final c in [
+        '-123',
+        '-4780069000505',
+        '-010004900003393', // 01 + 13 raqam — GTIN14 emas
+        '-02000490000339392112', // 02 — bu yerda qamralmagan
+        ']d24780069000505',
+        '4780069000505',
+        '0100049000033939217MG7fVVkzf5Y?-93ab', // `-` boshida emas
+        '',
+      ]) {
+        expect(Gs1.stripScannerPrefix(c), c, reason: c);
+      }
+    });
+
+    test('ikki marta chaqirilsa natija bir xil (idempotent)', () {
+      for (final c in ['-$km-93abcd', '-$km${gs}93abcd', ']d2$km${gs}93ab']) {
+        final once = Gs1.stripScannerPrefix(c);
+        expect(Gs1.stripScannerPrefix(once), once, reason: c);
+      }
+    });
+  });
 }
