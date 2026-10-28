@@ -632,6 +632,21 @@
   "yuklanmoqda_mahsulotlar": "Загружается база товаров...",
   "yuklanmoqda_saqlanmoqda": "Сохранение товаров...",
   "yuklanmoqda_mxik": "Загружаются данные МХИК...",
-  "yuklanmoqda_tayyor": "Готово"
+  "yuklanmoqda_tayyor": "Готово",
+  "vozvrat_km_chekda_yoq": "Этот товар не продавался в этом чеке",
+  "vozvrat_km_qoshilgan": "Эта маркировка уже добавлена в возврат",
+  "vozvrat_km_oldin_qaytarilgan": "Эта маркировка уже была возвращена",
+  "vozvrat_km_blok_kodi": "Это маркировка блока — выберите строку блока",
+  "vozvrat_km_dona_kodi": "Это маркировка штуки — выберите строку штук",
+  "vozvrat_km_qisqa": "Код маркировки должен быть длиннее",
+  "vozvrat_km_yopish": "Закрыть",
+  "vozvrat_km_blok_qator": "Блок ({count} шт)",
+  "@vozvrat_km_blok_qator": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "vozvrat_km_boshqa_mahsulot": "Эта маркировка другого товара — выберите строку этого товара"
 }
-    

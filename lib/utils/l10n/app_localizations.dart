@@ -1741,6 +1741,60 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Готово'**
   String get yuklanmoqda_tayyor;
+
+  /// No description provided for @vozvrat_km_chekda_yoq.
+  ///
+  /// In ru, this message translates to:
+  /// **'Этот товар не продавался в этом чеке'**
+  String get vozvrat_km_chekda_yoq;
+
+  /// No description provided for @vozvrat_km_qoshilgan.
+  ///
+  /// In ru, this message translates to:
+  /// **'Эта маркировка уже добавлена в возврат'**
+  String get vozvrat_km_qoshilgan;
+
+  /// No description provided for @vozvrat_km_oldin_qaytarilgan.
+  ///
+  /// In ru, this message translates to:
+  /// **'Эта маркировка уже была возвращена'**
+  String get vozvrat_km_oldin_qaytarilgan;
+
+  /// No description provided for @vozvrat_km_blok_kodi.
+  ///
+  /// In ru, this message translates to:
+  /// **'Это маркировка блока — выберите строку блока'**
+  String get vozvrat_km_blok_kodi;
+
+  /// No description provided for @vozvrat_km_dona_kodi.
+  ///
+  /// In ru, this message translates to:
+  /// **'Это маркировка штуки — выберите строку штук'**
+  String get vozvrat_km_dona_kodi;
+
+  /// No description provided for @vozvrat_km_qisqa.
+  ///
+  /// In ru, this message translates to:
+  /// **'Код маркировки должен быть длиннее'**
+  String get vozvrat_km_qisqa;
+
+  /// No description provided for @vozvrat_km_yopish.
+  ///
+  /// In ru, this message translates to:
+  /// **'Закрыть'**
+  String get vozvrat_km_yopish;
+
+  /// No description provided for @vozvrat_km_blok_qator.
+  ///
+  /// In ru, this message translates to:
+  /// **'Блок ({count} шт)'**
+  String vozvrat_km_blok_qator(int count);
+
+  /// No description provided for @vozvrat_km_boshqa_mahsulot.
+  ///
+  /// In ru, this message translates to:
+  /// **'Эта маркировка другого товара — выберите строку этого товара'**
+  String get vozvrat_km_boshqa_mahsulot;
 }
 
 class _AppLocalizationsDelegate

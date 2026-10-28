@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:invan2/utils/utils.dart';
 import 'package:provider/provider.dart';
 import '../../../../changes/providers/return_page_provider.dart';
+import '../return_page_dialog/refund_mark_scan_dialog.dart';
 import '../return_page_dialog/return_page_dialog.dart';
 
 class BuildLeftList extends StatefulWidget {
@@ -32,6 +33,18 @@ class BuildLeftListState extends State<BuildLeftList> {
           child: ListTile(
             onTap: () async {
               returnPageProvider.pressLeftIndex(index);
+              // Markirovkali qator: qaytayotgan shisha/blok KM'i skanerlanadi —
+              // faqat shu chekda sotilgan KM o'ngga o'tadi.
+              if (returnPageProvider.needsScan(item)) {
+                await showDialog(
+                  context: context,
+                  builder: (_) => RefundMarkScanDialog(
+                    provider: returnPageProvider,
+                    row: item,
+                  ),
+                );
+                return;
+              }
               if (isBlock) {
                 if (blocks <= 1) {
                   returnPageProvider.pressLeftProduct();

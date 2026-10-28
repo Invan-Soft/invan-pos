@@ -873,4 +873,37 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get yuklanmoqda_tayyor => 'Tayyor';
+
+  @override
+  String get vozvrat_km_chekda_yoq => 'Bu mahsulot shu chekda sotilmagan';
+
+  @override
+  String get vozvrat_km_qoshilgan =>
+      'Bu markirovka allaqachon qaytarishga qo\'shilgan';
+
+  @override
+  String get vozvrat_km_oldin_qaytarilgan => 'Bu markirovka oldin qaytarilgan';
+
+  @override
+  String get vozvrat_km_blok_kodi =>
+      'Bu blok markirovkasi — blok qatorini tanlang';
+
+  @override
+  String get vozvrat_km_dona_kodi =>
+      'Bu dona markirovkasi — dona qatorini tanlang';
+
+  @override
+  String get vozvrat_km_qisqa => 'Markirovka kodi uzunroq bo\'lishi kerak';
+
+  @override
+  String get vozvrat_km_yopish => 'Yopish';
+
+  @override
+  String vozvrat_km_blok_qator(int count) {
+    return 'Blok ($count dona)';
+  }
+
+  @override
+  String get vozvrat_km_boshqa_mahsulot =>
+      'Bu markirovka boshqa mahsulotniki — o\'sha mahsulot qatorini tanlang';
 }

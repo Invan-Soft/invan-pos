@@ -258,8 +258,10 @@ class _CheckViewContentState extends State<CheckViewContent> {
                                       if (state is ReUpdateSuccesState) {
                                         AppNavigation.push(
                                           ReturnPage(
-                                              receiptModel4:
-                                                  state.receiptModel4),
+                                            receiptModel4: state.receiptModel4,
+                                            serverRefundedMarks:
+                                                state.refundedMarks,
+                                          ),
                                         ).then(
                                           (value) => checkFBloc.add(
                                             CheckFCallInitialEvent(),

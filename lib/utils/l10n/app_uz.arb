@@ -276,5 +276,14 @@
   "yuklanmoqda_mahsulotlar": "Mahsulotlar bazasi yuklanmoqda...",
   "yuklanmoqda_saqlanmoqda": "Mahsulotlar saqlanmoqda...",
   "yuklanmoqda_mxik": "MXIK ma'lumotlari yuklanmoqda...",
-  "yuklanmoqda_tayyor": "Tayyor"
+  "yuklanmoqda_tayyor": "Tayyor",
+  "vozvrat_km_chekda_yoq": "Bu mahsulot shu chekda sotilmagan",
+  "vozvrat_km_qoshilgan": "Bu markirovka allaqachon qaytarishga qo'shilgan",
+  "vozvrat_km_oldin_qaytarilgan": "Bu markirovka oldin qaytarilgan",
+  "vozvrat_km_blok_kodi": "Bu blok markirovkasi — blok qatorini tanlang",
+  "vozvrat_km_dona_kodi": "Bu dona markirovkasi — dona qatorini tanlang",
+  "vozvrat_km_qisqa": "Markirovka kodi uzunroq bo'lishi kerak",
+  "vozvrat_km_yopish": "Yopish",
+  "vozvrat_km_blok_qator": "Blok ({count} dona)",
+  "vozvrat_km_boshqa_mahsulot": "Bu markirovka boshqa mahsulotniki — o'sha mahsulot qatorini tanlang"
 }

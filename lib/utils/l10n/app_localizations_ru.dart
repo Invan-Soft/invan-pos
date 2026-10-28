@@ -860,4 +860,37 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get yuklanmoqda_tayyor => 'Готово';
+
+  @override
+  String get vozvrat_km_chekda_yoq => 'Этот товар не продавался в этом чеке';
+
+  @override
+  String get vozvrat_km_qoshilgan => 'Эта маркировка уже добавлена в возврат';
+
+  @override
+  String get vozvrat_km_oldin_qaytarilgan =>
+      'Эта маркировка уже была возвращена';
+
+  @override
+  String get vozvrat_km_blok_kodi =>
+      'Это маркировка блока — выберите строку блока';
+
+  @override
+  String get vozvrat_km_dona_kodi =>
+      'Это маркировка штуки — выберите строку штук';
+
+  @override
+  String get vozvrat_km_qisqa => 'Код маркировки должен быть длиннее';
+
+  @override
+  String get vozvrat_km_yopish => 'Закрыть';
+
+  @override
+  String vozvrat_km_blok_qator(int count) {
+    return 'Блок ($count шт)';
+  }
+
+  @override
+  String get vozvrat_km_boshqa_mahsulot =>
+      'Эта маркировка другого товара — выберите строку этого товара';
 }

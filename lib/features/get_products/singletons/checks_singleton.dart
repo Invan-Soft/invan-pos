@@ -4,11 +4,38 @@ import 'package:invan2/changes/domain/receipt/refund_item_origin.dart';
 import 'package:invan2/changes/models/discount_model.dart';
 import 'package:invan2/changes/models/receipts_get_model.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 
 import '../../../utils/constants/constants.dart';
 import '../../../utils/helpers/helpers.dart';
 
 class ChecksSingleton {
+  /// Shu kassada sotilgan chekning lokal (ObjectBox) qatorlari, productId bo'yicha.
+  /// Chek boshqa kassada sotilgan bo'lsa — bo'sh.
+  ///
+  /// Narxlar (price, realPrice, singleDiscount) API GET javobida har doim ham
+  /// to'g'ri qaytmasligi mumkin (masalan free gift va order-level diskontda),
+  /// shuning uchun vozvrat sotuv momentidagi original qiymatlarga tayanadi.
+  static Map<String, ReceiptModelSoldItem4> localOriginalItems(
+      String externalId) {
+    final result = <String, ReceiptModelSoldItem4>{};
+    try {
+      final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+      final originals = box
+          .getAll()
+          .where((r) => !r.isRefund && r.externalId == externalId)
+          .toList();
+      if (originals.isNotEmpty) {
+        for (final item in originals.first.soldItemList) {
+          result[item.productId] = item;
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return result;
+  }
+
   static ReceiptModel4 globalToLocall(
       GlobalReceipt r, {String? cashierId, String? cashierName}) {
     Map<String, double> paymentMap = {};
@@ -163,12 +190,19 @@ supplierId: "",
         tin: origin.tin,
         packageCode: v[i].packageCode,
         packageName: v[i].packageName,
-        // mark: ,
+        // KM'lar lokal konsolidatsiyalangan chekdagidek '\n' bilan bitta satrda;
+        // vozvrat sahifasi ularni qatorlarga bo'ladi (RefundMarkSplit).
+        mark: v[i].markingNames.isEmpty ? null : v[i].markingNames.join('\n'),
+        boxMark:
+            v[i].boxMarkingNames.isEmpty ? null : v[i].boxMarkingNames.join('\n'),
+        marking: v[i].markingNames.isNotEmpty,
+        saleType: v[i].isBox ? 2 : 1,
+        boxValue: v[i].isBox ? v[i].boxValue : 0,
+        boxQuantity: v[i].isBox ? v[i].boxQuantity : 0,
         // commissionTIN: ,
         // discountPercent: ,
         // isDeleted: ,
         // isPriceChanged: ,
-        // marking: ,
         sellerId: v[i].seller?.id ?? "",
         vatName: v[i].vatName ?? "",
       );

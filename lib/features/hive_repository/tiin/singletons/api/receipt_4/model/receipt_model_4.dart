@@ -509,6 +509,12 @@ int boxQuantity;
       'box_marking_names': (boxMark != null && boxMark!.isNotEmpty)
           ? boxMark!.split('\n').where((m) => m.isNotEmpty).toList()
           : [],
+      // Qaytarilgan KM'lar — server ularni vozvratda (`refund_order_items`)
+      // to'ldiradi va `GET api/v1/order` da qaytaradi. Sotuvda hech narsa
+      // qaytarilmagan, shuning uchun doim bo'sh; maydon backend modeli bilan
+      // bir xil bo'lishi uchun yuboriladi.
+      'refunded_marking_names': <String>[],
+      'refunded_box_marking_names': <String>[],
       'product_type': productType,
       'product_package': productPackage,
       'sale_type': saleType,

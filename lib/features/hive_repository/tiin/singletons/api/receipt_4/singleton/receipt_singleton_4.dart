@@ -322,7 +322,7 @@ class ReceiptSingleton4 {
         id: e.productId,
         tin: e.commissionTIN,
         label: e.mark ?? '',
-        amount: e.value * 1000,
+        amount: _fiscalAmount(e, isRefund: receipt.isRefund),
         barcode: codes.barcode,
         classCode: codes.classCode,
         name: e.productName.replaceAll(' //blok', ''),
@@ -524,6 +524,23 @@ class ReceiptSingleton4 {
         remaining -= take;
       }
     }
+  }
+
+  /// Fiskal `Amount` (miqdor × 1000).
+  ///
+  /// Vozvrat blok qatori dona hisobida (`value = boxValue × blok`). Sotuvda esa
+  /// blok bitta pozitsiya — `Amount 1000`, `Price` = blok narxi, `Label` = blok
+  /// KM. Blok KM'li vozvrat qatori sotuvdagi shaklda qaytadi: `blok soni × 1000`
+  /// (`Price` o'zgarmaydi — `value × dona narxi` = blok narxi). KM'siz blok
+  /// vozvrati avvalgidek dona hisobida.
+  static num _fiscalAmount(ReceiptModelSoldItem4 e, {required bool isRefund}) {
+    if (isRefund &&
+        e.saleType == 2 &&
+        e.boxQuantity > 0 &&
+        (e.mark?.isNotEmpty ?? false)) {
+      return e.boxQuantity * 1000;
+    }
+    return e.value * 1000;
   }
 
   static num _countPrice(ReceiptModelSoldItem4 e) {
