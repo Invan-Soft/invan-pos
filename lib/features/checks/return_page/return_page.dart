@@ -1,7 +1,11 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:invan2/changes/domain/receipt/refund_mark_split.dart';
 import 'package:invan2/changes/services/api.dart';
+import 'package:invan2/features/get_products/singletons/checks_singleton.dart';
+import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 import 'package:provider/provider.dart';
@@ -17,15 +21,29 @@ class ReturnPage extends StatelessWidget {
   const ReturnPage({
     super.key,
     required this.receiptModel4,
+    this.serverRefundedMarks = const {},
   });
 
   final ReceiptModel4 receiptModel4;
 
+  /// Serverda qaytarilgan KM'lar (`ReUpdateBloc.serverRefundedMarks`).
+  final Set<String> serverRefundedMarks;
+
   @override
   Widget build(BuildContext context) {
-    final r = _copyWith(receiptModel4, context);
+    // Vozvrat sahifasida skan sotuv savatiga tushmasin: uy sahifasining
+    // VisibilityDetector'i cheklar sahifasiga o'tishda kechikib `home`
+    // qo'yib yuborishi mumkin (cheklar sahifasi `other` qo'ygandan keyin).
+    BlocProvider.of<BlBloc>(context, listen: false).add(BlStatusChangedEvent(
+      status: BLStatus.other,
+      where: 'return_page.dart build',
+    ));
+    final data = _copyWith(receiptModel4, serverRefundedMarks);
     return ChangeNotifierProvider(
-      create: (_) => ReturnPageProviderr(receiptModel4: r),
+      create: (_) => ReturnPageProviderr(
+        receiptModel4: data.receipt,
+        refundedMarks: data.refundedMarks,
+      ),
       child: WillPopScope(
         onWillPop: () async => false,
         child: Scaffold(
@@ -81,40 +99,42 @@ class ReturnPage extends StatelessWidget {
   }
 }
 
-/// Local DB dan original sotuv receiptining itemlarini productId bo'yicha qaytaradi.
-/// Narxlar (price, realPrice, singleDiscount) API GET javobida har doim ham
-/// to'g'ri qaytmasligi mumkin (masalan free gift va order-level diskontda),
-/// shuning uchun bu yerda sotuv momentidagi original qiymatlarga tayanamiz.
-Map<String, ReceiptModelSoldItem4> _getOriginalItemsFromLocalDB(String externalId) {
-  final result = <String, ReceiptModelSoldItem4>{};
-  try {
-    final box = MyObjectbox.saleStore.box<ReceiptModel4>();
-    final all = box.getAll();
-    final originals = all.where((r) => !r.isRefund && r.externalId == externalId).toList();
-    if (originals.isNotEmpty) {
-      for (final item in originals.first.soldItemList) {
-        result[item.productId] = item;
-      }
-    }
-  } catch (e) {
-    // ignore
-  }
-  return result;
+/// Shu checkga tegishli oldingi refundlarda qaytarilgan miqdorlar
+/// (productId → jami qty, dona hisobida), shundan serverga hali yetmaganlari
+/// (`uploaded == false`) va ketgan KM'lar (dona + blok).
+class _AlreadyRefunded {
+  final Map<String, double> qty;
+  final Map<String, double> pendingQty;
+  final Set<String> marks;
+
+  const _AlreadyRefunded(this.qty, this.pendingQty, this.marks);
 }
 
-/// Shu checkga tegishli oldingi refundlarda qaytarilgan miqdorlarni hisoblaymiz
-/// productId → qaytarilgan jami qty (dona hisobida)
-Map<String, double> _getAlreadyRefundedQty(
+/// Vozvrat sahifasining boshlang'ich holati: chap ro'yxat va shu chek bo'yicha
+/// oldin qaytarilgan KM'lar (skanerda "oldin qaytarilgan" xabari uchun).
+class RefundPageData {
+  final ReceiptModel4 receipt;
+  final Set<String> refundedMarks;
+
+  const RefundPageData(this.receipt, this.refundedMarks);
+}
+
+_AlreadyRefunded _getAlreadyRefunded(
   String originalExternalId,
   Map<String, ReceiptModelSoldItem4> originalItems,
 ) {
   final Map<String, double> refundedQty = {};
+  final Map<String, double> pendingQty = {};
+  final Set<String> refundedMarks = {};
   try {
     final box = MyObjectbox.saleStore.box<ReceiptModel4>();
     final allRefunds = box.getAll().where((r) =>
         r.isRefund && r.returnForCheck == originalExternalId).toList();
     for (final refund in allRefunds) {
       for (final item in refund.soldItemList) {
+        refundedMarks
+          ..addAll(RefundMarkSplit.marksOf(item.mark))
+          ..addAll(RefundMarkSplit.marksOf(item.boxMark));
         double dona = item.value;
         // Self-heal: eski buzilgan yozuvlar (vozvrat cheki qayta konsolidatsiya
         // bo'lib value boxValue marta oshib ketgan — 12 dona "12 blok"=144
@@ -129,48 +149,69 @@ Map<String, double> _getAlreadyRefundedQty(
         }
         refundedQty[item.productId] =
             (refundedQty[item.productId] ?? 0) + dona;
+        if (!refund.uploaded) {
+          pendingQty[item.productId] =
+              (pendingQty[item.productId] ?? 0) + dona;
+        }
       }
     }
   } catch (e) {
     // ignore
   }
-  return refundedQty;
+  return _AlreadyRefunded(refundedQty, pendingQty, refundedMarks);
 }
 
-ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
+/// Testlar uchun: vozvrat sahifasi ochilganda chap ro'yxat aynan shu qatorlardan.
+@visibleForTesting
+RefundPageData refundReceiptOf(
+  ReceiptModel4 receipt, {
+  Set<String> serverRefundedMarks = const {},
+}) =>
+    _copyWith(receipt, serverRefundedMarks);
+
+RefundPageData _copyWith(
+  ReceiptModel4 receipt, [
+  Set<String> serverRefundedMarks = const {},
+]) {
   // Local DB dan original sotuv itemlarini olamiz. Narxlarni shulardan
   // tiklaymiz — API GET javobi free gift va order-level diskontda har doim
   // ham per-item discount ma'lumotini saqlamaydi, lokal sotuv esa to'g'ri saqlangan.
   final Map<String, ReceiptModelSoldItem4> originalItemsMap =
-      _getOriginalItemsFromLocalDB(receipt.externalId);
-  // Allaqachon qaytarilgan miqdorlarni olamiz
-  final Map<String, double> alreadyRefunded =
-      _getAlreadyRefundedQty(receipt.externalId, originalItemsMap);
+      ChecksSingleton.localOriginalItems(receipt.externalId);
+  // Allaqachon qaytarilgan miqdorlar va KM'lar
+  final refunded = _getAlreadyRefunded(receipt.externalId, originalItemsMap);
+  final Map<String, double> alreadyRefunded = refunded.qty;
+  // Qaytarilgan KM'lar: server (har qanday kassa) + shu kassa (serverga hali
+  // yetmaganlari ham). Havzadan chiqariladi, skanerlansa "oldin qaytarilgan".
+  final Set<String> refundedMarks = {...refunded.marks, ...serverRefundedMarks};
 
   final List<ReceiptModelSoldItem4> list = [];
   for (var e in receipt.soldItemList) {
     final ReceiptModelSoldItem4? local = originalItemsMap[e.productId];
-    // Agar local DB da original topilsa — undan foydalanamiz (API reduced bo'lmasin).
-    // Topilmasa — e.value dan foydalanamiz (refund bo'lmagan holat).
-    final double baseQty = local?.value ?? e.value;
     final double refundedSoFar = alreadyRefunded[e.productId] ?? 0;
 
-    // Blok sotuv maydonlari (lokal originaldan — API ularni qaytarmaydi)
-    final int boxValue = local?.boxValue ?? 0;
-    final int soldBoxQuantity = local?.boxQuantity ?? 0;
+    // Blok sotuv maydonlari — lokal originaldan; u yo'q bo'lsa (chek boshqa
+    // kassada sotilgan) serverdan (ItemsGTR blok token'ini donaga o'giradi).
+    final ReceiptModelSoldItem4 boxSource = local ?? e;
+    final int boxValue = boxSource.boxValue;
+    final int soldBoxQuantity = boxSource.boxQuantity;
     final bool hasBox =
-        local?.saleType == 2 && boxValue > 0 && soldBoxQuantity > 0;
+        boxSource.saleType == 2 && boxValue > 0 && soldBoxQuantity > 0;
 
-    // min() — admin paneldan qilingan refundlarni ham hisobga olamiz:
-    // e.value = API dan kelgan qoldiq (refundAmount ni chegirilgan),
-    // baseQty - refundedSoFar = local DB dan hisoblab topilgan qoldiq.
-    //
-    // Blok mahsulotda esa API value birligi ishonchsiz (blok itemda token/dona
-    // aralash kelishi mumkin — 1 blok vozvratdan keyin item butunlay yo'qolib
-    // qolardi), shuning uchun faqat lokal hisob ishlatiladi: sotuvdagi dona
-    // soni minus shu kassada qilingan vozvratlar.
-    final double remainingQty =
-        hasBox ? (baseQty - refundedSoFar) : min(baseQty - refundedSoFar, e.value);
+    // Qoldiq:
+    // * lokal original bor (shu kassada sotilgan): min(lokal − shu kassadagi
+    //   vozvratlar, server qoldig'i) — server adminkada qilinganlarni ham biladi.
+    //   Blokda faqat lokal hisob (ReUpdateBloc bunday itemni filtrlamaydi).
+    // * lokal original yo'q (boshqa kassa): server qoldig'i (`e.value` —
+    //   ReUpdateBloc refund_amount'ni ayirgan, blokda ItemsGTR token'ni donaga
+    //   o'girgan) minus shu kassadagi serverga HALI yetmagan vozvratlar.
+    //   Ilgari barcha lokal vozvratlar ayirilardi — serverga yetganlari ikki
+    //   marta ayirilib, qolgan dona ro'yxatdan yo'qolardi.
+    final double remainingQty = local == null
+        ? e.value - (refunded.pendingQty[e.productId] ?? 0)
+        : hasBox
+            ? (local.value - refundedSoFar)
+            : min(local.value - refundedSoFar, e.value);
     if (remainingQty <= 0) continue; // Hammasi qaytarilgan — ro'yxatga qo'shmaymiz
 
     // Narxlarni local DB dan olamiz (free gift = 0, diskontli = effektiv narx).
@@ -185,16 +226,19 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
       int saleType = 1,
       int boxValue = 0,
       int boxQuantity = 0,
+      List<String> marks = const [],
     }) {
       return ReceiptModelSoldItem4(
         inBox: e.inBox,
-        // unnecessary
-        mark: e.mark,
+        // Chap qatorda — skanerlab qaytarish mumkin bo'lgan KM'lar havzasi
+        // ('\n' bilan, konsolidatsiyalangan chekdagidek). O'ngga skanerlangan
+        // bitta KM bilan o'tadi (ReturnPageProviderr.scanMark).
+        mark: marks.isEmpty ? null : marks.join('\n'),
         onlyPrice: itemOnlyPrice,
         realPrice: itemRealPrice,
         ownerType: e.ownerType,
         refundItemId: e.refundItemId,
-        marking: e.marking,
+        marking: marks.isNotEmpty && saleType != 2,
         soldBy: e.soldBy,
         cost: e.cost,
         createdTime: e.createdTime,
@@ -225,21 +269,27 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
     // Blok sotuv (saleType==2): qoldiqni blok va dona qatorlariga ajratamiz.
     // Blok qatori faqat butun blok qaytarish uchun — value baribir DONA hisobida
     // turadi (refund API, fiskal va DB dona bilan ishlaydi), blok faqat UI qatlami.
+    // KM'li qism bitta qator, KM'lar havzasi bilan (RefundMarkSplit).
     final int blocksAvailable =
         hasBox ? min(soldBoxQuantity, remainingQty ~/ boxValue) : 0;
-    final double blockUnits = (blocksAvailable * boxValue).toDouble();
-    final double looseUnits = remainingQty - blockUnits;
-
-    if (blocksAvailable > 0) {
-      list.add(makeItem(
-        blockUnits,
-        saleType: 2,
-        boxValue: boxValue,
-        boxQuantity: blocksAvailable,
-      ));
-    }
-    if (looseUnits > 0) {
-      list.add(makeItem(looseUnits));
+    final rows = RefundMarkSplit.plan(
+      remainingUnits: remainingQty,
+      boxValue: boxValue,
+      blocksAvailable: blocksAvailable,
+      unitMarks: RefundMarkSplit.marksOf(e.mark, local?.mark),
+      boxMarks: RefundMarkSplit.marksOf(e.boxMark, local?.boxMark),
+      refundedMarks: refundedMarks,
+    );
+    for (final row in rows) {
+      list.add(row.isBlock
+          ? makeItem(
+              row.units,
+              saleType: 2,
+              boxValue: boxValue,
+              boxQuantity: row.blocks,
+              marks: row.marks,
+            )
+          : makeItem(row.units, marks: row.marks));
     }
   }
 
@@ -297,5 +347,5 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
     ));
   }
 
-  return newReceiptModel4;
+  return RefundPageData(newReceiptModel4, refundedMarks);
 }

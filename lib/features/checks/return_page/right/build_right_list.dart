@@ -72,6 +72,16 @@ class BuildRightListState extends State<BuildRightList> {
                 color:Theme.of(context).canvasColor
               ),
             ),
+            // KM'li qator — qaysi shisha/blok qaytayotgani
+            subtitle: (item.mark?.isNotEmpty ?? false)
+                ? Text(
+                    'KM: ${item.mark}',
+                    style: MyThemes.txtStyle(
+                      fontSize: 1.6,
+                      color: Theme.of(context).canvasColor.withValues(alpha: .7),
+                    ),
+                  )
+                : null,
             trailing: Text(
               MoneyFormatter.formatVat.format(item.price * item.value),
               style: MyThemes.txtStyle(

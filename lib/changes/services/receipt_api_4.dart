@@ -1,5 +1,6 @@
 // ignore_for_file: unused_local_variable
 import 'dart:convert';
+import 'package:invan2/changes/domain/receipt/refund_mark_split.dart';
 import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/changes/services/api.dart';
 import 'package:invan2/changes/services/api/api_provider.dart';
@@ -289,8 +290,21 @@ class ReceiptApi4 {
     // har item id uchun bitta yozuv kutadi. Quantity DONA hisobida ketadi
     // (1 blok = boxValue dona) — backend sotuvni ham dona hisobida yuritadi.
     final Map<String, RefundedReceipt> refundedById = {};
+    // Qaytgan KM'lar (vozvrat sahifasida skanerlangan, har qatorda bitta):
+    // dona qatori → `marking_names`, blok qatori → `box_marking_names`.
+    // Server qaysi KM qaytganini bilsin — boshqa kassadagi keyingi vozvratda
+    // u KM qayta qabul qilinmasligi uchun.
+    final Map<String, List<String>> unitMarksById = {};
+    final Map<String, List<String>> boxMarksById = {};
     for (var element in r.soldItemList) {
       final key = element.refundItemId ?? '';
+      final marks = [
+        ...RefundMarkSplit.marksOf(element.mark),
+        ...RefundMarkSplit.marksOf(element.boxMark),
+      ];
+      (element.saleType == 2 ? boxMarksById : unitMarksById)
+          .putIfAbsent(key, () => [])
+          .addAll(marks);
       final existing = refundedById[key];
       if (existing != null) {
         existing.quantity = (existing.quantity ?? 0) + element.value;
@@ -305,7 +319,13 @@ class ReceiptApi4 {
     List<RefundedReceipt> refundedProducts = refundedById.values.toList();
 
     List<ItemsI2> i2 = refundedProducts
-        .map((e) => ItemsI2(id: e.id, price: e.price, quantity: e.quantity))
+        .map((e) => ItemsI2(
+              id: e.id,
+              price: e.price,
+              quantity: e.quantity,
+              markingNames: unitMarksById[e.id ?? ''] ?? const [],
+              boxMarkingNames: boxMarksById[e.id ?? ''] ?? const [],
+            ))
         .toList();
 
     List<PaymentsI2> p2 = refundMap.values
@@ -369,20 +389,35 @@ class ItemsI2 {
   num? price;
   num? quantity;
   String? id;
+  List<String> markingNames = const [];
+  List<String> boxMarkingNames = const [];
 
-  ItemsI2({this.quantity, this.id, required this.price});
+  ItemsI2({
+    this.quantity,
+    this.id,
+    required this.price,
+    this.markingNames = const [],
+    this.boxMarkingNames = const [],
+  });
 
   ItemsI2.fromJson(Map<String, dynamic> json) {
     quantity = json['quantity'];
     id = json['id'];
     price = json['price'];
+    markingNames = _marks(json['marking_names']);
+    boxMarkingNames = _marks(json['box_marking_names']);
   }
+
+  static List<String> _marks(dynamic raw) =>
+      raw is List ? raw.map((e) => e.toString()).toList() : <String>[];
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
     data['quantity'] = quantity;
     data['id'] = id;
     data['price'] = price;
+    data['marking_names'] = markingNames;
+    data['box_marking_names'] = boxMarkingNames;
     return data;
   }
 }

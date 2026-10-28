@@ -318,6 +318,18 @@ class ItemsGTR {
   String? packageCode;
   num? vatPercentage;
   DiscountGTR? discount;
+  // Sotuvda `order_pos` ga ketgan KM'lar (ReceiptModelSoldItem4.toJson):
+  // dona KM'lari va blok KM'lari alohida ro'yxatda.
+  List<String> markingNames = [];
+  List<String> boxMarkingNames = [];
+  // Shu item bo'yicha qaytarilgan KM'lar (har qanday kassadan, vozvratda
+  // `refund_order_items` ga KM yuborilgan bo'lsa). `marking_names` dan
+  // olib tashlanMAYDI — alohida ro'yxat.
+  List<String> refundedMarkingNames = [];
+  List<String> refundedBoxMarkingNames = [];
+  int saleType = 1;
+  int boxValue = 0;
+  int boxQuantity = 0;
 
   ItemsGTR(
       {this.id,
@@ -373,7 +385,27 @@ class ItemsGTR {
     discount = json['discount'] != null
         ? DiscountGTR.fromJson(json['discount'])
         : null;
+    markingNames = _marks(json['marking_names']);
+    boxMarkingNames = _marks(json['box_marking_names']);
+    refundedMarkingNames = _marks(json['refunded_marking_names']);
+    refundedBoxMarkingNames = _marks(json['refunded_box_marking_names']);
+    saleType = (json['sale_type'] as num?)?.toInt() ?? 1;
+    boxValue = (json['box_value'] as num?)?.toInt() ?? 0;
+    boxQuantity = (json['box_quantity'] as num?)?.toInt() ?? 0;
+    // Blok itemida server `value` ni TOKEN sifatida saqlaydi (sotuvda
+    // `blok soni + ortiqcha dona` yuborilgan — ReceiptModelSoldItem4.toJson),
+    // `refund_amount` esa DONA (`funcToRefund`). Bu yerdan keyin `value`
+    // hamma joyda dona: 2 blok × 6 + 1 dona = token 3 → 13 dona.
+    if (isBox && value != null) {
+      value = value! + boxQuantity * (boxValue - 1);
+    }
   }
+
+  bool get isBox => saleType == 2 && boxValue > 0 && boxQuantity > 0;
+
+  static List<String> _marks(dynamic raw) => raw is List
+      ? raw.map((e) => e.toString()).where((m) => m.isNotEmpty).toList()
+      : <String>[];
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
