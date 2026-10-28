@@ -1,7 +1,7 @@
 # Task: Vozvratda markirovka — KM serverdan, qaytayotgan mahsulot skanerlanadi (dona + blok)
 
 **Boshlangan:** 2026-10-27
-**Holat:** in-progress
+**Holat:** in-progress (1.1.2+130 Shorebird Patch 3 stable'da; do'kon sinovi kutilmoqda)
 **Branch:** fix/vozvrat-markirovka (asos: `ayyubxon` 7dc0de8), worktree `../pos-invan-2-vozvratkm`
 
 ## Maqsad
@@ -116,10 +116,11 @@ sotuvdagidek: har KM alohida pozitsiya, `Label` = o'sha KM (blokda blok KM, `Amo
 - [x] Yakuniy E2E: sotuv #141 (1 blok + 2 dona) → vozvrat #142: 3 pozitsiya sotuv bilan 11 maydonda bir xil,
   `refund_order_items` 200 (quantity 14, KM 2 + 1). Vozvrat to'plamlari 108/108, to'liq 2240 / 4 skip, analyze 590
 - [x] Commit `73ecadc` (fix/vozvrat-markirovka); port-changelog 19-task to'liq bo'lim
+- [x] Merge `815d9d8` → `ayyubxon` (foydalanuvchi: "o'zing qil"), GitLab `ayyubxon` + GitHub `main` push;
+  Shorebird **Patch 3** → `1.1.2+130` stable (run 40647516981, 2026-10-28; foydalanuvchi: staging'siz) —
+  ogohlantirishsiz (native/asset o'zgarishi yo'q). +129 kassalarida yo'q
 
 ## Keyingi qadamlar (prioritet bo'yicha)
-- [ ] `fix/vozvrat-markirovka` → `ayyubxon` MR (foydalanuvchi), keyin Shorebird patch (1.1.2+130) PRO'ga —
-  faqat Dart o'zgarishi (pubspec/ObjectBox/native o'zgarmagan); `api_provider.dart` PRO bo'lishi shart
 - [ ] Do'kon sinovi (Windows, haqiqiy fiskal modul): vozvrat soliq tomonidan qabul qilinishi, rus tartibida skan
 - [ ] Backend: `refund_order_items` takroriy/begona KM'ni rad etsin (8-bo'lim, port-changelog)
 

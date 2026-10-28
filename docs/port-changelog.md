@@ -41,7 +41,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 16 | 2026-10-20 | Karta raqami (`ExtraInfo.CardNumber`) yangi terminal formatlarida ham (korporativ Uzcard'da bo'sh ketardi); chekda yo'q bo'lsa logdan | 1.1.2+130 (Shorebird patch) | Commit bor; yangi terminalda sinov kutilmoqda | `d5b6432` |
 | 17 | 2026-10-21 | KM to'g'ridan skanerlanganda mahsulot topilmasdi: KM ichidagi GTIN-14 (`00049000033939`) katalogdagi UPC-12/EAN-13 (`049000033939`/`0049000033939`) ga GS1 tengligi bilan moslanadi — dona, blok, narxi 0; oddiy skan/SKU o'zgarmagan | 1.1.2+130 (Shorebird Patch 2, stable) | Patch chiqdi (2026-10-21); do'kon sinovi kutilmoqda | `38e40f3`, `0bb3faa` |
 | 18 | 2026-10-21 | Telegram log'idagi `Employee` joriy kassir (`static final` qotib qolardi). Vozvrat OFD xatosi 65274 tahlili: bizniki emas, fiskal modul OFD serveriga ulana olmagan | 1.1.2+130 (Shorebird Patch 2, stable) | Patch chiqdi (2026-10-21); do'kon sinovi kutilmoqda | `4de89e6` |
-| 19 | 2026-10-27 | Vozvratda markirovka: KM (dona + blok) serverdan; kassir qaytayotgan mahsulotni skanerlaydi, faqat shu chekdagi qaytarilmagan KM o'tadi (`refunded_*`); fiskalga sotuvdagidek har KM alohida pozitsiya; `refund_order_items` ga KM; rus klaviatura tartibi; boshqa kassa blok cheki token → dona | relizda emas | Commit bor; Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `73ecadc` |
+| 19 | 2026-10-27 | Vozvratda markirovka: KM (dona + blok) serverdan; kassir qaytayotgan mahsulotni skanerlaydi, faqat shu chekdagi qaytarilmagan KM o'tadi (`refunded_*`); fiskalga sotuvdagidek har KM alohida pozitsiya; `refund_order_items` ga KM; rus klaviatura tartibi; boshqa kassa blok cheki token → dona | 1.1.2+130 (Shorebird Patch 3, stable) | Patch chiqdi (2026-10-28); Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `73ecadc` (merge `815d9d8`) |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -101,6 +101,7 @@ d5b6432 2026-10-20 fix(terminal): karta raqami yangi terminal formatlarida ham o
 0bb3faa 2026-10-21 fix(markirovka): skaner KM boshiga `-` qo'ysa mahsulot topilmasdi    ← 17-task (§9)
 4de89e6 2026-10-21 fix(log): Telegram log'idagi xodim — joriy kassir                       ← 18-task
 73ecadc 2026-10-28 fix(vozvrat): markirovkali mahsulot KM skanerlab qaytariladi             ← 19-task
+815d9d8 2026-10-28 merge: fix/vozvrat-markirovka → ayyubxon; Shorebird Patch 3 → 1.1.2+130 stable
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -27321,11 +27322,11 @@ void main() {
 
 ---
 
-# 19-TASK — Vozvratda markirovka: KM serverdan, qaytayotgan mahsulot skanerlanadi, soliqqa va serverga KM bilan (relizda emas)
+# 19-TASK — Vozvratda markirovka: KM serverdan, qaytayotgan mahsulot skanerlanadi, soliqqa va serverga KM bilan (1.1.2+130 Shorebird Patch 3)
 
-> **Commit:** `73ecadc` (2026-10-28), branch `fix/vozvrat-markirovka` (asos `ayyubxon` 7dc0de8). Relizda emas.
+> **Commit:** `73ecadc` (2026-10-28), merge `815d9d8` → `ayyubxon`/`main`. Shorebird **Patch 3** → `1.1.2+130` stable (run 40647516981, 2026-10-28).
 > **Sessiya hujjati:** docs/sessions/2026-10-27-vozvrat-markirovka.md
-> **Holat 2026-10-28:** Mac (DEV + soxta fiskal modul) da sinalgan; do'kon (Windows, haqiqiy fiskal modul) sinovi kutilmoqda.
+> **Holat 2026-10-28:** Patch 3 stable'da. Mac (DEV + soxta fiskal modul) da sinalgan; do'kon (Windows, haqiqiy fiskal modul) sinovi kutilmoqda. +129 kassalarida yo'q (patch faqat +130 ga).
 
 ## 1. Nima va nima uchun
 
