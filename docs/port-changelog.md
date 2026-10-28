@@ -41,6 +41,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 16 | 2026-10-20 | Karta raqami (`ExtraInfo.CardNumber`) yangi terminal formatlarida ham (korporativ Uzcard'da bo'sh ketardi); chekda yo'q bo'lsa logdan | 1.1.2+130 (Shorebird patch) | Commit bor; yangi terminalda sinov kutilmoqda | `d5b6432` |
 | 17 | 2026-10-21 | KM to'g'ridan skanerlanganda mahsulot topilmasdi: KM ichidagi GTIN-14 (`00049000033939`) katalogdagi UPC-12/EAN-13 (`049000033939`/`0049000033939`) ga GS1 tengligi bilan moslanadi — dona, blok, narxi 0; oddiy skan/SKU o'zgarmagan | 1.1.2+130 (Shorebird Patch 2, stable) | Patch chiqdi (2026-10-21); do'kon sinovi kutilmoqda | `38e40f3`, `0bb3faa` |
 | 18 | 2026-10-21 | Telegram log'idagi `Employee` joriy kassir (`static final` qotib qolardi). Vozvrat OFD xatosi 65274 tahlili: bizniki emas, fiskal modul OFD serveriga ulana olmagan | 1.1.2+130 (Shorebird Patch 2, stable) | Patch chiqdi (2026-10-21); do'kon sinovi kutilmoqda | `4de89e6` |
+| 19 | 2026-10-27 | Vozvratda markirovka: KM (dona + blok) serverdan; kassir qaytayotgan mahsulotni skanerlaydi, faqat shu chekdagi qaytarilmagan KM o'tadi (`refunded_*`); fiskalga sotuvdagidek har KM alohida pozitsiya; `refund_order_items` ga KM; rus klaviatura tartibi; boshqa kassa blok cheki token → dona | relizda emas | Commit bor; Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `73ecadc` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -99,6 +100,7 @@ d5b6432 2026-10-20 fix(terminal): karta raqami yangi terminal formatlarida ham o
 38e40f3 2026-10-21 fix(markirovka): KM to'g'ridan skanda GTIN boshidagi nollar          ← 17-task
 0bb3faa 2026-10-21 fix(markirovka): skaner KM boshiga `-` qo'ysa mahsulot topilmasdi    ← 17-task (§9)
 4de89e6 2026-10-21 fix(log): Telegram log'idagi xodim — joriy kassir                       ← 18-task
+73ecadc 2026-10-28 fix(vozvrat): markirovkali mahsulot KM skanerlab qaytariladi             ← 19-task
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -27316,6 +27318,2998 @@ void main() {
 - Taklif (qilinmagan): INCOM'siz yo'lda `LocalService.sell` xato log'i haqiqiy manzil o'rniga `URL: http://localhost:8080/invan` (`AppConstants.localhost`) yozadi. Haqiqiy manzil FiscalDriveAPI `http://127.0.0.1:3448/rpc/api`. Shu log `Status Code: 0` ham yozadi, chunki `_statusCode` faqat INCOM yo'lida to'ldiriladi. Bu ikkalasi va JSON-RPC `error.code` ning log'da yo'qligi tahlilni chalg'itadi. Tuzatilsa log'ga `AppLinks.baseUrl` va kod yozilsin. Status 0 ni 200 ga almashtirmaslik kerak, aks holda log Telegramga bormaydi (`isSend`: faqat <200 yoki >300).
 - Taklif: 65274 uchun kassirga tushunarli matn (uz/ru), masalan "Fiskal modul soliq (OFD) serveriga ulana olmadi. Bir necha daqiqadan keyin qayta urinib ko'ring; takrorlansa, kompyuterning internetini va OFD portini (3447) tekshiring".
 - Odoo forkiga: **kerak**. `LogRepository` umumiy kod, bu diagnostika bug fix (InVan backendga bog'liq emas).
+
+---
+
+# 19-TASK — Vozvratda markirovka: KM serverdan, qaytayotgan mahsulot skanerlanadi, soliqqa va serverga KM bilan (relizda emas)
+
+> **Commit:** `73ecadc` (2026-10-28), branch `fix/vozvrat-markirovka` (asos `ayyubxon` 7dc0de8). Relizda emas.
+> **Sessiya hujjati:** docs/sessions/2026-10-27-vozvrat-markirovka.md
+> **Holat 2026-10-28:** Mac (DEV + soxta fiskal modul) da sinalgan; do'kon (Windows, haqiqiy fiskal modul) sinovi kutilmoqda.
+
+## 1. Nima va nima uchun
+
+**Simptom.** Markirovkali mahsulot vozvratida fiskal chekda `Label` (KM) bo'sh ketardi va hamma dona bitta
+pozitsiya bo'lib (`Amount = N × 1000`) ketardi — sotuvda esa har KM alohida pozitsiya edi. Kassir qaysi shisha
+qaytayotganini ko'rsatmas, istalgan miqdorni qaytara olardi. Bir marta qaytarilgan KM'ni boshqa kassada qayta
+qaytarish mumkin edi.
+
+**Sabab.** Server `GET api/v1/order` javobida `items[].marking_names` va `box_marking_names` bor, lekin
+`ItemsGTR.fromJson` ularni o'qimasdi; `ChecksSingleton.globalToLocall` da `mark`/`marking` izohda edi.
+
+**Yechim.** Vozvrat sahifasida markirovkali mahsulot bitta qator (KM'lar yashirin havza). Kassir qatorni bosib
+qaytayotgan shisha/blokni skanerlaydi: KM shu chekda sotilgan va qaytarilmagan bo'lsa aynan o'sha 1 dona / 1 blok
+o'ngga o'tadi, aks holda sababli xabar. Fiskalga sotuvdagidek; serverga (`refund_order_items`) qaytgan KM'lar
+yuboriladi; server ularni `refunded_marking_names` / `refunded_box_marking_names` da qaytaradi va keyingi
+vozvratda (har qanday kassada) ular qabul qilinmaydi.
+
+## 2. Qanday ishlaydi
+
+```
+Cheklar → "Vozvrat" → ReUpdateBloc: GET api/v1/order?search=<orderId>
+   ItemsGTR: marking_names, box_marking_names, refunded_marking_names, refunded_box_marking_names,
+             sale_type/box_value/box_quantity (blokda value TOKEN → DONA: value + bq × (bv − 1))
+   serverRefundedMarks = barcha item'lardagi refunded_* (filtrdan OLDIN)
+   refundableItems: value − refund_amount (shu kassada blok bilan sotilganlari — lokal hisob)
+→ globalToLocall: mark = KM'lar '\n' bilan, boxMark, saleType/boxValue/boxQuantity
+→ ReturnPage._copyWith (RefundMarkSplit.plan):
+   qoldiq: lokal original bor → min(lokal − shu kassadagi vozvratlar, server); yo'q → server − yuborilmagan lokal
+   qaytarilgan KM = server refunded_* ∪ shu kassadagi vozvratlar → havzadan chiqariladi
+   chap qator: "Montella x 10" (havza = KM'lar), blok "x N blok" (havza = blok KM'lar); KM'siz qism alohida
+→ qatorni bosish → RefundMarkScanDialog (ochiq qoladi, ketma-ket skan; BLStatus.other)
+   RefundMarkScan.candidates(skan): {kod, harflari o'girilgan, to'liq o'girilgan (rus tartibi)}
+                                    × {dona: scanTime→forFiscal, blok: sanitize→forFiscal}
+   check: alreadyAdded → matched → alreadyRefunded → boxMarkOnUnitRow/unitMarkOnBoxRow → otherProduct → notInReceipt
+   matched → o'ngga 1 dona (blokda 1 blok) qator, mark = havzadagi SAQLANGAN shakl
+→ ReturnBloc → saleOnOFD: Label = KM; KM'li blok qatori Amount = blok soni × 1000
+→ refund_order_items: items[] {id, price, quantity, marking_names, box_marking_names}
+Sotuv (order_pos): item'da bo'sh refunded_marking_names / refunded_box_marking_names.
+```
+
+Eski: bitta qator, `Label ""`, `Amount = N × 1000`, istalgan miqdor, KM serverga ketmasdi.
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/domain/receipt/refund_mark_split.dart` | YANGI | `RefundMarkSplit.plan` (chap qatorlar + havza), `marksOf`; `RefundScanResult`; `RefundMarkScan.candidates/matchIn/check` |
+| `lib/changes/domain/barcode/keyboard_layout.dart` | YANGI | `KeyboardLayout.ruLettersToEn` (asosiy ekran jadvali), `ruToEnFull` (Windows ЙЦУКЕН, belgili tugmalar ham) |
+| `lib/features/checks/return_page/return_page_dialog/refund_mark_scan_dialog.dart` | YANGI | Skan dialogi: sarlavha, mahsulot nomi (+ "— Блок (N шт)"), maydon; xato shu dialog ichida; `BLStatus.other` |
+| `lib/changes/models/receipts_get_model.dart` | o'zgargan | `ItemsGTR`: KM, `refunded_*`, blok maydonlari; blok token → dona |
+| `lib/features/get_products/singletons/checks_singleton.dart` | o'zgargan | `globalToLocall` KM/blok maydonlari; `localOriginalItems` (return_page'dan ko'chdi) |
+| `lib/features/checks/features/check_view/bloc/re_update_bloc.dart` | o'zgargan | `refundableItems` (sof), `serverRefundedMarks`; lokal blok to'plami ObjectBox'dan |
+| `lib/features/checks/features/check_view/bloc/re_update_state.dart` | o'zgargan | `ReUpdateSuccesState.refundedMarks` |
+| `lib/features/checks/features/check_view/check_view_content.dart` | o'zgargan | `ReturnPage(serverRefundedMarks:)` |
+| `lib/features/checks/return_page/return_page.dart` | o'zgargan | `_copyWith`: havza qatorlari, qoldiq tuzatishi, `RefundPageData`; `BLStatus.other` |
+| `lib/changes/providers/return_page_provider.dart` | o'zgargan | `needsScan`, `scanMark`, bekor qilish → havzaga; kalit `refundItemId\|productId\|tur` |
+| `lib/features/checks/return_page/left/build_left_list.dart` | o'zgargan | Havza qatori → skan dialogi |
+| `lib/features/checks/return_page/right/build_right_list.dart` | o'zgargan | O'ng qator ostida `KM: ...` |
+| `lib/features/hive_repository/.../singleton/receipt_singleton_4.dart` | o'zgargan | `_fiscalAmount`: KM'li blok vozvrat qatori `Amount = blok × 1000` |
+| `lib/changes/services/receipt_api_4.dart` | o'zgargan | `funcToRefund` / `ItemsI2`: `marking_names`, `box_marking_names` |
+| `lib/features/hive_repository/.../model/receipt_model_4.dart` | o'zgargan | Sotuv `toJson`: bo'sh `refunded_*` |
+| `lib/utils/helpers/my_barcode_listener.dart` | o'zgargan | `fixKeyboardLayout` → `KeyboardLayout.ruLettersToEn` (natija o'zgarmagan) |
+| `lib/utils/l10n/app_ru.arb`, `app_uz.arb` | o'zgargan | `vozvrat_km_*` (8 kalit). Keyin `flutter gen-l10n`. |
+| `test/refund_marking_test.dart` | YANGI | 66 test (ObjectBox guruhi `libobjectbox` topilmasa SKIP) |
+
+## 4. Bog'liqliklar
+
+- Backend (`api.7i.uz`): GET `api/v1/order` item'ida `marking_names`, `box_marking_names`, `sale_type`, `box_value`,
+  `box_quantity`, `refunded_marking_names`, `refunded_box_marking_names`; `refund_order_items` item'ida
+  `marking_names`, `box_marking_names` qabul qilinishi. Odoo/InVan 1 da manba boshqa — KM'larni o'z backend'idan oling.
+- `MarkCleaner.scanTime/forFiscal`, `BarcodeClassifier.sanitize`, `Gs1.stripScannerPrefix` (markirovka tizimi).
+- Sotuv tomonida KM'lar `order_pos` ga `marking_names` / `box_marking_names` bo'lib ketishi (14/15-task, mavjud).
+- Blok sotuvi (`saleType 2`, `boxValue`, `boxQuantity`, token `value`) va blok vozvrati (UI blok, data dona).
+- `BlBloc` / `BLStatus` (global skaner tinglovchisi). ObjectBox sxemasi O'ZGARMAGAN.
+
+## 5. Qo'llash tartibi
+
+1. Yangi domain fayllar: 6.1, 6.2 (testlari 6.19).
+2. Server modeli va konversiya: 6.4 (`ItemsGTR`), 6.5 (`globalToLocall`, `localOriginalItems`).
+3. ReUpdateBloc → state → check view: 6.6, 6.7, 6.8.
+4. Vozvrat sahifasi va provider: 6.9, 6.10; ro'yxatlar 6.11, 6.12; skan dialogi 6.3.
+5. Fiskal `Amount`: 6.13. Server vozvrat tanasi: 6.14. Sotuv `refunded_*`: 6.15.
+6. Asosiy ekran skaneri jadvali: 6.16. l10n: 6.17, 6.18, keyin `flutter gen-l10n`.
+7. Testlar (6.19) va jonli sinov (7-bo'lim).
+
+## 6. Kod
+
+### 6.1 `lib/changes/domain/receipt/refund_mark_split.dart` (YANGI, to'liq)
+
+```dart
+// Vozvratda markirovka (KM): chap ro'yxat qatorlari va skanerlangan KM tekshiruvi.
+//
+// Nega kerak: sotuvda har KM fiskalga alohida pozitsiya bo'lib ketadi —
+// dona: `Amount 1000`, `Label` = bitta KM; blok: `Amount 1000`, `Price` = blok
+// narxi, `Label` = blok KM (docs/markirovka-box-sotish.md §9). Vozvrat ilgari
+// bitta qator, `Label ""` bilan ketardi: server `marking_names` /
+// `box_marking_names` ni qaytarsa ham ilova o'qimasdi (2026-10-27).
+//
+// Qoida: chap ro'yxatda mahsulot bitta qator ("x 10", blok "x N blok") —
+// qatorda shu chekda sotilgan KM'lar havzasi (`mark`, '\n' bilan). Kassir
+// qatorni bosib qaytayotgan shisha/blokni skanerlaydi; KM havzada bo'lsa
+// aynan o'sha 1 dona / 1 blok o'ngga o'sha KM bilan o'tadi, bo'lmasa
+// "bu mahsulot shu chekda sotilmagan".
+
+import 'package:invan2/changes/domain/barcode/barcode_classifier.dart';
+import 'package:invan2/changes/domain/barcode/keyboard_layout.dart';
+import 'package:invan2/changes/domain/marking/mark_cleaner.dart';
+
+class RefundRow {
+  /// Dona hisobida (blok qatorida ham — refund API, fiskal Price va DB dona bilan ishlaydi).
+  final double units;
+
+  /// `> 0` — blok qatori (`saleType 2`), qatordagi blok soni.
+  final int blocks;
+
+  /// Shu qatorga skanerlab qaytarish mumkin bo'lgan KM'lar. Bo'sh — KM'siz
+  /// qator (avvalgidek miqdor dialogi).
+  final List<String> marks;
+
+  const RefundRow({required this.units, this.blocks = 0, this.marks = const []});
+
+  bool get isBlock => blocks > 0;
+
+  @override
+  String toString() => 'RefundRow(units: $units, blocks: $blocks, marks: $marks)';
+}
+
+class RefundMarkSplit {
+  RefundMarkSplit._();
+
+  /// [remainingUnits] — qaytarish mumkin bo'lgan qoldiq (dona), shundan
+  /// [blocksAvailable] × [boxValue] dona blok qatoriga, qolgani donaga.
+  /// [refundedMarks] — shu chek bo'yicha oldingi vozvratlarda ketgan KM'lar.
+  ///
+  /// KM bo'lmasa natija avvalgidek: bitta blok qatori + bitta dona qatori.
+  /// KM'lar qoldiqdan ko'p bo'lsa (boshqa kassada qaytarilgan — qaysi biri
+  /// noma'lum) hammasi havzada qoladi, miqdor esa qoldiqdan oshmaydi. KM'lar
+  /// kam bo'lsa (bir qismi KM'siz sotilgan) — qolgan qism alohida KM'siz qator.
+  static List<RefundRow> plan({
+    required double remainingUnits,
+    int boxValue = 0,
+    int blocksAvailable = 0,
+    List<String> unitMarks = const [],
+    List<String> boxMarks = const [],
+    Set<String> refundedMarks = const {},
+  }) {
+    final rows = <RefundRow>[];
+
+    if (blocksAvailable > 0 && boxValue > 0) {
+      final marks = _available(boxMarks, refundedMarks);
+      final int marked = marks.length < blocksAvailable ? marks.length : blocksAvailable;
+      if (marked > 0) {
+        rows.add(RefundRow(
+            units: (marked * boxValue).toDouble(), blocks: marked, marks: marks));
+      }
+      final int rest = blocksAvailable - marked;
+      if (rest > 0) {
+        rows.add(RefundRow(units: (rest * boxValue).toDouble(), blocks: rest));
+      }
+    }
+
+    final double loose = remainingUnits -
+        (boxValue > 0 ? blocksAvailable * boxValue : 0).toDouble();
+    if (loose > 0) {
+      // Kasr qoldiq (kg) — markirovkali tovar emas.
+      final marks =
+          loose % 1 == 0 ? _available(unitMarks, refundedMarks) : const <String>[];
+      final int marked = marks.length < loose ? marks.length : loose.toInt();
+      if (marked > 0) {
+        rows.add(RefundRow(units: marked.toDouble(), marks: marks));
+      }
+      final double rest = loose - marked;
+      if (rest > 0) rows.add(RefundRow(units: rest));
+    }
+
+    return rows;
+  }
+
+  /// Server ro'yxati (`'\n'` bilan birlashgan) bo'sh bo'lsa lokal originaldan.
+  static List<String> marksOf(String? fromServer, [String? fromLocal]) {
+    final String src = (fromServer != null && fromServer.isNotEmpty)
+        ? fromServer
+        : (fromLocal ?? '');
+    return src.split('\n').where((m) => m.isNotEmpty).toList();
+  }
+
+  static List<String> _available(List<String> marks, Set<String> refunded) =>
+      {...marks}.where((m) => !refunded.contains(m)).toList();
+}
+
+enum RefundScanResult {
+  /// KM shu qator havzasida — 1 dona / 1 blok o'ngga o'tadi.
+  matched,
+
+  /// Bo'sh yoki juda qisqa kod.
+  empty,
+
+  /// KM allaqachon o'ng ro'yxatda.
+  alreadyAdded,
+
+  /// KM shu kassadagi oldingi vozvratda ketgan.
+  alreadyRefunded,
+
+  /// Dona qatorida blok KM'i skanerlandi.
+  boxMarkOnUnitRow,
+
+  /// Blok qatorida dona KM'i skanerlandi.
+  unitMarkOnBoxRow,
+
+  /// KM shu chekdagi boshqa mahsulotniki (boshqa qator bosilgan).
+  otherProduct,
+
+  /// KM shu chekda sotilmagan.
+  notInReceipt,
+}
+
+class RefundMarkScan {
+  RefundMarkScan._();
+
+  /// Skanerlangan kodning chekdagi KM bo'lishi mumkin bo'lgan shakllari —
+  /// sotuvdagi bilan bir xil tozalash. Sotuvda ikki yo'l bor:
+  /// * dona KM — `MarkCleaner.scanTime` (kripto qism kesiladi);
+  /// * blok KM — faqat `BarcodeClassifier.sanitize` (`_addBoxProduct`), kripto
+  ///   qism QOLADI: `0114780101733764217DtZ53Oi"RYhH02993zdxZ` (skaner GS ni
+  ///   `029` qilib yuboradi). `scanTime` uni birinchi "93" da kesib qo'yardi.
+  /// Ikkalasi ham chekda `forFiscal` dan o'tadi.
+  ///
+  /// Kassada rus tartibi yoqiq bo'lishi mumkin — kod o'zi, sotuvdagidek harf
+  /// tugmalari o'girilgani (asosiy ekran skaneri) va to'liq o'girilgani sinanadi.
+  static List<String> candidates(String raw) {
+    final String text = raw.trim();
+    return {
+      for (final t in {
+        text,
+        KeyboardLayout.ruLettersToEn(text),
+        KeyboardLayout.ruToEnFull(text),
+      }) ...[
+        MarkCleaner.forFiscal(MarkCleaner.scanTime(t)),
+        MarkCleaner.forFiscal(BarcodeClassifier.sanitize(t)),
+      ],
+    }.where((m) => m.isNotEmpty).toList();
+  }
+
+  /// [candidates] dan havzadagi (saqlangan) KM — o'ngga aynan shu shakl o'tadi,
+  /// soliqqa sotuvdagi `Label` ketadi.
+  static String? matchIn(List<String> candidates, List<String> pool) {
+    for (final c in candidates) {
+      if (pool.contains(c)) return c;
+    }
+    return null;
+  }
+
+  /// [candidates] — [RefundMarkScan.candidates] natijasi. [pool] — bosilgan
+  /// qatorning havzasi, [otherKindPool] — shu mahsulotning boshqa turdagi
+  /// (dona ↔ blok) havzasi.
+  static RefundScanResult check({
+    required List<String> candidates,
+    required bool isBlockRow,
+    required List<String> pool,
+    List<String> otherKindPool = const [],
+    Set<String> inRight = const {},
+    Set<String> refunded = const {},
+  }) {
+    // Sotuvdagi MarkingDialog bilan bir xil chegara.
+    if (candidates.every((c) => c.length <= 15)) return RefundScanResult.empty;
+    if (candidates.any(inRight.contains)) return RefundScanResult.alreadyAdded;
+    if (matchIn(candidates, pool) != null) return RefundScanResult.matched;
+    if (candidates.any(refunded.contains)) {
+      return RefundScanResult.alreadyRefunded;
+    }
+    if (matchIn(candidates, otherKindPool) != null) {
+      return isBlockRow
+          ? RefundScanResult.unitMarkOnBoxRow
+          : RefundScanResult.boxMarkOnUnitRow;
+    }
+    return RefundScanResult.notInReceipt;
+  }
+}
+```
+
+### 6.2 `lib/changes/domain/barcode/keyboard_layout.dart` (YANGI, to'liq)
+
+```dart
+// Skaner klaviatura sifatida yozadi — kassada rus (ЙЦУКЕН) tartibi yoqiq bo'lsa
+// kod harflari kirillga, ba'zi belgilar boshqa belgiga aylanib keladi.
+//
+// Sof funksiyalar. Jadval Windows "Русская" tartibi bo'yicha (do'kon kassalari).
+// macOS "Russian" tartibida raqam qatori boshqacha — bu yerda hisobga olinmagan.
+
+class KeyboardLayout {
+  const KeyboardLayout._();
+
+  /// Harf tugmalari: kirill → lotin. Asosiy ekran skaneri
+  /// (`MyBarcodeListenerState.fixKeyboardLayout`) aynan shuni ishlatadi —
+  /// sotuvda blok KM shu o'girishdan keyin saqlanadi.
+  static String ruLettersToEn(String input) => _map(input, _letters);
+
+  /// To'liq: harflar + rus tartibida boshqa belgi beradigan tugmalar
+  /// (`Shift+7` → `?` aslida `&`, `/` tugmasi → `.` va h.k.). Bitta o'tishda —
+  /// `,`→`?` va `?`→`&` bir-biriga ulanib ketmasin.
+  static String ruToEnFull(String input) => _map(input, _full);
+
+  static String _map(String input, Map<String, String> table) {
+    if (input.isEmpty) return input;
+    final buf = StringBuffer();
+    for (final ch in input.split('')) {
+      buf.write(table[ch] ?? ch);
+    }
+    return buf.toString();
+  }
+
+  static const Map<String, String> _letters = {
+    'й': 'q', 'ц': 'w', 'у': 'e', 'к': 'r', 'е': 't', 'н': 'y', 'г': 'u',
+    'ш': 'i', 'щ': 'o', 'з': 'p', 'х': '[', 'ъ': ']',
+    'ф': 'a', 'ы': 's', 'в': 'd', 'а': 'f', 'п': 'g', 'р': 'h',
+    'о': 'j', 'л': 'k', 'д': 'l', 'ж': ';', 'э': "'",
+    'я': 'z', 'ч': 'x', 'с': 'c', 'м': 'v', 'и': 'b', 'т': 'n',
+    'ь': 'm', 'б': ',', 'ю': '.',
+    'Й': 'Q', 'Ц': 'W', 'У': 'E', 'К': 'R', 'Е': 'T', 'Н': 'Y', 'Г': 'U',
+    'Ш': 'I', 'Щ': 'O', 'З': 'P', 'Х': '{', 'Ъ': '}',
+    'Ф': 'A', 'Ы': 'S', 'В': 'D', 'А': 'F', 'П': 'G', 'Р': 'H',
+    'О': 'J', 'Л': 'K', 'Д': 'L', 'Ж': ':', 'Э': '"',
+    'Я': 'Z', 'Ч': 'X', 'С': 'C', 'М': 'V', 'И': 'B', 'Т': 'N',
+    'Ь': 'M', 'Б': '<', 'Ю': '>',
+    'ё': '`', 'Ё': '~',
+  };
+
+  static const Map<String, String> _full = {
+    ..._letters,
+    '"': '@', // Shift+2
+    '№': '#', // Shift+3
+    ';': r'$', // Shift+4
+    ':': '^', // Shift+6
+    '?': '&', // Shift+7
+    '.': '/', // `/` tugmasi
+    ',': '?', // Shift+/
+    '/': '|', // Shift+\
+  };
+}
+```
+
+### 6.3 `lib/features/checks/return_page/return_page_dialog/refund_mark_scan_dialog.dart` (YANGI, to'liq)
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:invan2/changes/domain/receipt/refund_mark_split.dart';
+import 'package:invan2/changes/providers/return_page_provider.dart';
+import 'package:invan2/features/features.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
+import 'package:invan2/utils/helpers/size_config.dart';
+import 'package:invan2/utils/themes.dart';
+
+/// Vozvratda markirovkali qatorni bosganda: qaytayotgan shisha/blok KM'i
+/// skanerlanadi. Sarlavha, mahsulot nomi va maydon. Dialog ochiq qoladi — har
+/// to'g'ri skan 1 dona (blok qatorida 1 blok) o'ngga o'tkazadi; qatorda
+/// qaytariladigan narsa qolmasa o'zi yopiladi; xato shu dialogning o'zida.
+/// Yopish: Esc / tashqari.
+class RefundMarkScanDialog extends StatefulWidget {
+  const RefundMarkScanDialog({
+    super.key,
+    required this.provider,
+    required this.row,
+  });
+
+  final ReturnPageProviderr provider;
+  final ReceiptModelSoldItem4 row;
+
+  @override
+  State<RefundMarkScanDialog> createState() => _RefundMarkScanDialogState();
+}
+
+class _RefundMarkScanDialogState extends State<RefundMarkScanDialog> {
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+
+  /// Xato skan natijasi — shu dialogning o'zida ko'rsatiladi (ikkinchi
+  /// dialog ustma-ust chiqmasin); "Закрыть" dan keyin yana skan maydoni.
+  RefundScanResult? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Skan faqat shu maydonga tushsin. Uy sahifasining global skaner
+    // tinglovchisi `home` holatida KM'ni sotuv savatiga ham qo'shardi
+    // ("Этот отмеченный продукт уже был добавлен ранее!" ikkinchi dialogi).
+    BlocProvider.of<BlBloc>(context, listen: false).add(BlStatusChangedEvent(
+      status: BLStatus.other,
+      where: 'refund_mark_scan_dialog.dart initState',
+    ));
+  }
+
+  void _handleSubmit(String value) {
+    _controller.clear();
+    if (value.trim().isEmpty) {
+      _focusNode.requestFocus();
+      return;
+    }
+    final result = widget.provider.scanMark(widget.row, value);
+
+    if (result == RefundScanResult.matched) {
+      if (!widget.provider.getLeftList.contains(widget.row)) {
+        Navigator.of(context).pop();
+        return;
+      }
+      _focusNode.requestFocus();
+      return;
+    }
+    setState(() => _error = result);
+  }
+
+  String _message(AppLocalizations loc, RefundScanResult result) {
+    switch (result) {
+      case RefundScanResult.alreadyAdded:
+        return loc.vozvrat_km_qoshilgan;
+      case RefundScanResult.alreadyRefunded:
+        return loc.vozvrat_km_oldin_qaytarilgan;
+      case RefundScanResult.boxMarkOnUnitRow:
+        return loc.vozvrat_km_blok_kodi;
+      case RefundScanResult.unitMarkOnBoxRow:
+        return loc.vozvrat_km_dona_kodi;
+      case RefundScanResult.otherProduct:
+        return loc.vozvrat_km_boshqa_mahsulot;
+      case RefundScanResult.empty:
+        return loc.vozvrat_km_qisqa;
+      case RefundScanResult.notInReceipt:
+      case RefundScanResult.matched:
+        return loc.vozvrat_km_chekda_yoq;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    final Color textColor = Theme.of(context).canvasColor;
+    final RefundScanResult? error = _error;
+
+    // Qutisi oddiy dialogdan 1.5 barobar; matnlar standart o'lchamda.
+    return AlertDialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      content: Container(
+        width: SizeConfig.h * 63,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(SizeConfig.v * 3.75),
+          // Fon bilan qo'shilib ketmasin — ozgina rangli chegara.
+          border: Border.all(color: Theme.of(context).primaryColor, width: 2),
+        ),
+        padding: EdgeInsets.all(SizeConfig.h * 2.4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              loc.kodni_scanerlash,
+              style: MyThemes.txtStyle(color: textColor),
+            ),
+            SizedBox(height: SizeConfig.v * 1.5),
+            // Blok qatori aniq ko'rinsin — kassir dona bilan adashtirmasin.
+            Text.rich(
+              TextSpan(
+                text: "${loc.tovar}: ${widget.row.productName}",
+                children: [
+                  if (widget.row.saleType == 2 && widget.row.boxValue > 0)
+                    TextSpan(
+                      text: " — ${loc.vozvrat_km_blok_qator(widget.row.boxValue)}",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                ],
+              ),
+              style: MyThemes.txtStyle(color: textColor),
+            ),
+            SizedBox(height: SizeConfig.v * 2.25),
+            if (error == null)
+              TextField(
+                autofocus: true,
+                focusNode: _focusNode,
+                controller: _controller,
+                onSubmitted: _handleSubmit,
+                style: MyThemes.txtStyleWhite(),
+                decoration: InputDecoration(
+                  constraints: BoxConstraints(maxHeight: SizeConfig.v * 7.74),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: SizeConfig.h,
+                    vertical: SizeConfig.v * 1.5,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(SizeConfig.v * .9),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: textColor),
+                    borderRadius: BorderRadius.circular(SizeConfig.v * .9),
+                  ),
+                ),
+              )
+            else ...[
+              Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      color: Colors.redAccent, size: 32),
+                  SizedBox(width: SizeConfig.h),
+                  Flexible(
+                    child: Text(
+                      _message(loc, error),
+                      style: MyThemes.txtStyle(color: textColor),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: SizeConfig.v * 2.25),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  autofocus: true,
+                  onPressed: () => setState(() => _error = null),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    elevation: 0,
+                  ),
+                  child: Text(loc.vozvrat_km_yopish,
+                      style: MyThemes.txtStyleWhite()),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+### 6.4 `lib/changes/models/receipts_get_model.dart` (diff)
+
+```diff
+diff --git a/lib/changes/models/receipts_get_model.dart b/lib/changes/models/receipts_get_model.dart
+index 9f46f7c..c031e20 100644
+--- a/lib/changes/models/receipts_get_model.dart
++++ b/lib/changes/models/receipts_get_model.dart
+@@ -318,6 +318,18 @@ class ItemsGTR {
+   String? packageCode;
+   num? vatPercentage;
+   DiscountGTR? discount;
++  // Sotuvda `order_pos` ga ketgan KM'lar (ReceiptModelSoldItem4.toJson):
++  // dona KM'lari va blok KM'lari alohida ro'yxatda.
++  List<String> markingNames = [];
++  List<String> boxMarkingNames = [];
++  // Shu item bo'yicha qaytarilgan KM'lar (har qanday kassadan, vozvratda
++  // `refund_order_items` ga KM yuborilgan bo'lsa). `marking_names` dan
++  // olib tashlanMAYDI — alohida ro'yxat.
++  List<String> refundedMarkingNames = [];
++  List<String> refundedBoxMarkingNames = [];
++  int saleType = 1;
++  int boxValue = 0;
++  int boxQuantity = 0;
+ 
+   ItemsGTR(
+       {this.id,
+@@ -373,8 +385,28 @@ class ItemsGTR {
+     discount = json['discount'] != null
+         ? DiscountGTR.fromJson(json['discount'])
+         : null;
++    markingNames = _marks(json['marking_names']);
++    boxMarkingNames = _marks(json['box_marking_names']);
++    refundedMarkingNames = _marks(json['refunded_marking_names']);
++    refundedBoxMarkingNames = _marks(json['refunded_box_marking_names']);
++    saleType = (json['sale_type'] as num?)?.toInt() ?? 1;
++    boxValue = (json['box_value'] as num?)?.toInt() ?? 0;
++    boxQuantity = (json['box_quantity'] as num?)?.toInt() ?? 0;
++    // Blok itemida server `value` ni TOKEN sifatida saqlaydi (sotuvda
++    // `blok soni + ortiqcha dona` yuborilgan — ReceiptModelSoldItem4.toJson),
++    // `refund_amount` esa DONA (`funcToRefund`). Bu yerdan keyin `value`
++    // hamma joyda dona: 2 blok × 6 + 1 dona = token 3 → 13 dona.
++    if (isBox && value != null) {
++      value = value! + boxQuantity * (boxValue - 1);
++    }
+   }
+ 
++  bool get isBox => saleType == 2 && boxValue > 0 && boxQuantity > 0;
++
++  static List<String> _marks(dynamic raw) => raw is List
++      ? raw.map((e) => e.toString()).where((m) => m.isNotEmpty).toList()
++      : <String>[];
++
+   Map<String, dynamic> toJson() {
+     final Map<String, dynamic> data = {};
+     data['id'] = id;
+```
+
+### 6.5 `lib/features/get_products/singletons/checks_singleton.dart` (diff)
+
+```diff
+diff --git a/lib/features/get_products/singletons/checks_singleton.dart b/lib/features/get_products/singletons/checks_singleton.dart
+index 7424dc3..71391e7 100644
+--- a/lib/features/get_products/singletons/checks_singleton.dart
++++ b/lib/features/get_products/singletons/checks_singleton.dart
+@@ -4,11 +4,38 @@ import 'package:invan2/changes/domain/receipt/refund_item_origin.dart';
+ import 'package:invan2/changes/models/discount_model.dart';
+ import 'package:invan2/changes/models/receipts_get_model.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
++import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
+ 
+ import '../../../utils/constants/constants.dart';
+ import '../../../utils/helpers/helpers.dart';
+ 
+ class ChecksSingleton {
++  /// Shu kassada sotilgan chekning lokal (ObjectBox) qatorlari, productId bo'yicha.
++  /// Chek boshqa kassada sotilgan bo'lsa — bo'sh.
++  ///
++  /// Narxlar (price, realPrice, singleDiscount) API GET javobida har doim ham
++  /// to'g'ri qaytmasligi mumkin (masalan free gift va order-level diskontda),
++  /// shuning uchun vozvrat sotuv momentidagi original qiymatlarga tayanadi.
++  static Map<String, ReceiptModelSoldItem4> localOriginalItems(
++      String externalId) {
++    final result = <String, ReceiptModelSoldItem4>{};
++    try {
++      final box = MyObjectbox.saleStore.box<ReceiptModel4>();
++      final originals = box
++          .getAll()
++          .where((r) => !r.isRefund && r.externalId == externalId)
++          .toList();
++      if (originals.isNotEmpty) {
++        for (final item in originals.first.soldItemList) {
++          result[item.productId] = item;
++        }
++      }
++    } catch (e) {
++      // ignore
++    }
++    return result;
++  }
++
+   static ReceiptModel4 globalToLocall(
+       GlobalReceipt r, {String? cashierId, String? cashierName}) {
+     Map<String, double> paymentMap = {};
+@@ -163,12 +190,19 @@ supplierId: "",
+         tin: origin.tin,
+         packageCode: v[i].packageCode,
+         packageName: v[i].packageName,
+-        // mark: ,
++        // KM'lar lokal konsolidatsiyalangan chekdagidek '\n' bilan bitta satrda;
++        // vozvrat sahifasi ularni qatorlarga bo'ladi (RefundMarkSplit).
++        mark: v[i].markingNames.isEmpty ? null : v[i].markingNames.join('\n'),
++        boxMark:
++            v[i].boxMarkingNames.isEmpty ? null : v[i].boxMarkingNames.join('\n'),
++        marking: v[i].markingNames.isNotEmpty,
++        saleType: v[i].isBox ? 2 : 1,
++        boxValue: v[i].isBox ? v[i].boxValue : 0,
++        boxQuantity: v[i].isBox ? v[i].boxQuantity : 0,
+         // commissionTIN: ,
+         // discountPercent: ,
+         // isDeleted: ,
+         // isPriceChanged: ,
+-        // marking: ,
+         sellerId: v[i].seller?.id ?? "",
+         vatName: v[i].vatName ?? "",
+       );
+```
+
+### 6.6 `lib/features/checks/features/check_view/bloc/re_update_bloc.dart` (diff)
+
+```diff
+diff --git a/lib/features/checks/features/check_view/bloc/re_update_bloc.dart b/lib/features/checks/features/check_view/bloc/re_update_bloc.dart
+index 9732de2..2ecbf51 100644
+--- a/lib/features/checks/features/check_view/bloc/re_update_bloc.dart
++++ b/lib/features/checks/features/check_view/bloc/re_update_bloc.dart
+@@ -1,5 +1,6 @@
+ import 'dart:convert';
+ 
++import 'package:flutter/foundation.dart';
+ import 'package:flutter_bloc/flutter_bloc.dart';
+ import 'package:invan2/changes/models/receipts_get_model.dart';
+ import '../../../../../changes/services/api.dart';
+@@ -34,28 +35,10 @@ class ReUpdateBloc extends Bloc<ReUpdateEvent, ReUpdateState> {
+ 
+       for (var element in getReceiptModel) {
+         if (event.receiptModel4.orderId == element.id) {
+-          // Blok bo'lib sotilgan mahsulotlar (lokal chekda saleType==2):
+-          // API dagi value/refund_amount birliklari blok itemda ishonchsiz
+-          // (token/dona aralash bo'lishi mumkin) — bu yerda filtrlamaymiz,
+-          // qoldiq ReturnPage._copyWith da lokal DB hisobidan aniqlanadi.
+-          final localBlockProductIds = event.receiptModel4.soldItemList
+-              .where((it) => it.saleType == 2 && it.boxValue > 0)
+-              .map((it) => it.productId)
+-              .toSet();
+-          List<ItemsGTR> itemsGTRList = [];
++          // To'liq qaytarilgan item'lar filtrlanishidan OLDIN.
++          final refundedMarks = serverRefundedMarks(element);
+           if (element.items != null) {
+-            for (ItemsGTR itemsGTR in element.items!) {
+-              if (localBlockProductIds.contains(itemsGTR.productId)) {
+-                itemsGTRList.add(itemsGTR);
+-              } else if (itemsGTR.value != null &&
+-                  itemsGTR.refundAmount != null) {
+-                if (itemsGTR.value! - itemsGTR.refundAmount! > 0) {
+-                  itemsGTR.value = itemsGTR.value! - itemsGTR.refundAmount!;
+-                  itemsGTRList.add(itemsGTR);
+-                }
+-              }
+-            }
+-            element.items = itemsGTRList;
++            element.items = refundableItems(element);
+           }
+           ReceiptModel4 rMod = ChecksSingleton.globalToLocall(
+             element,
+@@ -63,7 +46,10 @@ class ReUpdateBloc extends Bloc<ReUpdateEvent, ReUpdateState> {
+             cashierName: event.receiptModel4.cashierName,
+           );
+           rMod.refundInfo = event.receiptModel4.refundInfo;
+-          emit(ReUpdateSuccesState(receiptModel4: rMod));
++          emit(ReUpdateSuccesState(
++            receiptModel4: rMod,
++            refundedMarks: refundedMarks,
++          ));
+         }
+       }
+       emit(ReUpdateFailureState());
+@@ -71,4 +57,50 @@ class ReUpdateBloc extends Bloc<ReUpdateEvent, ReUpdateState> {
+       emit(ReUpdateFailureState());
+     }
+   }
++
++  /// Serverda shu chek bo'yicha qaytarilgan KM'lar — har qanday kassada
++  /// (vozvratda KM yuborilgan bo'lsa): `refunded_marking_names` +
++  /// `refunded_box_marking_names`. Vozvrat sahifasida bular havzadan
++  /// chiqariladi va skanerlansa "oldin qaytarilgan".
++  @visibleForTesting
++  static Set<String> serverRefundedMarks(GlobalReceipt receipt) => {
++        for (final it in receipt.items ?? <ItemsGTR>[]) ...[
++          ...it.refundedMarkingNames,
++          ...it.refundedBoxMarkingNames,
++        ],
++      };
++
++  /// Server itemlaridan vozvrat qilish mumkin bo'lgan qoldiq: `value` dan
++  /// `refund_amount` ayriladi, to'liq qaytarilganlari tushib qoladi.
++  ///
++  /// Shu kassada blok bo'lib sotilgan mahsulotlar (lokal originalda
++  /// saleType==2) filtrlanmaydi — qoldiq ReturnPage._copyWith da lokal DB
++  /// hisobidan aniqlanadi. Lokal original yo'q (boshqa kassa) blok itemi
++  /// server qiymatidan: ItemsGTR token'ni donaga o'girgan, `refund_amount`
++  /// bilan bir birlikda.
++  ///
++  /// To'plam ObjectBox'dagi asl chekdan olinadi: tanlangan chek server
++  /// qidiruvidan kelgan (saleType bilan) yoki PIN yo'lida qatorlarsiz nusxa
++  /// (`ggg`) bo'lishi mumkin.
++  @visibleForTesting
++  static List<ItemsGTR> refundableItems(GlobalReceipt receipt) {
++    final localBlockProductIds =
++        ChecksSingleton.localOriginalItems(receipt.externalId ?? '')
++            .values
++            .where((it) => it.saleType == 2 && it.boxValue > 0)
++            .map((it) => it.productId)
++            .toSet();
++    final List<ItemsGTR> itemsGTRList = [];
++    for (ItemsGTR itemsGTR in receipt.items ?? <ItemsGTR>[]) {
++      if (localBlockProductIds.contains(itemsGTR.productId)) {
++        itemsGTRList.add(itemsGTR);
++      } else if (itemsGTR.value != null && itemsGTR.refundAmount != null) {
++        if (itemsGTR.value! - itemsGTR.refundAmount! > 0) {
++          itemsGTR.value = itemsGTR.value! - itemsGTR.refundAmount!;
++          itemsGTRList.add(itemsGTR);
++        }
++      }
++    }
++    return itemsGTRList;
++  }
+ }
+```
+
+### 6.7 `lib/features/checks/features/check_view/bloc/re_update_state.dart` (diff)
+
+```diff
+diff --git a/lib/features/checks/features/check_view/bloc/re_update_state.dart b/lib/features/checks/features/check_view/bloc/re_update_state.dart
+index afe7231..da015c7 100644
+--- a/lib/features/checks/features/check_view/bloc/re_update_state.dart
++++ b/lib/features/checks/features/check_view/bloc/re_update_state.dart
+@@ -10,5 +10,11 @@ class ReUpdateFailureState extends ReUpdateState {}
+ 
+ class ReUpdateSuccesState extends ReUpdateState {
+   final ReceiptModel4 receiptModel4;
+-  ReUpdateSuccesState({required this.receiptModel4});
++
++  /// Serverda shu chek bo'yicha qaytarilgan KM'lar (dona + blok).
++  final Set<String> refundedMarks;
++  ReUpdateSuccesState({
++    required this.receiptModel4,
++    this.refundedMarks = const {},
++  });
+ }
+```
+
+### 6.8 `lib/features/checks/features/check_view/check_view_content.dart` (diff)
+
+```diff
+diff --git a/lib/features/checks/features/check_view/check_view_content.dart b/lib/features/checks/features/check_view/check_view_content.dart
+index aaf5a30..0626e2b 100644
+--- a/lib/features/checks/features/check_view/check_view_content.dart
++++ b/lib/features/checks/features/check_view/check_view_content.dart
+@@ -258,8 +258,10 @@ class _CheckViewContentState extends State<CheckViewContent> {
+                                       if (state is ReUpdateSuccesState) {
+                                         AppNavigation.push(
+                                           ReturnPage(
+-                                              receiptModel4:
+-                                                  state.receiptModel4),
++                                            receiptModel4: state.receiptModel4,
++                                            serverRefundedMarks:
++                                                state.refundedMarks,
++                                          ),
+                                         ).then(
+                                           (value) => checkFBloc.add(
+                                             CheckFCallInitialEvent(),
+```
+
+### 6.9 `lib/features/checks/return_page/return_page.dart` (diff)
+
+```diff
+diff --git a/lib/features/checks/return_page/return_page.dart b/lib/features/checks/return_page/return_page.dart
+index befe9d8..df0c7ca 100644
+--- a/lib/features/checks/return_page/return_page.dart
++++ b/lib/features/checks/return_page/return_page.dart
+@@ -1,7 +1,11 @@
+ import 'dart:math';
+ 
+ import 'package:flutter/material.dart';
++import 'package:flutter_bloc/flutter_bloc.dart';
++import 'package:invan2/changes/domain/receipt/refund_mark_split.dart';
+ import 'package:invan2/changes/services/api.dart';
++import 'package:invan2/features/get_products/singletons/checks_singleton.dart';
++import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
+ import 'package:provider/provider.dart';
+@@ -17,15 +21,29 @@ class ReturnPage extends StatelessWidget {
+   const ReturnPage({
+     super.key,
+     required this.receiptModel4,
++    this.serverRefundedMarks = const {},
+   });
+ 
+   final ReceiptModel4 receiptModel4;
+ 
++  /// Serverda qaytarilgan KM'lar (`ReUpdateBloc.serverRefundedMarks`).
++  final Set<String> serverRefundedMarks;
++
+   @override
+   Widget build(BuildContext context) {
+-    final r = _copyWith(receiptModel4, context);
++    // Vozvrat sahifasida skan sotuv savatiga tushmasin: uy sahifasining
++    // VisibilityDetector'i cheklar sahifasiga o'tishda kechikib `home`
++    // qo'yib yuborishi mumkin (cheklar sahifasi `other` qo'ygandan keyin).
++    BlocProvider.of<BlBloc>(context, listen: false).add(BlStatusChangedEvent(
++      status: BLStatus.other,
++      where: 'return_page.dart build',
++    ));
++    final data = _copyWith(receiptModel4, serverRefundedMarks);
+     return ChangeNotifierProvider(
+-      create: (_) => ReturnPageProviderr(receiptModel4: r),
++      create: (_) => ReturnPageProviderr(
++        receiptModel4: data.receipt,
++        refundedMarks: data.refundedMarks,
++      ),
+       child: WillPopScope(
+         onWillPop: () async => false,
+         child: Scaffold(
+@@ -81,40 +99,42 @@ class ReturnPage extends StatelessWidget {
+   }
+ }
+ 
+-/// Local DB dan original sotuv receiptining itemlarini productId bo'yicha qaytaradi.
+-/// Narxlar (price, realPrice, singleDiscount) API GET javobida har doim ham
+-/// to'g'ri qaytmasligi mumkin (masalan free gift va order-level diskontda),
+-/// shuning uchun bu yerda sotuv momentidagi original qiymatlarga tayanamiz.
+-Map<String, ReceiptModelSoldItem4> _getOriginalItemsFromLocalDB(String externalId) {
+-  final result = <String, ReceiptModelSoldItem4>{};
+-  try {
+-    final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+-    final all = box.getAll();
+-    final originals = all.where((r) => !r.isRefund && r.externalId == externalId).toList();
+-    if (originals.isNotEmpty) {
+-      for (final item in originals.first.soldItemList) {
+-        result[item.productId] = item;
+-      }
+-    }
+-  } catch (e) {
+-    // ignore
+-  }
+-  return result;
++/// Shu checkga tegishli oldingi refundlarda qaytarilgan miqdorlar
++/// (productId → jami qty, dona hisobida), shundan serverga hali yetmaganlari
++/// (`uploaded == false`) va ketgan KM'lar (dona + blok).
++class _AlreadyRefunded {
++  final Map<String, double> qty;
++  final Map<String, double> pendingQty;
++  final Set<String> marks;
++
++  const _AlreadyRefunded(this.qty, this.pendingQty, this.marks);
+ }
+ 
+-/// Shu checkga tegishli oldingi refundlarda qaytarilgan miqdorlarni hisoblaymiz
+-/// productId → qaytarilgan jami qty (dona hisobida)
+-Map<String, double> _getAlreadyRefundedQty(
++/// Vozvrat sahifasining boshlang'ich holati: chap ro'yxat va shu chek bo'yicha
++/// oldin qaytarilgan KM'lar (skanerda "oldin qaytarilgan" xabari uchun).
++class RefundPageData {
++  final ReceiptModel4 receipt;
++  final Set<String> refundedMarks;
++
++  const RefundPageData(this.receipt, this.refundedMarks);
++}
++
++_AlreadyRefunded _getAlreadyRefunded(
+   String originalExternalId,
+   Map<String, ReceiptModelSoldItem4> originalItems,
+ ) {
+   final Map<String, double> refundedQty = {};
++  final Map<String, double> pendingQty = {};
++  final Set<String> refundedMarks = {};
+   try {
+     final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+     final allRefunds = box.getAll().where((r) =>
+         r.isRefund && r.returnForCheck == originalExternalId).toList();
+     for (final refund in allRefunds) {
+       for (final item in refund.soldItemList) {
++        refundedMarks
++          ..addAll(RefundMarkSplit.marksOf(item.mark))
++          ..addAll(RefundMarkSplit.marksOf(item.boxMark));
+         double dona = item.value;
+         // Self-heal: eski buzilgan yozuvlar (vozvrat cheki qayta konsolidatsiya
+         // bo'lib value boxValue marta oshib ketgan — 12 dona "12 blok"=144
+@@ -129,48 +149,69 @@ Map<String, double> _getAlreadyRefundedQty(
+         }
+         refundedQty[item.productId] =
+             (refundedQty[item.productId] ?? 0) + dona;
++        if (!refund.uploaded) {
++          pendingQty[item.productId] =
++              (pendingQty[item.productId] ?? 0) + dona;
++        }
+       }
+     }
+   } catch (e) {
+     // ignore
+   }
+-  return refundedQty;
++  return _AlreadyRefunded(refundedQty, pendingQty, refundedMarks);
+ }
+ 
+-ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
++/// Testlar uchun: vozvrat sahifasi ochilganda chap ro'yxat aynan shu qatorlardan.
++@visibleForTesting
++RefundPageData refundReceiptOf(
++  ReceiptModel4 receipt, {
++  Set<String> serverRefundedMarks = const {},
++}) =>
++    _copyWith(receipt, serverRefundedMarks);
++
++RefundPageData _copyWith(
++  ReceiptModel4 receipt, [
++  Set<String> serverRefundedMarks = const {},
++]) {
+   // Local DB dan original sotuv itemlarini olamiz. Narxlarni shulardan
+   // tiklaymiz — API GET javobi free gift va order-level diskontda har doim
+   // ham per-item discount ma'lumotini saqlamaydi, lokal sotuv esa to'g'ri saqlangan.
+   final Map<String, ReceiptModelSoldItem4> originalItemsMap =
+-      _getOriginalItemsFromLocalDB(receipt.externalId);
+-  // Allaqachon qaytarilgan miqdorlarni olamiz
+-  final Map<String, double> alreadyRefunded =
+-      _getAlreadyRefundedQty(receipt.externalId, originalItemsMap);
++      ChecksSingleton.localOriginalItems(receipt.externalId);
++  // Allaqachon qaytarilgan miqdorlar va KM'lar
++  final refunded = _getAlreadyRefunded(receipt.externalId, originalItemsMap);
++  final Map<String, double> alreadyRefunded = refunded.qty;
++  // Qaytarilgan KM'lar: server (har qanday kassa) + shu kassa (serverga hali
++  // yetmaganlari ham). Havzadan chiqariladi, skanerlansa "oldin qaytarilgan".
++  final Set<String> refundedMarks = {...refunded.marks, ...serverRefundedMarks};
+ 
+   final List<ReceiptModelSoldItem4> list = [];
+   for (var e in receipt.soldItemList) {
+     final ReceiptModelSoldItem4? local = originalItemsMap[e.productId];
+-    // Agar local DB da original topilsa — undan foydalanamiz (API reduced bo'lmasin).
+-    // Topilmasa — e.value dan foydalanamiz (refund bo'lmagan holat).
+-    final double baseQty = local?.value ?? e.value;
+     final double refundedSoFar = alreadyRefunded[e.productId] ?? 0;
+ 
+-    // Blok sotuv maydonlari (lokal originaldan — API ularni qaytarmaydi)
+-    final int boxValue = local?.boxValue ?? 0;
+-    final int soldBoxQuantity = local?.boxQuantity ?? 0;
++    // Blok sotuv maydonlari — lokal originaldan; u yo'q bo'lsa (chek boshqa
++    // kassada sotilgan) serverdan (ItemsGTR blok token'ini donaga o'giradi).
++    final ReceiptModelSoldItem4 boxSource = local ?? e;
++    final int boxValue = boxSource.boxValue;
++    final int soldBoxQuantity = boxSource.boxQuantity;
+     final bool hasBox =
+-        local?.saleType == 2 && boxValue > 0 && soldBoxQuantity > 0;
++        boxSource.saleType == 2 && boxValue > 0 && soldBoxQuantity > 0;
+ 
+-    // min() — admin paneldan qilingan refundlarni ham hisobga olamiz:
+-    // e.value = API dan kelgan qoldiq (refundAmount ni chegirilgan),
+-    // baseQty - refundedSoFar = local DB dan hisoblab topilgan qoldiq.
+-    //
+-    // Blok mahsulotda esa API value birligi ishonchsiz (blok itemda token/dona
+-    // aralash kelishi mumkin — 1 blok vozvratdan keyin item butunlay yo'qolib
+-    // qolardi), shuning uchun faqat lokal hisob ishlatiladi: sotuvdagi dona
+-    // soni minus shu kassada qilingan vozvratlar.
+-    final double remainingQty =
+-        hasBox ? (baseQty - refundedSoFar) : min(baseQty - refundedSoFar, e.value);
++    // Qoldiq:
++    // * lokal original bor (shu kassada sotilgan): min(lokal − shu kassadagi
++    //   vozvratlar, server qoldig'i) — server adminkada qilinganlarni ham biladi.
++    //   Blokda faqat lokal hisob (ReUpdateBloc bunday itemni filtrlamaydi).
++    // * lokal original yo'q (boshqa kassa): server qoldig'i (`e.value` —
++    //   ReUpdateBloc refund_amount'ni ayirgan, blokda ItemsGTR token'ni donaga
++    //   o'girgan) minus shu kassadagi serverga HALI yetmagan vozvratlar.
++    //   Ilgari barcha lokal vozvratlar ayirilardi — serverga yetganlari ikki
++    //   marta ayirilib, qolgan dona ro'yxatdan yo'qolardi.
++    final double remainingQty = local == null
++        ? e.value - (refunded.pendingQty[e.productId] ?? 0)
++        : hasBox
++            ? (local.value - refundedSoFar)
++            : min(local.value - refundedSoFar, e.value);
+     if (remainingQty <= 0) continue; // Hammasi qaytarilgan — ro'yxatga qo'shmaymiz
+ 
+     // Narxlarni local DB dan olamiz (free gift = 0, diskontli = effektiv narx).
+@@ -185,16 +226,19 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
+       int saleType = 1,
+       int boxValue = 0,
+       int boxQuantity = 0,
++      List<String> marks = const [],
+     }) {
+       return ReceiptModelSoldItem4(
+         inBox: e.inBox,
+-        // unnecessary
+-        mark: e.mark,
++        // Chap qatorda — skanerlab qaytarish mumkin bo'lgan KM'lar havzasi
++        // ('\n' bilan, konsolidatsiyalangan chekdagidek). O'ngga skanerlangan
++        // bitta KM bilan o'tadi (ReturnPageProviderr.scanMark).
++        mark: marks.isEmpty ? null : marks.join('\n'),
+         onlyPrice: itemOnlyPrice,
+         realPrice: itemRealPrice,
+         ownerType: e.ownerType,
+         refundItemId: e.refundItemId,
+-        marking: e.marking,
++        marking: marks.isNotEmpty && saleType != 2,
+         soldBy: e.soldBy,
+         cost: e.cost,
+         createdTime: e.createdTime,
+@@ -225,21 +269,27 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
+     // Blok sotuv (saleType==2): qoldiqni blok va dona qatorlariga ajratamiz.
+     // Blok qatori faqat butun blok qaytarish uchun — value baribir DONA hisobida
+     // turadi (refund API, fiskal va DB dona bilan ishlaydi), blok faqat UI qatlami.
++    // KM'li qism bitta qator, KM'lar havzasi bilan (RefundMarkSplit).
+     final int blocksAvailable =
+         hasBox ? min(soldBoxQuantity, remainingQty ~/ boxValue) : 0;
+-    final double blockUnits = (blocksAvailable * boxValue).toDouble();
+-    final double looseUnits = remainingQty - blockUnits;
+-
+-    if (blocksAvailable > 0) {
+-      list.add(makeItem(
+-        blockUnits,
+-        saleType: 2,
+-        boxValue: boxValue,
+-        boxQuantity: blocksAvailable,
+-      ));
+-    }
+-    if (looseUnits > 0) {
+-      list.add(makeItem(looseUnits));
++    final rows = RefundMarkSplit.plan(
++      remainingUnits: remainingQty,
++      boxValue: boxValue,
++      blocksAvailable: blocksAvailable,
++      unitMarks: RefundMarkSplit.marksOf(e.mark, local?.mark),
++      boxMarks: RefundMarkSplit.marksOf(e.boxMark, local?.boxMark),
++      refundedMarks: refundedMarks,
++    );
++    for (final row in rows) {
++      list.add(row.isBlock
++          ? makeItem(
++              row.units,
++              saleType: 2,
++              boxValue: boxValue,
++              boxQuantity: row.blocks,
++              marks: row.marks,
++            )
++          : makeItem(row.units, marks: row.marks));
+     }
+   }
+ 
+@@ -297,5 +347,5 @@ ReceiptModel4 _copyWith(ReceiptModel4 receipt, BuildContext context) {
+     ));
+   }
+ 
+-  return newReceiptModel4;
++  return RefundPageData(newReceiptModel4, refundedMarks);
+ }
+```
+
+### 6.10 `lib/changes/providers/return_page_provider.dart` (diff)
+
+```diff
+diff --git a/lib/changes/providers/return_page_provider.dart b/lib/changes/providers/return_page_provider.dart
+index bcf9057..d59ae7a 100644
+--- a/lib/changes/providers/return_page_provider.dart
++++ b/lib/changes/providers/return_page_provider.dart
+@@ -1,4 +1,5 @@
+ import 'package:flutter/material.dart';
++import 'package:invan2/changes/domain/receipt/refund_mark_split.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+ 
+ import '../../utils/util_functions.dart';
+@@ -6,13 +7,23 @@ import '../../utils/util_functions.dart';
+ class ReturnPageProviderr extends ChangeNotifier {
+   ReturnPageProviderr({
+     required ReceiptModel4 receiptModel4,
++    Set<String> refundedMarks = const {},
+   })  : _receiptModel4 = receiptModel4,
+-        _leftList = receiptModel4.soldItemList;
++        _leftList = receiptModel4.soldItemList,
++        _refundedMarks = refundedMarks;
+ 
+   final ReceiptModel4 _receiptModel4;
+   final List<ReceiptModelSoldItem4> _leftList;
+   final List<ReceiptModelSoldItem4> _rightList = [];
+ 
++  /// Shu chek bo'yicha oldingi vozvratlarda ketgan KM'lar.
++  final Set<String> _refundedMarks;
++
++  /// Havza qatori oxirigacha skanerlanib ro'yxatdan tushganda ortib qolgan
++  /// KM'lar (boshqa kassada qaytarilgani noma'lum bo'lgan holat) — o'ngdan
++  /// bekor qilinganda qator ular bilan qayta tiklanadi.
++  final Map<String, List<String>> _leftoverMarks = {};
++
+   int _leftIndex = 0;
+   int _rightIndex = 0;
+ 
+@@ -55,8 +66,91 @@ class ReturnPageProviderr extends ChangeNotifier {
+ 
+   /// Blok qatori (saleType==2) faqat blok qatoriga, dona qatori dona qatoriga
+   /// qo'shiladi — aks holda blok donaga aralashib blok granulyarligi buziladi.
++  /// KM'li qator (bitta KM = bitta qator) hech qaysi qatorga qo'shilmaydi —
++  /// fiskalga har KM alohida pozitsiya bo'lib ketadi.
+   bool _sameRow(ReceiptModelSoldItem4 a, ReceiptModelSoldItem4 b) =>
+-      a.productId == b.productId && (a.saleType == 2) == (b.saleType == 2);
++      a.productId == b.productId &&
++      (a.saleType == 2) == (b.saleType == 2) &&
++      (a.mark ?? '') == (b.mark ?? '');
++
++  // Server item'i ham kalitda: KM bekor qilinganda boshqa item'ning havzasiga
++  // tushib qolmasin (serverga KM o'z item id'si bilan ketadi).
++  String _kindKey(ReceiptModelSoldItem4 e) =>
++      '${e.refundItemId}|${e.productId}|${e.saleType == 2}';
++
++  /// Chap qator markirovkali (KM havzasi bor) — faqat skanerlab qaytariladi.
++  bool needsScan(ReceiptModelSoldItem4 e) => e.mark?.isNotEmpty ?? false;
++
++  /// Bosilgan chap qatorga skanerlangan KM. Havzada bo'lsa aynan o'sha 1 dona
++  /// (blok qatorida 1 blok) o'ngga o'sha KM bilan alohida qator bo'lib o'tadi —
++  /// fiskalga sotuvdagidek bitta KM = bitta pozitsiya ketadi.
++  RefundScanResult scanMark(ReceiptModelSoldItem4 row, String raw) {
++    final candidates = RefundMarkScan.candidates(raw);
++    final bool isBlock = row.saleType == 2;
++    final pool = RefundMarkSplit.marksOf(row.mark);
++    final result = RefundMarkScan.check(
++      candidates: candidates,
++      isBlockRow: isBlock,
++      pool: pool,
++      otherKindPool: _poolOf(row.productId, block: !isBlock),
++      inRight: {
++        for (final e in _rightList)
++          if (needsScan(e)) e.mark!,
++      },
++      refunded: _refundedMarks,
++    );
++    if (result == RefundScanResult.notInReceipt &&
++        RefundMarkScan.matchIn(candidates, _allPools()) != null) {
++      return RefundScanResult.otherProduct;
++    }
++    if (result != RefundScanResult.matched || !_leftList.contains(row)) {
++      return result;
++    }
++
++    final String km = RefundMarkScan.matchIn(candidates, pool)!;
++    final int unit = isBlock ? row.boxValue : 1;
++    pool.remove(km);
++    row.value -= unit;
++    row.mark = pool.isEmpty ? null : pool.join('\n');
++    _syncBoxQuantity(row);
++    if (row.value <= 0) {
++      _leftList.remove(row);
++      if (pool.isNotEmpty) _leftoverMarks[_kindKey(row)] = pool;
++    }
++    _rightList.add(_itemCopyWith(row, unit.toDouble(), mark: km));
++    notifyListeners();
++    return result;
++  }
++
++  List<String> _poolOf(String productId, {required bool block}) => [
++        for (final e in _leftList)
++          if (e.productId == productId && (e.saleType == 2) == block && needsScan(e))
++            ...RefundMarkSplit.marksOf(e.mark),
++        for (final entry in _leftoverMarks.entries)
++          if (entry.key.endsWith('|$productId|$block')) ...entry.value,
++      ];
++
++  /// Chekdagi barcha mahsulotlarning qaytarilmagan KM'lari.
++  List<String> _allPools() => [
++        for (final e in _leftList)
++          if (needsScan(e)) ...RefundMarkSplit.marksOf(e.mark),
++        for (final v in _leftoverMarks.values) ...v,
++      ];
++
++  /// O'ngdagi KM qatori bekor qilindi — KM chapdagi havzaga qaytadi.
++  void _returnMarkToPool(ReceiptModelSoldItem4 item) {
++    final key = _kindKey(item);
++    final i = _leftList.indexWhere((e) => _kindKey(e) == key && needsScan(e));
++    if (i >= 0) {
++      final row = _leftList[i];
++      row.value += item.value;
++      row.mark = [...RefundMarkSplit.marksOf(row.mark), item.mark!].join('\n');
++      _syncBoxQuantity(row);
++    } else {
++      item.mark = [item.mark!, ...?_leftoverMarks.remove(key)].join('\n');
++      _leftList.add(item);
++    }
++  }
+ 
+   /// value dona hisobida o'zgargach blok sonini sinxron ushlaymiz.
+   void _syncBoxQuantity(ReceiptModelSoldItem4 e) {
+@@ -66,6 +160,7 @@ class ReturnPageProviderr extends ChangeNotifier {
+   }
+ 
+   void pressLeftProduct() {
++    if (needsScan(_leftList[_leftIndex])) return; // faqat scanMark orqali
+     final item = _leftList.removeAt(_leftIndex);
+     final i = _rightList.indexWhere((e) => _sameRow(e, item));
+     if (i >= 0) {
+@@ -82,6 +177,11 @@ class ReturnPageProviderr extends ChangeNotifier {
+ 
+   void pressRightProduct() {
+     final item = _rightList.removeAt(_rightIndex);
++    if (needsScan(item)) {
++      _returnMarkToPool(item);
++      notifyListeners();
++      return;
++    }
+     final i = _leftList.indexWhere((e) => _sameRow(e, item));
+     if (i >= 0) {
+       double v = _leftList[i].value.toDouble();
+@@ -95,6 +195,7 @@ class ReturnPageProviderr extends ChangeNotifier {
+   }
+ 
+   void pressLeftProductDialog2(double arrivedValue) {
++    if (needsScan(_leftList[_leftIndex])) return; // faqat scanMark orqali
+     if (_leftList[_leftIndex].value <= arrivedValue) {
+       final item = _leftList.removeAt(_leftIndex);
+       final i = _rightList.indexWhere((e) => _sameRow(e, item));
+@@ -161,9 +262,13 @@ class ReturnPageProviderr extends ChangeNotifier {
+ 
+ ReceiptModelSoldItem4 _itemCopyWith(
+   ReceiptModelSoldItem4 item,
+-  double value,
+-) {
++  double value, {
++  String? mark,
++}) {
+   final receipt = ReceiptModelSoldItem4(
++    // Bitta KM — fiskal `Label` (blok qatorida blok KM'i, savatdagidek).
++    mark: mark,
++    marking: mark != null && item.saleType != 2,
+     // inBox: 0,
+     tin: item.tin,
+     inBox: 0,
+```
+
+### 6.11 `lib/features/checks/return_page/left/build_left_list.dart` (diff)
+
+```diff
+diff --git a/lib/features/checks/return_page/left/build_left_list.dart b/lib/features/checks/return_page/left/build_left_list.dart
+index 3d25d78..d6f40e3 100644
+--- a/lib/features/checks/return_page/left/build_left_list.dart
++++ b/lib/features/checks/return_page/left/build_left_list.dart
+@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
+ import 'package:invan2/utils/utils.dart';
+ import 'package:provider/provider.dart';
+ import '../../../../changes/providers/return_page_provider.dart';
++import '../return_page_dialog/refund_mark_scan_dialog.dart';
+ import '../return_page_dialog/return_page_dialog.dart';
+ 
+ class BuildLeftList extends StatefulWidget {
+@@ -32,6 +33,18 @@ class BuildLeftListState extends State<BuildLeftList> {
+           child: ListTile(
+             onTap: () async {
+               returnPageProvider.pressLeftIndex(index);
++              // Markirovkali qator: qaytayotgan shisha/blok KM'i skanerlanadi —
++              // faqat shu chekda sotilgan KM o'ngga o'tadi.
++              if (returnPageProvider.needsScan(item)) {
++                await showDialog(
++                  context: context,
++                  builder: (_) => RefundMarkScanDialog(
++                    provider: returnPageProvider,
++                    row: item,
++                  ),
++                );
++                return;
++              }
+               if (isBlock) {
+                 if (blocks <= 1) {
+                   returnPageProvider.pressLeftProduct();
+```
+
+### 6.12 `lib/features/checks/return_page/right/build_right_list.dart` (diff)
+
+```diff
+diff --git a/lib/features/checks/return_page/right/build_right_list.dart b/lib/features/checks/return_page/right/build_right_list.dart
+index e17cf21..086f0db 100644
+--- a/lib/features/checks/return_page/right/build_right_list.dart
++++ b/lib/features/checks/return_page/right/build_right_list.dart
+@@ -72,6 +72,16 @@ class BuildRightListState extends State<BuildRightList> {
+                 color:Theme.of(context).canvasColor
+               ),
+             ),
++            // KM'li qator — qaysi shisha/blok qaytayotgani
++            subtitle: (item.mark?.isNotEmpty ?? false)
++                ? Text(
++                    'KM: ${item.mark}',
++                    style: MyThemes.txtStyle(
++                      fontSize: 1.6,
++                      color: Theme.of(context).canvasColor.withValues(alpha: .7),
++                    ),
++                  )
++                : null,
+             trailing: Text(
+               MoneyFormatter.formatVat.format(item.price * item.value),
+               style: MyThemes.txtStyle(
+```
+
+### 6.13 `lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart` (diff)
+
+```diff
+diff --git a/lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart b/lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart
+index 719ce2c..a2502ed 100644
+--- a/lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart
++++ b/lib/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart
+@@ -322,7 +322,7 @@ class ReceiptSingleton4 {
+         id: e.productId,
+         tin: e.commissionTIN,
+         label: e.mark ?? '',
+-        amount: e.value * 1000,
++        amount: _fiscalAmount(e, isRefund: receipt.isRefund),
+         barcode: codes.barcode,
+         classCode: codes.classCode,
+         name: e.productName.replaceAll(' //blok', ''),
+@@ -526,6 +526,23 @@ class ReceiptSingleton4 {
+     }
+   }
+ 
++  /// Fiskal `Amount` (miqdor × 1000).
++  ///
++  /// Vozvrat blok qatori dona hisobida (`value = boxValue × blok`). Sotuvda esa
++  /// blok bitta pozitsiya — `Amount 1000`, `Price` = blok narxi, `Label` = blok
++  /// KM. Blok KM'li vozvrat qatori sotuvdagi shaklda qaytadi: `blok soni × 1000`
++  /// (`Price` o'zgarmaydi — `value × dona narxi` = blok narxi). KM'siz blok
++  /// vozvrati avvalgidek dona hisobida.
++  static num _fiscalAmount(ReceiptModelSoldItem4 e, {required bool isRefund}) {
++    if (isRefund &&
++        e.saleType == 2 &&
++        e.boxQuantity > 0 &&
++        (e.mark?.isNotEmpty ?? false)) {
++      return e.boxQuantity * 1000;
++    }
++    return e.value * 1000;
++  }
++
+   static num _countPrice(ReceiptModelSoldItem4 e) {
+     if (e.realPrice > e.price) {
+       return UtilFunctions.roundToNearest(e.value * e.realPrice) * 100;
+```
+
+### 6.14 `lib/changes/services/receipt_api_4.dart` (diff)
+
+```diff
+diff --git a/lib/changes/services/receipt_api_4.dart b/lib/changes/services/receipt_api_4.dart
+index ea5b463..32745b6 100644
+--- a/lib/changes/services/receipt_api_4.dart
++++ b/lib/changes/services/receipt_api_4.dart
+@@ -1,5 +1,6 @@
+ // ignore_for_file: unused_local_variable
+ import 'dart:convert';
++import 'package:invan2/changes/domain/receipt/refund_mark_split.dart';
+ import 'package:invan2/changes/repository/log_repository.dart';
+ import 'package:invan2/changes/services/api.dart';
+ import 'package:invan2/changes/services/api/api_provider.dart';
+@@ -289,8 +290,21 @@ class ReceiptApi4 {
+     // har item id uchun bitta yozuv kutadi. Quantity DONA hisobida ketadi
+     // (1 blok = boxValue dona) — backend sotuvni ham dona hisobida yuritadi.
+     final Map<String, RefundedReceipt> refundedById = {};
++    // Qaytgan KM'lar (vozvrat sahifasida skanerlangan, har qatorda bitta):
++    // dona qatori → `marking_names`, blok qatori → `box_marking_names`.
++    // Server qaysi KM qaytganini bilsin — boshqa kassadagi keyingi vozvratda
++    // u KM qayta qabul qilinmasligi uchun.
++    final Map<String, List<String>> unitMarksById = {};
++    final Map<String, List<String>> boxMarksById = {};
+     for (var element in r.soldItemList) {
+       final key = element.refundItemId ?? '';
++      final marks = [
++        ...RefundMarkSplit.marksOf(element.mark),
++        ...RefundMarkSplit.marksOf(element.boxMark),
++      ];
++      (element.saleType == 2 ? boxMarksById : unitMarksById)
++          .putIfAbsent(key, () => [])
++          .addAll(marks);
+       final existing = refundedById[key];
+       if (existing != null) {
+         existing.quantity = (existing.quantity ?? 0) + element.value;
+@@ -305,7 +319,13 @@ class ReceiptApi4 {
+     List<RefundedReceipt> refundedProducts = refundedById.values.toList();
+ 
+     List<ItemsI2> i2 = refundedProducts
+-        .map((e) => ItemsI2(id: e.id, price: e.price, quantity: e.quantity))
++        .map((e) => ItemsI2(
++              id: e.id,
++              price: e.price,
++              quantity: e.quantity,
++              markingNames: unitMarksById[e.id ?? ''] ?? const [],
++              boxMarkingNames: boxMarksById[e.id ?? ''] ?? const [],
++            ))
+         .toList();
+ 
+     List<PaymentsI2> p2 = refundMap.values
+@@ -369,20 +389,35 @@ class ItemsI2 {
+   num? price;
+   num? quantity;
+   String? id;
+-
+-  ItemsI2({this.quantity, this.id, required this.price});
++  List<String> markingNames = const [];
++  List<String> boxMarkingNames = const [];
++
++  ItemsI2({
++    this.quantity,
++    this.id,
++    required this.price,
++    this.markingNames = const [],
++    this.boxMarkingNames = const [],
++  });
+ 
+   ItemsI2.fromJson(Map<String, dynamic> json) {
+     quantity = json['quantity'];
+     id = json['id'];
+     price = json['price'];
++    markingNames = _marks(json['marking_names']);
++    boxMarkingNames = _marks(json['box_marking_names']);
+   }
+ 
++  static List<String> _marks(dynamic raw) =>
++      raw is List ? raw.map((e) => e.toString()).toList() : <String>[];
++
+   Map<String, dynamic> toJson() {
+     final Map<String, dynamic> data = {};
+     data['quantity'] = quantity;
+     data['id'] = id;
+     data['price'] = price;
++    data['marking_names'] = markingNames;
++    data['box_marking_names'] = boxMarkingNames;
+     return data;
+   }
+ }
+```
+
+### 6.15 `lib/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart` (diff)
+
+```diff
+diff --git a/lib/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart b/lib/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart
+index 1269cc5..cd1708d 100644
+--- a/lib/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart
++++ b/lib/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart
+@@ -509,6 +509,12 @@ int boxQuantity;
+       'box_marking_names': (boxMark != null && boxMark!.isNotEmpty)
+           ? boxMark!.split('\n').where((m) => m.isNotEmpty).toList()
+           : [],
++      // Qaytarilgan KM'lar — server ularni vozvratda (`refund_order_items`)
++      // to'ldiradi va `GET api/v1/order` da qaytaradi. Sotuvda hech narsa
++      // qaytarilmagan, shuning uchun doim bo'sh; maydon backend modeli bilan
++      // bir xil bo'lishi uchun yuboriladi.
++      'refunded_marking_names': <String>[],
++      'refunded_box_marking_names': <String>[],
+       'product_type': productType,
+       'product_package': productPackage,
+       'sale_type': saleType,
+```
+
+### 6.16 `lib/utils/helpers/my_barcode_listener.dart` (diff)
+
+```diff
+diff --git a/lib/utils/helpers/my_barcode_listener.dart b/lib/utils/helpers/my_barcode_listener.dart
+index 8ad5135..cd02c17 100644
+--- a/lib/utils/helpers/my_barcode_listener.dart
++++ b/lib/utils/helpers/my_barcode_listener.dart
+@@ -1,3 +1,4 @@
++import 'package:invan2/changes/domain/barcode/keyboard_layout.dart';
+ import 'dart:async';
+ 
+ import 'package:flutter/material.dart';
+@@ -206,33 +207,9 @@ class MyBarcodeListenerState extends State<MyBarcodeListener> {
+   //---------------------------------
+ 
+   DateTime lastEnter = DateTime.now();
+-String fixKeyboardLayout(String input) {
+-  if (input.isEmpty) return input;
+-
+-  // To'liq ЙЦУКЕН → QWERTY keyboard layout mapping
+-  const Map<String, String> ruToEn = {
+-    'й': 'q', 'ц': 'w', 'у': 'e', 'к': 'r', 'е': 't', 'н': 'y', 'г': 'u',
+-    'ш': 'i', 'щ': 'o', 'з': 'p', 'х': '[', 'ъ': ']',
+-    'ф': 'a', 'ы': 's', 'в': 'd', 'а': 'f', 'п': 'g', 'р': 'h',
+-    'о': 'j', 'л': 'k', 'д': 'l', 'ж': ';', 'э': "'",
+-    'я': 'z', 'ч': 'x', 'с': 'c', 'м': 'v', 'и': 'b', 'т': 'n',
+-    'ь': 'm', 'б': ',', 'ю': '.',
+-    'Й': 'Q', 'Ц': 'W', 'У': 'E', 'К': 'R', 'Е': 'T', 'Н': 'Y', 'Г': 'U',
+-    'Ш': 'I', 'Щ': 'O', 'З': 'P', 'Х': '{', 'Ъ': '}',
+-    'Ф': 'A', 'Ы': 'S', 'В': 'D', 'А': 'F', 'П': 'G', 'Р': 'H',
+-    'О': 'J', 'Л': 'K', 'Д': 'L', 'Ж': ':', 'Э': '"',
+-    'Я': 'Z', 'Ч': 'X', 'С': 'C', 'М': 'V', 'И': 'B', 'Т': 'N',
+-    'Ь': 'M', 'Б': '<', 'Ю': '>',
+-    'ё': '`', 'Ё': '~',
+-  };
+-
+-  String result = input;
+-  ruToEn.forEach((rus, eng) {
+-    result = result.replaceAll(rus, eng);
+-  });
+-  return result;
+-}
+- 
++// Jadval: KeyboardLayout.ruLettersToEn (vozvratdagi KM skani ham shuni ishlatadi).
++String fixKeyboardLayout(String input) => KeyboardLayout.ruLettersToEn(input);
++
+   void onKeyEvent(int charCode) {
+     if (!(blBloc.isVisible && blBloc.status != BLStatus.other)) {
+       return;
+```
+
+### 6.17 `lib/utils/l10n/app_ru.arb` (diff)
+
+```diff
+diff --git a/lib/utils/l10n/app_ru.arb b/lib/utils/l10n/app_ru.arb
+index 4895a84..0b73f68 100644
+--- a/lib/utils/l10n/app_ru.arb
++++ b/lib/utils/l10n/app_ru.arb
+@@ -632,6 +632,21 @@
+   "yuklanmoqda_mahsulotlar": "Загружается база товаров...",
+   "yuklanmoqda_saqlanmoqda": "Сохранение товаров...",
+   "yuklanmoqda_mxik": "Загружаются данные МХИК...",
+-  "yuklanmoqda_tayyor": "Готово"
++  "yuklanmoqda_tayyor": "Готово",
++  "vozvrat_km_chekda_yoq": "Этот товар не продавался в этом чеке",
++  "vozvrat_km_qoshilgan": "Эта маркировка уже добавлена в возврат",
++  "vozvrat_km_oldin_qaytarilgan": "Эта маркировка уже была возвращена",
++  "vozvrat_km_blok_kodi": "Это маркировка блока — выберите строку блока",
++  "vozvrat_km_dona_kodi": "Это маркировка штуки — выберите строку штук",
++  "vozvrat_km_qisqa": "Код маркировки должен быть длиннее",
++  "vozvrat_km_yopish": "Закрыть",
++  "vozvrat_km_blok_qator": "Блок ({count} шт)",
++  "@vozvrat_km_blok_qator": {
++    "placeholders": {
++      "count": {
++        "type": "int"
++      }
++    }
++  },
++  "vozvrat_km_boshqa_mahsulot": "Эта маркировка другого товара — выберите строку этого товара"
+ }
+-    
+\ No newline at end of file
+```
+
+### 6.18 `lib/utils/l10n/app_uz.arb` (diff)
+
+```diff
+diff --git a/lib/utils/l10n/app_uz.arb b/lib/utils/l10n/app_uz.arb
+index 11f44e5..731ae44 100644
+--- a/lib/utils/l10n/app_uz.arb
++++ b/lib/utils/l10n/app_uz.arb
+@@ -276,5 +276,14 @@
+   "yuklanmoqda_mahsulotlar": "Mahsulotlar bazasi yuklanmoqda...",
+   "yuklanmoqda_saqlanmoqda": "Mahsulotlar saqlanmoqda...",
+   "yuklanmoqda_mxik": "MXIK ma'lumotlari yuklanmoqda...",
+-  "yuklanmoqda_tayyor": "Tayyor"
+-}
+\ No newline at end of file
++  "yuklanmoqda_tayyor": "Tayyor",
++  "vozvrat_km_chekda_yoq": "Bu mahsulot shu chekda sotilmagan",
++  "vozvrat_km_qoshilgan": "Bu markirovka allaqachon qaytarishga qo'shilgan",
++  "vozvrat_km_oldin_qaytarilgan": "Bu markirovka oldin qaytarilgan",
++  "vozvrat_km_blok_kodi": "Bu blok markirovkasi — blok qatorini tanlang",
++  "vozvrat_km_dona_kodi": "Bu dona markirovkasi — dona qatorini tanlang",
++  "vozvrat_km_qisqa": "Markirovka kodi uzunroq bo'lishi kerak",
++  "vozvrat_km_yopish": "Yopish",
++  "vozvrat_km_blok_qator": "Blok ({count} dona)",
++  "vozvrat_km_boshqa_mahsulot": "Bu markirovka boshqa mahsulotniki — o'sha mahsulot qatorini tanlang"
++}
+```
+
+### 6.19 `test/refund_marking_test.dart` (YANGI)
+
+<details><summary>66 test — ochish</summary>
+
+```dart
+// Vozvratda markirovka (dona + blok KM): KM serverdan olinadi, kassir qaytayotgan
+// shisha/blokni SKANERLAYDI, fiskalga sotuvdagidek har KM alohida pozitsiya.
+//
+// Nega kerak: server `api/v1/order` javobida `items[].marking_names` va
+// `box_marking_names` bor (DEV, chek DT1 / #119, 2026-10-27), lekin ilova
+// ularni o'qimasdi — vozvrat cheki `Label ""` bilan ketardi.
+//
+// Qoida: chap ro'yxatda mahsulot bitta qator (KM havzasi bilan). Qatorni bosib
+// KM skanerlanadi; shu chekda sotilgan KM bo'lsa aynan o'sha 1 dona / 1 blok
+// o'ngga o'tadi, bo'lmasa "bu mahsulot shu chekda sotilmagan".
+//
+// Zanjir (ilovadagidek): server JSON → `ReUpdateBloc.refundableItems` →
+// `ChecksSingleton.globalToLocall` → vozvrat sahifasi (`refundReceiptOf`) →
+// `ReturnPageProviderr.scanMark` → `ReceiptSingleton4.saleOnOFD` (modulga JSON).
+//
+// "Shu kassa" guruhi ObjectBox kerak (`libobjectbox.dylib` / `.so` / `.dll`
+// loyiha ildizida yoki tizimda), topilmasa SKIP. Mac'da:
+//   cp build/macos/Build/Products/Debug/invan2.app/Contents/Frameworks/ObjectBox.framework/Versions/A/ObjectBox libobjectbox.dylib
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/domain/barcode/keyboard_layout.dart';
+import 'package:invan2/changes/domain/receipt/refund_mark_split.dart';
+import 'package:invan2/changes/models/product/item_model.dart';
+import 'package:invan2/changes/models/receipts_get_model.dart';
+import 'package:invan2/changes/providers/return_page_provider.dart';
+import 'package:invan2/changes/services/receipt_api_4.dart';
+import 'package:invan2/features/checks/features/check_view/bloc/re_update_bloc.dart';
+import 'package:invan2/features/checks/return_page/return_page.dart';
+import 'package:invan2/features/get_products/singletons/checks_singleton.dart';
+import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/singleton/receipt_singleton_4.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
+import 'package:invan2/fiscal_service/model/fiscal_receipt_model.dart';
+import 'package:invan2/fiscal_service/model/location/location.dart';
+import 'package:invan2/fiscal_service/model/receipt_data_model.dart';
+import 'package:invan2/fiscal_service/model/request_receipt_model.dart';
+import 'package:invan2/objectbox.g.dart' hide Box;
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+
+import 'support/provider_harness.dart';
+
+// DT1 (#119) dagi haqiqiy KM'lar — emulyatordagi sotuv `Label`lari bilan bir xil.
+const kKm1 = '0104780101733767217VCy-1g)yILZf';
+const kKm2 = '0104780101733767217zER/!Vzl;.>"';
+const kBox1 = '010478006900052921Bx00000001';
+const kBox2 = '010478006900052921Bx00000002';
+const kBoxUnit = '010478006900051221AbC123xyZ9876';
+// DT7 (#125) dagi haqiqiy blok KM'lari: sotuvda kripto qism bilan saqlanadi
+// (skaner GS ni `029` qilib yuboradi, blok yo'li `scanTime` siz).
+const kRealBox1 = '0114780101733764217DtZ53Oi"RYhH02993zdxZ';
+const kRealBox2 = '0114780101733764217SAUN=DLsWfiV02993SgJ5';
+
+const kMxik = '02201002001053001';
+const kProductId = 'b5f52718-3a21-42f0-a397-5cf9e73e9168';
+
+Store? _tryOpenStore() {
+  try {
+    final dir = Directory.systemTemp.createTempSync('refund_marking_obx');
+    return Store(getObjectBoxModel(), directory: dir.path);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// DT1 itemi (server javobidan, keraksiz maydonlarsiz).
+Map<String, dynamic> serverItem({
+  num value = 2,
+  num refundAmount = 0,
+  num price = 2900,
+  List<String>? markingNames = const [kKm1, kKm2],
+  List<String>? boxMarkingNames = const [],
+  int? saleType = 1,
+  int? boxValue = 0,
+  int? boxQuantity = 0,
+  List<String>? refundedMarkingNames,
+  List<String>? refundedBoxMarkingNames,
+  String id = 'aa2a3531-fb85-43ac-aa83-b59bf6c2591b',
+  String productId = kProductId,
+}) =>
+    {
+      'id': id,
+      'product_name': 'Montella Daily 0,33 л.',
+      'product_id': productId,
+      'value': value,
+      'refund_amount': refundAmount,
+      'price': price,
+      'new_price': price,
+      'total_price': price * value,
+      'barcode': '4780101733767',
+      'sku': '34875',
+      'mxik_code': kMxik,
+      'vat_name': 'Standart',
+      'vat_percentage': 12,
+      'discount': {'price': 0, 'value': 0, 'type': ''},
+      'package_code': '1165863',
+      'package_name': 'дона',
+      'is_marking': true,
+      'single_order_discount': 0,
+      'marking_name': '',
+      'product_type': '5',
+      'product_package': 'KIZ',
+      if (markingNames != null) 'marking_names': markingNames,
+      if (boxMarkingNames != null) 'box_marking_names': boxMarkingNames,
+      if (saleType != null) 'sale_type': saleType,
+      if (boxValue != null) 'box_value': boxValue,
+      if (boxQuantity != null) 'box_quantity': boxQuantity,
+      if (refundedMarkingNames != null)
+        'refunded_marking_names': refundedMarkingNames,
+      if (refundedBoxMarkingNames != null)
+        'refunded_box_marking_names': refundedBoxMarkingNames,
+    };
+
+GlobalReceipt serverOrder(Map<String, dynamic> item,
+        {String externalId = 'DT1',
+        num totalPrice = 5800,
+        List<Map<String, dynamic>> more = const []}) =>
+    GlobalReceipt.fromJson({
+      'id': '01a17cce-a392-7ff8-8b68-3db62b5ad592',
+      'type': 'sale',
+      'external_id': externalId,
+      'status': {'name': 'paid'},
+      'total_price': totalPrice,
+      'create_time': '2026-10-27T10:01:19Z',
+      'terminal_id': 'VG300750000021',
+      'fiscal_sign': '696533213019',
+      'receipt_seq': 119,
+      'date_time': '20261027150119',
+      'pays': [],
+      'items': [item, ...more],
+    });
+
+/// Vozvrat sahifasi ochilganda (ReUpdateBloc → globalToLocall → _copyWith).
+RefundPageData openReturnPage(GlobalReceipt order) {
+  final refunded = ReUpdateBloc.serverRefundedMarks(order);
+  order.items = ReUpdateBloc.refundableItems(order);
+  return refundReceiptOf(ChecksSingleton.globalToLocall(order),
+      serverRefundedMarks: refunded);
+}
+
+ReturnPageProviderr providerOf(RefundPageData page) => ReturnPageProviderr(
+      receiptModel4: page.receipt,
+      refundedMarks: page.refundedMarks,
+    );
+
+/// Skaner chiqishi: KM + GS (0x1D) + kripto qism (93...) — sotuvdagidek tozalanadi.
+String scanned(String km) => '$km\x1D93dGVz';
+
+/// O'ng ro'yxatdan ReturnBloc kabi vozvrat chekini yig'adi.
+ReceiptModel4 refundOf(RefundPageData page, ReturnPageProviderr p) {
+  final rows = List<ReceiptModelSoldItem4>.from(p.getRightList);
+  final r = page.receipt;
+  r.soldItemList
+    ..clear()
+    ..addAll(rows);
+  r.payment
+    ..clear()
+    ..add(ReceiptModelPaymentType4(
+        name: 'CASH',
+        payId: 'cash-id',
+        value: rows.fold(0.0, (s, e) => s + e.price * e.value)));
+  return r;
+}
+
+/// Kod rus (Windows ЙЦУКЕН) tartibi yoqiq kassada skanerlansa nima keladi.
+String typedOnRu(String en) {
+  const map = {
+    'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г',
+    'i': 'ш', 'o': 'щ', 'p': 'з', '[': 'х', ']': 'ъ', 'a': 'ф', 's': 'ы',
+    'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д',
+    ';': 'ж', "'": 'э', 'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и',
+    'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю', '`': 'ё',
+    'Q': 'Й', 'W': 'Ц', 'E': 'У', 'R': 'К', 'T': 'Е', 'Y': 'Н', 'U': 'Г',
+    'I': 'Ш', 'O': 'Щ', 'P': 'З', '{': 'Х', '}': 'Ъ', 'A': 'Ф', 'S': 'Ы',
+    'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д',
+    ':': 'Ж', '"': 'Э', 'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И',
+    'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '~': 'Ё',
+    '@': '"', '#': '№', r'$': ';', '^': ':', '&': '?', '/': '.', '?': ',',
+    '|': '/',
+  };
+  return en.split('').map((c) => map[c] ?? c).join();
+}
+
+/// O'zgarishdan oldingi sotuv funksiyasi (MyBarcodeListenerState.fixKeyboardLayout)
+/// — KeyboardLayout.ruLettersToEn u bilan bir xil bo'lishi kerak.
+String legacyFixKeyboardLayout(String input) {
+  if (input.isEmpty) return input;
+  const Map<String, String> ruToEn = {
+    'й': 'q', 'ц': 'w', 'у': 'e', 'к': 'r', 'е': 't', 'н': 'y', 'г': 'u',
+    'ш': 'i', 'щ': 'o', 'з': 'p', 'х': '[', 'ъ': ']',
+    'ф': 'a', 'ы': 's', 'в': 'd', 'а': 'f', 'п': 'g', 'р': 'h',
+    'о': 'j', 'л': 'k', 'д': 'l', 'ж': ';', 'э': "'",
+    'я': 'z', 'ч': 'x', 'с': 'c', 'м': 'v', 'и': 'b', 'т': 'n',
+    'ь': 'm', 'б': ',', 'ю': '.',
+    'Й': 'Q', 'Ц': 'W', 'У': 'E', 'К': 'R', 'Е': 'T', 'Н': 'Y', 'Г': 'U',
+    'Ш': 'I', 'Щ': 'O', 'З': 'P', 'Х': '{', 'Ъ': '}',
+    'Ф': 'A', 'Ы': 'S', 'В': 'D', 'А': 'F', 'П': 'G', 'Р': 'H',
+    'О': 'J', 'Л': 'K', 'Д': 'L', 'Ж': ':', 'Э': '"',
+    'Я': 'Z', 'Ч': 'X', 'С': 'C', 'М': 'V', 'И': 'B', 'Т': 'N',
+    'Ь': 'M', 'Б': '<', 'Ю': '>',
+    'ё': '`', 'Ё': '~',
+  };
+  String result = input;
+  ruToEn.forEach((rus, eng) {
+    result = result.replaceAll(rus, eng);
+  });
+  return result;
+}
+
+ReceiptModelSoldItem4 leftRow(ReturnPageProviderr p, {bool block = false}) =>
+    p.getLeftList.firstWhere((e) => (e.saleType == 2) == block);
+
+/// Modulga ketadigan JSON — `LocalService.saleWithOutIncom` zanjiri tarmoqsiz.
+Map<String, dynamic> wireJson(ReceiptModel4 receipt) {
+  final ofdBody = ReceiptSingleton4.saleOnOFD(receipt);
+  final model = RequestSaleModel.fromJson(ofdBody);
+  final fiscal = FiscalReceiptModel.fromRequest(
+    model,
+    ReceiptDataModel(
+      factoryID: 'UZ000000000MOCK',
+      terminalID: 'VG300750000021',
+      location: Location(latitude: 41.311081, longitude: 69.240562),
+    ),
+    DateTime(2026, 10, 27, 15, 30),
+    ExtraInfo(
+      carNumber: '',
+      phoneNumber: '',
+      cardType: 0,
+      pinfl: '',
+      tin: '',
+      qrPaymentID: '',
+      qrPaymentProvider: 0,
+      cardNumber: '',
+      pptId: '',
+      cashedOutFromCard: 0,
+    ),
+  );
+  return jsonDecode(jsonEncode(fiscal.toJson())) as Map<String, dynamic>;
+}
+
+List<Map<String, dynamic>> itemsOf(Map<String, dynamic> wire) =>
+    (wire['params']['Receipt']['Items'] as List).cast<Map<String, dynamic>>();
+
+ReceiptModelSoldItem4 localRow({
+  double value = 2,
+  double price = 2900,
+  String? mark,
+  String? boxMark,
+  int saleType = 1,
+  int boxValue = 0,
+  int boxQuantity = 0,
+}) =>
+    ReceiptModelSoldItem4(
+      inBox: 0,
+      barcode: '4780101733767',
+      sku: 34875,
+      vatPercent: 12,
+      vat: price * 12 / 112,
+      mxik: kMxik,
+      tin: '',
+      onlyPrice: price,
+      realPrice: price,
+      price: price,
+      cost: 0,
+      vatName: 'Standart',
+      createdTime: 0,
+      value: value,
+      productId: kProductId,
+      productName: 'Montella Daily 0,33 л.',
+      sellerId: '',
+      soldBy: '',
+      singleDiscount: 0,
+      ownerType: 1,
+      mark: mark,
+      boxMark: boxMark,
+      marking: mark != null,
+      saleType: saleType,
+      boxValue: boxValue,
+      boxQuantity: boxQuantity,
+    );
+
+ReceiptModel4 localReceipt({
+  required String externalId,
+  required bool isRefund,
+  required List<ReceiptModelSoldItem4> items,
+  bool uploaded = true,
+}) {
+  final r = ReceiptModel4(
+    createdDate: '2026-10-27 15:01:19',
+    orderId: 'order-$externalId-$isRefund',
+    cashboxId: 'cashbox-1',
+    externalId: isRefund ? 'R-$externalId' : externalId,
+    orderType: 'sale',
+    shopId: 'shop-1',
+    userId: 'user-1',
+    discountVat: 0,
+    discountID: '',
+    newid: '',
+    cashierId: 'kassir-001',
+    cashierName: 'Test Kassir',
+    date: 0,
+    isRefund: isRefund,
+    totalPrice: 0,
+    uploaded: uploaded,
+    rejected: false,
+    clientName: '',
+    clientPhone: '',
+    clientId: '',
+    supplierId: '',
+    cashback: 0,
+    sdacha: 0,
+    returnForCheck: isRefund ? externalId : '',
+    posName: 'Test POS',
+    isDonate: false,
+  );
+  r.soldItemList.addAll(items);
+  return r;
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('refund_marking', withEmployee: false);
+    await Pref.setString(PrefKeys.cashId, 'cash-id');
+    await Pref.setString(PrefKeys.mxikCode, '01905012001000000');
+  });
+  tearDownAll(tearDownPosTestEnv);
+
+  setUp(() {
+    ItemsSingleton.products = [
+      ItemModel()
+        ..id = kProductId
+        ..name = 'Montella Daily 0,33 л.'
+        ..mxikCode = kMxik
+        ..barcode = ['4780101733767']
+        ..packageCode = '1165863'
+        ..ownerType = '1'
+        ..isMarking = true,
+    ];
+  });
+  tearDown(() => ItemsSingleton.products = []);
+
+  group('ItemsGTR — server javobidan KM va blok', () {
+    test('DT1: marking_names o\'qiladi (ilgari tashlab yuborilardi)', () {
+      final it = ItemsGTR.fromJson(serverItem());
+      expect(it.markingNames, [kKm1, kKm2]);
+      expect(it.boxMarkingNames, isEmpty);
+      expect(it.isBox, isFalse);
+      expect(it.value, 2);
+    });
+
+    test('blok: token (2 blok + 1 dona = 3) → 13 dona, refund_amount bilan bir birlik',
+        () {
+      final it = ItemsGTR.fromJson(serverItem(
+        value: 3,
+        saleType: 2,
+        boxValue: 6,
+        boxQuantity: 2,
+        boxMarkingNames: [kBox1, kBox2],
+        markingNames: [kBoxUnit],
+      ));
+      expect(it.isBox, isTrue);
+      expect(it.value, 13);
+      expect(it.boxMarkingNames, [kBox1, kBox2]);
+      expect(it.markingNames, [kBoxUnit]);
+    });
+
+    test('eski server (maydonlar yo\'q) — bo\'sh ro\'yxat, oddiy item', () {
+      final it = ItemsGTR.fromJson(serverItem(
+        markingNames: null,
+        boxMarkingNames: null,
+        saleType: null,
+        boxValue: null,
+        boxQuantity: null,
+      ));
+      expect(it.markingNames, isEmpty);
+      expect(it.boxMarkingNames, isEmpty);
+      expect(it.saleType, 1);
+      expect(it.value, 2);
+    });
+
+    test('sale_type 2, lekin box_quantity 0 — blok emas, value o\'zgarmaydi', () {
+      final it = ItemsGTR.fromJson(
+          serverItem(value: 4, saleType: 2, boxValue: 6, boxQuantity: 0));
+      expect(it.isBox, isFalse);
+      expect(it.value, 4);
+    });
+
+    test('globalToLocall: mark/boxMark lokal konsolidatsiya shaklida (\\n)', () {
+      final r = ChecksSingleton.globalToLocall(serverOrder(serverItem(
+        value: 3,
+        saleType: 2,
+        boxValue: 6,
+        boxQuantity: 2,
+        boxMarkingNames: [kBox1, kBox2],
+        markingNames: [kBoxUnit],
+        price: 4500,
+      ), totalPrice: 58500));
+      final e = r.soldItemList.single;
+      expect(e.mark, kBoxUnit);
+      expect(e.boxMark, '$kBox1\n$kBox2');
+      expect(e.marking, isTrue);
+      expect(e.saleType, 2);
+      expect(e.boxValue, 6);
+      expect(e.boxQuantity, 2);
+      expect(e.value, 13);
+    });
+  });
+
+  group('RefundMarkSplit.plan — chap qatorlar (KM havzasi)', () {
+    test('KM yo\'q — avvalgidek bitta qator', () {
+      final rows = RefundMarkSplit.plan(remainingUnits: 5);
+      expect(rows.single.units, 5);
+      expect(rows.single.marks, isEmpty);
+    });
+
+    test('10 ta sotilgan, 10 KM — bitta qator "x 10", havzada 10 KM', () {
+      final marks = [for (var i = 0; i < 10; i++) '${kKm1}_$i'];
+      final rows = RefundMarkSplit.plan(remainingUnits: 10, unitMarks: marks);
+      expect(rows.length, 1);
+      expect(rows.single.units, 10);
+      expect(rows.single.marks, marks);
+    });
+
+    test('oldingi vozvratda ketgan KM havzadan chiqariladi', () {
+      final rows = RefundMarkSplit.plan(
+          remainingUnits: 1, unitMarks: [kKm1, kKm2], refundedMarks: {kKm1});
+      expect(rows.single.units, 1);
+      expect(rows.single.marks, [kKm2]);
+    });
+
+    test('KM qoldiqdan ko\'p (boshqa kassada qaytarilgan) — hammasi havzada, miqdor qoldiq',
+        () {
+      final rows =
+          RefundMarkSplit.plan(remainingUnits: 1, unitMarks: [kKm1, kKm2]);
+      expect(rows.single.units, 1);
+      expect(rows.single.marks, [kKm1, kKm2]);
+    });
+
+    test('KM qoldiqdan kam (bir qismi KM\'siz sotilgan) — havza qatori + KM\'siz qator',
+        () {
+      final rows = RefundMarkSplit.plan(remainingUnits: 3, unitMarks: [kKm1]);
+      expect(rows.length, 2);
+      expect(rows[0].units, 1);
+      expect(rows[0].marks, [kKm1]);
+      expect(rows[1].units, 2);
+      expect(rows[1].marks, isEmpty);
+    });
+
+    test('blok + dona: blok qatori blok KM havzasi bilan, dona qatori dona KM bilan',
+        () {
+      final rows = RefundMarkSplit.plan(
+        remainingUnits: 13,
+        boxValue: 6,
+        blocksAvailable: 2,
+        boxMarks: [kBox1, kBox2],
+        unitMarks: [kBoxUnit],
+      );
+      expect(rows.length, 2);
+      expect(rows[0].isBlock, isTrue);
+      expect(rows[0].blocks, 2);
+      expect(rows[0].units, 12);
+      expect(rows[0].marks, [kBox1, kBox2]);
+      expect(rows[1].isBlock, isFalse);
+      expect(rows[1].units, 1);
+      expect(rows[1].marks, [kBoxUnit]);
+    });
+
+    test('blok KM bloklardan kam — havza blok qatori + KM\'siz blok qatori', () {
+      final rows = RefundMarkSplit.plan(
+          remainingUnits: 12, boxValue: 6, blocksAvailable: 2, boxMarks: [kBox1]);
+      expect(rows.length, 2);
+      expect(rows[0].blocks, 1);
+      expect(rows[0].marks, [kBox1]);
+      expect(rows[1].blocks, 1);
+      expect(rows[1].marks, isEmpty);
+    });
+
+    test('KM\'siz blok — avvalgidek "N blok" + dona', () {
+      final rows = RefundMarkSplit.plan(
+          remainingUnits: 26, boxValue: 12, blocksAvailable: 2);
+      expect(rows.length, 2);
+      expect(rows[0].blocks, 2);
+      expect(rows[0].units, 24);
+      expect(rows[1].units, 2);
+    });
+
+    test('kasr qoldiq (kg) — havza yo\'q', () {
+      final rows = RefundMarkSplit.plan(remainingUnits: 1.5, unitMarks: [kKm1]);
+      expect(rows.single.units, 1.5);
+      expect(rows.single.marks, isEmpty);
+    });
+
+    test('takror KM bir marta', () {
+      final rows =
+          RefundMarkSplit.plan(remainingUnits: 2, unitMarks: [kKm1, kKm1]);
+      expect(rows[0].marks, [kKm1]);
+      expect(rows[0].units, 1);
+      expect(rows[1].units, 1);
+      expect(rows[1].marks, isEmpty);
+    });
+
+    test('marksOf: server bo\'lsa server, bo\'lmasa lokal', () {
+      expect(RefundMarkSplit.marksOf('a\nb', 'c'), ['a', 'b']);
+      expect(RefundMarkSplit.marksOf('', 'c\n\nd'), ['c', 'd']);
+      expect(RefundMarkSplit.marksOf(null, null), isEmpty);
+    });
+  });
+
+  group('KeyboardLayout — kassada rus tartibi', () {
+    const samples = [
+      kKm1, kKm2, kRealBox1, kRealBox2,
+      '01047801017337672177j=16?_+I/FF', '01047801017337672176Cu=&jr&KtV=',
+      'йцукенгшщзхъфывапролджэячсмитьбюё ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮЁ',
+      'aralash Жmix 123 ?.,;:"№/',
+      '',
+    ];
+    test('ruLettersToEn sotuvdagi eski fixKeyboardLayout bilan aynan bir xil', () {
+      for (final x in [...samples, for (final k in samples) typedOnRu(k)]) {
+        expect(KeyboardLayout.ruLettersToEn(x), legacyFixKeyboardLayout(x),
+            reason: x);
+      }
+    });
+
+    test('ruToEnFull rus tartibida terilgan KM ni to\'liq tiklaydi', () {
+      for (final km in [
+        kKm1, kKm2, kRealBox1, kRealBox2,
+        '01047801017337672177j=16?_+I/FF', '01047801017337672176Cu=&jr&KtV=',
+      ]) {
+        expect(KeyboardLayout.ruToEnFull(typedOnRu(km)), km, reason: km);
+      }
+    });
+
+    test('ruLettersToEn faqat harflarni tiklaydi — & ? / qaytmaydi', () {
+      const km = '01047801017337672177j=16?_+I/FF';
+      expect(KeyboardLayout.ruLettersToEn(typedOnRu(km)), isNot(km));
+    });
+  });
+
+  group('RefundMarkScan — skanerlangan KM', () {
+    test('candidates: dona yo\'li — kripto qism, skaner "-" prefiksi, AI qavslari', () {
+      expect(RefundMarkScan.candidates(scanned(kKm1)), contains(kKm1));
+      expect(RefundMarkScan.candidates('-$kKm2'), contains(kKm2));
+      expect(RefundMarkScan.candidates('(01)04780101733767(21)7VCy-1g)yILZf'),
+          contains(kKm1));
+      expect(RefundMarkScan.candidates('  $kKm1\n'), contains(kKm1));
+    });
+
+    test('candidates: blok yo\'li — kripto qism saqlanadi (sotuvdagidek)', () {
+      final c = RefundMarkScan.candidates(kRealBox1);
+      expect(c, contains(kRealBox1));
+      // scanTime shaklining o'zi birinchi "93" da kesilgan — yolg'iz u mos kelmasdi
+      expect(c, contains('0114780101733764217DtZ53Oi"RYhH029'));
+    });
+
+    test('candidates: rus tartibida skanerlangan dona va blok KM', () {
+      for (final km in [
+        kKm1, kKm2, kRealBox1, kRealBox2,
+        '01047801017337672177j=16?_+I/FF', '01047801017337672176Cu=&jr&KtV=',
+      ]) {
+        expect(RefundMarkScan.candidates(typedOnRu(km)), contains(km),
+            reason: km);
+      }
+      // GS + kripto qism bilan (dona yo'li kesadi)
+      expect(RefundMarkScan.candidates(typedOnRu(scanned(kKm1))), contains(kKm1));
+    });
+
+    RefundScanResult check(String km,
+            {bool block = false,
+            List<String> pool = const [kKm1, kKm2],
+            List<String> other = const [kBox1],
+            Set<String> inRight = const {},
+            Set<String> refunded = const {}}) =>
+        RefundMarkScan.check(
+          candidates: RefundMarkScan.candidates(km),
+          isBlockRow: block,
+          pool: pool,
+          otherKindPool: other,
+          inRight: inRight,
+          refunded: refunded,
+        );
+
+    test('havzada — matched', () {
+      expect(check(kKm2), RefundScanResult.matched);
+    });
+    test('chekda yo\'q — notInReceipt', () {
+      expect(check('0104780101733767217NOTSOLD12345'),
+          RefundScanResult.notInReceipt);
+    });
+    test('o\'ngda bor — alreadyAdded', () {
+      expect(check(kKm1, pool: [kKm2], inRight: {kKm1}),
+          RefundScanResult.alreadyAdded);
+    });
+    test('oldin qaytarilgan — alreadyRefunded', () {
+      expect(check(kKm1, pool: [kKm2], refunded: {kKm1}),
+          RefundScanResult.alreadyRefunded);
+    });
+    test('dona qatorida blok KM — boxMarkOnUnitRow', () {
+      expect(check(kBox1), RefundScanResult.boxMarkOnUnitRow);
+    });
+    test('blok qatorida dona KM — unitMarkOnBoxRow', () {
+      expect(check(kKm1, block: true, pool: [kBox1], other: [kKm1]),
+          RefundScanResult.unitMarkOnBoxRow);
+    });
+    test('bo\'sh / qisqa — empty', () {
+      expect(check(''), RefundScanResult.empty);
+      expect(check('4780101733767'), RefundScanResult.empty);
+    });
+  });
+
+  group('Vozvrat sahifasi: skanerlab qaytarish (boshqa kassa cheki)', () {
+    test('DT1: chapda bitta qator "x 2", KM ko\'rinmaydi — faqat skan orqali', () {
+      final page = openReturnPage(serverOrder(serverItem()));
+      final p = providerOf(page);
+      expect(p.getLeftList.length, 1);
+      final row = p.getLeftList.single;
+      expect(row.value, 2);
+      expect(p.needsScan(row), isTrue);
+
+      // Skansiz ko'chirib bo'lmaydi
+      p.pressLeftIndex(0);
+      p.pressLeftProduct();
+      p.pressLeftProductDialog2(2);
+      expect(p.getRightList, isEmpty);
+      expect(row.value, 2);
+    });
+
+    test('to\'g\'ri KM — aynan o\'sha 1 dona o\'ngga, chapda 1 qoladi', () {
+      final page = openReturnPage(serverOrder(serverItem()));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+
+      expect(p.scanMark(row, scanned(kKm2)), RefundScanResult.matched);
+      final right = p.getRightList.single;
+      expect(right.mark, kKm2);
+      expect(right.value, 1);
+      expect(right.marking, isTrue);
+      expect(row.value, 1);
+      expect(row.mark, kKm1);
+    });
+
+    test('chekda sotilmagan KM — hech narsa o\'tmaydi', () {
+      final page = openReturnPage(serverOrder(serverItem()));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      expect(p.scanMark(row, scanned('0104780101733767217NOTSOLD12345')),
+          RefundScanResult.notInReceipt);
+      expect(p.getRightList, isEmpty);
+      expect(row.value, 2);
+    });
+
+    test('bir KM ikki marta — alreadyAdded', () {
+      final page = openReturnPage(serverOrder(serverItem()));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      p.scanMark(row, scanned(kKm1));
+      expect(p.scanMark(row, scanned(kKm1)), RefundScanResult.alreadyAdded);
+      expect(p.getRightList.length, 1);
+    });
+
+    test('o\'ngdan bekor qilish — KM chapdagi havzaga qaytadi', () {
+      final page = openReturnPage(serverOrder(serverItem()));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      p.scanMark(row, scanned(kKm1));
+      p.pressRightIndex(0);
+      p.pressRightProduct();
+      expect(p.getRightList, isEmpty);
+      expect(p.getLeftList.single.value, 2);
+      expect(RefundMarkSplit.marksOf(p.getLeftList.single.mark).toSet(),
+          {kKm1, kKm2});
+    });
+
+    test('hammasi skanerlansa chap qator yo\'qoladi, o\'ngda 2 alohida qator', () {
+      final page = openReturnPage(serverOrder(serverItem()));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      p.scanMark(row, scanned(kKm1));
+      p.scanMark(row, scanned(kKm2));
+      expect(p.getLeftList, isEmpty);
+      expect(p.getRightList.map((e) => e.mark), [kKm1, kKm2]);
+    });
+
+    test('1 tasi boshqa kassada qaytarilgan (qaysi biri noma\'lum) — qaytayotgani skanerlanadi',
+        () {
+      final page = openReturnPage(serverOrder(serverItem(refundAmount: 1)));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      expect(row.value, 1);
+      expect(p.scanMark(row, scanned(kKm2)), RefundScanResult.matched);
+      expect(p.getLeftList, isEmpty, reason: 'qoldiq 1 — boshqasi o\'tmaydi');
+
+      // Bekor qilinsa qator ikkala KM bilan tiklanadi
+      p.pressRightIndex(0);
+      p.pressRightProduct();
+      expect(p.getLeftList.single.value, 1);
+      expect(RefundMarkSplit.marksOf(p.getLeftList.single.mark).toSet(),
+          {kKm1, kKm2});
+      expect(p.scanMark(p.getLeftList.single, scanned(kKm1)),
+          RefundScanResult.matched);
+    });
+
+    test('blok: blok qatorida blok KM, dona qatorida dona KM; turlar aralashmaydi', () {
+      final page = openReturnPage(serverOrder(
+        serverItem(
+          value: 3, // token: 2 blok + 1 dona
+          price: 4500,
+          saleType: 2,
+          boxValue: 6,
+          boxQuantity: 2,
+          boxMarkingNames: [kBox1, kBox2],
+          markingNames: [kBoxUnit],
+        ),
+        totalPrice: 58500,
+      ));
+      final p = providerOf(page);
+      expect(p.getLeftList.length, 2);
+      final block = leftRow(p, block: true);
+      final unit = leftRow(p);
+      expect(block.value, 12);
+      expect(block.boxQuantity, 2);
+      expect(unit.value, 1);
+
+      expect(p.scanMark(block, scanned(kBoxUnit)),
+          RefundScanResult.unitMarkOnBoxRow);
+      expect(p.scanMark(unit, scanned(kBox1)), RefundScanResult.boxMarkOnUnitRow);
+      expect(p.getRightList, isEmpty);
+
+      expect(p.scanMark(block, scanned(kBox2)), RefundScanResult.matched);
+      final right = p.getRightList.single;
+      expect(right.saleType, 2);
+      expect(right.value, 6);
+      expect(right.boxQuantity, 1);
+      expect(right.mark, kBox2);
+      expect(right.marking, isFalse);
+      expect(block.value, 6);
+      expect(block.boxQuantity, 1);
+    });
+
+    test('rus tartibida skanerlansa ham o\'sha KM o\'tadi — soliqqa sotuvdagi Label', () {
+      const km = '01047801017337672176Cu=&jr&KtV=';
+      final page = openReturnPage(serverOrder(serverItem(markingNames: [km, kKm1])));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      expect(p.scanMark(row, typedOnRu(km)), RefundScanResult.matched);
+      expect(p.getRightList.single.mark, km);
+      expect(itemsOf(wireJson(refundOf(page, p))).single['Label'], km);
+    });
+
+    test('haqiqiy blok KM (kripto qism bilan) — blok qatorida mos keladi (DT7 regressiya)',
+        () {
+      final page = openReturnPage(serverOrder(
+        serverItem(
+          value: 4, // token: 3 blok + 1 dona
+          price: 2800,
+          saleType: 2,
+          boxValue: 12,
+          boxQuantity: 3,
+          boxMarkingNames: [kRealBox1, kRealBox2, '${kRealBox2}x'],
+          markingNames: [kKm1],
+        ),
+        totalPrice: 2800 * 37,
+      ));
+      final p = providerOf(page);
+      final block = leftRow(p, block: true);
+      final unit = leftRow(p);
+      expect(p.scanMark(unit, kRealBox1), RefundScanResult.boxMarkOnUnitRow);
+      expect(p.scanMark(block, kRealBox1), RefundScanResult.matched);
+      expect(p.getRightList.single.mark, kRealBox1);
+      expect(p.getRightList.single.value, 12);
+
+      final items = itemsOf(wireJson(refundOf(page, p)));
+      expect(items.single['Label'], kRealBox1, reason: 'sotuvdagi Label aynan');
+      expect(items.single['Amount'], 1000);
+      expect(items.single['Price'], 3360000);
+    });
+
+    test('KM\'siz chek (server KM bermagan, lokal yo\'q) — avvalgidek miqdor bilan', () {
+      final page = openReturnPage(serverOrder(
+          serverItem(markingNames: null, boxMarkingNames: null)));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      expect(p.needsScan(row), isFalse);
+      p.pressLeftIndex(0);
+      p.pressLeftProductDialog2(1);
+      expect(p.getRightList.single.value, 1);
+      expect(p.getRightList.single.mark, isNull);
+    });
+  });
+
+  group('Sotuv (order_pos) — refunded_* maydonlar doim bo\'sh', () {
+    test('dona KM, blok KM va oddiy qator: ikkala maydon bo\'sh massiv', () {
+      final rows = [
+        localRow(value: 2, mark: '$kKm1\n$kKm2'),
+        localRow(
+            value: 13, saleType: 2, boxValue: 6, boxQuantity: 2,
+            boxMark: '$kRealBox1\n$kRealBox2', mark: kBoxUnit),
+        localRow(value: 3),
+      ];
+      for (final r in rows) {
+        final j = jsonDecode(jsonEncode(r.toJson())) as Map<String, dynamic>;
+        expect(j['refunded_marking_names'], isEmpty);
+        expect(j['refunded_box_marking_names'], isEmpty);
+        expect(j['refunded_marking_names'], isA<List>());
+      }
+      // Sotilgan KM'lar avvalgidek o'z maydonlarida
+      final dona = rows[0].toJson();
+      expect(dona['marking_names'], [kKm1, kKm2]);
+      final blok = rows[1].toJson();
+      expect(blok['box_marking_names'], [kRealBox1, kRealBox2]);
+    });
+  });
+
+  group('Serverga vozvrat (refund_order_items) — KM\'lar bilan', () {
+    ReceiptModelSoldItem4 row(String itemId,
+        {double value = 1, String? mark, int saleType = 1, int boxValue = 0}) {
+      final r = localRow(
+          value: value, mark: mark, saleType: saleType, boxValue: boxValue,
+          boxQuantity: boxValue > 0 ? value ~/ boxValue : 0);
+      r.refundItemId = itemId;
+      return r;
+    }
+
+    Map<String, dynamic> body(List<ReceiptModelSoldItem4> rows) {
+      final r = localReceipt(externalId: 'R1', isRefund: true, items: rows);
+      r.payment.add(
+          ReceiptModelPaymentType4(name: 'CASH', payId: 'cash-id', value: 1));
+      return ReceiptApi4.funcToRefund(r);
+    }
+
+    test('shablon: items[] da id, price, quantity, marking_names, box_marking_names', () {
+      final b = body([row('item-1', mark: kKm1)]);
+      final it = (b['items'] as List).single as Map<String, dynamic>;
+      expect(it.keys.toSet(),
+          {'id', 'price', 'quantity', 'marking_names', 'box_marking_names'});
+      expect(b.keys.toSet(), containsAll(['items', 'payments', 'user_id']));
+      // JSON'ga massiv bo'lib ketadi
+      expect(jsonDecode(jsonEncode(b))['items'][0]['marking_names'], [kKm1]);
+    });
+
+    test('bir item\'ning dona KM qatorlari bitta itemga jamlanadi', () {
+      final it = (body([
+        row('item-1', mark: kKm1),
+        row('item-1', mark: kKm2),
+      ])['items'] as List).single;
+      expect(it['quantity'], 2);
+      expect(it['marking_names'], [kKm1, kKm2]);
+      expect(it['box_marking_names'], isEmpty);
+    });
+
+    test('blok qatorlari box_marking_names ga, dona qatori marking_names ga', () {
+      final it = (body([
+        row('item-1', value: 12, mark: kRealBox1, saleType: 2, boxValue: 12),
+        row('item-1', value: 12, mark: kRealBox2, saleType: 2, boxValue: 12),
+        row('item-1', mark: kKm1),
+      ])['items'] as List).single;
+      expect(it['quantity'], 25);
+      expect(it['box_marking_names'], [kRealBox1, kRealBox2]);
+      expect(it['marking_names'], [kKm1]);
+    });
+
+    test('KM\'siz qator — bo\'sh massivlar (eski xatti-harakat + yangi maydonlar)', () {
+      final it = (body([row('item-2', value: 3)])['items'] as List).single;
+      expect(it['quantity'], 3);
+      expect(it['marking_names'], isEmpty);
+      expect(it['box_marking_names'], isEmpty);
+    });
+
+    test('har xil item\'lar KM\'lari aralashmaydi', () {
+      final items = body([
+        row('item-1', mark: kKm1),
+        row('item-2', mark: kKm2),
+      ])['items'] as List;
+      final byId = {for (final i in items) i['id']: i};
+      expect(byId['item-1']['marking_names'], [kKm1]);
+      expect(byId['item-2']['marking_names'], [kKm2]);
+    });
+  });
+
+  group('Soliqqa (fiskal modul) vozvrat — sotuvdagidek', () {
+    test('DT1: 2 KM skanerlandi → 2 pozitsiya, Label = KM, Amount 1000', () {
+      final page = openReturnPage(serverOrder(serverItem()));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      p.scanMark(row, scanned(kKm1));
+      p.scanMark(row, scanned(kKm2));
+
+      final refund = refundOf(page, p);
+      final items = itemsOf(wireJson(refund));
+      expect(items.length, 2);
+      expect(items.map((i) => i['Label']), [kKm1, kKm2]);
+
+      // Serverga (refund_order_items): bitta item, qaytgan KM'lar bilan
+      final body = ReceiptApi4.funcToRefund(refund)['items'] as List;
+      expect(body.single['quantity'], 2);
+      expect(body.single['marking_names'], [kKm1, kKm2]);
+      expect(body.single['box_marking_names'], isEmpty);
+      for (final i in items) {
+        expect(i['Amount'], 1000);
+        expect(i['Price'], 290000);
+        expect(i['SPIC'], kMxik);
+        expect(i['Barcode'], '4780101733767');
+      }
+    });
+
+    test('2 tadan 1 tasi skanerlandi → bitta pozitsiya, o\'sha KM bilan', () {
+      final page = openReturnPage(serverOrder(serverItem()));
+      final p = providerOf(page);
+      p.scanMark(p.getLeftList.single, scanned(kKm2));
+      final items = itemsOf(wireJson(refundOf(page, p)));
+      expect(items.single['Label'], kKm2);
+      expect(items.single['Amount'], 1000);
+    });
+
+    test('blok: blok KM pozitsiyasi Amount 1000 × blok narxi; serverga dona hisobida',
+        () {
+      final page = openReturnPage(serverOrder(
+        serverItem(
+          value: 3,
+          price: 4500,
+          saleType: 2,
+          boxValue: 6,
+          boxQuantity: 2,
+          boxMarkingNames: [kBox1, kBox2],
+          markingNames: [kBoxUnit],
+        ),
+        totalPrice: 58500,
+      ));
+      final p = providerOf(page);
+      p.scanMark(leftRow(p, block: true), scanned(kBox1));
+      p.scanMark(leftRow(p, block: true), scanned(kBox2));
+      p.scanMark(leftRow(p), scanned(kBoxUnit));
+
+      final refund = refundOf(page, p);
+      final items = itemsOf(wireJson(refund));
+      expect(items.length, 3);
+      expect(items[0]['Label'], kBox1);
+      expect(items[0]['Amount'], 1000);
+      expect(items[0]['Price'], 2700000);
+      expect(items[1]['Label'], kBox2);
+      expect(items[1]['Amount'], 1000);
+      expect(items[2]['Label'], kBoxUnit);
+      expect(items[2]['Amount'], 1000);
+      expect(items[2]['Price'], 450000);
+
+      final refunded = ReceiptApi4.funcToRefund(refund)['items'] as List;
+      expect(refunded.single['quantity'], 13);
+      expect(refunded.single['box_marking_names'], [kBox1, kBox2]);
+      expect(refunded.single['marking_names'], [kBoxUnit]);
+    });
+
+    test('blok, 1 blok boshqa kassada qaytarilgan: qolgan 1 blok skanerlanadi (ilgari item yo\'qolardi)',
+        () {
+      final page = openReturnPage(serverOrder(
+        serverItem(
+          value: 3,
+          refundAmount: 6,
+          price: 4500,
+          saleType: 2,
+          boxValue: 6,
+          boxQuantity: 2,
+          boxMarkingNames: [kBox1, kBox2],
+          markingNames: [kBoxUnit],
+        ),
+        totalPrice: 58500,
+      ));
+      final p = providerOf(page);
+      final block = leftRow(p, block: true);
+      expect(block.value, 6);
+      expect(p.scanMark(block, scanned(kBox2)), RefundScanResult.matched);
+      expect(p.getLeftList.where((e) => e.saleType == 2), isEmpty);
+
+      final items = itemsOf(wireJson(refundOf(page, p)));
+      expect(items.single['Label'], kBox2);
+      expect(items.single['Amount'], 1000);
+      expect(items.single['Price'], 2700000);
+    });
+  });
+
+  group('Serverdagi qaytarilgan KM\'lar (refunded_marking_names / refunded_box_marking_names)', () {
+    final k = [for (var i = 0; i < 10; i++) '0104780101733767217Km${i}abcdefgh'];
+
+    test('ItemsGTR o\'qiydi; serverRefundedMarks barcha item\'lardan dona + blok', () {
+      final order = serverOrder(
+        serverItem(refundedMarkingNames: [k[0]], refundedBoxMarkingNames: [kRealBox1]),
+        more: [serverItem(id: 'item-2', refundedMarkingNames: [k[5]])],
+      );
+      expect(order.items!.first.refundedMarkingNames, [k[0]]);
+      expect(order.items!.first.refundedBoxMarkingNames, [kRealBox1]);
+      expect(ReUpdateBloc.serverRefundedMarks(order), {k[0], kRealBox1, k[5]});
+    });
+
+    test('eski server (maydonlar yo\'q) — bo\'sh, avvalgidek ishlaydi', () {
+      final order = serverOrder(serverItem());
+      expect(order.items!.first.refundedMarkingNames, isEmpty);
+      expect(ReUpdateBloc.serverRefundedMarks(order), isEmpty);
+    });
+
+    test('10 tadan 3 tasi boshqa kassada qaytarilgan — havzada 7 ta, qaytarilgani "oldin qaytarilgan"', () {
+      final page = openReturnPage(serverOrder(serverItem(
+        value: 10,
+        refundAmount: 3,
+        markingNames: k,
+        refundedMarkingNames: [k[0], k[1], k[2]],
+      ), totalPrice: 28000));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      expect(row.value, 7);
+      expect(RefundMarkSplit.marksOf(row.mark), k.sublist(3));
+      for (final r in [k[0], k[1], k[2]]) {
+        expect(p.scanMark(row, r), RefundScanResult.alreadyRefunded);
+      }
+      expect(p.getRightList, isEmpty);
+      expect(p.scanMark(row, k[3]), RefundScanResult.matched);
+      expect(row.value, 6);
+    });
+
+    test('blok boshqa kassada qaytarilgan — blok qatorida ham, dona qatorida ham "oldin qaytarilgan"', () {
+      final page = openReturnPage(serverOrder(serverItem(
+        value: 4, // token: 3 blok + 1 dona
+        refundAmount: 12, // 1 blok
+        price: 2800,
+        saleType: 2,
+        boxValue: 12,
+        boxQuantity: 3,
+        boxMarkingNames: [kRealBox1, kRealBox2, '${kRealBox2}b'],
+        markingNames: [k[0]],
+        refundedBoxMarkingNames: [kRealBox1],
+      ), totalPrice: 2800 * 37));
+      final p = providerOf(page);
+      final block = leftRow(p, block: true);
+      final unit = leftRow(p);
+      expect(block.boxQuantity, 2);
+      expect(RefundMarkSplit.marksOf(block.mark), [kRealBox2, '${kRealBox2}b']);
+      expect(p.scanMark(block, kRealBox1), RefundScanResult.alreadyRefunded);
+      expect(p.scanMark(unit, kRealBox1), RefundScanResult.alreadyRefunded);
+      expect(p.scanMark(block, kRealBox2), RefundScanResult.matched);
+    });
+
+    test('qaytarilgan KM rus tartibida skanerlansa ham "oldin qaytarilgan"', () {
+      const km = '01047801017337672176Cu=&jr&KtV=';
+      final page = openReturnPage(serverOrder(serverItem(
+        refundAmount: 1,
+        markingNames: [km, kKm1],
+        refundedMarkingNames: [km],
+      )));
+      final p = providerOf(page);
+      expect(p.scanMark(p.getLeftList.single, typedOnRu(km)),
+          RefundScanResult.alreadyRefunded);
+    });
+
+    test('eski versiyada (KM\'siz) qaytarilgan — KM noma\'lum, lekin miqdor server qoldig\'idan oshmaydi', () {
+      // refund_amount 3, refunded ro'yxat bo'sh: qaysi 3 KM qaytgani noma'lum.
+      final page = openReturnPage(serverOrder(serverItem(
+        value: 10,
+        refundAmount: 3,
+        markingNames: k,
+        refundedMarkingNames: [],
+      ), totalPrice: 28000));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      expect(row.value, 7);
+      for (var i = 0; i < 7; i++) {
+        expect(p.scanMark(row, k[i]), RefundScanResult.matched);
+      }
+      expect(p.getLeftList, isEmpty, reason: '8-chisini qaytarib bo\'lmaydi');
+      expect(p.getRightList.length, 7);
+    });
+
+    test('A chekda qaytarilib, B chekda qayta sotilgan KM — B chek bo\'yicha qaytariladi', () {
+      final pageB = openReturnPage(serverOrder(
+        serverItem(markingNames: [k[0], k[1]]), // B chekda refunded yo'q
+        externalId: 'DT-B',
+      ));
+      final p = providerOf(pageB);
+      expect(p.scanMark(p.getLeftList.single, k[0]), RefundScanResult.matched);
+    });
+
+    test('boshqa mahsulot qatorini bosib skanerlansa — "boshqa mahsulotniki" (chekda yo\'q emas)', () {
+      const hydro = '0104780069000512217Hydro0abcdefg';
+      final page = openReturnPage(serverOrder(
+        serverItem(markingNames: [k[0]]),
+        more: [serverItem(id: 'item-h', productId: 'hydro-id', markingNames: [hydro])],
+        totalPrice: 5800,
+      ));
+      final p = providerOf(page);
+      final montella = p.getLeftList.firstWhere((e) => e.productId == kProductId);
+      expect(p.scanMark(montella, hydro), RefundScanResult.otherProduct);
+      expect(p.getRightList, isEmpty);
+      final h = p.getLeftList.firstWhere((e) => e.productId == 'hydro-id');
+      expect(p.scanMark(h, hydro), RefundScanResult.matched);
+    });
+
+    test('bir chekda bir mahsulot ikki item bo\'lsa — bekor qilingan KM o\'z item\'iga qaytadi', () {
+      final page = openReturnPage(serverOrder(
+        serverItem(id: 'item-1', markingNames: [k[0], k[1]]),
+        more: [serverItem(id: 'item-2', markingNames: [k[2], k[3]])],
+        totalPrice: 11600,
+      ));
+      final p = providerOf(page);
+      final row2 = p.getLeftList.firstWhere((e) => e.refundItemId == 'item-2');
+      expect(p.scanMark(row2, k[2]), RefundScanResult.matched);
+      p.pressRightIndex(0);
+      p.pressRightProduct();
+      final back = p.getLeftList.firstWhere((e) => e.refundItemId == 'item-2');
+      expect(RefundMarkSplit.marksOf(back.mark).toSet(), {k[2], k[3]});
+      final row1 = p.getLeftList.firstWhere((e) => e.refundItemId == 'item-1');
+      expect(RefundMarkSplit.marksOf(row1.mark).toSet(), {k[0], k[1]});
+      // Serverga KM o'z item id'si bilan ketadi
+      p.scanMark(back, k[3]);
+      final body = ReceiptApi4.funcToRefund(refundOf(page, p))['items'] as List;
+      expect(body.single['id'], 'item-2');
+      expect(body.single['marking_names'], [k[3]]);
+    });
+  });
+
+  group('Umumiy hayot sikli: sotuv → A kassada vozvrat → B, C kassa (server holati vozvrat tanasidan)', () {
+    final k = [for (var i = 0; i < 10; i++) '0104780101733767217Km${i}abcdefgh'];
+    final b = ['0114780101733764217Box1abcdefg02993zzzz', '0114780101733764217Box2abcdefg02993yyyy'];
+    const price = 2800;
+
+    // Sotuv: 2 blok (12 dona) + 10 dona = 34 dona, serverda token 12.
+    GlobalReceipt server({
+      num refundAmount = 0,
+      List<String> refunded = const [],
+      List<String> refundedBox = const [],
+    }) =>
+        serverOrder(serverItem(
+          value: 12,
+          refundAmount: refundAmount,
+          price: price,
+          saleType: 2,
+          boxValue: 12,
+          boxQuantity: 2,
+          boxMarkingNames: b,
+          markingNames: k,
+          refundedMarkingNames: refunded,
+          refundedBoxMarkingNames: refundedBox,
+        ), totalPrice: price * 34);
+
+    test('to\'liq oqim', () {
+      // ---- A kassa: 1 blok + 3 dona
+      final a = openReturnPage(server());
+      final pa = providerOf(a);
+      expect(leftRow(pa, block: true).boxQuantity, 2);
+      expect(leftRow(pa).value, 10);
+      expect(pa.scanMark(leftRow(pa, block: true), b[0]), RefundScanResult.matched);
+      for (final km in [k[0], k[1], k[2]]) {
+        expect(pa.scanMark(leftRow(pa), km), RefundScanResult.matched);
+      }
+      final refundA = refundOf(a, pa);
+      final wireA = itemsOf(wireJson(refundA));
+      expect(wireA.map((i) => i['Label']), [b[0], k[0], k[1], k[2]]);
+      expect(wireA.first['Amount'], 1000);
+      expect(wireA.first['Price'], 12 * price * 100);
+      expect(wireA.skip(1).every((i) => i['Amount'] == 1000 && i['Price'] == price * 100), isTrue);
+      final bodyA = (ReceiptApi4.funcToRefund(refundA)['items'] as List).single;
+      expect(bodyA['quantity'], 15);
+      expect(bodyA['box_marking_names'], [b[0]]);
+      expect(bodyA['marking_names'], [k[0], k[1], k[2]]);
+
+      // ---- Server A vozvratini qabul qildi (holat aynan yuborilgan tanadan)
+      final refunded1 = List<String>.from(bodyA['marking_names']);
+      final refundedBox1 = List<String>.from(bodyA['box_marking_names']);
+
+      // ---- B kassa (lokal ma'lumot yo'q)
+      final bPage = openReturnPage(server(
+          refundAmount: 15, refunded: refunded1, refundedBox: refundedBox1));
+      final pb = providerOf(bPage);
+      expect(leftRow(pb, block: true).boxQuantity, 1);
+      expect(leftRow(pb).value, 7);
+      expect(pb.scanMark(leftRow(pb, block: true), b[0]), RefundScanResult.alreadyRefunded);
+      expect(pb.scanMark(leftRow(pb), k[1]), RefundScanResult.alreadyRefunded);
+      expect(pb.scanMark(leftRow(pb), '0104780101733767217NOTSOLD12345'), RefundScanResult.notInReceipt);
+      expect(pb.scanMark(leftRow(pb), k[3]), RefundScanResult.matched);
+      expect(pb.scanMark(leftRow(pb, block: true), b[1]), RefundScanResult.matched);
+      final bodyB = (ReceiptApi4.funcToRefund(refundOf(bPage, pb))['items'] as List).single;
+      expect(bodyB['quantity'], 13);
+      expect(bodyB['marking_names'], [k[3]]);
+      expect(bodyB['box_marking_names'], [b[1]]);
+
+      // ---- C kassa: qolgan 6 dona
+      final c = openReturnPage(server(
+        refundAmount: 28,
+        refunded: [...refunded1, ...List<String>.from(bodyB['marking_names'])],
+        refundedBox: [...refundedBox1, ...List<String>.from(bodyB['box_marking_names'])],
+      ));
+      final pc = providerOf(c);
+      expect(pc.getLeftList.where((e) => e.saleType == 2), isEmpty);
+      final rest = leftRow(pc);
+      expect(rest.value, 6);
+      expect(RefundMarkSplit.marksOf(rest.mark), k.sublist(4));
+      for (final km in k.sublist(4)) {
+        expect(pc.scanMark(rest, km), RefundScanResult.matched);
+      }
+      expect(pc.getLeftList, isEmpty);
+      final bodyC = (ReceiptApi4.funcToRefund(refundOf(c, pc))['items'] as List).single;
+      expect(bodyC['quantity'], 6);
+      expect(bodyC['marking_names'], k.sublist(4));
+
+      // ---- Hammasi qaytgan: vozvrat sahifasi bo'sh
+      final done = openReturnPage(server(refundAmount: 34, refunded: k, refundedBox: b));
+      expect(done.receipt.soldItemList, isEmpty);
+    });
+  });
+
+  final Store? store = _tryOpenStore();
+
+  group('Shu kassa / lokal vozvratlar (ObjectBox)', skip: store == null
+      ? 'ObjectBox kutubxonasi topilmadi (libobjectbox) — fayl boshidagi izohga qarang'
+      : false, () {
+    setUpAll(() => MyObjectbox.saleStore = store!);
+    tearDownAll(() => store?.close());
+    setUp(() => MyObjectbox.saleStore.box<ReceiptModel4>().removeAll());
+
+    test('shu kassada 1 tasi qaytarilgan — havzada faqat qolgani, qaytarilgani "oldin qaytarilgan"',
+        () {
+      final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+      box.put(localReceipt(
+          externalId: 'DT1',
+          isRefund: false,
+          items: [localRow(value: 2, mark: '$kKm1\n$kKm2')]));
+      box.put(localReceipt(
+          externalId: 'DT1',
+          isRefund: true,
+          items: [localRow(value: 1, mark: kKm1)]));
+
+      final page = openReturnPage(serverOrder(serverItem(refundAmount: 1)));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      expect(row.value, 1);
+      expect(row.mark, kKm2);
+      expect(p.scanMark(row, scanned(kKm1)), RefundScanResult.alreadyRefunded);
+      expect(p.scanMark(row, scanned(kKm2)), RefundScanResult.matched);
+    });
+
+    test('server KM bermasa (eski chek) — havza lokal originaldan', () {
+      MyObjectbox.saleStore.box<ReceiptModel4>().put(localReceipt(
+          externalId: 'DT1',
+          isRefund: false,
+          items: [localRow(value: 2, mark: '$kKm1\n$kKm2')]));
+
+      final page = openReturnPage(
+          serverOrder(serverItem(markingNames: null, boxMarkingNames: null)));
+      final row = page.receipt.soldItemList.single;
+      expect(RefundMarkSplit.marksOf(row.mark), [kKm1, kKm2]);
+    });
+
+    test('shu kassa blok cheki — blok qoldig\'i lokal hisobdan, havzalar bilan', () {
+      MyObjectbox.saleStore.box<ReceiptModel4>().put(localReceipt(
+        externalId: 'DB1',
+        isRefund: false,
+        items: [
+          localRow(
+            value: 13,
+            price: 4500,
+            saleType: 2,
+            boxValue: 6,
+            boxQuantity: 2,
+            boxMark: '$kBox1\n$kBox2',
+            mark: kBoxUnit,
+          ),
+        ],
+      ));
+
+      final page = openReturnPage(serverOrder(
+        serverItem(
+          value: 3,
+          price: 4500,
+          saleType: 2,
+          boxValue: 6,
+          boxQuantity: 2,
+          boxMarkingNames: [kBox1, kBox2],
+          markingNames: [kBoxUnit],
+        ),
+        externalId: 'DB1',
+        totalPrice: 58500,
+      ));
+      final rows = page.receipt.soldItemList;
+      expect(rows.map((e) => e.value), [12, 1]);
+      expect(RefundMarkSplit.marksOf(rows[0].mark), [kBox1, kBox2]);
+      expect(RefundMarkSplit.marksOf(rows[1].mark), [kBoxUnit]);
+    });
+
+    test('boshqa kassa cheki shu yerda qisman qaytarilgan — qolgani chiqadi (ilgari 2 marta ayirilardi)',
+        () {
+      // Lokal original YO'Q (boshqa kassa), shu kassadagi vozvrat serverga yetgan.
+      MyObjectbox.saleStore.box<ReceiptModel4>().put(localReceipt(
+          externalId: 'DT1',
+          isRefund: true,
+          items: [localRow(value: 1, mark: kKm1)]));
+
+      final page = openReturnPage(serverOrder(serverItem(refundAmount: 1)));
+      final row = page.receipt.soldItemList.single;
+      expect(row.value, 1, reason: 'ilgari 2 − 1 (server) − 1 (lokal) = 0 bo\'lib yo\'qolardi');
+      expect(row.mark, kKm2);
+    });
+
+    test('server ro\'yxati + shu kassadagi hali yuborilmagan vozvrat — ikkalasi ham chiqariladi', () {
+      MyObjectbox.saleStore.box<ReceiptModel4>().put(localReceipt(
+          externalId: 'DT1',
+          isRefund: true,
+          uploaded: false,
+          items: [localRow(value: 1, mark: kKm2)]));
+      const k3 = '0104780101733767217Km3abcdefgh';
+      // Server faqat kKm1 ni biladi (kKm2 vozvrati hali yetib bormagan)
+      final page = openReturnPage(serverOrder(serverItem(
+        value: 3,
+        refundAmount: 1,
+        markingNames: [kKm1, kKm2, k3],
+        refundedMarkingNames: [kKm1],
+      ), totalPrice: 8700));
+      final p = providerOf(page);
+      final row = p.getLeftList.single;
+      expect(row.value, 1, reason: '3 − 1 (server) − 1 (yuborilmagan lokal)');
+      expect(row.mark, k3);
+      expect(p.scanMark(row, kKm1), RefundScanResult.alreadyRefunded);
+      expect(p.scanMark(row, kKm2), RefundScanResult.alreadyRefunded);
+      expect(p.scanMark(row, k3), RefundScanResult.matched);
+    });
+
+    test('shu kassadagi vozvrat serverga hali yetmagan — lokal hisobdan ayiriladi', () {
+      MyObjectbox.saleStore.box<ReceiptModel4>().put(localReceipt(
+          externalId: 'DT1',
+          isRefund: true,
+          uploaded: false,
+          items: [localRow(value: 1, mark: kKm1)]));
+
+      final page = openReturnPage(serverOrder(serverItem()));
+      final row = page.receipt.soldItemList.single;
+      expect(row.value, 1);
+      expect(row.mark, kKm2);
+    });
+  });
+}
+```
+
+</details>
+
+## 7. Tekshirish
+
+- `flutter test test/refund_marking_test.dart` — 66/66 (ItemsGTR, plan, skan, rus tartibi, provider oqimi, fiskal JSON,
+  server tanasi, `refunded_*`, umumiy hayot sikli: sotuv 2 blok + 10 dona → A → B → C kassa; ObjectBox: shu kassa,
+  qoldiq tuzatishi, server + yuborilmagan lokal birlashmasi). Vozvratga oid 5 to'plam 108/108; to'liq 2240 o'tdi / 4 skip.
+- `flutter analyze` — 590 (asos bilan teng), error 0.
+- E2E (Mac, DEV backend + soxta fiskal modul `127.0.0.1:3448`, 2026-10-27/28): vozvrat #123 (1 KM), #124 (2 KM),
+  #142 (1 blok + 2 dona) — har pozitsiya sotuv bilan 11 maydonda bir xil, balans to'g'ri; `refund_order_items` 200,
+  tanada KM'lar; GET `refunded_box_marking_names` yuborilgan KM bilan aynan bir xil; `order_pos` 201 (#139–#141:
+  markirovkasiz, dona + blok KM). Oldin qaytarilgan KM, boshqa chek KM, blok KM (kripto qism bilan) qo'lda sinalgan.
+- Do'kon (Windows, haqiqiy fiskal modul): kutilmoqda.
+
+## 8. Eslatmalar va ochiq savollar
+
+- Klient yopa olmaydigan tirqichlar — backend validatsiyasi tavsiya etiladi (`refund_order_items` KM `marking_names` /
+  `box_marking_names` da yo'q yoki `refunded_*` da bor bo'lsa rad etsin): (1) ikki kassa bir chekni bir vaqtda
+  qaytarishi; (2) boshqa kassadagi oflayn (navbatdagi) vozvrat; (3) eski versiya / adminkadagi KM'siz vozvratlar —
+  qaysi KM qaytgani noma'lum, faqat miqdor cheklanadi.
+- Klaviatura jadvali Windows ЙЦУКЕН bo'yicha; macOS "Russian" tartibida raqam qatori boshqacha.
+- Sotilgan blok ichidagi bitta shishani (dona KM) qaytarib bo'lmaydi — chekda faqat blok KM bor ("shu chekda sotilmagan").
+- Global skaner tinglovchisi cheklar sahifasida ham kechikib `home` ga qaytishi mumkin (`home_page.dart` VisibilityDetector) —
+  bu task faqat vozvrat sahifasi va dialogni himoyaladi.
+- Odoo forkiga: **kerak** — `RefundMarkSplit`/`RefundMarkScan`, `KeyboardLayout`, `_copyWith`, provider, skan dialogi,
+  `_fiscalAmount`, `funcToRefund` (vozvrat/markirovka/fiskal mantig'i). `ItemsGTR`/`ReUpdateBloc` qismi InVan backend
+  javobiga bog'liq — Odoo'da KM va qaytarilgan KM manbai boshqa.
 
 ---
 
