@@ -186,6 +186,8 @@ String _getPaymentName(AppLocalizations loc, String id, String name) {
         return name.toUpperCase() == 'PAYME QR' ? 'PAYME QR' : 'PAYME GO';
       } else if (p.id == Pref.getString(PrefKeys.yagonaQrId, "-")) {
         return 'YagonaQR';
+      } else if (p.id == Pref.getString(PrefKeys.kaftpayId, "-")) {
+        return 'Kaftpay';
       } else {
         return p.name ?? 'NFC';
       }

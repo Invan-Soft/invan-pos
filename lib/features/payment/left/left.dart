@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
 import 'package:invan2/utils/utils.dart';
+import 'package:invan2/widgets/my_snackbar.dart';
 import 'package:invan2/features/features.dart';
 import 'package:provider/provider.dart';
 
@@ -36,7 +37,8 @@ class Left extends StatelessWidget {
             key.replaceFirst('@', '') == Pref.getString(PrefKeys.cardId, '') ||
             key == Pref.getString(PrefKeys.clickId, '') ||
             key == Pref.getString(PrefKeys.uzumId, '') ||
-            key == Pref.getString(PrefKeys.yagonaQrId, '-')) {
+            key == Pref.getString(PrefKeys.yagonaQrId, '-') ||
+            key == Pref.getString(PrefKeys.kaftpayId, '-')) {
           cardAmount += value.value ?? 0;
         }
       },
@@ -133,8 +135,19 @@ class Left extends StatelessWidget {
               height: double.infinity,
               onPressed: empty
                   ? null
-                  : () =>
-                      context.read<OrderingProvider4>().removeFromPaymentList(),
+                  : () {
+                      final removed = context
+                          .read<OrderingProvider4>()
+                          .removeFromPaymentList();
+                      if (!removed) {
+                        ScaffoldMessenger.of(context).showSnackBar(mySnackBar(
+                            context,
+                            duration: 4000,
+                            msg: AppLocalizations.of(context)!.ha == 'Ha'
+                                ? "Kaftpay to'lovini o'chirib bo'lmaydi: pul mijozdan yechilgan"
+                                : 'Оплату Kaftpay нельзя удалить: деньги уже списаны'));
+                      }
+                    },
               child: Icon(
                 Icons.clear,
                 color: empty
@@ -528,6 +541,8 @@ class Left extends StatelessWidget {
           return type == 1 ? 'PAYME QR' : 'PAYME GO';
         } else if (p.id == Pref.getString(PrefKeys.yagonaQrId, "-")) {
           return 'YagonaQR';
+        } else if (p.id == Pref.getString(PrefKeys.kaftpayId, "-")) {
+          return 'Kaftpay';
         } else {
           return p.name ?? 'NFC';
         }

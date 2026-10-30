@@ -21,6 +21,7 @@
 //
 // Testlar: test/receipt_vat_test.dart, test/yagonaqr_payment_test.dart
 
+import 'package:invan2/changes/domain/payment/kaftpay.dart';
 import 'package:invan2/changes/domain/payment/yagona_qr.dart';
 import 'package:invan2/features/get_products/singletons/items_singleton.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
@@ -86,6 +87,7 @@ class FiscalPaymentSplit {
     final cashbackId = Pref.getString(PrefKeys.cashbackId, "cash");
     final cardId = Pref.getString(PrefKeys.cardId, '');
     final yagonaQrId = Pref.getString(PrefKeys.yagonaQrId, '');
+    final kaftpayId = Pref.getString(PrefKeys.kaftpayId, '');
 
     for (final p in receipt.payment) {
       final nameUpper = p.name.toUpperCase().trim();
@@ -102,6 +104,10 @@ class FiscalPaymentSplit {
           (yagonaQrId.isNotEmpty && id == yagonaQrId)) {
         // YagonaQr — soliqqa KARTA (ReceivedCard); cardType 2 provider'da.
         // Aniq shox: Click/Payme/Uzum shoxlari oldin ushlab qolmasin.
+        card += p.value;
+      } else if (nameUpper == Kaftpay.code ||
+          (kaftpayId.isNotEmpty && id == kaftpayId)) {
+        // Kaftpay — pul mijozning bank kartasidan yechiladi → KARTA.
         card += p.value;
       } else if (id == cashbackId) {
         cashback += p.value;

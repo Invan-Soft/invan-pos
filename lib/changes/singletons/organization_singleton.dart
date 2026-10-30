@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:invan2/changes/domain/payment/kaftpay.dart';
 import 'package:invan2/changes/domain/payment/yagona_qr.dart';
 import 'package:invan2/changes/models/epay/e_pay_model.dart';
 import 'package:invan2/changes/models/organization_model.dart';
@@ -48,6 +49,8 @@ class OrganizationSingleton {
     String advanceId = "";
     // YagonaQr — alohida tugma (`typeYagonaQr`), fiskalda karta.
     String yagonaQrId = "";
+    // Kaftpay — kaft bilan to'lov (tugma, fiskalda karta).
+    String kaftpayId = "";
 
     List<Payment> otherPayments = [];
     final box = await Hive.openBox<Payment>(_otherPaymentsBox);
@@ -73,6 +76,8 @@ class OrganizationSingleton {
         await _onSubmittedPaynet(v[i]);
       } else if (YagonaQr.isName(v[i].name)) {
         yagonaQrId = v[i].id!;
+      } else if (Kaftpay.isName(v[i].name)) {
+        kaftpayId = v[i].id!;
       } else if (v[i].name == 'CARD') {
         card = v[i].isAdded!;
         cardId = v[i].id!;
@@ -127,6 +132,7 @@ class OrganizationSingleton {
     await Pref.setString(PrefKeys.creditId, creditId);
     await Pref.setString(PrefKeys.advanceId, advanceId);
     await Pref.setString(PrefKeys.yagonaQrId, yagonaQrId);
+    await Pref.setString(PrefKeys.kaftpayId, kaftpayId);
   }
 
   static Future<List<Payment>> getOtherPayments() async {
@@ -138,6 +144,18 @@ class OrganizationSingleton {
     otherPaymentsGlobal = [];
     otherPaymentsGlobal = await OrganizationSingleton.getOtherPayments();
     await _restoreYagonaQrId();
+    await _restoreKaftpayId();
+  }
+
+  /// [_restoreYagonaQrId] kabi: tur qutida bor, id Pref'da yo'q bo'lsa.
+  static Future<void> _restoreKaftpayId() async {
+    if (Pref.getString(PrefKeys.kaftpayId, '').isNotEmpty) return;
+    for (final p in otherPaymentsGlobal) {
+      if (Kaftpay.isName(p.name) && (p.id ?? '').isNotEmpty) {
+        await Pref.setString(PrefKeys.kaftpayId, p.id!);
+        return;
+      }
+    }
   }
 
   /// To'lov turlari shu kod kelmasdan oldin (masalan Shorebird patch'dan

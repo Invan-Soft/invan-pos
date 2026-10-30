@@ -1828,6 +1828,7 @@ class OrderingProvider4 extends ChangeNotifier {
           click: Pref.getString(PrefKeys.clickId, ""),
           uzum: Pref.getString(PrefKeys.uzumId, ""),
           yagonaQr: Pref.getString(PrefKeys.yagonaQrId, ""),
+          kaftpay: Pref.getString(PrefKeys.kaftpayId, ""),
         ),
         sdacha: _sdachaa,
         zdachaToCashBack: _zdachaToCashBack,
@@ -2089,7 +2090,8 @@ class OrderingProvider4 extends ChangeNotifier {
     notifyListeners();
   }
 
-  void removeFromPaymentList() => _tally.removeFromPaymentList();
+  /// false — Kaftpay qatori (pul yechilgan) olib tashlanmadi.
+  bool removeFromPaymentList() => _tally.removeFromPaymentList();
 
   bool get _hasEligibleDebtor =>
       _currentClient.selectedClient != null || _selectedSupplier != null;
@@ -2411,6 +2413,27 @@ class OrderingProvider4 extends ChangeNotifier {
     // Summa haqiqatan yozilgan bo'lsagina: to'liq to'langan chekda adashib
     // bosilsa naqd chekka CardType 2 ketmasin.
     if (paymentsMap.containsKey(payment.id)) _lastCardType = 2;
+  }
+
+  /// Kaftpay oynasiga beriladigan summa (so'm): klaviaturadagi yoki qoldiq
+  /// (Uzcard/Humo bilan bir xil qoida). 0 — to'lanadigan narsa yo'q.
+  double kaftpayAmount(Payment payment) {
+    _selectedPaymentType = payment.id ?? '';
+    final double rest = getAvailableSumma() - getSelectedPaymentSumma();
+    final double parsed =
+        double.tryParse(MoneyFormatter.remover(controller.text)) ?? 0;
+    final double summa = parsed > 0 && parsed < rest ? parsed : rest;
+    return summa > 0 ? summa : 0;
+  }
+
+  /// Kaftpay'dan YECHILGAN summa — aynan shu yoziladi (klaviaturadan qayta
+  /// hisoblanmaydi). Serverga Kaftpay id'si bilan, fiskalda karta.
+  void recordKaftpay(Payment payment, double charged) {
+    payment.type = null; // '@' kalit emas — o'z id'si bilan
+    _selectedPaymentType = payment.id ?? '';
+    _payByAll(getSelectedPaymentSumma() + charged, payment);
+    controller.text = '0';
+    notifyListeners();
   }
 
   double getAvailableSumma() => _tally.getAvailableSumma();

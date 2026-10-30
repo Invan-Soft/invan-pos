@@ -132,28 +132,47 @@ class PaymentTallyController {
     _notify();
   }
 
-  void removeFromPaymentList() {
+  /// Tanlangan qatorni (tanlanmagan bo'lsa — hammasini) olib tashlaydi.
+  /// Kaftpay qatori olib TASHLANMAYDI: pul mijozdan allaqachon yechilgan,
+  /// chekka tushishi shart (aks holda vozvrat kerak bo'ladi). false — Kaftpay
+  /// qatori sabab olib tashlanmadi.
+  bool removeFromPaymentList() {
+    final String kaftpayId = Pref.getString(PrefKeys.kaftpayId, '');
+    bool isKaftpay(String key) =>
+        kaftpayId.isNotEmpty && key.replaceFirst('@', '') == kaftpayId;
+    var removed = true;
     if (selectedPaymentIndex >= 0 && paymentsMap.isNotEmpty) {
       final paymentKeyList = paymentsMap.keys.toList();
       if (selectedPaymentIndex < paymentKeyList.length) {
         final selectedPaymentKey = paymentKeyList[selectedPaymentIndex];
 
-        if (selectedPaymentKey == Pref.getString(PrefKeys.debtId, '')) {
-          Pref.setBool(PrefKeys.debtClick, false);
-        }
+        if (isKaftpay(selectedPaymentKey)) {
+          removed = false;
+        } else {
+          if (selectedPaymentKey == Pref.getString(PrefKeys.debtId, '')) {
+            Pref.setBool(PrefKeys.debtClick, false);
+          }
 
-        paymentsMap.remove(selectedPaymentKey);
+          paymentsMap.remove(selectedPaymentKey);
+        }
       }
 
       selectedPaymentIndex = -1;
     } else {
+      final kept = {
+        for (final e in paymentsMap.entries)
+          if (isKaftpay(e.key)) e.key: e.value,
+      };
+      removed = kept.isEmpty;
       paymentsMap.clear();
+      paymentsMap.addAll(kept);
       selectedPaymentIndex = -1;
       Pref.setBool(PrefKeys.debtClick, false);
     }
 
     checkButtonIsEnable();
     _notify();
+    return removed;
   }
 
   /// Faqat DEBT (qarz) qatorini ro'yxatdan olib tashlaydi — naqd/karta kabi

@@ -30314,6 +30314,35 @@ void main() {
 
 ---
 
+# 20-TASK — Kaftpay (kaft bilan to'lov) — **WIP, PORT QILINMASIN**
+
+> **Holat 2026-10-30:** `feature/kaftpay` ga commit (Windows sinovi uchun GitLab'da), `ayyubxon` ga
+> merge QILINMAGAN, task tugamagan — PORT QILINMASIN. To'liq bo'lim task yakunida.
+> **Sessiya hujjati:** docs/sessions/2026-10-29-kaftpay-tolov-turi.md
+
+1-bosqich: kassaga ULANMAGAN API qatlami. Kaftpay (pp-pos-api,
+`https://pos-api.kaftpay.uz/pp-pos-api`) bo'yicha: HMAC imzo,
+`palmDataEnc` (HKDF-SHA256 + AES-256-GCM), barcha endpointlar, xato kodlari,
+to'lov/vozvrat oqimining pul xavfsizligi (javob yo'qolsa status, hech qachon
+qayta yechmaslik, `1223` da to'xtash). Yangi fayllar:
+`lib/changes/services/payment/kaftpay/` (`kaftpay_crypto`, `kaftpay_error`,
+`kaftpay_models`, `kaftpay_api`, `kaftpay_payment_flow`), `pubspec.yaml` ga
+`cryptography: ^2.9.0`, testlar `test/kaftpay_*_test.dart` (124 ta + 6 jonli).
+2026-10-30 Kaftpay namunaviy kassasi bilan solishtirib tuzatildi: `/pay` 200
+javobida `status` qaraladi (faqat SUCCESS = pul ketdi), identify'ga qo'l
+yuborilmaydi, enroll'da qo'l majburiy, nomzod ismi `firstName` dan (`name` =
+GUID), yaroqsiz RGB tashlab yuboriladi.
+2-bosqich (2026-10-30, birinchi to'lovgacha): VP930 skaneri (`dart:ffi` +
+`palm_wrapper.dll`, isolate), to'lov oynasi (skan → identify → tasdiq → `/pay`,
+noma'lumda "Holatni tekshirish"), mijozni ro'yxatdan o'tkazish (QR barcode
+skanerda + qo'l + kaft), Sozlamalar → Kaftpay (kalitlar, tekshiruvlar, jurnal,
+vozvrat). POS: adminkadagi "Kaftpay" turi nom bo'yicha (YagonaQr kabi), chekda
+`KAFTPAY`, fiskalda karta, qatorini o'chirib bo'lmaydi. Windows'da sinalmagan.
+Qoldi: chek URL → Kaftpay, tx ↔ chek, X/Z qatori.
+Commit bo'lgach to'liq bo'limga aylantiriladi.
+
+---
+
 # Kod o'zgarishisiz hujjatlar (shu davrda yozilgan)
 
 | Fayl | Nima | Port uchun |

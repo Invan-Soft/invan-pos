@@ -14,6 +14,7 @@
 //
 // `OrderingProvider4.paymentsMapAsList` dan ajratildi — qoidalar o'zgarmagan.
 
+import 'package:invan2/changes/domain/payment/kaftpay.dart';
 import 'package:invan2/changes/domain/payment/yagona_qr.dart';
 import 'package:invan2/changes/models/organization_model.dart';
 import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
@@ -29,6 +30,7 @@ class PaymentIds {
     required this.click,
     required this.uzum,
     this.yagonaQr = '',
+    this.kaftpay = '',
   });
 
   final String cash;
@@ -41,6 +43,9 @@ class PaymentIds {
 
   /// YagonaQr id'si — chekdagi nom 'YAGONAQR'.
   final String yagonaQr;
+
+  /// Kaftpay id'si — chekdagi nom 'KAFTPAY'.
+  final String kaftpay;
 }
 
 class ReceiptPayments {
@@ -80,6 +85,9 @@ class ReceiptPayments {
       if (bare == ids.uzum && e.value.type == 1) name = 'UZUM QR';
       if (ids.yagonaQr.isNotEmpty && bare == ids.yagonaQr) {
         name = YagonaQr.code;
+      }
+      if (ids.kaftpay.isNotEmpty && bare == ids.kaftpay) {
+        name = Kaftpay.code;
       }
 
       paymentValue = double.parse(paymentValue.round().toStringAsFixed(3));

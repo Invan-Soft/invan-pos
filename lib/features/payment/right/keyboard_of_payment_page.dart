@@ -5,6 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/app_navigation.dart';
 import 'package:invan2/changes/models/epay/e_pay_model.dart';
+import 'package:invan2/changes/models/organization_model.dart' show Payment;
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_checkout.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_scanner.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_settings.dart';
+import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_pay_dialog.dart';
 import 'package:invan2/changes/singletons/organization_singleton.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
@@ -208,6 +215,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
     final String paynetId = Pref.getString(PrefKeys.paynetId, "");
     final String cardId = Pref.getString(PrefKeys.cardId, "");
     final String yagonaQrId = Pref.getString(PrefKeys.yagonaQrId, "");
+    final String kaftpayId = Pref.getString(PrefKeys.kaftpayId, "");
     final bool isCashHidden = orderingProvider.isCashPaymentHidden ||
         orderingProvider.isCashHiddenByCashsale ||
         orderingProvider.isBigTotalHidden;
@@ -370,6 +378,15 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
             () => orderingProvider.typeYagonaQr(p),
           );
         }
+        // Kaftpay: kaft bilan to'lov (VP930 + Kaftpay). Pul bank kartasidan —
+        // fiskalda karta, shuning uchun "faqat karta" rejimida ham ko'rinadi.
+        if (kaftpayId.isNotEmpty && id == kaftpayId) {
+          if (p.isAdded != true) return const SizedBox.shrink();
+          return _functionalButton(
+            (p.title?.trim().isNotEmpty ?? false) ? p.title! : 'Kaftpay',
+            () => _payKaftpay(orderingProvider, p),
+          );
+        }
         if (id == cardId) {
           return _functionalButton("${loc.plastik} ${loc.karta}", () async {
             Pref.setBool("credit", false);
@@ -393,6 +410,42 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
     );
   }
 
+
+  /// Kaftpay: kaft skani → mijoz tasdig'i → yechish. Faqat YECHILGAN summa
+  /// chekka yoziladi (`recordKaftpay`).
+  Future<void> _payKaftpay(OrderingProvider4 provider, Payment p) async {
+    final loc = AppLocalizations.of(context)!;
+    final bool uz = loc.ha == 'Ha';
+    void say(String m) => ScaffoldMessenger.of(context)
+        .showSnackBar(mySnackBar(context, msg: m, duration: 4000));
+
+    final config = KaftpaySettings.config(payment: p);
+    if (config == null) {
+      say(uz
+          ? "Kaftpay kalitlari kiritilmagan: Sozlamalar → Kaftpay"
+          : 'Ключи Kaftpay не заданы: Настройки → Kaftpay');
+      return;
+    }
+    final double amount = provider.kaftpayAmount(p);
+    if (amount <= 0) {
+      say(loc.qiymat_kiriting);
+      return;
+    }
+    final checkout = KaftpayCheckout(
+      api: KaftpayApi(config: config),
+      scanner: KaftpayScanner.shared(sdkDir: KaftpaySettings.sdkDir),
+      journal: KaftpayJournal(),
+      amount: KaftpayMoney.toTiyin(amount),
+      cashierId: KaftpaySettings.cashierId,
+      cashierName: KaftpaySettings.cashierName,
+    );
+    final outcome =
+        await KaftpayPayDialog.show(context, checkout: checkout, uz: uz);
+    if (outcome == null || !outcome.isCharged) return;
+    provider.recordKaftpay(
+        p, KaftpayMoney.toSom(outcome.amount ?? checkout.amount));
+    if (mounted) say(uz ? "Kaftpay: to'lov o'tdi" : 'Kaftpay: оплата прошла');
+  }
 
   Row _clickAndPayme(BuildContext context, AppLocalizations loc) {
     return Row(
