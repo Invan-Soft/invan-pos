@@ -12,6 +12,7 @@ import 'package:invan2/changes/services/payment/kaftpay/kaftpay_settings.dart';
 import 'package:invan2/changes/models/organization_model.dart' show Payment;
 import 'package:invan2/changes/singletons/organization_singleton.dart';
 import 'package:invan2/features/features.dart';
+import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_action_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_enroll_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_ui.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
@@ -43,6 +44,9 @@ class _KaftpayContentState extends State<KaftpayContent> {
   /// Aloqa tekshiruvi: true — muvaffaqiyatli (test bo'lsa ham).
   bool? _pingOk;
   bool? _isTest;
+
+  /// Tarix filtri: null — hammasi.
+  _HistoryFilter _filter = _HistoryFilter.all;
 
   bool get uz => AppLocalizations.of(context)!.ha == 'Ha';
   String t(String u, String r) => uz ? u : r;
@@ -163,77 +167,137 @@ class _KaftpayContentState extends State<KaftpayContent> {
     );
   }
 
+  KaftpayAmountCard _details(KaftpayJournalEntry e, {Color? color}) {
+    final d = e.createdAt;
+    final tx = e.transactionId;
+    return KaftpayAmountCard(
+      amount: '${_money(e.amount)} ${t("so'm", 'сум')}',
+      color: color,
+      rows: [
+        MapEntry(t('Mijoz', 'Клиент'), e.consumerName ?? '—'),
+        MapEntry(t('Vaqt', 'Время'),
+            '${_two(d.day)}.${_two(d.month)}.${d.year} ${_two(d.hour)}:${_two(d.minute)}'),
+        if (tx != null) MapEntry(t('Tranzaksiya', 'Транзакция'), tx),
+      ],
+    );
+  }
+
   Future<void> _check(KaftpayJournalEntry e) async {
     final config = _config;
     if (config == null) return;
-    setState(() => _busy = true);
-    final o = await KaftpayPaymentFlow(KaftpayApi(config: config)).resolve(
-      e.key,
-      expected: KaftpayPayRequest(
-        requestId: e.requestId,
-        consumerGuid: e.consumerGuid,
-        amount: e.amount,
-        cashierId: KaftpaySettings.cashierId,
-        cashierName: KaftpaySettings.cashierName,
-      ),
+    await KaftpayActionDialog.show(
+      context,
+      icon: Icons.sync,
+      title: t('To\'lov holati', 'Статус оплаты'),
+      subtitle: t('Kaftpay\'dan so\'raladi — pul yechilmaydi',
+          'Запрос в Kaftpay — деньги не списываются'),
+      details: _details(e),
+      runningText: t('Holat tekshirilmoqda...', 'Проверяем статус...'),
+      run: () async {
+        final o = await KaftpayPaymentFlow(KaftpayApi(config: config)).resolve(
+          e.key,
+          expected: KaftpayPayRequest(
+            requestId: e.requestId,
+            consumerGuid: e.consumerGuid,
+            amount: e.amount,
+            cashierId: KaftpaySettings.cashierId,
+            cashierName: KaftpaySettings.cashierName,
+          ),
+        );
+        await _journal.put(e.copyWith(
+          status: o.isCharged
+              ? KaftpayJournalStatus.charged
+              : o.isUnknown
+                  ? KaftpayJournalStatus.unknown
+                  : KaftpayJournalStatus.notCharged,
+          transactionId: o.transactionId,
+          note: o.isCharged ? null : o.message,
+        ));
+        if (o.isCharged) {
+          return KaftpayActionResult(
+            tone: KaftpayActionTone.success,
+            title: t('Pul yechilgan', 'Деньги списаны'),
+            message: t('Bu to\'lov chekka tushmagan bo\'lsa — vozvrat qiling.',
+                'Если этой оплаты нет в чеке — сделайте возврат.'),
+          );
+        }
+        if (o.isUnknown) {
+          return KaftpayActionResult(
+            tone: KaftpayActionTone.warning,
+            title: t('Natija hali noma\'lum', 'Результат пока неизвестен'),
+            message: o.message,
+          );
+        }
+        return KaftpayActionResult(
+          tone: KaftpayActionTone.info,
+          title: t('Pul yechilmagan', 'Деньги не списаны'),
+          message: t('Mijozdan to\'lovni boshqa usulda olish mumkin.',
+              'Можно принять оплату другим способом.'),
+        );
+      },
     );
-    await _journal.put(e.copyWith(
-      status: o.isCharged
-          ? KaftpayJournalStatus.charged
-          : o.isUnknown
-              ? KaftpayJournalStatus.unknown
-              : KaftpayJournalStatus.notCharged,
-      transactionId: o.transactionId,
-      note: o.isCharged ? null : o.message,
-    ));
-    if (!mounted) return;
-    setState(() => _busy = false);
-    _snack(o.isCharged
-        ? t('Pul yechilgan (tx ${o.transactionId}). Chekda yo\'q bo\'lsa — vozvrat qiling.',
-            'Деньги списаны (tx ${o.transactionId}). Если нет в чеке — сделайте возврат.')
-        : o.message);
+    if (mounted) setState(() {});
   }
 
   Future<void> _refund(KaftpayJournalEntry e) async {
     final config = _config;
     if (config == null || !e.canRefund) return;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => AlertDialog(
-        content: Text(t(
-            '${_money(e.amount)} so\'m ${e.consumerName ?? ''} kartasiga to\'liq qaytarilsinmi?',
-            'Вернуть ${_money(e.amount)} сум полностью на карту ${e.consumerName ?? ''}?')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(d, false),
-              child: Text(t('Yo\'q', 'Нет'))),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(d, true),
-              child: Text(t('Qaytarish', 'Вернуть'))),
-        ],
-      ),
+    await KaftpayActionDialog.show(
+      context,
+      icon: Icons.undo_rounded,
+      title: t('Vozvrat', 'Возврат'),
+      subtitle: t('Pul mijozning kartasiga qaytariladi',
+          'Деньги вернутся на карту клиента'),
+      details: _details(e),
+      warning: t(
+          'Faqat TO\'LIQ qaytariladi — Kaftpay qisman vozvratni qo\'llamaydi.',
+          'Возврат только ПОЛНЫЙ — частичный возврат Kaftpay не поддерживает.'),
+      confirmLabel: t('Qaytarish', 'Вернуть'),
+      confirmIcon: Icons.undo_rounded,
+      destructive: true,
+      runningText: t('Qaytarilmoqda...', 'Возвращаем...'),
+      run: () async {
+        final o = await KaftpayPaymentFlow(KaftpayApi(config: config)).refund(
+          transactionId: e.transactionId!,
+          cashierId: KaftpaySettings.cashierId,
+          cashierName: KaftpaySettings.cashierName,
+          paymentIdempotencyKey: e.key,
+        );
+        await _journal.put(e.copyWith(
+          status: o.isRefunded
+              ? KaftpayJournalStatus.refunded
+              : o.state == KaftpayRefundState.unknown
+                  ? KaftpayJournalStatus.refundUnknown
+                  : KaftpayJournalStatus.charged,
+          note: o.isRefunded ? null : o.error?.message,
+        ));
+        if (o.isRefunded) {
+          return KaftpayActionResult(
+            tone: KaftpayActionTone.success,
+            title: t('Qaytarildi', 'Возвращено'),
+            message: t('Pul mijozning kartasiga qaytdi.',
+                'Деньги вернулись на карту клиента.'),
+          );
+        }
+        if (o.state == KaftpayRefundState.unknown) {
+          return KaftpayActionResult(
+            tone: KaftpayActionTone.warning,
+            title: t(
+                'Vozvrat natijasi noma\'lum', 'Результат возврата неизвестен'),
+            message: o.retryAllowed
+                ? (o.error?.message ?? '')
+                : t('Qayta YUBORMANG — Kaftpay bilan tekshiring. ${o.error?.message ?? ''}',
+                    'НЕ отправляйте повторно — уточните в Kaftpay. ${o.error?.message ?? ''}'),
+          );
+        }
+        return KaftpayActionResult(
+          tone: KaftpayActionTone.error,
+          title: t('Qaytarilmadi', 'Не возвращено'),
+          message: o.error?.message,
+        );
+      },
     );
-    if (ok != true) return;
-    setState(() => _busy = true);
-    final o = await KaftpayPaymentFlow(KaftpayApi(config: config)).refund(
-      transactionId: e.transactionId!,
-      cashierId: KaftpaySettings.cashierId,
-      cashierName: KaftpaySettings.cashierName,
-      paymentIdempotencyKey: e.key,
-    );
-    await _journal.put(e.copyWith(
-      status: o.isRefunded
-          ? KaftpayJournalStatus.refunded
-          : o.state == KaftpayRefundState.unknown
-              ? KaftpayJournalStatus.refundUnknown
-              : KaftpayJournalStatus.charged,
-      note: o.isRefunded ? null : o.error?.message,
-    ));
-    if (!mounted) return;
-    setState(() => _busy = false);
-    _snack(o.isRefunded
-        ? t('Qaytarildi', 'Возвращено')
-        : (o.error?.message ?? t('Qaytarilmadi', 'Не возвращено')));
+    if (mounted) setState(() {});
   }
 
   String _money(int tiyin) =>
@@ -581,28 +645,121 @@ class _KaftpayContentState extends State<KaftpayContent> {
       ],
     );
 
+    final now = DateTime.now();
+    bool isToday(DateTime d) =>
+        d.year == now.year && d.month == now.month && d.day == now.day;
+    final today = entries.where((e) => isToday(e.createdAt)).toList();
+    final todayCharged =
+        today.where((e) => e.status == KaftpayJournalStatus.charged);
+    final todaySum = todayCharged.fold<int>(0, (s, e) => s + e.amount);
+    final todayRefunded =
+        today.where((e) => e.status == KaftpayJournalStatus.refunded).length;
+    final problems = entries.where((e) =>
+        e.needsStatusCheck || e.status == KaftpayJournalStatus.refundUnknown);
+    final shown = entries.where(_filter.accepts).take(50).toList();
+
+    Widget stat(String label, String value, Color color) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: ui.tint(color),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(color: ui.muted, fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: ui.fg,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+        );
+
+    Widget filterChip(_HistoryFilter f, String label, int count) {
+      final selected = _filter == f;
+      return Material(
+        key: ValueKey('kaftpay_filter_${f.name}'),
+        color: selected ? ui.accent : ui.tint(ui.fg),
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => setState(() => _filter = f),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Text('$label · $count',
+                style: TextStyle(
+                    color: selected ? ui.onAccent : ui.fg,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600)),
+          ),
+        ),
+      );
+    }
+
     final journal = section(
-      title: t('To\'lovlar jurnali', 'Журнал оплат'),
+      title: t('To\'lovlar tarixi', 'История оплат'),
       icon: Icons.receipt_long_outlined,
-      trailing: entries.isEmpty
-          ? null
-          : KaftpayPill('${entries.length}', color: ui.muted, dense: true),
       children: [
-        if (entries.isEmpty)
+        Row(
+          children: [
+            stat(t('Bugun to\'landi', 'Оплачено сегодня'),
+                '${_money(todaySum)} ${t("so'm", 'сум')}', ui.success),
+            const SizedBox(width: 10),
+            stat(t('Bugun to\'lovlar', 'Оплат сегодня'),
+                '${todayCharged.length}', ui.accent),
+            const SizedBox(width: 10),
+            stat(t('Bugun qaytarilgan', 'Возвратов сегодня'), '$todayRefunded',
+                ui.warning),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            filterChip(_HistoryFilter.all, t('Hammasi', 'Все'), entries.length),
+            filterChip(
+                _HistoryFilter.charged,
+                t('Yechilgan', 'Списано'),
+                entries
+                    .where((e) => e.status == KaftpayJournalStatus.charged)
+                    .length),
+            filterChip(
+                _HistoryFilter.refunded,
+                t('Qaytarilgan', 'Возвращено'),
+                entries
+                    .where((e) => e.status == KaftpayJournalStatus.refunded)
+                    .length),
+            filterChip(_HistoryFilter.problems,
+                t('Tekshirish kerak', 'Требуют проверки'), problems.length),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (shown.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: 20),
             child: Column(
               children: [
                 Icon(Icons.inbox_outlined, size: 40, color: ui.faint),
                 const SizedBox(height: 8),
-                Text(t('Hali to\'lov yo\'q', 'Оплат пока нет'),
+                Text(
+                    entries.isEmpty
+                        ? t('Hali to\'lov yo\'q', 'Оплат пока нет')
+                        : t('Bu filtrda to\'lov yo\'q', 'Нет оплат по фильтру'),
                     style: TextStyle(color: ui.muted)),
               ],
             ),
           ),
-        for (var i = 0; i < entries.length && i < 50; i++) ...[
+        for (var i = 0; i < shown.length; i++) ...[
           if (i > 0) const Divider(height: 1),
-          _journalRow(ui, entries[i]),
+          _journalRow(ui, shown[i]),
         ],
       ],
     );
@@ -700,5 +857,26 @@ class _KaftpayContentState extends State<KaftpayContent> {
         ],
       ),
     );
+  }
+}
+
+enum _HistoryFilter {
+  all,
+  charged,
+  refunded,
+  problems;
+
+  bool accepts(KaftpayJournalEntry e) {
+    switch (this) {
+      case _HistoryFilter.all:
+        return true;
+      case _HistoryFilter.charged:
+        return e.status == KaftpayJournalStatus.charged;
+      case _HistoryFilter.refunded:
+        return e.status == KaftpayJournalStatus.refunded;
+      case _HistoryFilter.problems:
+        return e.needsStatusCheck ||
+            e.status == KaftpayJournalStatus.refundUnknown;
+    }
   }
 }

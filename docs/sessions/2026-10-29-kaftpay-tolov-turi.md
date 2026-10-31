@@ -134,6 +134,18 @@ salt=`TS\nNONCE`, info=`pp-palm-vector:v1`). TS/NONCE — aynan o'sha so'rov hea
   jonli: prefiksli soxta QR → 1150.
   → lib/changes/services/payment/kaftpay/kaftpay_api.dart (`enroll`, `enrollSessionId`)
   Kaftpay'ga xabar qilish kerak (hujjat yoki server).
+- [x] Windows'da BIRINCHI HAQIQIY KAFT TO'LOVI O'TDI (2026-10-31, test terminal): ro'yxatdan o'tkazish (QR barcode
+  skanerda + qo'l + VP930) → to'lov → chek. Keyin foydalanuvchi so'rovi bilan UI/UX:
+  - dizayn tizimi `kaftpay_ui.dart` (tugmalar, pill, banner, tanlov kartasi; shrift temadan), sozlamalar sahifasi qayta
+    tuzildi (holat belgilari, amal plitkalari, kalitlar, tarix), ro'yxatdan o'tkazishda chap/o'ng — katta kartalar;
+  - to'lov o'tganda natija ekrani (✓, summa, mijoz, tx; 3 s da o'zi yopiladi yoki "Tayyor");
+  - vozvrat va holat tekshiruvi — `KaftpayActionDialog` (tasdiq → jarayon → natija), vozvratda "faqat to'liq" ogohlantirish;
+  - to'lovlar tarixi: bugungi jami (summa / soni / qaytarilgan) + filtrlar (hammasi / yechilgan / qaytarilgan / tekshirish kerak);
+  - skaner maslahati: "chiroq yashil bo'lganda qimirlamang" (VP930: oq — masofa noto'g'ri, yashil — to'g'ri);
+  - `KaftpayLang`: skaner, oqim va xato xabarlari kassa tilida (uz/ru), ruschada server reason'i ruscha.
+  → lib/features/payment/right/dilogs/kaftpay/ (kaftpay_ui, kaftpay_action_dialog yangi), kaftpay_content.dart,
+    lib/changes/services/payment/kaftpay/kaftpay_lang.dart
+  Skrinshotlar golden-test bilan tekshirildi (vaqtinchalik test o'chirildi). To'liq to'plam 2406 o'tdi.
 
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] **Windows'da birinchi to'lov sinovi** (foydalanuvchi, qurilma bilan):
