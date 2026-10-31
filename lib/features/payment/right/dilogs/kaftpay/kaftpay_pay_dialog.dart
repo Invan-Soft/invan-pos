@@ -8,6 +8,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_checkout.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
@@ -87,38 +88,58 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
   @override
   Widget build(BuildContext context) {
     ui = KaftpayUi.of(context);
-    return ui.wrap(PopScope(
-      canPop: false,
-      child: AlertDialog(
-        titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
-        contentPadding: const EdgeInsets.fromLTRB(24, 18, 24, 8),
-        actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
-        title: Row(
-          children: [
-            KaftpayIconBadge(Icons.back_hand_outlined,
-                color: ui.accent, size: 40),
-            const SizedBox(width: 12),
-            const Expanded(child: Text('Kaftpay')),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: ui.tint(ui.accent),
-                borderRadius: BorderRadius.circular(10),
+    return ui.wrap(CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () {
+            if (c.canCancel) _close();
+          },
+        },
+        child: Focus(
+            autofocus: true,
+            child: PopScope(
+              canPop: false,
+              child: AlertDialog(
+                titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+                title: Row(
+                  children: [
+                    KaftpayIconBadge(Icons.back_hand_outlined,
+                        color: ui.accent, size: 40),
+                    const SizedBox(width: 12),
+                    const Expanded(child: Text('Kaftpay')),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: ui.tint(ui.accent),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text('${_money(c.amount)} ${t("so'm", 'сум')}',
+                          key: const ValueKey('kaftpay_amount'),
+                          style: TextStyle(
+                              color: ui.fg,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ],
+                ),
+                contentPadding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+                content: ConstrainedBox(
+                  constraints:
+                      const BoxConstraints(minWidth: 480, maxWidth: 560),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _body(),
+                        const SizedBox(height: 20),
+                        _buttons(),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              child: Text('${_money(c.amount)} ${t("so'm", 'сум')}',
-                  key: const ValueKey('kaftpay_amount'),
-                  style: TextStyle(
-                      color: ui.fg, fontSize: 18, fontWeight: FontWeight.w800)),
-            ),
-          ],
-        ),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 460, maxWidth: 540),
-          child: SingleChildScrollView(child: _body()),
-        ),
-        actions: _actions(),
-      ),
-    ));
+            ))));
   }
 
   Widget _status(IconData icon, Color color, {bool progress = false}) {
@@ -312,63 +333,93 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
     );
   }
 
-  List<Widget> _actions() {
-    final cancel = TextButton(
+  Widget _buttons() {
+    final cancel = OutlinedButton.icon(
       key: const ValueKey('kaftpay_cancel'),
+      style: ui.big(ui.secondaryButton),
       onPressed: () => _close(),
-      child: Text(t('Bekor qilish', 'Отмена')),
+      icon: const Icon(Icons.close_rounded),
+      label: Text(t('Bekor qilish', 'Отмена')),
     );
-    final rescan = OutlinedButton.icon(
-      key: const ValueKey('kaftpay_rescan'),
-      onPressed: () => c.start(),
-      icon: const Icon(Icons.refresh, size: 20),
-      label: Text(t('Qayta skanerlash', 'Сканировать заново')),
-    );
+    Widget rescan({bool primary = false}) => primary
+        ? FilledButton.icon(
+            key: const ValueKey('kaftpay_rescan'),
+            style: ui.big(ui.primaryButton),
+            onPressed: () => c.start(),
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(t('Qayta skanerlash', 'Сканировать заново')),
+          )
+        : OutlinedButton.icon(
+            key: const ValueKey('kaftpay_rescan'),
+            style: ui.big(ui.secondaryButton),
+            onPressed: () => c.start(),
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(t('Qayta skanerlash', 'Сканировать заново')),
+          );
+    const gap = SizedBox(height: 10);
     switch (c.step) {
       case KaftpayCheckoutStep.scanning:
-        return [cancel];
+        return cancel;
       case KaftpayCheckoutStep.identifying:
       case KaftpayCheckoutStep.charging:
-        return const [];
+        return const SizedBox.shrink();
       case KaftpayCheckoutStep.charged:
-        return [
-          FilledButton.icon(
-            key: const ValueKey('kaftpay_done'),
-            style: ui.primaryButton
-                .copyWith(backgroundColor: WidgetStatePropertyAll(ui.success)),
-            onPressed: () => _close(c.outcome),
-            icon: const Icon(Icons.check_rounded, size: 20),
-            label: Text(t('Tayyor', 'Готово')),
-          ),
-        ];
+        return FilledButton.icon(
+          key: const ValueKey('kaftpay_done'),
+          style: ui.big(ui.primaryButton
+              .copyWith(backgroundColor: WidgetStatePropertyAll(ui.success))),
+          onPressed: () => _close(c.outcome),
+          icon: const Icon(Icons.check_rounded),
+          label: Text(t('Tayyor', 'Готово')),
+        );
       case KaftpayCheckoutStep.noMatch:
       case KaftpayCheckoutStep.failed:
-        return [cancel, rescan];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [rescan(primary: true), gap, cancel],
+        );
       case KaftpayCheckoutStep.choosing:
-        return [
-          cancel,
-          rescan,
-          FilledButton.icon(
-            key: const ValueKey('kaftpay_pay'),
-            onPressed: c.canPay ? () => c.pay() : null,
-            icon: const Icon(Icons.check_rounded, size: 20),
-            label: Text('${t("To'lash", 'Оплатить')} ${_money(c.amount)}'),
-          ),
-        ];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            FilledButton.icon(
+              key: const ValueKey('kaftpay_pay'),
+              style: ui.big(ui.primaryButton, height: 66, font: 20),
+              onPressed: c.canPay ? () => c.pay() : null,
+              icon: const Icon(Icons.check_rounded),
+              label: Text(
+                  '${t("To'lash", 'Оплатить')} ${_money(c.amount)} ${t("so'm", 'сум')}'),
+            ),
+            gap,
+            Row(
+              children: [
+                Expanded(child: rescan()),
+                const SizedBox(width: 10),
+                Expanded(child: cancel),
+              ],
+            ),
+          ],
+        );
       case KaftpayCheckoutStep.unknown:
-        return [
-          TextButton(
-            key: const ValueKey('kaftpay_later'),
-            onPressed: () => _close(),
-            child: Text(t('Keyinroq tekshirish', 'Проверить позже')),
-          ),
-          FilledButton.icon(
-            key: const ValueKey('kaftpay_check'),
-            onPressed: () => c.checkStatus(),
-            icon: const Icon(Icons.sync, size: 20),
-            label: Text(t('Holatni tekshirish', 'Проверить статус')),
-          ),
-        ];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            FilledButton.icon(
+              key: const ValueKey('kaftpay_check'),
+              style: ui.big(ui.primaryButton),
+              onPressed: () => c.checkStatus(),
+              icon: const Icon(Icons.sync_rounded),
+              label: Text(t('Holatni tekshirish', 'Проверить статус')),
+            ),
+            gap,
+            OutlinedButton(
+              key: const ValueKey('kaftpay_later'),
+              style: ui.big(ui.secondaryButton),
+              onPressed: () => _close(),
+              child: Text(t('Keyinroq tekshirish', 'Проверить позже')),
+            ),
+          ],
+        );
     }
   }
 }

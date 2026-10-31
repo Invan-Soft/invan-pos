@@ -145,7 +145,10 @@ salt=`TS\nNONCE`, info=`pp-palm-vector:v1`). TS/NONCE — aynan o'sha so'rov hea
   - `KaftpayLang`: skaner, oqim va xato xabarlari kassa tilida (uz/ru), ruschada server reason'i ruscha.
   → lib/features/payment/right/dilogs/kaftpay/ (kaftpay_ui, kaftpay_action_dialog yangi), kaftpay_content.dart,
     lib/changes/services/payment/kaftpay/kaftpay_lang.dart
-  Skrinshotlar golden-test bilan tekshirildi (vaqtinchalik test o'chirildi). To'liq to'plam 2406 o'tdi.
+  - to'lov oynasi tugmalari kassir uchun katta: "To'lash N so'm" (66 px, butun eni), ostida "Qayta skanerlash" va
+    "Bekor qilish" teng; topilmasa/xatoda "Qayta skanerlash" asosiy; Esc — bekor qilish (Enter ATAYLAB yo'q:
+    barcode skaner Enter yuboradi → adashib to'lov o'tmasin).
+  Skrinshotlar golden-test bilan tekshirildi (vaqtinchalik test o'chirildi). To'liq to'plam 2407 o'tdi.
 
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] **Windows'da birinchi to'lov sinovi** (foydalanuvchi, qurilma bilan):
