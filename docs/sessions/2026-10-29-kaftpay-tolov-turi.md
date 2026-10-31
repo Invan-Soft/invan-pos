@@ -148,6 +148,10 @@ salt=`TS\nNONCE`, info=`pp-palm-vector:v1`). TS/NONCE — aynan o'sha so'rov hea
   - to'lov oynasi tugmalari kassir uchun katta: "To'lash N so'm" (66 px, butun eni), ostida "Qayta skanerlash" va
     "Bekor qilish" teng; topilmasa/xatoda "Qayta skanerlash" asosiy; Esc — bekor qilish (Enter ATAYLAB yo'q:
     barcode skaner Enter yuboradi → adashib to'lov o'tmasin).
+  - oyna yana kattaroq (580 px), mijoz kartalari va telefon raqami yirik; "To'lash" 80 px, "Qayta skanerlash" /
+    "Bekor qilish" 68 px, oralari 24 px, "Bekor qilish" qizil chegarali — adashib bosilmasin;
+  - mijoz ismi: familiya kelsa (`fullName` / `lastName` / `name` "Alisher U.") — ism + familiya, kelmasa — faqat ism
+    (swagger'da hozircha faqat `firstName`; `name` amalda GUID).
   Skrinshotlar golden-test bilan tekshirildi (vaqtinchalik test o'chirildi). To'liq to'plam 2407 o'tdi.
 
 ## Keyingi qadamlar (prioritet bo'yicha)

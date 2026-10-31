@@ -448,7 +448,8 @@ void main() {
       expect(d.reason, KaftpayIdentifyReason.confident);
       expect(d.suggested!.consumerGuid, kConsumer);
       // `firstName` — haqiqiy ism (`name` amalda GUID bo'lishi mumkin).
-      expect(d.suggested!.label, 'Alisher · ***4567');
+      // `name` "Alisher U." firstName'dan to'liqroq — familiya bosh harfi bilan.
+      expect(d.suggested!.label, 'Alisher U. · ***4567');
       expect(d.needsCashierChoice, isFalse);
       expect(d.isNoMatch, isFalse);
       expect(d.isCandidate(kConsumer), isTrue);
@@ -572,6 +573,18 @@ void main() {
       expect(c({'name': kConsumer, 'firstName': 'Dilnoza'}).label, 'Dilnoza');
       expect(c({'name': 'Aziz K.'}).label, 'Aziz K.');
       expect(c({'firstName': '  '}).displayName, isNull);
+      // Familiya: lastName / fullName (Kaftpay qo'shsa).
+      expect(c({'firstName': 'Ayyubxon', 'lastName': 'Ahmadjonov'}).displayName,
+          'Ayyubxon Ahmadjonov');
+      expect(
+          c({'fullName': 'Ayyubxon Ahmadjonov', 'firstName': 'Ayyubxon'})
+              .displayName,
+          'Ayyubxon Ahmadjonov');
+      expect(c({'name': 'Ayyubxon A.', 'firstName': 'Ayyubxon'}).displayName,
+          'Ayyubxon A.');
+      expect(c({'name': 'Boshqa', 'firstName': 'Ayyubxon'}).displayName,
+          'Ayyubxon',
+          reason: 'name firstName bilan boshlanmasa — firstName');
     });
 
     test('SDK palm_type → hand', () {
