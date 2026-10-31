@@ -82,6 +82,20 @@ class KaftpayUi {
         textStyle: _buttonText,
       );
 
+  /// Kassir uchun katta tugma (sensorli ekran, tez bosish): balandlik
+  /// [height], yirik yozuv.
+  ButtonStyle big(ButtonStyle base, {double height = 58, double font = 18}) =>
+      base.copyWith(
+        minimumSize: WidgetStatePropertyAll(Size.fromHeight(height)),
+        padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 20, vertical: 14)),
+        shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+        textStyle: WidgetStatePropertyAll(
+            _buttonText.copyWith(fontSize: font, fontWeight: FontWeight.w700)),
+        iconSize: WidgetStatePropertyAll(font + 6),
+      );
+
   ThemeData get theme {
     final inputBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),

@@ -1,6 +1,7 @@
 // Kaftpay oynalari: to'lov (tanlash → to'lash → natija) va ro'yxatdan
 // o'tkazish (QR + qo'l → kaft → /enroll).
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_checkout.dart';
@@ -183,6 +184,29 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byKey(const ValueKey('kaftpay_success')), findsNothing);
     expect(result?.isCharged, isTrue);
+  });
+
+  testWidgets('to\'lov: Esc — bekor qilish (pul yechilmaydi)', (tester) async {
+    server.on('POST', '/api/v1/identify',
+        FakeKaftpay.ok({'requestId': kRequestId, 'reason': 'no_match'}));
+    String raw = '';
+    final checkout = KaftpayCheckout(
+      api: api(),
+      scanner: _Scanner(),
+      journal: KaftpayJournal(read: () => raw, write: (v) async => raw = v),
+      amount: 100,
+      cashierId: 'c',
+      cashierName: 'n',
+    );
+    var closed = false;
+    await open(tester, (ctx) async {
+      await KaftpayPayDialog.show(ctx, checkout: checkout);
+      closed = true;
+    });
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await settle(tester);
+    expect(closed, isTrue);
+    expect(server.calls('POST', '/api/v1/pay'), isEmpty);
   });
 
   testWidgets('to\'lov: bekor qilish → null, pul yechilmaydi', (tester) async {
