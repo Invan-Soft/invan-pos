@@ -129,6 +129,12 @@ void main() {
     await tester.tap(payBtn);
     await settle(tester);
 
+    // Natija ekrani: ✓, summa; "Tayyor" — yopiladi (yoki 3 s dan keyin o'zi).
+    expect(find.byKey(const ValueKey('kaftpay_success')), findsOneWidget);
+    expect(closed, isFalse);
+    await tester.tap(find.byKey(const ValueKey('kaftpay_done')));
+    await settle(tester);
+
     expect(closed, isTrue);
     expect(result!.isCharged, isTrue);
     expect(result!.transactionId, kTx);
@@ -136,6 +142,47 @@ void main() {
         server.jsonBody(
             server.calls('POST', '/api/v1/pay').single)['consumerGuid'],
         kConsumer2);
+  });
+
+  testWidgets('to\'lov: natija ekrani 3 s dan keyin o\'zi yopiladi',
+      (tester) async {
+    server.on(
+        'POST',
+        '/api/v1/identify',
+        FakeKaftpay.ok({
+          'requestId': kRequestId,
+          'reason': 'confident',
+          'suggestion': {'consumerGuid': kConsumer, 'firstName': 'Alisher'},
+          'candidates': [
+            {'consumerGuid': kConsumer, 'firstName': 'Alisher'}
+          ],
+          'expiresAt': '01.08.2026 15:08:12',
+        }));
+    server.on('POST', '/api/v1/pay', FakeKaftpay.ok(payData()));
+    String raw = '';
+    final a = api();
+    final checkout = KaftpayCheckout(
+      api: a,
+      scanner: _Scanner(),
+      journal: KaftpayJournal(read: () => raw, write: (v) async => raw = v),
+      amount: 2500000,
+      cashierId: 'c-17',
+      cashierName: 'Nodira S.',
+      flow: KaftpayPaymentFlow(a),
+      now: () => DateTime(2026, 8, 1, 15, 6, 12),
+    );
+    KaftpayChargeOutcome? result;
+    await open(tester, (ctx) async {
+      result = await KaftpayPayDialog.show(ctx, checkout: checkout);
+    });
+    await tester.tap(find.byKey(const ValueKey('kaftpay_pay')));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('kaftpay_success')), findsOneWidget);
+    expect(find.text('Alisher'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byKey(const ValueKey('kaftpay_success')), findsNothing);
+    expect(result?.isCharged, isTrue);
   });
 
   testWidgets('to\'lov: bekor qilish → null, pul yechilmaydi', (tester) async {

@@ -5,11 +5,14 @@
 // qoladi (Sozlamalar → Kaftpay → "Holatni tekshirish"), summa chekka
 // YOZILMAYDI.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_checkout.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_payment_flow.dart';
+import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_action_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_ui.dart';
 import 'package:invan2/utils/helpers/money_formatter.dart';
 
@@ -51,11 +54,14 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
     c.start();
   }
 
+  /// To'lov o'tgach natija ekrani shuncha turib, o'zi yopiladi.
+  static const Duration successHold = Duration(seconds: 3);
+  Timer? _autoClose;
+
   void _changed() {
     if (!mounted || _closed) return;
     if (c.step == KaftpayCheckoutStep.charged) {
-      _close(c.outcome);
-      return;
+      _autoClose ??= Timer(successHold, () => _close(c.outcome));
     }
     setState(() {});
   }
@@ -69,6 +75,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
 
   @override
   void dispose() {
+    _autoClose?.cancel();
     c.removeListener(_changed);
     c.dispose();
     super.dispose();
@@ -158,8 +165,9 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
       case KaftpayCheckoutStep.identifying:
         return _status(Icons.manage_search, ui.accent, progress: true);
       case KaftpayCheckoutStep.charging:
-      case KaftpayCheckoutStep.charged:
         return _status(Icons.credit_score_outlined, ui.accent, progress: true);
+      case KaftpayCheckoutStep.charged:
+        return _success();
       case KaftpayCheckoutStep.noMatch:
         return _status(Icons.person_search_outlined, ui.warning);
       case KaftpayCheckoutStep.failed:
@@ -183,6 +191,45 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
       case KaftpayCheckoutStep.choosing:
         return _choosing();
     }
+  }
+
+  /// To'lov o'tdi: katta ✓, summa, mijoz, tranzaksiya.
+  Widget _success() {
+    final o = c.outcome;
+    final tx = o?.transactionId;
+    final who = c.selected?.displayName;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: KaftpayPop(
+              child: KaftpayIconBadge(Icons.check_rounded,
+                  color: ui.success, size: 96),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(t('To\'lov o\'tdi', 'Оплата прошла'),
+              key: const ValueKey('kaftpay_success'),
+              textAlign: TextAlign.center,
+              style:
+                  const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 16),
+          KaftpayAmountCard(
+            amount: '${_money(o?.amount ?? c.amount)} ${t("so'm", 'сум')}',
+            color: ui.success,
+            rows: [
+              if (who != null) MapEntry(t('Mijoz', 'Клиент'), who),
+              if (o?.cardMask != null)
+                MapEntry(t('Karta', 'Карта'), o!.cardMask!),
+              if (tx != null) MapEntry(t('Tranzaksiya', 'Транзакция'), tx),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _choosing() {
@@ -282,8 +329,18 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
         return [cancel];
       case KaftpayCheckoutStep.identifying:
       case KaftpayCheckoutStep.charging:
-      case KaftpayCheckoutStep.charged:
         return const [];
+      case KaftpayCheckoutStep.charged:
+        return [
+          FilledButton.icon(
+            key: const ValueKey('kaftpay_done'),
+            style: ui.primaryButton
+                .copyWith(backgroundColor: WidgetStatePropertyAll(ui.success)),
+            onPressed: () => _close(c.outcome),
+            icon: const Icon(Icons.check_rounded, size: 20),
+            label: Text(t('Tayyor', 'Готово')),
+          ),
+        ];
       case KaftpayCheckoutStep.noMatch:
       case KaftpayCheckoutStep.failed:
         return [cancel, rescan];
