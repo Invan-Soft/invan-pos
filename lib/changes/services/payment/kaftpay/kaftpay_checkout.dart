@@ -250,6 +250,7 @@ class KaftpayCheckout extends ChangeNotifier {
 
   void _set(KaftpayCheckoutStep s, String m) {
     if (_disposed) return;
+    if (kDebugMode) debugPrint('[Kaftpay] ${s.name}: $m');
     step = s;
     message = m;
     notifyListeners();

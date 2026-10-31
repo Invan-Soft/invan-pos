@@ -117,6 +117,14 @@ salt=`TS\nNONCE`, info=`pp-palm-vector:v1`). TS/NONCE — aynan o'sha so'rov hea
     ("Tekshirish" / "Vozvrat") → lib/features/settings/view/payments/kaftpay_content.dart, settings bloc/left_side
   - Testlar: checkout 11, scanner+settings 26, POS integratsiya 8 (fiskal JSON — karta), oynalar 4; to'liq to'plam
     2404 o'tdi, 20 skip; analyze — yangi xato yo'q. Windows'da (FFI, haqiqiy skaner) SINALMAGAN.
+- [x] Mac'da (DEV, debug, sun'iy skaner) jonli sinov 2026-10-30: adminkadagi "KaftPay" turi (Apps'da yoqilgach
+  `is_added` true) → tugma chiqdi; kalitlarsiz — "Sozlamalar → Kaftpay" xabari; kalitlar bilan to'lov oynasi:
+  scanning → identifying (haqiqiy Kaftpay serveri) → noMatch. Topilgan va tuzatilgan: tungi temada maydon/matn
+  ko'rinmasdi (ilova temasida `textTheme` qora, `colorScheme` hammasi #101920) → `kaftpay_ui.dart` (`canvasColor`
+  asosida mavzu) uchala ekranga; Mac'da holatda "SINOV rejimi" yoziladi; debug'da bosqichlar logga (`[Kaftpay]`).
+  → lib/features/payment/right/dilogs/kaftpay/kaftpay_ui.dart (yangi), kaftpay_pay_dialog.dart,
+    kaftpay_enroll_dialog.dart, kaftpay_content.dart, kaftpay_checkout.dart
+  Commit QILINMAGAN (d48073f dan keyin); `api_provider.dart` DEV — faqat lokal, commit qilinmaydi.
 
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] **Windows'da birinchi to'lov sinovi** (foydalanuvchi, qurilma bilan):

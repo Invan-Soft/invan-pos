@@ -12,6 +12,7 @@ import 'package:invan2/changes/models/organization_model.dart' show Payment;
 import 'package:invan2/changes/singletons/organization_singleton.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_enroll_dialog.dart';
+import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_ui.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/money_formatter.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
@@ -237,10 +238,12 @@ class _KaftpayContentState extends State<KaftpayContent> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final ui = KaftpayUi.of(context);
+    final theme = ui.theme;
     final payment = _payment;
-    final scannerReason =
-        KaftpayScanner.shared(sdkDir: KaftpaySettings.sdkDir).unavailableReason;
+    final scanner = KaftpayScanner.shared(sdkDir: KaftpaySettings.sdkDir);
+    final scannerReason = scanner.unavailableReason;
+    final synthetic = scanner is KaftpaySyntheticScanner;
     final entries = _journal.all();
     final adminKeys = (payment?.merchantId ?? '').trim().isNotEmpty &&
         (payment?.secretKey ?? '').trim().isNotEmpty;
@@ -262,7 +265,7 @@ class _KaftpayContentState extends State<KaftpayContent> {
           ),
         );
 
-    return AbsorbPointer(
+    return ui.wrap(AbsorbPointer(
       absorbing: _busy,
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -281,7 +284,10 @@ class _KaftpayContentState extends State<KaftpayContent> {
             ),
             _line(
               scannerReason ??
-                  '${t('Skaner dasturi', 'ПО сканера')}: ${KaftpaySettings.sdkDir}',
+                  (synthetic
+                      ? t('SINOV rejimi: haqiqiy skaner o\'rniga sun\'iy kaft (faqat debug, Windows emas)',
+                          'ТЕСТ: вместо сканера — синтетическая ладонь (только debug, не Windows)')
+                      : '${t('Skaner dasturi', 'ПО сканера')}: ${KaftpaySettings.sdkDir}'),
               ok: scannerReason == null,
             ),
             _line(
@@ -370,9 +376,7 @@ class _KaftpayContentState extends State<KaftpayContent> {
               Text(_pingText!,
                   key: const ValueKey('kaftpay_ping_result'),
                   style: TextStyle(
-                      color: _pingWarn
-                          ? Colors.orange.shade800
-                          : Colors.green.shade700,
+                      color: _pingWarn ? ui.warning : ui.success,
                       fontWeight: FontWeight.w600)),
             ],
             if (_scanText != null) ...[
@@ -408,7 +412,7 @@ class _KaftpayContentState extends State<KaftpayContent> {
           ]),
         ],
       ),
-    );
+    ));
   }
 
   Widget _line(String text, {required bool ok}) => Padding(
@@ -417,7 +421,10 @@ class _KaftpayContentState extends State<KaftpayContent> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(ok ? Icons.check_circle : Icons.warning_amber_rounded,
-                size: 20, color: ok ? Colors.green : Colors.orange),
+                size: 20,
+                color: ok
+                    ? KaftpayUi.of(context).success
+                    : KaftpayUi.of(context).warning),
             const SizedBox(width: 8),
             Expanded(child: Text(text)),
           ],

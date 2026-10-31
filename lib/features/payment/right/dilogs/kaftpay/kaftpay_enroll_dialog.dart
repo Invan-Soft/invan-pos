@@ -7,10 +7,12 @@
 //    adashtiruvchi `1104` beradi).
 // 4. Mijoz kaftini VP930 ga qo'yadi → `/enroll`.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_scanner.dart';
+import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_ui.dart';
 
 enum _EnrollStep { qr, scanning, sending, done, failed }
 
@@ -59,6 +61,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
   _EnrollStep _step = _EnrollStep.qr;
   String _message = '';
   bool _closed = false;
+  late KaftpayUi ui;
 
   String t(String uz, String ru) => widget.uz ? uz : ru;
 
@@ -75,6 +78,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
 
   void _set(_EnrollStep s, String m) {
     if (!mounted || _closed) return;
+    if (kDebugMode) debugPrint('[Kaftpay enroll] ${s.name}: $m');
     setState(() {
       _step = s;
       _message = m;
@@ -128,8 +132,9 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return PopScope(
+    ui = KaftpayUi.of(context);
+    final theme = ui.theme;
+    return ui.wrap(PopScope(
       canPop: false,
       child: AlertDialog(
         title: Text(t('Kaftpay: mijozni ro\'yxatdan o\'tkazish',
@@ -140,7 +145,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
         ),
         actions: _actions(),
       ),
-    );
+    ));
   }
 
   Widget _body(ThemeData theme) {
@@ -167,7 +172,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
                 border: const OutlineInputBorder(),
                 hintText: 'PPENROLL:...',
                 suffixIcon: KaftpayEnrollDialog.looksLikeQr(_qr.text)
-                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    ? Icon(Icons.check_circle, color: ui.success)
                     : null,
               ),
             ),
@@ -204,7 +209,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
             Text(
               t('QR ~2 daqiqa amal qiladi — muddati o\'tsa, mijoz yangisini ochsin.',
                   'QR действует ~2 минуты — если истёк, клиент открывает новый.'),
-              style: theme.textTheme.bodySmall,
+              style: TextStyle(color: ui.muted, fontSize: 12),
             ),
           ],
         );
@@ -212,7 +217,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.back_hand_outlined, size: 64, color: theme.primaryColor),
+            Icon(Icons.back_hand_outlined, size: 64, color: ui.accent),
             const SizedBox(height: 12),
             Text(_message, textAlign: TextAlign.center),
             const SizedBox(height: 12),
@@ -232,7 +237,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle, size: 64, color: Colors.green),
+            Icon(Icons.check_circle, size: 64, color: ui.success),
             const SizedBox(height: 12),
             Text(_message,
                 key: const ValueKey('kaftpay_enroll_message'),
@@ -243,7 +248,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
+            Icon(Icons.error_outline, size: 64, color: ui.error),
             const SizedBox(height: 12),
             Text(_message,
                 key: const ValueKey('kaftpay_enroll_message'),

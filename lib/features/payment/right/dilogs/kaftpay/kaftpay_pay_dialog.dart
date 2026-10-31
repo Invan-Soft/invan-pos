@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_checkout.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_payment_flow.dart';
+import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_ui.dart';
 import 'package:invan2/utils/helpers/money_formatter.dart';
 
 class KaftpayPayDialog extends StatefulWidget {
@@ -37,6 +38,7 @@ class KaftpayPayDialog extends StatefulWidget {
 class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
   KaftpayCheckout get c => widget.checkout;
   bool _closed = false;
+  late KaftpayUi ui;
 
   String t(String uz, String ru) => widget.uz ? uz : ru;
 
@@ -75,14 +77,15 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return PopScope(
+    ui = KaftpayUi.of(context);
+    final theme = ui.theme;
+    return ui.wrap(PopScope(
       canPop: false,
       child: AlertDialog(
         titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
         title: Row(
           children: [
-            Icon(Icons.back_hand_outlined, color: theme.primaryColor),
+            Icon(Icons.back_hand_outlined, color: ui.accent),
             const SizedBox(width: 10),
             const Expanded(child: Text('Kaftpay')),
             Text('${_money(c.amount)} ${t("so'm", 'сум')}',
@@ -97,7 +100,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
         ),
         actions: _actions(),
       ),
-    );
+    ));
   }
 
   Widget _status(IconData? icon, Color color, {bool spinner = false}) {
@@ -127,7 +130,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _status(Icons.back_hand_outlined, theme.primaryColor),
+            _status(Icons.back_hand_outlined, ui.accent),
             const SizedBox(height: 16),
             const LinearProgressIndicator(),
           ],
@@ -135,16 +138,16 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
       case KaftpayCheckoutStep.identifying:
       case KaftpayCheckoutStep.charging:
       case KaftpayCheckoutStep.charged:
-        return _status(null, theme.primaryColor, spinner: true);
+        return _status(null, ui.accent, spinner: true);
       case KaftpayCheckoutStep.noMatch:
-        return _status(Icons.person_search_outlined, Colors.orange);
+        return _status(Icons.person_search_outlined, ui.warning);
       case KaftpayCheckoutStep.failed:
-        return _status(Icons.error_outline, theme.colorScheme.error);
+        return _status(Icons.error_outline, ui.error);
       case KaftpayCheckoutStep.unknown:
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _status(Icons.help_outline, Colors.orange),
+            _status(Icons.help_outline, ui.warning),
             const SizedBox(height: 12),
             Text(
               t(
@@ -153,7 +156,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
                   'Деньги могли быть списаны. НЕ принимайте оплату другим '
                       'способом — сначала проверьте статус.'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: theme.colorScheme.error),
+              style: TextStyle(color: ui.error),
             ),
           ],
         );
@@ -176,14 +179,14 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
             padding: const EdgeInsets.only(bottom: 8),
             child: Material(
               color: cand.consumerGuid == c.selectedGuid
-                  ? theme.primaryColor.withValues(alpha: 0.12)
-                  : theme.cardColor,
+                  ? ui.accent.withValues(alpha: 0.12)
+                  : ui.card,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
                 side: BorderSide(
                   color: cand.consumerGuid == c.selectedGuid
-                      ? theme.primaryColor
-                      : theme.dividerColor,
+                      ? ui.accent
+                      : ui.fg.withValues(alpha: 0.3),
                   width: cand.consumerGuid == c.selectedGuid ? 2 : 1,
                 ),
               ),
@@ -200,7 +203,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
                         cand.consumerGuid == c.selectedGuid
                             ? Icons.radio_button_checked
                             : Icons.radio_button_unchecked,
-                        color: theme.primaryColor,
+                        color: ui.accent,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -225,7 +228,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
           Text(
             t('Aniqlash muddati tugadi — kaftni qayta skanerlang',
                 'Время истекло — отсканируйте ладонь заново'),
-            style: TextStyle(color: theme.colorScheme.error),
+            style: TextStyle(color: ui.error),
           ),
       ],
     );
