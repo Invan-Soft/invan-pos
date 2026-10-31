@@ -181,6 +181,15 @@ salt=`TS\nNONCE`, info=`pp-palm-vector:v1`). TS/NONCE — aynan o'sha so'rov hea
   (REGISTRATION-PAYMENT-TECH.md:282, :366). SDK aniqlay olmasa — kassir tanlaydi (kaft qayta skanerlanmaydi;
   UNSPECIFIED → 1104). QR emas matn — "Bu Kaftpay QR emas".
   → lib/features/payment/right/dilogs/kaftpay/kaftpay_enroll_dialog.dart, test/kaftpay_dialogs_test.dart
+- [x] QR'ni VP930 kamerasi ham o'qiydi (2026-10-31, foydalanuvchi): namunaviy kassa kabi `palm_frame.dll`
+  (`pf_open` / `pf_grab` BGR888 720×1024 / `pf_close`) + QR dekodlash `zxing2` (toza Dart; namunada OpenCV), ko'zgu
+  tasvir ham, kichraytirilganda topilmasa to'liq o'lchamda; faqat `PPENROLL:`. Barcode skaner ham ishlaydi — qaysi
+  birinchi. Kaft skanidan OLDIN kamera yopiladi (bitta qurilma). `palm_frame.dll` yo'q / ochilmasa — sabab ko'rinadi,
+  barcode skaner ishlayveradi. "Skanerni tekshirish" VP930 QR holatini ham aytadi.
+  `~/Desktop/kaftpay-windows.zip` ga `kaftpay/palm_frame.dll` qo'shildi (Windows'da SDK papkasiga ko'chirish kerak).
+  Bitta kadr dekodlash ~2-3 ms (JIT, test).
+  → lib/changes/services/payment/kaftpay/kaftpay_qr_reader.dart, kaftpay_enroll_dialog.dart,
+    test/kaftpay_qr_reader_test.dart (haqiqiy QR rasmi `qr` paketi bilan), test/kaftpay_dialogs_test.dart
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] **Windows'da birinchi to'lov sinovi** (foydalanuvchi, qurilma bilan):
   1. Adminkada (dev) test kassasiga "Kaftpay" nomli to'lov turi, "Apps" da yoqilgan → POS "Ma'lumotlarni yangilash".

@@ -1,8 +1,9 @@
 // Kaftpay: mijozni ro'yxatdan o'tkazish (kaftni kartasiga bog'lash).
 //
 // 1. Mijoz Kaftpay ilovasida QR ko'rsatadi (`PPENROLL:<uuid>`, ~120 s).
-// 2. Kassir uni ODDIY barcode skaner bilan o'qiydi (HID — maydonga yozadi va
-//    Enter bosadi; foydalanuvchi qarori 2026-10-30) yoki qo'lda kiritadi.
+// 2. QR'ni VP930 kamerasi (KaftpayQrReader, `palm_frame.dll`; 2026-10-31)
+//    yoki ODDIY barcode skaner (HID — maydonga yozadi va Enter bosadi) o'qiydi
+//    — qaysi biri birinchi. Qo'lda kiritish ham mumkin.
 //    Oyna ochiq turganda global skaner tinglovchisi (`BlBloc`) o'chiriladi —
 //    aks holda QR mahsulot deb qidirilib "mahsulot topilmadi" chiqardi.
 // 3. QR to'g'ri bo'lishi bilan kaft skaneri o'zi ishga tushadi — mijoz
@@ -21,6 +22,7 @@ import 'package:invan2/changes/domain/barcode/keyboard_layout.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_qr_reader.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_scanner.dart';
 import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
 import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_ui.dart';
@@ -32,23 +34,29 @@ class KaftpayEnrollDialog extends StatefulWidget {
     super.key,
     required this.api,
     required this.scanner,
+    this.qrReader,
     this.uz = true,
   });
 
   final KaftpayApi api;
   final KaftpayScanner scanner;
+
+  /// VP930 kamerasidan QR (null / ishlamasa — faqat barcode skaner).
+  final KaftpayQrReader? qrReader;
   final bool uz;
 
   static Future<void> show(
     BuildContext context, {
     required KaftpayApi api,
     required KaftpayScanner scanner,
+    KaftpayQrReader? qrReader,
     bool uz = true,
   }) =>
       showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => KaftpayEnrollDialog(api: api, scanner: scanner, uz: uz),
+        builder: (_) => KaftpayEnrollDialog(
+            api: api, scanner: scanner, qrReader: qrReader, uz: uz),
       );
 
   /// Skaner yozgan matn: Windows klaviaturasi ruscha bo'lsa HID skaner
@@ -86,6 +94,44 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
     super.initState();
     KaftpayLang.uz = widget.uz;
     _muteBarcodeListener();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _watchCameraQr());
+  }
+
+  /// VP930 kamerasi QR qidiryapti.
+  bool _cameraQr = false;
+
+  /// Kamera ishlamadi — sabab (barcode skaner baribir ishlaydi).
+  String? _cameraError;
+
+  /// QR qadamida VP930 kamerasidan QR kutadi; topilsa — xuddi barcode
+  /// skanerdagidek (maydonga yoziladi va kaft skaneri boshlanadi).
+  Future<void> _watchCameraQr() async {
+    final reader = widget.qrReader;
+    if (reader == null || !mounted || _closed) return;
+    final why = reader.unavailableReason;
+    if (why != null) {
+      setState(() => _cameraError = why);
+      return;
+    }
+    setState(() {
+      _cameraQr = true;
+      _cameraError = null;
+    });
+    try {
+      while (mounted && !_closed && _step == _EnrollStep.qr) {
+        final text = await reader.read();
+        if (!mounted || _closed || _step != _EnrollStep.qr) return;
+        if (text != null) {
+          _qr.text = text;
+          _onQr(text, submitted: true);
+          return;
+        }
+      }
+    } on KaftpayScannerException catch (e) {
+      if (mounted) setState(() => _cameraError = e.message);
+    } finally {
+      if (mounted) setState(() => _cameraQr = false);
+    }
   }
 
   /// QR skani faqat shu maydonga tushsin (vozvratdagi KM skan oynasi kabi);
@@ -120,6 +166,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
 
   @override
   void dispose() {
+    widget.qrReader?.stop();
     if (_step == _EnrollStep.scanning) widget.scanner.cancel();
     if (_bl != null && _blBefore != null) {
       _bl!.add(BlStatusChangedEvent(
@@ -143,6 +190,9 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
     if (!_canStart) return;
     _set(_EnrollStep.scanning,
         t('Kaftni skanerga qo\'ying', 'Приложите ладонь к сканеру'));
+    // Kamera va kaft skaneri — bitta qurilma: avval kamera yopiladi.
+    await widget.qrReader?.stop();
+    if (!mounted || _closed) return;
     final KaftpayPalmScan raw;
     try {
       raw = await widget.scanner.capture(onStage: (_, m) {
@@ -183,6 +233,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
     _qrInvalid = false;
     _set(_EnrollStep.qr, '');
     _qrFocus.requestFocus();
+    _watchCameraQr();
   }
 
   void _close() {
@@ -294,6 +345,34 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _stepTitle(1, t('QR\'ni skanerlang', 'Отсканируйте QR')),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Icon(
+                      _cameraQr
+                          ? Icons.videocam_outlined
+                          : Icons.qr_code_scanner,
+                      size: 22,
+                      color: _cameraQr ? ui.success : ui.muted),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _cameraQr
+                          ? t(
+                              'Telefonni kaft skaneriga yoki barcode skanerga '
+                                  'ko\'rsating',
+                              'Покажите телефон сканеру ладони или '
+                                  'сканеру штрихкодов')
+                          : t('Barcode skaner bilan o\'qing',
+                              'Считайте сканером штрихкодов'),
+                      key: const ValueKey('kaftpay_enroll_qr_hint'),
+                      style: TextStyle(color: ui.muted, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             TextField(
               key: const ValueKey('kaftpay_enroll_qr'),
               controller: _qr,
@@ -312,6 +391,12 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
                     : null,
               ),
             ),
+            if (_cameraError != null && widget.qrReader != null) ...[
+              const SizedBox(height: 8),
+              Text(_cameraError!,
+                  key: const ValueKey('kaftpay_enroll_camera_error'),
+                  style: TextStyle(color: ui.faint, fontSize: 13)),
+            ],
             if (_qrInvalid) ...[
               const SizedBox(height: 10),
               Text(t('Bu Kaftpay QR emas', 'Это не QR Kaftpay'),
