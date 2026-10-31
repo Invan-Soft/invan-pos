@@ -197,8 +197,7 @@ void main() {
 
     expect(scanner.captures, 1);
     final body = server.jsonBody(server.calls('POST', '/api/v1/enroll').single);
-    expect(
-        body['qrSessionId'], 'PPENROLL:3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
+    expect(body['qrSessionId'], '3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
     expect(body['hand'], 'LEFT', reason: 'SDK RIGHT dedi, kassir — LEFT');
     expect(find.textContaining('ro\'yxatdan o\'tdi'), findsOneWidget);
   });

@@ -141,8 +141,13 @@ class KaftpayApi {
     );
   }
 
-  /// Mijoz ilovasidagi QR (`PPENROLL:<id>` yoki faqat id — server prefiksni
-  /// o'zi olib tashlaydi) + kaft. Har qo'l alohida chaqiriladi.
+  /// Mijoz ilovasidagi QR (`PPENROLL:<id>` yoki faqat id) + kaft. Har qo'l
+  /// alohida chaqiriladi.
+  ///
+  /// Serverga faqat UUID ketadi ([enrollSessionId]): hujjatda "server
+  /// prefiksni o'zi olib tashlaydi" deyilgan, lekin jonli serverda
+  /// (2026-10-31) `PPENROLL:<uuid>` → HTTP 200 + `9999`, faqat `<uuid>` →
+  /// to'g'ri javob (`1150` / ACTIVE).
   ///
   /// Qo'l (chap/o'ng) MAJBURIY va kassir tanlaydi: `UNSPECIFIED` da server
   /// adashtiruvchi `1104` qaytaradi, QR sessiyasi esa ochiq qoladi.
@@ -150,7 +155,7 @@ class KaftpayApi {
     required String qrSessionId,
     required KaftpayPalmScan scan,
   }) {
-    final qr = qrSessionId.trim();
+    final qr = enrollSessionId(qrSessionId);
     if (qr.isEmpty) return _localFail('QR kod skanerlanmagan');
     if (scan.hand == KaftpayHand.unspecified) {
       return _localFail('Qo\'lni tanlang: chap yoki o\'ng');
@@ -169,6 +174,16 @@ class KaftpayApi {
       },
       parse: KaftpayEnrollResult.fromJson,
     );
+  }
+
+  /// QR matnidan sessiya id'si: bo'sh joylar va `PPENROLL:` prefiksi
+  /// (katta-kichik harfsiz) olib tashlanadi.
+  static String enrollSessionId(String qrText) {
+    final s = qrText.trim();
+    const prefix = 'PPENROLL:';
+    return s.toUpperCase().startsWith(prefix)
+        ? s.substring(prefix.length).trim()
+        : s;
   }
 
   /// PUL YECHADI. [idempotencyKey] — bitta niyat qilingan to'lovga bitta;
