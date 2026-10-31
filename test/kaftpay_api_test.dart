@@ -593,8 +593,9 @@ void main() {
   });
 
   group('/enroll', () {
-    test('QR matni o\'zgartirilmay yuboriladi (PPENROLL: prefiks bilan)',
-        () async {
+    test(
+        'QR: PPENROLL: prefiksi olib tashlanadi — serverga faqat UUID '
+        '(jonli server prefiks bilan 9999 beradi)', () async {
       server.on(
           'POST',
           '/api/v1/enroll',
@@ -609,8 +610,7 @@ void main() {
       );
       expect(r.isOk, isTrue, reason: '${r.error}');
       final body = server.jsonBody(server.requests.single);
-      expect(
-          body['qrSessionId'], 'PPENROLL:3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
+      expect(body['qrSessionId'], '3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
       expect(body['hand'], 'LEFT');
       expect(body.containsKey('palmDataEnc'), isTrue);
       expect(body.containsKey('ir'), isFalse);
@@ -634,6 +634,14 @@ void main() {
           scan: KaftpayPalmScan(ir: fakeIr(), hand: KaftpayHand.left));
       expect(r.error!.kind, KaftpayErrorKind.local);
       expect(server.requests, isEmpty);
+    });
+
+    test('enrollSessionId: prefiks / bo\'sh joy / katta-kichik harf', () {
+      const id = '3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f';
+      expect(KaftpayApi.enrollSessionId('PPENROLL:$id'), id);
+      expect(KaftpayApi.enrollSessionId('  ppenroll:$id \n'), id);
+      expect(KaftpayApi.enrollSessionId(id), id);
+      expect(KaftpayApi.enrollSessionId('PPENROLL:'), '');
     });
 
     test('qo\'l tanlanmagan → tarmoqqa chiqmaydi (server 1104 berardi)',

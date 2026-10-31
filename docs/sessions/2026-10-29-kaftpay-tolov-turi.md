@@ -126,6 +126,14 @@ salt=`TS\nNONCE`, info=`pp-palm-vector:v1`). TS/NONCE — aynan o'sha so'rov hea
   → lib/features/payment/right/dilogs/kaftpay/kaftpay_ui.dart (yangi), kaftpay_pay_dialog.dart,
     kaftpay_enroll_dialog.dart, kaftpay_content.dart, kaftpay_checkout.dart
   Commit QILINMAGAN (d48073f dan keyin); `api_provider.dart` DEV — faqat lokal, commit qilinmaydi.
+- [x] Windows'da birinchi jonli sinov (2026-10-31): SDK fayllari `C:\ProgramData\InVanPos2\kaftpay` (zip bilan;
+  birinchi urinishda `config\` tushib qolgan edi), WinUSB — Zadig 2.9 ("Veinshine 01", 3251:3130; boshqa USB portda
+  ko'rindi). Skaner ishladi. Enroll → HTTP 200 + `9999` "Serverda kutilmagan xatolik!". Tekshiruv (soxta QR, 3 til):
+  `PPENROLL:<uuid>` → 9999, faqat `<uuid>` → 1150 — server prefiksni OLIB TASHLAMAYDI (hujjatga zid; namunaviy kassa
+  29.10 da prefiks bilan o'tgan — server o'zgargan). Tuzatish: `KaftpayApi.enrollSessionId` prefiksni kassada oladi;
+  jonli: prefiksli soxta QR → 1150.
+  → lib/changes/services/payment/kaftpay/kaftpay_api.dart (`enroll`, `enrollSessionId`)
+  Kaftpay'ga xabar qilish kerak (hujjat yoki server).
 
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] **Windows'da birinchi to'lov sinovi** (foydalanuvchi, qurilma bilan):
