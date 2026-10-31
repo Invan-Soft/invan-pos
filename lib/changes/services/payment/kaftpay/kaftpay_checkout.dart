@@ -212,6 +212,7 @@ class KaftpayCheckout extends ChangeNotifier {
       amount: amount,
       createdAt: _now(),
       status: KaftpayJournalStatus.pending,
+      receipt: '', // sotuv chekka yozilgach to'ldiriladi (KaftpaySaleCharges)
     ));
     _set(KaftpayCheckoutStep.charging,
         KaftpayLang.t('To\'lov o\'tkazilmoqda...', 'Проводим оплату...'));

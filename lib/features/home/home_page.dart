@@ -1,6 +1,6 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:invan2/changes/services/catalog_refresh_notice.dart';
+import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_unbound_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/app_navigation.dart';
@@ -71,11 +71,12 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     /// bloklanadi — u yerda modal oyna kassirni kirishdan to'sib qo'yardi.
     /// Sinxron tsikliga tayanilsa esa ogohlantirish bir daqiqagacha
     /// kechikardi. Bu chaqiruv uni darhol ko'rsatadi (shartlar bajarilsa).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      CatalogRefreshNotice.maybeShow();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await CatalogRefreshNotice.maybeShow();
+      // Kaftpay'dan pul yechilgan, chek chiqmagan to'lovlar — vozvrat taklifi.
+      await KaftpayUnboundNotice.maybeShow();
     });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +147,8 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                           focusNode: FocusNode(skipTraversal: true),
                           onPressed: () async {
                             final orderingProvider =
-                                Provider.of<OrderingProvider4>(context, listen: false);
+                                Provider.of<OrderingProvider4>(context,
+                                    listen: false);
                             final pageContext = context;
                             blBlocc.add(BlVisibilityChangedEvent(false));
                             await showDialog(
@@ -155,7 +157,8 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                 value: BlocProvider.of<InvoiceBloc>(context),
                                 child: InvoiceSearchDialog(
                                   onSearch: (invoiceId) {
-                                    orderingProvider.loadInvoiceByBarcodeWithBloc(
+                                    orderingProvider
+                                        .loadInvoiceByBarcodeWithBloc(
                                       barcode: invoiceId,
                                       context: pageContext,
                                     );
@@ -168,7 +171,8 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                           style: TextButton.styleFrom(
                             fixedSize: Size(SizeConfig.h * 2, SizeConfig.v * 2),
                             elevation: 0,
-                            foregroundColor: Theme.of(context).colorScheme.background,
+                            foregroundColor:
+                                Theme.of(context).colorScheme.background,
                           ),
                           child: ImageIcon(
                             AssetImage("assets/images/invoice.png"),
@@ -178,8 +182,8 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         )
                       : const SizedBox.shrink(),
                 ),
-                  SizedBox(width: SizeConfig.h),
-           
+                SizedBox(width: SizeConfig.h),
+
                 SearchButtons(
                   context,
                   onLockButtonPressed: () {
@@ -197,8 +201,7 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       await showDialog(
                         context: context,
                         builder: (_) => InputAlertDialog(
-                          accessCheck: (e) =>
-                              e.access?.receiptHistory ?? false,
+                          accessCheck: (e) => e.access?.receiptHistory ?? false,
                           onValueEntered: (emp) {
                             AppNavigation.pop();
                             AppNavigation.push(const ChecksPage());
@@ -242,12 +245,12 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                           context,
                           listen: false,
                         )
-                        // Faqat joriy kassirning JONLI deleteS huquqi
-                        // (cancelOrdering ichida). `delete_ticket` prefi
-                        // ishlatilmaydi: uni har qanday PIN (masalan rahbar
-                        // chek tarixiga kirganda) yozadi va keyin ruxsatsiz
-                        // kassir dialogsiz savatni tozalay olardi.
-                        .cancelOrdering(false);
+                            // Faqat joriy kassirning JONLI deleteS huquqi
+                            // (cancelOrdering ichida). `delete_ticket` prefi
+                            // ishlatilmaydi: uni har qanday PIN (masalan rahbar
+                            // chek tarixiga kirganda) yozadi va keyin ruxsatsiz
+                            // kassir dialogsiz savatni tozalay olardi.
+                            .cancelOrdering(false);
                         if (!result) {
                           blBlocc.add(
                             BlStatusChangedEvent(
@@ -290,12 +293,14 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                           context: context,
                           builder: (_) => InputAlertDialog(
                             onUniversalPinEntered: () {
-                              Provider.of<OrderingProvider4>(context, listen: false)
+                              Provider.of<OrderingProvider4>(context,
+                                      listen: false)
                                   .cancelOrderingWithTelegram();
                               AppNavigation.pop();
                             },
                             onValueEntered: (emp) {
-                              Provider.of<OrderingProvider4>(context, listen: false)
+                              Provider.of<OrderingProvider4>(context,
+                                      listen: false)
                                   .cancelOrderingWithTelegram();
                               AppNavigation.pop();
                             },

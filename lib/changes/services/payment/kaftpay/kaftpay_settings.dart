@@ -110,6 +110,7 @@ class KaftpayJournalEntry {
     this.consumerName,
     this.transactionId,
     this.note,
+    this.receipt,
   });
 
   /// `Idempotency-Key`.
@@ -127,6 +128,14 @@ class KaftpayJournalEntry {
   /// Oxirgi xato / izoh (kassirga ko'rsatiladi).
   final String? note;
 
+  /// Sotuv cheki: `null` — eski yozuv (kuzatilmagan), `''` — sotuv hali
+  /// chekka yozilmagan, boshqasi — chek raqami.
+  final String? receipt;
+
+  /// Pul yechilgan, lekin sotuv chekka yozilmagan: kassir sotuvni yakunlamay
+  /// chiqib ketdi, fiskal xato berdi yoki dastur yopildi.
+  bool get isUnbound => status == KaftpayJournalStatus.charged && receipt == '';
+
   bool get needsStatusCheck =>
       status == KaftpayJournalStatus.pending ||
       status == KaftpayJournalStatus.unknown;
@@ -139,6 +148,7 @@ class KaftpayJournalEntry {
     KaftpayJournalStatus? status,
     String? transactionId,
     String? note,
+    String? receipt,
   }) =>
       KaftpayJournalEntry(
         key: key,
@@ -150,6 +160,7 @@ class KaftpayJournalEntry {
         status: status ?? this.status,
         transactionId: transactionId ?? this.transactionId,
         note: note,
+        receipt: receipt ?? this.receipt,
       );
 
   Map<String, dynamic> toJson() => {
@@ -162,6 +173,7 @@ class KaftpayJournalEntry {
         'status': status.name,
         if (transactionId != null) 'transactionId': transactionId,
         if (note != null) 'note': note,
+        if (receipt != null) 'receipt': receipt,
       };
 
   static KaftpayJournalEntry? fromJson(Object? j) {
@@ -179,6 +191,7 @@ class KaftpayJournalEntry {
       status: KaftpayJournalStatus.parse(j['status']),
       transactionId: j['transactionId'] as String?,
       note: j['note'] as String?,
+      receipt: j['receipt'] as String?,
     );
   }
 }
@@ -223,6 +236,23 @@ class KaftpayJournal {
   List<KaftpayJournalEntry> unresolved() =>
       all().where((e) => e.needsStatusCheck).toList();
 
+  /// Pul yechilgan, chek chiqmagan to'lovlar.
+  List<KaftpayJournalEntry> unbound() =>
+      all().where((e) => e.isUnbound).toList();
+
+  /// Sotuv chekka yozildi — shu to'lovlar endi chekda.
+  Future<void> bindReceipt(Iterable<String> keys, String receipt) async {
+    final wanted = keys.toSet();
+    if (wanted.isEmpty) return;
+    final list = [
+      for (final e in all())
+        wanted.contains(e.key)
+            ? e.copyWith(note: e.note, receipt: receipt.isEmpty ? '-' : receipt)
+            : e
+    ];
+    await _write(jsonEncode([for (final e in list) e.toJson()]));
+  }
+
   /// Kalit bo'yicha yangilaydi yoki boshiga qo'shadi.
   Future<void> put(KaftpayJournalEntry entry) async {
     final list = [entry, ...all().where((e) => e.key != entry.key)];
@@ -230,7 +260,9 @@ class KaftpayJournal {
     if (list.length > maxEntries) {
       kept = [
         ...list.take(maxEntries),
-        ...list.skip(maxEntries).where((e) => e.needsStatusCheck),
+        ...list
+            .skip(maxEntries)
+            .where((e) => e.needsStatusCheck || e.isUnbound),
       ];
     }
     await _write(jsonEncode([for (final e in kept) e.toJson()]));

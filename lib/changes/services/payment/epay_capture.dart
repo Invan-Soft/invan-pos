@@ -18,8 +18,11 @@ import 'package:invan2/utils/helpers/prefs.dart';
 class EpayCapture {
   const EpayCapture._();
 
-  /// `ReceiptModel4.epayJson` uchun qiymat (Pass/Go yo'q bo'lsa null).
-  static String? forReceipt(ReceiptModel4 receipt) => ReceiptEpay.capture(
+  /// `ReceiptModel4.epayJson` uchun qiymat (Pass/Go va Kaftpay yo'q bo'lsa
+  /// null). [kaftpayTx] — shu sotuvda yechilgan Kaftpay tranzaksiyalari.
+  static String? forReceipt(ReceiptModel4 receipt,
+          {List<String> kaftpayTx = const []}) =>
+      ReceiptEpay.capture(
         receipt: receipt,
         clickId: Pref.getString(PrefKeys.clickId, ''),
         paymeId: Pref.getString(PrefKeys.paymeId, ''),
@@ -31,6 +34,8 @@ class EpayCapture {
         paynetPaymentId: PaynetService.paymentId,
         lastProvider: Pref.getInt('epayPay_Id', 0),
         lastPhone: Pref.getString('epay_phone', ''),
+        kaftpayId: Pref.getString(PrefKeys.kaftpayId, ''),
+        kaftpayTx: kaftpayTx,
       ).encode();
 
   /// Yangi to'lov sessiyasi — oldingi to'lov ID'lari unutiladi.

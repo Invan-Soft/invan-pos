@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:invan2/app_navigation.dart';
 import 'package:invan2/changes/components/logo_widget.dart';
+import 'package:invan2/changes/domain/payment/charged_on_leave.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
 import 'package:invan2/features/home/features/home_products/shift_opened/bottom_layer_of_home_page.dart';
@@ -11,6 +12,7 @@ import 'package:invan2/features/payment/right/dilogs/add_client/create_client_di
 import 'package:invan2/utils/utils.dart';
 import 'package:invan2/widgets/alice_pincode.dart';
 import 'package:provider/provider.dart';
+import 'leave_charged_dialog.dart';
 import 'right/right.dart';
 import 'left/left.dart';
 
@@ -119,40 +121,15 @@ class _PaymentPageState extends State<PaymentPage> {
     );
   }
 
-  /// Kaftpay'dan pul yechilgan, lekin sotuv yakunlanmagan bo'lsa — chiqishdan
-  /// oldin tasdiq: chiqilsa to'lov chekka tushmaydi (keyingi ochilishda
-  /// `paymentsMap` tozalanadi), Sozlamalar → Kaftpay'dan vozvrat kerak.
+  /// Pul yechilgan (Kaftpay, terminal orqali Uzcard / Humo), lekin sotuv
+  /// yakunlanmagan bo'lsa — chiqishdan oldin tasdiq: chiqilsa to'lov chekka
+  /// tushmaydi (keyingi ochilishda `paymentsMap` tozalanadi).
   Future<bool> _canLeave(BuildContext context) async {
-    final String kaftpayId = Pref.getString(PrefKeys.kaftpayId, '');
-    if (kaftpayId.isEmpty) return true;
-    final double charged =
-        context.read<OrderingProvider4>().paymentsMap[kaftpayId]?.value ?? 0;
-    if (charged <= 0) return true;
-    final bool uz = AppLocalizations.of(context)!.ha == 'Ha';
-    final String sum = MoneyFormatter.formatter.format(charged);
-    final bool? leave = await showDialog<bool>(
-      context: context,
-      builder: (d) => AlertDialog(
-        content: Text(uz
-            ? "Kaftpay orqali $sum so'm YECHILGAN. Chiqsangiz, bu to'lov chekka "
-                "tushmaydi — uni Sozlamalar → Kaftpay'dan qaytarish (vozvrat) "
-                "kerak bo'ladi.\n\nSotuvni yakunlash uchun qoling."
-            : 'Через Kaftpay СПИСАНО $sum сум. Если выйти, оплата не попадёт '
-                'в чек — её нужно будет вернуть в Настройки → Kaftpay.\n\n'
-                'Останьтесь, чтобы завершить продажу.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(d, true),
-            child: Text(uz ? 'Baribir chiqish' : 'Всё равно выйти'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(d, false),
-            child: Text(uz ? 'Qolish' : 'Остаться'),
-          ),
-        ],
-      ),
-    );
-    return leave == true;
+    final charged =
+        ChargedOnLeave.current(context.read<OrderingProvider4>().paymentsMap);
+    if (charged.isEmpty) return true;
+    return LeaveChargedDialog.show(context,
+        charged: charged, uz: AppLocalizations.of(context)!.ha == 'Ha');
   }
 
   MaterialButton _leading(BuildContext context) {

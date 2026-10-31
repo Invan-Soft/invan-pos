@@ -153,7 +153,28 @@ salt=`TS\nNONCE`, info=`pp-palm-vector:v1`). TS/NONCE — aynan o'sha so'rov hea
   - mijoz ismi: familiya kelsa (`fullName` / `lastName` / `name` "Alisher U.") — ism + familiya, kelmasa — faqat ism
     (swagger'da hozircha faqat `firstName`; `name` amalda GUID).
   Skrinshotlar golden-test bilan tekshirildi (vaqtinchalik test o'chirildi). To'liq to'plam 2407 o'tdi.
-
+- [x] Do'konga chiqishdan oldingi bandlar (2026-10-31, foydalanuvchi qarorlari bilan):
+  - **Soliq:** Kaftpay — ReceivedCard (oldin ham) + `ExtraInfo.CardType` 2 (`recordKaftpay`, YagonaQr kabi; oldin 0
+    ketardi). Aralash to'lovlar: 11 tur × savat, naqd/karta/YagonaQr/cashback/Click QR/Pass+Go/tarozi/qaytim/vozvrat.
+    → lib/changes/providers/ordering_provider_4.dart (`recordKaftpay`), test/kaftpay_pos_integration_test.dart
+  - **Chekka bog'lash:** tranzaksiya ID'lari chekda (`ReceiptEpay.kaftpayTx` → `epayJson`, ObjectBox sxemasi
+    o'zgarmagan — JSON maydon); fiskal ExtraInfo'ga ta'sir yo'q; qog'oz chekka chiqmaydi (Click/Payme ID'lari ham
+    chiqmaydi — 36 belgili UUID 58 mm chekka sig'maydi). Chek saqlangach jurnalda chek raqami
+    (`KaftpayJournalEntry.receipt`: null — eski yozuv, '' — chek yo'q, boshqa — raqam).
+    → kaftpay_sale.dart (KaftpaySaleCharges), receipt_epay.dart, epay_capture.dart, kaftpay_settings.dart
+  - **Chek chiqmagan to'lov:** sotuv ekrani ochilganda ogohlantirish (`KaftpayUnboundNotice`, katalog
+    ogohlantirishidan keyin) — har to'lovga "Vozvrat", "Keyinroq" 30 daqiqa. Sozlamalar tarixida "Chek yo'q" belgisi
+    va "Tekshirish kerak" filtrida. Vozvrat/holat oynasi umumiy (`KaftpayEntryActions`).
+  - **Chiqish tasdig'i:** to'lov sahifasidan chiqishda pul yechilgan bo'lsa — katta oyna: Kaftpay va terminal orqali
+    (Arcus yoqilgan) Uzcard / Humo. Arcus kodiga tegilmadi — faqat `paymentsMap` o'qiladi (integratsiya yoqilganda
+    karta qatori faqat "ОДОБРЕНО" dan keyin qo'shiladi). Qo'lda belgilangan karta — ogohlantirilmaydi.
+    → lib/changes/domain/payment/charged_on_leave.dart, lib/features/payment/leave_charged_dialog.dart
+  - "Kaftpay: to'lov o'tdi" snackbar olib tashlandi (oynaning o'zida ko'rinadi, "Закрыть чек" ni to'sardi).
+  - **Ro'yxatdan o'tkazish:** global skaner tinglovchisi oyna ochiq turganda o'chiriladi (`BLStatus.other`, yopilganda
+    oldingisi) — QR "mahsulot topilmadi" bermaydi; ruscha klaviaturada skanerlangan QR tuzatiladi
+    (`KeyboardLayout.ruLettersToEn`); oyna kattaroq, matn qisqa ("QR'ni skanerlang", "Qaysi qo'l?"), katta tugmalar.
+  - To'lov oynasi kattaroq (580 px), ism + familiya (kelsa; hozir serverda faqat `firstName`).
+  Qolgan qaror: POS vozvrati Kaftpay chekini naqd qaytaradi — foydalanuvchi "turib tursin" (2026-10-31).
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] **Windows'da birinchi to'lov sinovi** (foydalanuvchi, qurilma bilan):
   1. Adminkada (dev) test kassasiga "Kaftpay" nomli to'lov turi, "Apps" da yoqilgan → POS "Ma'lumotlarni yangilash".
@@ -205,6 +226,12 @@ salt=`TS\nNONCE`, info=`pp-palm-vector:v1`). TS/NONCE — aynan o'sha so'rov hea
 - Kod Dart 2.19 tilida (pubspec `sdk: >=2.19.2`) — sealed/record/pattern yo'q.
 
 ## Ochiq savollar
+- POS vozvrati (cheklar sahifasi) Kaftpay chekini naqd qaytaradi — kartaga qaytarish kerakmi? Foydalanuvchi:
+  "aniq qarorga kelmagan, turib tursin" (2026-10-31). Chekda tx bor — qaror bo'lsa ulash oson. — foydalanuvchi
+- Chap qo'l QR / o'ng qo'l tanlansa: QR'da qo'l yo'q (`PPENROLL:<uuid>`), server kassir yuborgan `hand` ni yozadi →
+  to'lov ishlaydi (identify qo'lsiz), lekin yorliq noto'g'ri; keyin o'sha mijoz haqiqiy o'ng qo'lini RIGHT bilan
+  ro'yxatdan o'tkazsa — jim almashtiradi (upsert), birinchi kaft yo'qoladi. Ilova QR'ni qo'l bo'yicha
+  ochadimi va server tekshiradimi — Kaftpay'dan so'rash. — Kaftpay
 - O'sha mijoz o'sha qo'lni qayta ro'yxatdan o'tkazsa server jim almashtiradi (upsert, xato yo'q) — Kaftpay'ga
   savol yuborilgan (`~/Desktop/kaftpay/prompt-pp-pos-api-reenroll.md`), javob kutilmoqda. Kassir "yangi" va
   "almashtirildi" ni ajrata olmaydi. — Kaftpay
