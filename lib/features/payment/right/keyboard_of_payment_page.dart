@@ -444,9 +444,14 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
     final outcome =
         await KaftpayPayDialog.show(context, checkout: checkout, uz: uz);
     if (outcome == null || !outcome.isCharged) return;
+    // "To'lov o'tdi" oynaning o'zida ko'rsatildi — snackbar shart emas
+    // (u "Закрыть чек" tugmasini to'sardi).
     provider.recordKaftpay(
-        p, KaftpayMoney.toSom(outcome.amount ?? checkout.amount));
-    if (mounted) say(uz ? "Kaftpay: to'lov o'tdi" : 'Kaftpay: оплата прошла');
+      p,
+      KaftpayMoney.toSom(outcome.amount ?? checkout.amount),
+      journalKey: outcome.idempotencyKey,
+      transactionId: outcome.transactionId,
+    );
   }
 
   Row _clickAndPayme(BuildContext context, AppLocalizations loc) {

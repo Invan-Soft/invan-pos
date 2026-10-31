@@ -66,6 +66,7 @@ import 'package:invan2/features/payment/right/complete_button/uzum_pay_bloc/uzum
 import 'package:invan2/features/payment/right/dilogs/click/bloc/click_bloc.dart';
 import 'package:invan2/changes/services/payment/paynet_service.dart';
 import 'package:invan2/changes/services/payment/epay_capture.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_sale.dart';
 import 'package:invan2/features/payment/right/dilogs/paynet/bloc/paynet_bloc.dart';
 import 'package:invan2/features/payment/right/dilogs/paynet/paynet_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/click/clic_pass_dialog.dart';
@@ -506,7 +507,7 @@ class OrderingProvider4 extends ChangeNotifier {
               discountValue: 0,
             );
           }
-          
+
           Pref.setString(
               'invoice_id_for_order', "Invoice Id: ${invoice.externalId}");
           bool hasMissingProduct = false;
@@ -1788,14 +1789,25 @@ class OrderingProvider4 extends ChangeNotifier {
     );
     // Shu chekdagi Pass/Go to'lov ID'lari — keyin cheklar ro'yxatidan
     // fiskalga yuborilganda ham aynan shular ishlatiladi.
-    receiptModel4.epayJson = EpayCapture.forReceipt(receiptModel4);
+    receiptModel4.epayJson = EpayCapture.forReceipt(receiptModel4,
+        kaftpayTx: _kaftpaySale.transactionIds);
     if (receiptModel4.payment.isNotEmpty &&
         receiptModel4.soldItemList.isNotEmpty) {
-      await ReceiptSingleton4.toOBJECTBOX(
-        receiptModel4,
-        clientBalance:
-            _isInnClient ? null : getCurrentClient.selectedClient?.pointBalance,
-      );
+      try {
+        await ReceiptSingleton4.toOBJECTBOX(
+          receiptModel4,
+          clientBalance: _isInnClient
+              ? null
+              : getCurrentClient.selectedClient?.pointBalance,
+        );
+      } finally {
+        // Chek chop etishdan OLDIN saqlanadi — chop etish yiqilsa ham Kaftpay
+        // to'lovi chekka bog'lanadi (aks holda "chek chiqmagan" deb vozvratga
+        // undardi).
+        if (receiptModel4.id != 0) {
+          await _kaftpaySale.bind(receiptModel4.externalId);
+        }
+      }
 
       _returnedProducts = {};
       _returnedFreeGiftProducts = [];
@@ -1865,7 +1877,8 @@ class OrderingProvider4 extends ChangeNotifier {
       lastCardNumber: _lastCardNumber,
       lastRRN: _lastRRN,
     );
-    receiptModel4.epayJson = EpayCapture.forReceipt(receiptModel4);
+    receiptModel4.epayJson = EpayCapture.forReceipt(receiptModel4,
+        kaftpayTx: _kaftpaySale.transactionIds);
 
     if (receiptModel4.soldItemList.isEmpty) {
       LogHelper.write(
@@ -1895,13 +1908,20 @@ class OrderingProvider4 extends ChangeNotifier {
 
           if (receiptModel4.payment.isNotEmpty &&
               receiptModel4.soldItemList.isNotEmpty) {
-            await ReceiptSingleton4.toOBJECTBOX(
-              receiptModel4,
-              communicatorRECEIPT: response,
-              clientBalance: _isInnClient
-                  ? null
-                  : getCurrentClient.selectedClient?.pointBalance,
-            );
+            try {
+              await ReceiptSingleton4.toOBJECTBOX(
+                receiptModel4,
+                communicatorRECEIPT: response,
+                clientBalance: _isInnClient
+                    ? null
+                    : getCurrentClient.selectedClient?.pointBalance,
+              );
+            } finally {
+              // Chop etish yiqilsa ham chek saqlangan — to'lov bog'lanadi.
+              if (receiptModel4.id != 0) {
+                await _kaftpaySale.bind(receiptModel4.externalId);
+              }
+            }
           }
 
           return PaymentResult(mxikError: null, success: true);
@@ -1974,6 +1994,7 @@ class OrderingProvider4 extends ChangeNotifier {
     // Oldingi sotuvning Click/Payme/Uzum/Paynet to'lov ID'lari va fiskal
     // ExtraInfo qoldig'i yangi chekka tushmasin.
     EpayCapture.reset();
+    _kaftpaySale.clear();
   }
 
   late bool _paymentInProgress;
@@ -2402,6 +2423,12 @@ class OrderingProvider4 extends ChangeNotifier {
 
   void _payByAll(double v, Payment payment) => _tally.payByAll(v, payment);
 
+  final KaftpaySaleCharges _kaftpaySale = KaftpaySaleCharges();
+
+  /// Shu sotuvda yechilgan Kaftpay to'lovlari — testlar uchun.
+  @visibleForTesting
+  KaftpaySaleCharges get kaftpaySale => _kaftpaySale;
+
   /// YagonaQr — admin paneldagi alohida to'lov turi. Terminal integratsiyasi
   /// yo'q: mijoz QR orqali to'laydi, kassir tugma bilan belgilaydi (summa —
   /// klaviaturadagi yoki qolgan qoldiq, aralash to'lovda ham). Serverga
@@ -2427,11 +2454,19 @@ class OrderingProvider4 extends ChangeNotifier {
   }
 
   /// Kaftpay'dan YECHILGAN summa — aynan shu yoziladi (klaviaturadan qayta
-  /// hisoblanmaydi). Serverga Kaftpay id'si bilan, fiskalda karta.
-  void recordKaftpay(Payment payment, double charged) {
+  /// hisoblanmaydi). Serverga Kaftpay id'si bilan; soliqqa karta:
+  /// ReceivedCard va `ExtraInfo.CardType` 2 (YagonaQr bilan bir xil).
+  /// [journalKey] / [transactionId] — chekka yoziladi va chek saqlangach
+  /// jurnalda belgilanadi (`KaftpaySaleCharges`).
+  void recordKaftpay(Payment payment, double charged,
+      {String? journalKey, String? transactionId}) {
     payment.type = null; // '@' kalit emas — o'z id'si bilan
     _selectedPaymentType = payment.id ?? '';
     _payByAll(getSelectedPaymentSumma() + charged, payment);
+    if (charged > 0) _lastCardType = 2;
+    if (journalKey != null) {
+      _kaftpaySale.add(journalKey: journalKey, transactionId: transactionId);
+    }
     controller.text = '0';
     notifyListeners();
   }
@@ -3017,9 +3052,9 @@ class OrderingProvider4 extends ChangeNotifier {
       return;
     }
     {
-      final zeroPriceItem =
-          ScannedProductLookup.findZeroPriceProduct(triedPatterns,
-              gtins: match.gtins);
+      final zeroPriceItem = ScannedProductLookup.findZeroPriceProduct(
+          triedPatterns,
+          gtins: match.gtins);
       if (zeroPriceItem != null) {
         // ignore: use_build_context_synchronously
         addProduct(

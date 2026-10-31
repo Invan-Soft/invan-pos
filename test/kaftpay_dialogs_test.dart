@@ -2,6 +2,7 @@
 // o'tkazish (QR + qo'l → kaft → /enroll).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_checkout.dart';
@@ -9,6 +10,7 @@ import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_payment_flow.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_scanner.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_settings.dart';
+import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
 import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_enroll_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_pay_dialog.dart';
 
@@ -273,7 +275,75 @@ void main() {
     expect(find.textContaining('ro\'yxatdan o\'tdi'), findsOneWidget);
   });
 
+  testWidgets(
+      'ro\'yxatdan o\'tkazish: oyna ochiq turganda global skaner tinglovchisi '
+      'o\'chiq (QR mahsulot deb qidirilmaydi), yopilganda qaytadi',
+      (tester) async {
+    final bl = BlBloc();
+    addTearDown(bl.close);
+    expect(bl.status, BLStatus.home);
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(BlocProvider<BlBloc>.value(
+      value: bl,
+      child: MaterialApp(
+        home: Builder(
+          builder: (ctx) => Scaffold(
+            body: Center(
+              child: TextButton(
+                  onPressed: () => KaftpayEnrollDialog.show(ctx,
+                      api: api(), scanner: _Scanner()),
+                  child: const Text('open')),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await settle(tester);
+    expect(bl.status, BLStatus.other);
+
+    await tester.tap(find.byKey(const ValueKey('kaftpay_enroll_close')));
+    await settle(tester);
+    expect(find.byType(KaftpayEnrollDialog), findsNothing);
+    expect(bl.status, BLStatus.home);
+  });
+
+  testWidgets('ro\'yxatdan o\'tkazish: ruscha klaviaturada skanerlangan QR',
+      (tester) async {
+    server.on(
+        'POST',
+        '/api/v1/enroll',
+        FakeKaftpay.ok({
+          'consumerGuid': kConsumer,
+          'status': 'ACTIVE',
+          'enrolledAt': '01.08.2026 15:04:22',
+        }));
+    await open(
+        tester,
+        (ctx) =>
+            KaftpayEnrollDialog.show(ctx, api: api(), scanner: _Scanner()));
+    await tester.enterText(find.byKey(const ValueKey('kaftpay_enroll_qr')),
+        'ЗЗУТКЩДДЖ3а1и8с2в-9ф4у-4с11-и6в5-77у0ф1с93и4а');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('kaftpay_enroll_RIGHT')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('kaftpay_enroll_start')));
+    await settle(tester);
+    final body = server.jsonBody(server.calls('POST', '/api/v1/enroll').single);
+    expect(body['qrSessionId'], '3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
+    expect(body['hand'], 'RIGHT');
+  });
+
   test('QR tekshiruvi', () {
+    expect(
+        KaftpayEnrollDialog.normalizeQr(
+            ' ЗЗУТКЩДДЖ3а1и8с2в-9ф4у-4с11-и6в5-77у0ф1с93и4а '),
+        'PPENROLL:3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
+    expect(
+        KaftpayEnrollDialog.looksLikeQr(
+            'ЗЗУТКЩДДЖ3а1и8с2в-9ф4у-4с11-и6в5-77у0ф1с93и4а'),
+        isTrue);
     expect(
         KaftpayEnrollDialog.looksLikeQr(
             'PPENROLL:3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f'),

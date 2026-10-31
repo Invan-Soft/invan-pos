@@ -6,14 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
-import 'package:invan2/changes/services/payment/kaftpay/kaftpay_payment_flow.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_scanner.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_settings.dart';
 import 'package:invan2/changes/models/organization_model.dart' show Payment;
-import 'package:invan2/changes/singletons/organization_singleton.dart';
 import 'package:invan2/features/features.dart';
-import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_action_dialog.dart';
 import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_enroll_dialog.dart';
+import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_entry_actions.dart';
 import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_ui.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/money_formatter.dart';
@@ -59,15 +57,9 @@ class _KaftpayContentState extends State<KaftpayContent> {
     super.dispose();
   }
 
-  Payment? get _payment {
-    final id = Pref.getString(PrefKeys.kaftpayId, '');
-    for (final p in otherPaymentsGlobal) {
-      if (id.isNotEmpty && p.id == id) return p;
-    }
-    return null;
-  }
+  Payment? get _payment => KaftpayEntryActions.payment;
 
-  KaftpayConfig? get _config => KaftpaySettings.config(payment: _payment);
+  KaftpayConfig? get _config => KaftpayEntryActions.config;
 
   void _snack(String m) => ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(m), duration: const Duration(seconds: 4)));
@@ -167,136 +159,19 @@ class _KaftpayContentState extends State<KaftpayContent> {
     );
   }
 
-  KaftpayAmountCard _details(KaftpayJournalEntry e, {Color? color}) {
-    final d = e.createdAt;
-    final tx = e.transactionId;
-    return KaftpayAmountCard(
-      amount: '${_money(e.amount)} ${t("so'm", 'сум')}',
-      color: color,
-      rows: [
-        MapEntry(t('Mijoz', 'Клиент'), e.consumerName ?? '—'),
-        MapEntry(t('Vaqt', 'Время'),
-            '${_two(d.day)}.${_two(d.month)}.${d.year} ${_two(d.hour)}:${_two(d.minute)}'),
-        if (tx != null) MapEntry(t('Tranzaksiya', 'Транзакция'), tx),
-      ],
-    );
-  }
-
   Future<void> _check(KaftpayJournalEntry e) async {
     final config = _config;
     if (config == null) return;
-    await KaftpayActionDialog.show(
-      context,
-      icon: Icons.sync,
-      title: t('To\'lov holati', 'Статус оплаты'),
-      subtitle: t('Kaftpay\'dan so\'raladi — pul yechilmaydi',
-          'Запрос в Kaftpay — деньги не списываются'),
-      details: _details(e),
-      runningText: t('Holat tekshirilmoqda...', 'Проверяем статус...'),
-      run: () async {
-        final o = await KaftpayPaymentFlow(KaftpayApi(config: config)).resolve(
-          e.key,
-          expected: KaftpayPayRequest(
-            requestId: e.requestId,
-            consumerGuid: e.consumerGuid,
-            amount: e.amount,
-            cashierId: KaftpaySettings.cashierId,
-            cashierName: KaftpaySettings.cashierName,
-          ),
-        );
-        await _journal.put(e.copyWith(
-          status: o.isCharged
-              ? KaftpayJournalStatus.charged
-              : o.isUnknown
-                  ? KaftpayJournalStatus.unknown
-                  : KaftpayJournalStatus.notCharged,
-          transactionId: o.transactionId,
-          note: o.isCharged ? null : o.message,
-        ));
-        if (o.isCharged) {
-          return KaftpayActionResult(
-            tone: KaftpayActionTone.success,
-            title: t('Pul yechilgan', 'Деньги списаны'),
-            message: t('Bu to\'lov chekka tushmagan bo\'lsa — vozvrat qiling.',
-                'Если этой оплаты нет в чеке — сделайте возврат.'),
-          );
-        }
-        if (o.isUnknown) {
-          return KaftpayActionResult(
-            tone: KaftpayActionTone.warning,
-            title: t('Natija hali noma\'lum', 'Результат пока неизвестен'),
-            message: o.message,
-          );
-        }
-        return KaftpayActionResult(
-          tone: KaftpayActionTone.info,
-          title: t('Pul yechilmagan', 'Деньги не списаны'),
-          message: t('Mijozdan to\'lovni boshqa usulda olish mumkin.',
-              'Можно принять оплату другим способом.'),
-        );
-      },
-    );
+    await KaftpayEntryActions.check(context, e,
+        config: config, journal: _journal);
     if (mounted) setState(() {});
   }
 
   Future<void> _refund(KaftpayJournalEntry e) async {
     final config = _config;
     if (config == null || !e.canRefund) return;
-    await KaftpayActionDialog.show(
-      context,
-      icon: Icons.undo_rounded,
-      title: t('Vozvrat', 'Возврат'),
-      subtitle: t('Pul mijozning kartasiga qaytariladi',
-          'Деньги вернутся на карту клиента'),
-      details: _details(e),
-      warning: t(
-          'Faqat TO\'LIQ qaytariladi — Kaftpay qisman vozvratni qo\'llamaydi.',
-          'Возврат только ПОЛНЫЙ — частичный возврат Kaftpay не поддерживает.'),
-      confirmLabel: t('Qaytarish', 'Вернуть'),
-      confirmIcon: Icons.undo_rounded,
-      destructive: true,
-      runningText: t('Qaytarilmoqda...', 'Возвращаем...'),
-      run: () async {
-        final o = await KaftpayPaymentFlow(KaftpayApi(config: config)).refund(
-          transactionId: e.transactionId!,
-          cashierId: KaftpaySettings.cashierId,
-          cashierName: KaftpaySettings.cashierName,
-          paymentIdempotencyKey: e.key,
-        );
-        await _journal.put(e.copyWith(
-          status: o.isRefunded
-              ? KaftpayJournalStatus.refunded
-              : o.state == KaftpayRefundState.unknown
-                  ? KaftpayJournalStatus.refundUnknown
-                  : KaftpayJournalStatus.charged,
-          note: o.isRefunded ? null : o.error?.message,
-        ));
-        if (o.isRefunded) {
-          return KaftpayActionResult(
-            tone: KaftpayActionTone.success,
-            title: t('Qaytarildi', 'Возвращено'),
-            message: t('Pul mijozning kartasiga qaytdi.',
-                'Деньги вернулись на карту клиента.'),
-          );
-        }
-        if (o.state == KaftpayRefundState.unknown) {
-          return KaftpayActionResult(
-            tone: KaftpayActionTone.warning,
-            title: t(
-                'Vozvrat natijasi noma\'lum', 'Результат возврата неизвестен'),
-            message: o.retryAllowed
-                ? (o.error?.message ?? '')
-                : t('Qayta YUBORMANG — Kaftpay bilan tekshiring. ${o.error?.message ?? ''}',
-                    'НЕ отправляйте повторно — уточните в Kaftpay. ${o.error?.message ?? ''}'),
-          );
-        }
-        return KaftpayActionResult(
-          tone: KaftpayActionTone.error,
-          title: t('Qaytarilmadi', 'Не возвращено'),
-          message: o.error?.message,
-        );
-      },
-    );
+    await KaftpayEntryActions.refund(context, e,
+        config: config, journal: _journal);
     if (mounted) setState(() {});
   }
 
@@ -654,8 +529,7 @@ class _KaftpayContentState extends State<KaftpayContent> {
     final todaySum = todayCharged.fold<int>(0, (s, e) => s + e.amount);
     final todayRefunded =
         today.where((e) => e.status == KaftpayJournalStatus.refunded).length;
-    final problems = entries.where((e) =>
-        e.needsStatusCheck || e.status == KaftpayJournalStatus.refundUnknown);
+    final problems = entries.where(_HistoryFilter.problems.accepts);
     final shown = entries.where(_filter.accepts).take(50).toList();
 
     Widget stat(String label, String value, Color color) => Expanded(
@@ -826,6 +700,8 @@ class _KaftpayContentState extends State<KaftpayContent> {
                 Text(
                   [
                     when,
+                    if ((e.receipt ?? '').length > 1)
+                      '${t('chek', 'чек')} ${e.receipt}',
                     if (tx != null)
                       'tx ${tx.length > 8 ? '${tx.substring(0, 8)}…' : tx}',
                     if (e.note != null) e.note!,
@@ -838,6 +714,13 @@ class _KaftpayContentState extends State<KaftpayContent> {
             ),
           ),
           const SizedBox(width: 12),
+          if (e.isUnbound) ...[
+            KaftpayPill(t('Chek yo\'q', 'Нет чека'),
+                key: ValueKey('kaftpay_unbound_${e.key}'),
+                color: ui.warning,
+                dense: true),
+            const SizedBox(width: 8),
+          ],
           KaftpayPill(_statusText(e.status),
               color: _statusColor(ui, e.status), dense: true),
           if (e.needsStatusCheck || e.canRefund) ...[
@@ -876,6 +759,7 @@ enum _HistoryFilter {
         return e.status == KaftpayJournalStatus.refunded;
       case _HistoryFilter.problems:
         return e.needsStatusCheck ||
+            e.isUnbound ||
             e.status == KaftpayJournalStatus.refundUnknown;
     }
   }

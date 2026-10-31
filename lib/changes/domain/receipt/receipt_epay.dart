@@ -16,7 +16,12 @@
 // ID'lari chekka (`ReceiptModel4.epayJson`) yoziladi va fiskal body ham,
 // provayderga yuborish ham faqat shu yerdan o'qiydi.
 //
-// Testlar: test/receipt_epay_test.dart, test/epay_fiscal_matrix_test.dart
+// Kaftpay (2026-10-31): chekdagi Kaftpay to'lovlarining tranzaksiya ID'lari
+// ham shu yerda (`kaftpayTx`) — faqat chekda saqlanadi; fiskal ExtraInfo'ga
+// TA'SIR QILMAYDI (Kaftpay QR provayder emas), qog'oz chekka chiqmaydi.
+//
+// Testlar: test/receipt_epay_test.dart, test/epay_fiscal_matrix_test.dart,
+// test/kaftpay_pos_integration_test.dart
 
 import 'dart:convert';
 
@@ -35,6 +40,7 @@ class ReceiptEpay {
     this.paymeReceiptId = '',
     this.uzumPaymentId = '',
     this.paynetPaymentId,
+    this.kaftpayTx = const [],
   });
 
   /// Fiskal `ExtraInfo.QRPaymentProvider` kodlari.
@@ -56,6 +62,10 @@ class ReceiptEpay {
   final String uzumPaymentId;
   final int? paynetPaymentId;
 
+  /// Kaftpay tranzaksiyalari (chekda bir nechta Kaftpay yechimi bo'lishi
+  /// mumkin — qolgan summa ikkinchi marta).
+  final List<String> kaftpayTx;
+
   bool get isEmpty =>
       qrPaymentProvider == 0 &&
       qrPaymentId.isEmpty &&
@@ -63,7 +73,8 @@ class ReceiptEpay {
       clickPaymentId.isEmpty &&
       paymeReceiptId.isEmpty &&
       uzumPaymentId.isEmpty &&
-      paynetPaymentId == null;
+      paynetPaymentId == null &&
+      kaftpayTx.isEmpty;
 
   /// Chek yaratilayotgan paytdagi manbalardan faqat SHU chekdagi to'lovlarga
   /// tegishlisini oladi. Manbalar (servis/Pref qiymatlari) chaqiruvchidan
@@ -89,8 +100,20 @@ class ReceiptEpay {
     int? paynetPaymentId,
     int lastProvider = 0,
     String lastPhone = '',
+    String kaftpayId = '',
+    List<String> kaftpayTx = const [],
   }) {
     if (receipt.isRefund) return empty;
+
+    final bool hasKaftpay = kaftpayId.isNotEmpty &&
+        receipt.payment
+            .any((p) => p.payId.replaceFirst('@', '').trim() == kaftpayId);
+    final List<String> kaftpay = hasKaftpay
+        ? [
+            for (final tx in kaftpayTx)
+              if (tx.trim().isNotEmpty) tx.trim()
+          ]
+        : const [];
 
     String pick(String providerId, String? value) =>
         FiscalPaymentSplit.hasPass(receipt, providerId)
@@ -129,6 +152,7 @@ class ReceiptEpay {
       paymeReceiptId: payme,
       uzumPaymentId: uzum,
       paynetPaymentId: paynet,
+      kaftpayTx: kaftpay,
     );
   }
 
@@ -140,6 +164,7 @@ class ReceiptEpay {
         'paymeReceiptId': paymeReceiptId,
         'uzumPaymentId': uzumPaymentId,
         if (paynetPaymentId != null) 'paynetPaymentId': paynetPaymentId,
+        if (kaftpayTx.isNotEmpty) 'kaftpayTx': kaftpayTx,
       };
 
   factory ReceiptEpay.fromJson(Map<String, dynamic> json) => ReceiptEpay(
@@ -150,6 +175,10 @@ class ReceiptEpay {
         paymeReceiptId: '${json['paymeReceiptId'] ?? ''}',
         uzumPaymentId: '${json['uzumPaymentId'] ?? ''}',
         paynetPaymentId: (json['paynetPaymentId'] as num?)?.toInt(),
+        kaftpayTx: [
+          if (json['kaftpayTx'] is List)
+            for (final tx in json['kaftpayTx'] as List) '$tx'
+        ],
       );
 
   /// Fiskal muvaffaqiyatli bo'lgach fiskal chek URL'i qaysi provayderlarga

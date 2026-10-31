@@ -304,6 +304,7 @@ class KaftpayChoiceCard extends StatelessWidget {
     this.mirrorIcon = false,
     this.onTap,
     this.color,
+    this.large = false,
   });
 
   final IconData icon;
@@ -312,6 +313,9 @@ class KaftpayChoiceCard extends StatelessWidget {
   final bool selected;
   final bool mirrorIcon;
   final VoidCallback? onTap;
+
+  /// Kassir oynasida — balandroq, yirik yozuv.
+  final bool large;
 
   /// Ikonka rangi (sukut — accent).
   final Color? color;
@@ -333,11 +337,12 @@ class KaftpayChoiceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(large ? 22 : 16),
           child: Row(
             children: [
-              KaftpayIconBadge(icon, color: c, mirror: mirrorIcon),
-              const SizedBox(width: 14),
+              KaftpayIconBadge(icon,
+                  color: c, mirror: mirrorIcon, size: large ? 60 : 44),
+              SizedBox(width: large ? 18 : 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -346,7 +351,7 @@ class KaftpayChoiceCard extends StatelessWidget {
                     Text(title,
                         style: TextStyle(
                             color: ui.fg,
-                            fontSize: 16,
+                            fontSize: large ? 21 : 16,
                             fontWeight: FontWeight.w700)),
                     if (subtitle != null) ...[
                       const SizedBox(height: 2),
@@ -357,7 +362,8 @@ class KaftpayChoiceCard extends StatelessWidget {
                 ),
               ),
               if (selected)
-                Icon(Icons.check_circle, color: ui.accent, size: 24),
+                Icon(Icons.check_circle,
+                    color: ui.accent, size: large ? 30 : 24),
             ],
           ),
         ),
