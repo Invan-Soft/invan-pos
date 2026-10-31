@@ -327,10 +327,13 @@ class KaftpaySdkScanner implements KaftpayScanner {
 typedef _SetDllDirectoryC = Int32 Function(Pointer<Utf16>);
 typedef _SetDllDirectoryDart = int Function(Pointer<Utf16>);
 
-/// palm_wrapper.dll importlari (palm_sdk.dll, dim_palm.dll, TNN.dll) SDK
-/// papkasidan topilishi uchun avval DLL qidiruv yo'liga qo'shiladi
-/// (namunadagi `os.add_dll_directory`).
-DynamicLibrary _openWrapper(String sdkDir) {
+DynamicLibrary _openWrapper(String sdkDir) =>
+    openKaftpaySdkLibrary(sdkDir, KaftpaySdkScanner.wrapperDll);
+
+/// SDK papkasidagi DLL (palm_wrapper.dll, palm_frame.dll): importlari
+/// (palm_sdk.dll, dim_palm.dll, TNN.dll) shu papkadan topilishi uchun avval
+/// DLL qidiruv yo'liga qo'shiladi (namunadagi `os.add_dll_directory`).
+DynamicLibrary openKaftpaySdkLibrary(String sdkDir, String dll) {
   final kernel32 = DynamicLibrary.open('kernel32.dll');
   final setDllDirectory =
       kernel32.lookupFunction<_SetDllDirectoryC, _SetDllDirectoryDart>(
@@ -341,7 +344,7 @@ DynamicLibrary _openWrapper(String sdkDir) {
   } finally {
     malloc.free(dir);
   }
-  return DynamicLibrary.open('$sdkDir\\${KaftpaySdkScanner.wrapperDll}');
+  return DynamicLibrary.open('$sdkDir\\$dll');
 }
 
 typedef _CaptureC = Int32 Function(

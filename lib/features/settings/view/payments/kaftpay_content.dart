@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_qr_reader.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_scanner.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_settings.dart';
 import 'package:invan2/changes/models/organization_model.dart' show Payment;
@@ -126,11 +127,14 @@ class _KaftpayContentState extends State<KaftpayContent> {
         if (mounted) setState(() => _scanText = m);
       });
       if (!mounted) return;
+      final qr = KaftpayQrReader.create(sdkDir: KaftpaySettings.sdkDir)
+          .unavailableReason;
       setState(() {
         _scanOk = true;
         _scanText = '${t('Kaft o\'qildi', 'Ладонь считана')} (SDK: '
             '${scan.hand.wire}, RGB: '
-            '${scan.hasUsableRgb ? t('bor', 'есть') : t('yo\'q', 'нет')})';
+            '${scan.hasUsableRgb ? t('bor', 'есть') : t('yo\'q', 'нет')})\n'
+            '${qr ?? t('VP930 QR o\'qiydi', 'VP930 читает QR')}';
       });
     } on KaftpayScannerException catch (e) {
       if (mounted) {
@@ -155,6 +159,7 @@ class _KaftpayContentState extends State<KaftpayContent> {
       context,
       api: KaftpayApi(config: config),
       scanner: KaftpayScanner.shared(sdkDir: KaftpaySettings.sdkDir),
+      qrReader: KaftpayQrReader.create(sdkDir: KaftpaySettings.sdkDir),
       uz: uz,
     );
   }

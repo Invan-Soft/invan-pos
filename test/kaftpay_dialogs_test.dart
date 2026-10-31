@@ -1,5 +1,7 @@
 // Kaftpay oynalari: to'lov (tanlash → to'lash → natija) va ro'yxatdan
 // o'tkazish (QR + qo'l → kaft → /enroll).
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,6 +10,7 @@ import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_checkout.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_payment_flow.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_qr_reader.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_scanner.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_settings.dart';
 import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
@@ -34,6 +37,48 @@ class _Scanner implements KaftpayScanner {
 
   @override
   void cancel() {}
+}
+
+class _EventScanner extends _Scanner {
+  _EventScanner(this.events);
+  final List<String> events;
+
+  @override
+  Future<KaftpayPalmScan> capture({
+    void Function(KaftpayScanStage stage, String message)? onStage,
+  }) {
+    events.add('capture');
+    return super.capture(onStage: onStage);
+  }
+}
+
+/// VP930 kamerasi o'rniga: [show] — mijoz telefonni ko'rsatdi.
+class _QrReader implements KaftpayQrReader {
+  _QrReader(this.events, {this.why});
+  final List<String> events;
+  final String? why;
+  Completer<String?>? _pending;
+
+  @override
+  String? get unavailableReason => why;
+
+  @override
+  Future<String?> read({Duration timeout = const Duration(seconds: 60)}) {
+    events.add('qr.read');
+    return (_pending = Completer<String?>()).future;
+  }
+
+  void show(String text) => _pending!.complete(text);
+
+  void fail(String message) =>
+      _pending!.completeError(KaftpayScannerException(message));
+
+  @override
+  Future<void> stop() async {
+    events.add('qr.stop');
+    final p = _pending;
+    if (p != null && !p.isCompleted) p.complete(null);
+  }
 }
 
 void main() {
@@ -364,6 +409,98 @@ void main() {
     final body = server.jsonBody(server.calls('POST', '/api/v1/enroll').single);
     expect(body['qrSessionId'], '3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
     expect(body['hand'], 'RIGHT');
+  });
+
+  testWidgets(
+      'ro\'yxatdan o\'tkazish: QR\'ni VP930 kamerasi o\'qisa — kamera yopilib, '
+      'kaft skaneri o\'zi boshlanadi', (tester) async {
+    enrollOk();
+    final events = <String>[];
+    final qr = _QrReader(events);
+    await open(
+        tester,
+        (ctx) => KaftpayEnrollDialog.show(ctx,
+            api: api(), scanner: _EventScanner(events), qrReader: qr));
+    expect(events, ['qr.read']);
+    expect(find.textContaining('kaft skaneriga'), findsOneWidget);
+
+    qr.show('PPENROLL:3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
+    await settle(tester);
+
+    expect(events, ['qr.read', 'qr.stop', 'capture'],
+        reason: 'kamera yopilmaguncha kaft skaneri qurilmani olmaydi');
+    final body = server.jsonBody(server.calls('POST', '/api/v1/enroll').single);
+    expect(body['qrSessionId'], '3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
+    expect(find.textContaining('ro\'yxatdan o\'tdi'), findsOneWidget);
+  });
+
+  testWidgets(
+      'ro\'yxatdan o\'tkazish: barcode skaner birinchi o\'qisa — kamera '
+      'to\'xtatiladi, keyin kaft', (tester) async {
+    enrollOk();
+    final events = <String>[];
+    final qr = _QrReader(events);
+    await open(
+        tester,
+        (ctx) => KaftpayEnrollDialog.show(ctx,
+            api: api(), scanner: _EventScanner(events), qrReader: qr));
+    await tester.enterText(find.byKey(const ValueKey('kaftpay_enroll_qr')),
+        'PPENROLL:3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
+    await settle(tester);
+    expect(events, ['qr.read', 'qr.stop', 'capture']);
+    expect(server.calls('POST', '/api/v1/enroll'), hasLength(1));
+  });
+
+  testWidgets(
+      'ro\'yxatdan o\'tkazish: kamera ochilmasa / palm_frame.dll yo\'q — '
+      'barcode skaner ishlayveradi', (tester) async {
+    enrollOk();
+    final events = <String>[];
+    final qr = _QrReader(events);
+    await open(
+        tester,
+        (ctx) => KaftpayEnrollDialog.show(ctx,
+            api: api(), scanner: _EventScanner(events), qrReader: qr));
+    qr.fail('VP930 kamerasi ochilmadi (kod -2)');
+    await settle(tester);
+    expect(find.byKey(const ValueKey('kaftpay_enroll_camera_error')),
+        findsOneWidget);
+    expect(find.textContaining('Barcode skaner bilan'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const ValueKey('kaftpay_enroll_qr')),
+        '3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
+    await settle(tester);
+    expect(server.calls('POST', '/api/v1/enroll'), hasLength(1));
+  });
+
+  testWidgets(
+      'ro\'yxatdan o\'tkazish: palm_frame.dll yo\'q — kamera ochilmaydi, '
+      'sabab ko\'rinadi', (tester) async {
+    final events2 = <String>[];
+    await open(
+        tester,
+        (ctx) => KaftpayEnrollDialog.show(ctx,
+            api: api(),
+            scanner: _Scanner(),
+            qrReader: _QrReader(events2, why: 'palm_frame.dll topilmadi')));
+    expect(events2, isEmpty);
+    expect(find.text('palm_frame.dll topilmadi'), findsOneWidget);
+    expect(find.textContaining('Barcode skaner bilan'), findsOneWidget);
+  });
+
+  testWidgets('ro\'yxatdan o\'tkazish: yopilganda kamera to\'xtatiladi',
+      (tester) async {
+    final events = <String>[];
+    await open(
+        tester,
+        (ctx) => KaftpayEnrollDialog.show(ctx,
+            api: api(),
+            scanner: _EventScanner(events),
+            qrReader: _QrReader(events)));
+    await tester.tap(find.byKey(const ValueKey('kaftpay_enroll_close')));
+    await settle(tester);
+    expect(events, ['qr.read', 'qr.stop']);
+    expect(find.byType(KaftpayEnrollDialog), findsNothing);
   });
 
   test('QR tekshiruvi', () {
