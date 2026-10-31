@@ -30316,8 +30316,9 @@ void main() {
 
 # 20-TASK — Kaftpay (kaft bilan to'lov) — **WIP, PORT QILINMASIN**
 
-> **Holat 2026-10-30:** `feature/kaftpay` ga commit (Windows sinovi uchun GitLab'da), `ayyubxon` ga
-> merge QILINMAGAN, task tugamagan — PORT QILINMASIN. To'liq bo'lim task yakunida.
+> **Holat 2026-10-31:** `d48073f` + `3ec98d3` (`feature/kaftpay`) `ayyubxon` ga merge qilindi
+> (foydalanuvchi so'rovi, Windows sinovi uchun), relizda emas. Task tugamagan (vozvrat, chek URL,
+> X/Z qolgan) — PORT QILINMASIN. To'liq bo'lim task yakunida.
 > **Sessiya hujjati:** docs/sessions/2026-10-29-kaftpay-tolov-turi.md
 
 1-bosqich: kassaga ULANMAGAN API qatlami. Kaftpay (pp-pos-api,

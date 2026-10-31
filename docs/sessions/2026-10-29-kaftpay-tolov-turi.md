@@ -2,7 +2,8 @@
 
 **Boshlangan:** 2026-10-29
 **Holat:** in-progress (2-bosqich kodi tayyor — Windows'da qurilma bilan sinov kutilmoqda)
-**Branch:** feature/kaftpay (worktree `../pos-invan-2-kaftpay`, `ayyubxon` 1570ae1 dan)
+**Branch:** feature/kaftpay (worktree `../pos-invan-2-kaftpay`, `ayyubxon` 1570ae1 dan) — 2026-10-31 `ayyubxon` ga
+merge (d48073f + 3ec98d3), GitLab `ayyubxon` + GitHub `main` ga push; relizda emas
 
 ## Maqsad
 Kaftpay (PP palm-payment) — mijoz kaftini VP930 skanerga qo'yadi, kassa uni aniqlaydi
