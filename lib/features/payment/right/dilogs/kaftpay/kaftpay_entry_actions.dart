@@ -2,7 +2,6 @@
 // Sozlamalar → Kaftpay tarixi va "chek chiqmagan to'lov" ogohlantirishi
 // (KaftpayUnboundNotice) bir xil oynani ishlatadi.
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:invan2/changes/models/organization_model.dart' show Payment;
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
