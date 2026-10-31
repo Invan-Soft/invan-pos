@@ -5,9 +5,14 @@
 //    Enter bosadi; foydalanuvchi qarori 2026-10-30) yoki qo'lda kiritadi.
 //    Oyna ochiq turganda global skaner tinglovchisi (`BlBloc`) o'chiriladi —
 //    aks holda QR mahsulot deb qidirilib "mahsulot topilmadi" chiqardi.
-// 3. Kassir qo'lni tanlaydi (chap / o'ng — majburiy, server `UNSPECIFIED` da
-//    adashtiruvchi `1104` beradi). QR'da qo'l YO'Q — qo'l faqat shu tanlovdan.
-// 4. Mijoz kaftini VP930 ga qo'yadi → `/enroll`.
+// 3. QR to'g'ri bo'lishi bilan kaft skaneri o'zi ishga tushadi — mijoz
+//    kaftini VP930 ga qo'yadi → `/enroll`.
+// 4. Qo'l — SDK `palm_type` dan (0 chap, 1 o'ng; Kaftpay
+//    pos-scanner-sdk-integration.md: "required on enroll", namunaviy kassa
+//    ham shunday; 2026-10-31 foydalanuvchi: kassir qo'l tanlamaydi). Ilovaning
+//    QR so'rovidagi `hand` ni server e'tiborga olmaydi (REGISTRATION-PAYMENT-
+//    TECH.md). SDK aniqlay olmasa (kamdan-kam) — kassir tanlaydi, kaft qayta
+//    skanerlanmaydi: `UNSPECIFIED` da server adashtiruvchi `1104` beradi.
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +25,7 @@ import 'package:invan2/changes/services/payment/kaftpay/kaftpay_scanner.dart';
 import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
 import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_ui.dart';
 
-enum _EnrollStep { qr, scanning, sending, done, failed }
+enum _EnrollStep { qr, scanning, hand, sending, done, failed }
 
 class KaftpayEnrollDialog extends StatefulWidget {
   const KaftpayEnrollDialog({
@@ -67,7 +72,6 @@ class KaftpayEnrollDialog extends StatefulWidget {
 class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
   final _qr = TextEditingController();
   final _qrFocus = FocusNode();
-  KaftpayHand? _hand;
   _EnrollStep _step = _EnrollStep.qr;
   String _message = '';
   bool _closed = false;
@@ -98,7 +102,21 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
   }
 
   bool get _canStart =>
-      KaftpayEnrollDialog.looksLikeQr(_qr.text) && _hand != null;
+      _step == _EnrollStep.qr && KaftpayEnrollDialog.looksLikeQr(_qr.text);
+
+  /// SDK qo'lni aniqlay olmaganda — skanerlangan kaft (qayta skanerlanmaydi).
+  KaftpayPalmScan? _captured;
+
+  /// Enter bosildi, lekin matn QR emas.
+  bool _qrInvalid = false;
+
+  void _onQr(String _, {bool submitted = false}) {
+    if (_canStart) {
+      _start();
+      return;
+    }
+    setState(() => _qrInvalid = submitted && _qr.text.trim().isNotEmpty);
+  }
 
   @override
   void dispose() {
@@ -136,9 +154,18 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
       return;
     }
     if (!mounted || _closed) return;
+    if (raw.hand == KaftpayHand.left || raw.hand == KaftpayHand.right) {
+      await _send(raw, raw.hand);
+      return;
+    }
+    _captured = raw;
+    _set(_EnrollStep.hand,
+        t('Qo\'l aniqlanmadi — qaysi qo\'l?', 'Рука не определена — какая?'));
+  }
+
+  Future<void> _send(KaftpayPalmScan raw, KaftpayHand hand) async {
     _set(_EnrollStep.sending, t('Yuborilmoqda...', 'Отправка...'));
-    // Qo'l — kassir tanlagani (SDK `palm_type` emas: kodlanishi tasdiqlanmagan).
-    final scan = KaftpayPalmScan(ir: raw.ir, rgb: raw.rgb, hand: _hand!);
+    final scan = KaftpayPalmScan(ir: raw.ir, rgb: raw.rgb, hand: hand);
     final res = await widget.api.enroll(
         qrSessionId: KaftpayEnrollDialog.normalizeQr(_qr.text), scan: scan);
     final data = res.data;
@@ -152,6 +179,8 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
 
   void _retry() {
     _qr.clear();
+    _captured = null;
+    _qrInvalid = false;
     _set(_EnrollStep.qr, '');
     _qrFocus.requestFocus();
   }
@@ -271,8 +300,8 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
               focusNode: _qrFocus,
               autofocus: true,
               style: const TextStyle(fontSize: 18),
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (_) => setState(() {}),
+              onChanged: _onQr,
+              onSubmitted: (v) => _onQr(v, submitted: true),
               decoration: InputDecoration(
                 hintText: 'PPENROLL:…',
                 contentPadding:
@@ -283,8 +312,28 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
                     : null,
               ),
             ),
-            const SizedBox(height: 24),
-            _stepTitle(2, t('Qaysi qo\'l?', 'Какая рука?')),
+            if (_qrInvalid) ...[
+              const SizedBox(height: 10),
+              Text(t('Bu Kaftpay QR emas', 'Это не QR Kaftpay'),
+                  key: const ValueKey('kaftpay_enroll_qr_invalid'),
+                  style: TextStyle(
+                      color: ui.error,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ],
+        );
+      case _EnrollStep.hand:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(_message,
+                key: const ValueKey('kaftpay_enroll_message'),
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 18),
             Row(
               children: [
                 Expanded(
@@ -294,8 +343,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
                     mirrorIcon: true,
                     large: true,
                     title: t('Chap', 'Левая'),
-                    selected: _hand == KaftpayHand.left,
-                    onTap: () => setState(() => _hand = KaftpayHand.left),
+                    onTap: () => _send(_captured!, KaftpayHand.left),
                   ),
                 ),
                 const SizedBox(width: 18),
@@ -305,8 +353,7 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
                     icon: Icons.back_hand_outlined,
                     large: true,
                     title: t('O\'ng', 'Правая'),
-                    selected: _hand == KaftpayHand.right,
-                    onTap: () => setState(() => _hand = KaftpayHand.right),
+                    onTap: () => _send(_captured!, KaftpayHand.right),
                   ),
                 ),
               ],
@@ -347,20 +394,8 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
     );
     switch (_step) {
       case _EnrollStep.qr:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            FilledButton.icon(
-              key: const ValueKey('kaftpay_enroll_start'),
-              style: ui.big(ui.primaryButton, height: 76, font: 22),
-              onPressed: _canStart ? _start : null,
-              icon: const Icon(Icons.back_hand_outlined),
-              label: Text(t('Kaftni skanerlash', 'Сканировать ладонь')),
-            ),
-            gap,
-            cancel,
-          ],
-        );
+      case _EnrollStep.hand:
+        return cancel;
       case _EnrollStep.scanning:
         return cancel;
       case _EnrollStep.sending:

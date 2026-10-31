@@ -175,6 +175,12 @@ salt=`TS\nNONCE`, info=`pp-palm-vector:v1`). TS/NONCE — aynan o'sha so'rov hea
     (`KeyboardLayout.ruLettersToEn`); oyna kattaroq, matn qisqa ("QR'ni skanerlang", "Qaysi qo'l?"), katta tugmalar.
   - To'lov oynasi kattaroq (580 px), ism + familiya (kelsa; hozir serverda faqat `firstName`).
   Qolgan qaror: POS vozvrati Kaftpay chekini naqd qaytaradi — foydalanuvchi "turib tursin" (2026-10-31).
+- [x] Ro'yxatdan o'tkazishda qo'l tanlash olib tashlandi (2026-10-31, foydalanuvchi): QR to'g'ri bo'lishi bilan kaft
+  skaneri o'zi boshlanadi; qo'l SDK `palm_type` dan (0 chap, 1 o'ng — Kaftpay pos-scanner-sdk-integration.md: "required
+  on enroll", "1→RIGHT confirmed"; namunaviy kassa ham shunday). Ilova QR so'rovidagi `hand` ni server e'tiborga olmaydi
+  (REGISTRATION-PAYMENT-TECH.md:282, :366). SDK aniqlay olmasa — kassir tanlaydi (kaft qayta skanerlanmaydi;
+  UNSPECIFIED → 1104). QR emas matn — "Bu Kaftpay QR emas".
+  → lib/features/payment/right/dilogs/kaftpay/kaftpay_enroll_dialog.dart, test/kaftpay_dialogs_test.dart
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] **Windows'da birinchi to'lov sinovi** (foydalanuvchi, qurilma bilan):
   1. Adminkada (dev) test kassasiga "Kaftpay" nomli to'lov turi, "Apps" da yoqilgan → POS "Ma'lumotlarni yangilash".

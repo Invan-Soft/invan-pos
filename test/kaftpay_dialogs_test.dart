@@ -17,6 +17,10 @@ import 'package:invan2/features/payment/right/dilogs/kaftpay/kaftpay_pay_dialog.
 import 'support/kaftpay_fake_server.dart';
 
 class _Scanner implements KaftpayScanner {
+  _Scanner({this.hand = KaftpayHand.right});
+
+  /// SDK `palm_type` dan aniqlangan qo'l.
+  final KaftpayHand hand;
   int captures = 0;
   @override
   String? get unavailableReason => null;
@@ -25,8 +29,7 @@ class _Scanner implements KaftpayScanner {
     void Function(KaftpayScanStage stage, String message)? onStage,
   }) async {
     captures++;
-    return KaftpayPalmScan(
-        ir: KaftpaySyntheticScanner.vector(42), hand: KaftpayHand.right);
+    return KaftpayPalmScan(ir: KaftpaySyntheticScanner.vector(42), hand: hand);
   }
 
   @override
@@ -237,41 +240,73 @@ void main() {
     expect(server.calls('POST', '/api/v1/pay'), isEmpty);
   });
 
+  void enrollOk() => server.on(
+      'POST',
+      '/api/v1/enroll',
+      FakeKaftpay.ok({
+        'consumerGuid': kConsumer,
+        'status': 'ACTIVE',
+        'enrolledAt': '01.08.2026 15:04:22',
+      }));
+
   testWidgets(
-      'ro\'yxatdan o\'tkazish: QR va qo\'l tanlanmaguncha boshlanmaydi; '
-      'qo\'l kassir tanlagani ketadi', (tester) async {
-    server.on(
-        'POST',
-        '/api/v1/enroll',
-        FakeKaftpay.ok({
-          'consumerGuid': kConsumer,
-          'status': 'ACTIVE',
-          'enrolledAt': '01.08.2026 15:04:22',
-        }));
-    final scanner = _Scanner();
+      'ro\'yxatdan o\'tkazish: QR skanerlanishi bilan kaft skaneri o\'zi '
+      'boshlanadi; qo\'l SDK\'dan (kassir tanlamaydi)', (tester) async {
+    enrollOk();
+    final scanner = _Scanner(hand: KaftpayHand.left);
     await open(tester,
         (ctx) => KaftpayEnrollDialog.show(ctx, api: api(), scanner: scanner));
-
-    final start = find.byKey(const ValueKey('kaftpay_enroll_start'));
-    expect(tester.widget<ButtonStyleButton>(start).onPressed, isNull);
+    expect(find.byKey(const ValueKey('kaftpay_enroll_LEFT')), findsNothing,
+        reason: 'qo\'l tanlash yo\'q');
+    expect(scanner.captures, 0);
 
     // Barcode skaner: matn + Enter.
     await tester.enterText(find.byKey(const ValueKey('kaftpay_enroll_qr')),
         'PPENROLL:3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
     await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pump();
-    expect(tester.widget<ButtonStyleButton>(start).onPressed, isNull,
-        reason: 'qo\'l tanlanmagan');
-
-    await tester.tap(find.byKey(const ValueKey('kaftpay_enroll_LEFT')));
-    await tester.pump();
-    await tester.tap(start);
     await settle(tester);
 
     expect(scanner.captures, 1);
     final body = server.jsonBody(server.calls('POST', '/api/v1/enroll').single);
     expect(body['qrSessionId'], '3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
-    expect(body['hand'], 'LEFT', reason: 'SDK RIGHT dedi, kassir — LEFT');
+    expect(body['hand'], 'LEFT', reason: 'SDK palm_type');
+    expect(find.textContaining('ro\'yxatdan o\'tdi'), findsOneWidget);
+  });
+
+  testWidgets(
+      'ro\'yxatdan o\'tkazish: QR emas — skaner boshlanmaydi, xato ko\'rinadi',
+      (tester) async {
+    final scanner = _Scanner();
+    await open(tester,
+        (ctx) => KaftpayEnrollDialog.show(ctx, api: api(), scanner: scanner));
+    await tester.enterText(
+        find.byKey(const ValueKey('kaftpay_enroll_qr')), '4780000000011');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    expect(scanner.captures, 0);
+    expect(find.byKey(const ValueKey('kaftpay_enroll_qr_invalid')),
+        findsOneWidget);
+    expect(server.calls('POST', '/api/v1/enroll'), isEmpty);
+  });
+
+  testWidgets(
+      'ro\'yxatdan o\'tkazish: SDK qo\'lni aniqlay olmasa — kassir tanlaydi, '
+      'kaft qayta skanerlanmaydi', (tester) async {
+    enrollOk();
+    final scanner = _Scanner(hand: KaftpayHand.unspecified);
+    await open(tester,
+        (ctx) => KaftpayEnrollDialog.show(ctx, api: api(), scanner: scanner));
+    await tester.enterText(find.byKey(const ValueKey('kaftpay_enroll_qr')),
+        '3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
+    await settle(tester);
+    expect(server.calls('POST', '/api/v1/enroll'), isEmpty,
+        reason: 'UNSPECIFIED yuborilmaydi (server 1104)');
+    await tester.tap(find.byKey(const ValueKey('kaftpay_enroll_RIGHT')));
+    await settle(tester);
+
+    expect(scanner.captures, 1);
+    final body = server.jsonBody(server.calls('POST', '/api/v1/enroll').single);
+    expect(body['hand'], 'RIGHT');
     expect(find.textContaining('ro\'yxatdan o\'tdi'), findsOneWidget);
   });
 
@@ -325,10 +360,6 @@ void main() {
             KaftpayEnrollDialog.show(ctx, api: api(), scanner: _Scanner()));
     await tester.enterText(find.byKey(const ValueKey('kaftpay_enroll_qr')),
         'ЗЗУТКЩДДЖ3а1и8с2в-9ф4у-4с11-и6в5-77у0ф1с93и4а');
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('kaftpay_enroll_RIGHT')));
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('kaftpay_enroll_start')));
     await settle(tester);
     final body = server.jsonBody(server.calls('POST', '/api/v1/enroll').single);
     expect(body['qrSessionId'], '3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');

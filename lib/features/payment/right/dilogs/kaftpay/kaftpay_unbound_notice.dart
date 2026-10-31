@@ -9,7 +9,6 @@
 // Faqat yangi yozuvlar kuzatiladi (`KaftpayJournalEntry.receipt`): eski
 // to'lovlar ogohlantirishga tushmaydi.
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:invan2/app_navigation.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
