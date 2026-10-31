@@ -60,6 +60,8 @@ class _SettingsContentState extends State<SettingsContent> {
                 return _bg(const PaymeContent());
               } else if (state is SettingsUzumState) {
                 return _bg(const UzumContent());
+              } else if (state is SettingsKaftpayState) {
+                return _bg(const KaftpayContent());
               } else if (state is SettingsInvalidPinState) {
                 return _bg(
                   Center(

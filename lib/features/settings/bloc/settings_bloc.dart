@@ -47,6 +47,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         case PinStatus.uzum:
           emit(SettingsUzumState());
           break;
+        case PinStatus.kaftpay:
+          emit(SettingsKaftpayState());
+          break;
       }
     } else {
       emit(SettingsInvalidPinState(event.status));
@@ -86,9 +89,14 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         emit(SettingsPinState(PinStatus.uzum));
         break;
 
+      case 6:
+        // Kaftpay: terminal kaliti (secret) — PIN bilan.
+        emit(SettingsPinState(PinStatus.kaftpay));
+        break;
+
       default:
     }
   }
 }
 
-enum PinStatus { payme, click, humo, report, uzum }
+enum PinStatus { payme, click, humo, report, uzum, kaftpay }

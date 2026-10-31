@@ -75,6 +75,16 @@ class _LeftSideState extends State<LeftSide> {
           },
         ),
         LeftSideItem(
+          icon: Icons.back_hand_outlined,
+          text: 'Kaftpay',
+          isSelected: widget.index == 6 && !isRepostClick,
+          onPress: () {
+            isRepostClick = false;
+            setState(() {});
+            settingsBloc.add(SettingsLeftItemPressedEvent(6));
+          },
+        ),
+        LeftSideItem(
           icon: Icons.api,
           text:loc.ha == "Ha" ?"HTTP so'rovlar":"HTTP запросы",
           isSelected: widget.index == 4,

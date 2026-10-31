@@ -21,6 +21,8 @@ class SettingsHumoState extends SettingsState {}
 
 class SettingsUzumState extends SettingsState {}
 
+class SettingsKaftpayState extends SettingsState {}
+
 class SettingsInvalidPinState extends SettingsState {
   final PinStatus status;
   SettingsInvalidPinState(this.status);

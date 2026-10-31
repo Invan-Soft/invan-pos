@@ -136,6 +136,21 @@ class PrefKeys {
   /// karta: ReceivedCard + cardType 2).
   static const String yagonaQrId = "yagonaQrId";
 
+  /// Kaftpay (kaft bilan to'lov) — admin paneldagi to'lov turi id'si.
+  static const String kaftpayId = "kaftpayId";
+
+  /// Kaftpay terminal kalitlari (adminkadagi turda `merchant_id` /
+  /// `secret_key` bo'lmasa — kassa sozlamasidan).
+  static const String kaftpayClientId = "kaftpayClientId";
+  static const String kaftpaySecret = "kaftpaySecret";
+
+  /// VP930 SDK papkasi (palm_wrapper.dll + config/) — repo'da yo'q, skanerli
+  /// kompyuterga alohida qo'yiladi.
+  static const String kaftpaySdkDir = "kaftpaySdkDir";
+
+  /// Kaftpay to'lovlari jurnali (JSON) — kalit `/pay` dan OLDIN yoziladi.
+  static const String kaftpayJournal = "kaftpayJournal";
+
   static const String giftId = "gift_Id";
   static const String debtId = "debt_Id";
   static const String nfcId = "ntf_Id";

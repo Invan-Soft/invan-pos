@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:hive/hive.dart';
+import 'package:invan2/changes/domain/payment/kaftpay.dart';
 import 'package:invan2/changes/domain/payment/yagona_qr.dart';
 import 'package:invan2/changes/services/log_helper.dart';
 import 'package:invan2/changes/services/catalog_refresh_notice.dart';
@@ -225,6 +226,9 @@ class ProductsWsService {
       // tugma shundan. Id o'chirilganda ham qoladi: eski cheklar nomi va
       // fiskal tasnifi to'g'ri qolsin.
       await Pref.setString(PrefKeys.yagonaQrId, id);
+    } else if (Kaftpay.isName(name) && id.isNotEmpty) {
+      // Kaftpay — YagonaQr kabi: holat qutidagi `isAdded` da, id qoladi.
+      await Pref.setString(PrefKeys.kaftpayId, id);
     }
 
     final box = await Hive.openBox<Payment>('other_payments');
