@@ -8,6 +8,7 @@ import 'package:invan2/changes/models/epay/e_pay_model.dart';
 import 'package:invan2/changes/models/organization_model.dart' show Payment;
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_checkout.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_scanner.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_settings.dart';
@@ -416,6 +417,7 @@ class _KeyboardOfPaymentPageState extends State<KeyboardOfPaymentPage> {
   Future<void> _payKaftpay(OrderingProvider4 provider, Payment p) async {
     final loc = AppLocalizations.of(context)!;
     final bool uz = loc.ha == 'Ha';
+    KaftpayLang.uz = uz;
     void say(String m) => ScaffoldMessenger.of(context)
         .showSnackBar(mySnackBar(context, msg: m, duration: 4000));
 

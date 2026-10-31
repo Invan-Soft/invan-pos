@@ -13,6 +13,7 @@ import 'dart:convert';
 
 import 'package:invan2/changes/models/organization_model.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
 import 'package:invan2/utils/constants/pref_keys.dart';
 import 'package:invan2/utils/helpers/prefs.dart';
 
@@ -51,10 +52,14 @@ class KaftpaySettings {
     final aId = (adminClientId ?? '').trim();
     final aSecret = (adminSecret ?? '').trim();
     if (aId.isNotEmpty && aSecret.isNotEmpty) {
-      return KaftpayConfig(clientId: aId, secret: aSecret);
+      return KaftpayConfig(
+          clientId: aId, secret: aSecret, language: KaftpayLang.serverLanguage);
     }
     if (localClientId.isNotEmpty && localSecret.isNotEmpty) {
-      return KaftpayConfig(clientId: localClientId, secret: localSecret);
+      return KaftpayConfig(
+          clientId: localClientId,
+          secret: localSecret,
+          language: KaftpayLang.serverLanguage);
     }
     return null;
   }

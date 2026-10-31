@@ -9,6 +9,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_scanner.dart';
@@ -64,6 +65,12 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
   late KaftpayUi ui;
 
   String t(String uz, String ru) => widget.uz ? uz : ru;
+
+  @override
+  void initState() {
+    super.initState();
+    KaftpayLang.uz = widget.uz;
+  }
 
   bool get _canStart =>
       KaftpayEnrollDialog.looksLikeQr(_qr.text) && _hand != null;
@@ -133,34 +140,105 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
   @override
   Widget build(BuildContext context) {
     ui = KaftpayUi.of(context);
-    final theme = ui.theme;
     return ui.wrap(PopScope(
       canPop: false,
       child: AlertDialog(
-        title: Text(t('Kaftpay: mijozni ro\'yxatdan o\'tkazish',
-            'Kaftpay: регистрация клиента')),
+        titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+        contentPadding: const EdgeInsets.fromLTRB(24, 18, 24, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+        title: Row(
+          children: [
+            KaftpayIconBadge(Icons.person_add_alt_1_outlined,
+                color: ui.accent, size: 40),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t(
+                      'Mijozni ro\'yxatdan o\'tkazish', 'Регистрация клиента')),
+                  Text(
+                      t('Kaftni Kaftpay kartasiga bog\'lash',
+                          'Привязка ладони к карте Kaftpay'),
+                      style: TextStyle(
+                          color: ui.muted,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400)),
+                ],
+              ),
+            ),
+          ],
+        ),
         content: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 420, maxWidth: 520),
-          child: SingleChildScrollView(child: _body(theme)),
+          constraints: const BoxConstraints(minWidth: 460, maxWidth: 540),
+          child: SingleChildScrollView(child: _body()),
         ),
         actions: _actions(),
       ),
     ));
   }
 
-  Widget _body(ThemeData theme) {
+  Widget _stepTitle(int n, String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration:
+                  BoxDecoration(color: ui.accent, shape: BoxShape.circle),
+              child: Text('$n',
+                  style: TextStyle(
+                      color: ui.onAccent,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(text,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      );
+
+  Widget _state(IconData icon, Color color, {bool progress = false}) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KaftpayIconBadge(icon, color: color, size: 84),
+            const SizedBox(height: 16),
+            Text(_message,
+                key: const ValueKey('kaftpay_enroll_message'),
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            if (progress) ...[
+              const SizedBox(height: 18),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: const LinearProgressIndicator(minHeight: 6),
+              ),
+            ],
+          ],
+        ),
+      );
+
+  Widget _body() {
     switch (_step) {
       case _EnrollStep.qr:
+        final qrOk = KaftpayEnrollDialog.looksLikeQr(_qr.text);
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(t(
-                '1. Mijoz Kaftpay ilovasida QR kodni ochsin va uni barcode '
-                    'skaner bilan o\'qing (yoki kodni kiriting).',
-                '1. Клиент открывает QR в приложении Kaftpay — отсканируйте '
-                    'его сканером штрихкодов (или введите код).')),
-            const SizedBox(height: 8),
+            _stepTitle(
+                1,
+                t('Mijoz ilovadagi QR\'ni ko\'rsatadi — barcode skaner bilan o\'qing',
+                    'Клиент показывает QR из приложения — считайте сканером')),
             TextField(
               key: const ValueKey('kaftpay_enroll_qr'),
               controller: _qr,
@@ -169,92 +247,59 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) => setState(() {}),
               decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                hintText: 'PPENROLL:...',
-                suffixIcon: KaftpayEnrollDialog.looksLikeQr(_qr.text)
-                    ? Icon(Icons.check_circle, color: ui.success)
-                    : null,
+                hintText: 'PPENROLL:…',
+                prefixIcon: const Icon(Icons.qr_code_scanner),
+                suffixIcon:
+                    qrOk ? Icon(Icons.check_circle, color: ui.success) : null,
               ),
             ),
-            const SizedBox(height: 16),
-            Text(t('2. Qaysi qo\'l?', '2. Какая рука?')),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                for (final h in const [KaftpayHand.left, KaftpayHand.right])
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: ChoiceChip(
-                        key: ValueKey('kaftpay_enroll_${h.wire}'),
-                        label: SizedBox(
-                          width: double.infinity,
-                          child: Text(
-                            h == KaftpayHand.left
-                                ? t('Chap qo\'l', 'Левая')
-                                : t('O\'ng qo\'l', 'Правая'),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        selected: _hand == h,
-                        onSelected: (_) => setState(() => _hand = h),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               t('QR ~2 daqiqa amal qiladi — muddati o\'tsa, mijoz yangisini ochsin.',
                   'QR действует ~2 минуты — если истёк, клиент открывает новый.'),
-              style: TextStyle(color: ui.muted, fontSize: 12),
+              style: TextStyle(color: ui.faint, fontSize: 12),
             ),
+            const SizedBox(height: 20),
+            _stepTitle(2, t('Qaysi qo\'l?', 'Какая рука?')),
+            Row(
+              children: [
+                Expanded(
+                  child: KaftpayChoiceCard(
+                    key: const ValueKey('kaftpay_enroll_LEFT'),
+                    icon: Icons.back_hand_outlined,
+                    mirrorIcon: true,
+                    title: t('Chap qo\'l', 'Левая'),
+                    selected: _hand == KaftpayHand.left,
+                    onTap: () => setState(() => _hand = KaftpayHand.left),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: KaftpayChoiceCard(
+                    key: const ValueKey('kaftpay_enroll_RIGHT'),
+                    icon: Icons.back_hand_outlined,
+                    title: t('O\'ng qo\'l', 'Правая'),
+                    selected: _hand == KaftpayHand.right,
+                    onTap: () => setState(() => _hand = KaftpayHand.right),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _stepTitle(
+                3,
+                t('Kaftni skanerga yaqinlashtiring — chiroq yashil bo\'lganda qimirlamang',
+                    'Поднесите ладонь — когда свет станет зелёным, не двигайте')),
           ],
         );
       case _EnrollStep.scanning:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.back_hand_outlined, size: 64, color: ui.accent),
-            const SizedBox(height: 12),
-            Text(_message, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            const LinearProgressIndicator(),
-          ],
-        );
+        return _state(Icons.back_hand_outlined, ui.accent, progress: true);
       case _EnrollStep.sending:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 12),
-            Text(_message),
-          ],
-        );
+        return _state(Icons.cloud_upload_outlined, ui.accent, progress: true);
       case _EnrollStep.done:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, size: 64, color: ui.success),
-            const SizedBox(height: 12),
-            Text(_message,
-                key: const ValueKey('kaftpay_enroll_message'),
-                textAlign: TextAlign.center),
-          ],
-        );
+        return _state(Icons.check_rounded, ui.success);
       case _EnrollStep.failed:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: ui.error),
-            const SizedBox(height: 12),
-            Text(_message,
-                key: const ValueKey('kaftpay_enroll_message'),
-                textAlign: TextAlign.center),
-          ],
-        );
+        return _state(Icons.error_outline, ui.error);
     }
   }
 
@@ -270,10 +315,11 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
       case _EnrollStep.qr:
         return [
           close,
-          ElevatedButton(
+          FilledButton.icon(
             key: const ValueKey('kaftpay_enroll_start'),
             onPressed: _canStart ? _start : null,
-            child: Text(t('Kaftni skanerlash', 'Сканировать ладонь')),
+            icon: const Icon(Icons.back_hand_outlined, size: 20),
+            label: Text(t('Kaftni skanerlash', 'Сканировать ладонь')),
           ),
         ];
       case _EnrollStep.scanning:
@@ -282,19 +328,24 @@ class _KaftpayEnrollDialogState extends State<KaftpayEnrollDialog> {
         return const [];
       case _EnrollStep.done:
         return [
-          TextButton(
+          OutlinedButton.icon(
             onPressed: _retry,
-            child: Text(t('Yana bir mijoz / qo\'l', 'Ещё клиент / рука')),
+            icon: const Icon(Icons.person_add_alt_1_outlined, size: 20),
+            label: Text(t('Yana bir mijoz', 'Ещё клиент')),
           ),
-          close,
+          FilledButton(
+            onPressed: _close,
+            child: Text(t('Tayyor', 'Готово')),
+          ),
         ];
       case _EnrollStep.failed:
         return [
           close,
-          ElevatedButton(
+          FilledButton.icon(
             key: const ValueKey('kaftpay_enroll_retry'),
             onPressed: _retry,
-            child: Text(t('Qaytadan', 'Заново')),
+            icon: const Icon(Icons.refresh, size: 20),
+            label: Text(t('Qaytadan', 'Заново')),
           ),
         ];
     }

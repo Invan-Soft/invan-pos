@@ -31,6 +31,7 @@
 */
 
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_error.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
 import 'package:uuid/uuid.dart';
@@ -81,13 +82,19 @@ class KaftpayChargeOutcome {
   String get message {
     switch (state) {
       case KaftpayChargeState.charged:
-        return 'Kaftpay: to\'lov o\'tdi';
+        return KaftpayLang.t(
+            'Kaftpay: to\'lov o\'tdi', 'Kaftpay: оплата прошла');
       case KaftpayChargeState.notCharged:
-        return error?.message ?? 'Kaftpay: to\'lov o\'tmadi';
+        return error?.message ??
+            KaftpayLang.t(
+                'Kaftpay: to\'lov o\'tmadi', 'Kaftpay: оплата не прошла');
       case KaftpayChargeState.unknown:
-        return 'Kaftpay: to\'lov natijasi noma\'lum — QAYTA YECHMANG, '
-            '"Tekshirish" tugmasini bosing'
-            '${error == null ? '' : ' (${error!.message})'}';
+        final detail = error == null ? '' : ' (${error!.message})';
+        return KaftpayLang.t(
+            'Kaftpay: to\'lov natijasi noma\'lum — QAYTA YECHMANG, '
+                '"Tekshirish" tugmasini bosing$detail',
+            'Kaftpay: результат оплаты неизвестен — НЕ СПИСЫВАЙТЕ ПОВТОРНО, '
+                'нажмите «Проверить»$detail');
     }
   }
 }
