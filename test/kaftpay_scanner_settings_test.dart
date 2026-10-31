@@ -95,7 +95,7 @@ void main() {
       expect(scan.hasUsableRgb, isFalse, reason: 'VP930 RGB — nollar');
       expect(scan.hand, KaftpayHand.left);
       expect(stages, hasLength(3));
-      expect(stages[1], contains('10 sm'));
+      expect(stages[1], contains('yashil'));
       expect(stages[2], contains('tekis'));
     });
 

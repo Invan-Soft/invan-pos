@@ -23,6 +23,7 @@ import 'dart:math' as math;
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
 
 /// Skan bosqichi — kassirga ko'rsatiladigan matn uchun.
@@ -71,8 +72,9 @@ abstract class KaftpayScanner {
   static KaftpayScanner create({required String sdkDir}) {
     if (Platform.isWindows) return KaftpaySdkScanner(sdkDir: sdkDir);
     if (kDebugMode) return KaftpaySyntheticScanner();
-    return const _UnavailableScanner(
-        'Kaft skaneri faqat Windows kassada ishlaydi');
+    return _UnavailableScanner(KaftpayLang.t(
+        'Kaft skaneri faqat Windows kassada ishlaydi',
+        'Сканер ладони работает только на кассе Windows'));
   }
 }
 
@@ -126,21 +128,33 @@ class KaftpayCaptureOutcome {
 }
 
 KaftpayCaptureOutcome classifyKaftpayCapture(KaftpayRawCapture r) {
+  const fatal = KaftpayCaptureVerdict.fatal;
+  const retry = KaftpayCaptureVerdict.retry;
+  final t = KaftpayLang.t;
   if (r.stage == 'load') {
-    return KaftpayCaptureOutcome(KaftpayCaptureVerdict.fatal,
-        'Skaner dasturi yuklanmadi: ${r.loadError ?? 'noma\'lum xato'}');
+    final why = r.loadError ?? t('noma\'lum xato', 'неизвестная ошибка');
+    return KaftpayCaptureOutcome(
+        fatal,
+        t('Skaner dasturi yuklanmadi: $why',
+            'ПО сканера не загрузилось: $why'));
   }
   if (r.stage == 'open') {
     switch (r.code) {
       case -1:
-        return const KaftpayCaptureOutcome(KaftpayCaptureVerdict.fatal,
-            'Kaft skaneri topilmadi: USB kabelini va WinUSB drayverini tekshiring');
+        return KaftpayCaptureOutcome(
+            fatal,
+            t('Kaft skaneri topilmadi: USB kabelini va WinUSB drayverini tekshiring',
+                'Сканер ладони не найден: проверьте USB-кабель и драйвер WinUSB'));
       case -3:
-        return const KaftpayCaptureOutcome(KaftpayCaptureVerdict.fatal,
-            'Skaner ochilmadi — boshqa dastur ishlatayotgan bo\'lishi mumkin');
+        return KaftpayCaptureOutcome(
+            fatal,
+            t('Skaner ochilmadi — boshqa dastur ishlatayotgan bo\'lishi mumkin',
+                'Сканер не открылся — возможно, его занимает другая программа'));
       default:
-        return KaftpayCaptureOutcome(KaftpayCaptureVerdict.fatal,
-            'Skanerni ishga tushirib bo\'lmadi (kod ${r.code})');
+        return KaftpayCaptureOutcome(
+            fatal,
+            t('Skanerni ishga tushirib bo\'lmadi (kod ${r.code})',
+                'Не удалось запустить сканер (код ${r.code})'));
     }
   }
   if (r.ok) {
@@ -148,21 +162,30 @@ KaftpayCaptureOutcome classifyKaftpayCapture(KaftpayRawCapture r) {
   }
   switch (r.code) {
     case 1:
-      return const KaftpayCaptureOutcome(KaftpayCaptureVerdict.retry,
-          'Kaft topilmadi — kaftni skanerga ~10 sm masofada qo\'ying');
+      return KaftpayCaptureOutcome(
+          retry,
+          t(
+              'Kaft topilmadi — kaftni sekin yaqinlashtiring, chiroq yashil '
+                  'bo\'lganda qimirlamang',
+              'Ладонь не найдена — медленно поднесите ладонь, при зелёном '
+                  'свете не двигайте'));
     case 2:
-      return const KaftpayCaptureOutcome(
-          KaftpayCaptureVerdict.retry, 'Skan to\'xtatildi — yana bir bor');
+      return KaftpayCaptureOutcome(
+          retry,
+          t('Skan to\'xtatildi — yana bir bor',
+              'Сканирование прервано — ещё раз'));
     case -98:
-      return const KaftpayCaptureOutcome(
-          KaftpayCaptureVerdict.retry, 'Kaftni tekis va harakatsiz tuting');
+      return KaftpayCaptureOutcome(
+          retry,
+          t('Kaftni ochiq, tekis va harakatsiz tuting',
+              'Держите ладонь открытой, ровно и неподвижно'));
     case 0:
       // ok emas, lekin kod 0 — vektor yo'q.
-      return const KaftpayCaptureOutcome(
-          KaftpayCaptureVerdict.retry, 'Skan sifatsiz — yana bir bor');
-    default:
       return KaftpayCaptureOutcome(
-          KaftpayCaptureVerdict.fatal, 'Skaner xatosi (kod ${r.code})');
+          retry, t('Skan sifatsiz — yana bir bor', 'Плохой скан — ещё раз'));
+    default:
+      return KaftpayCaptureOutcome(fatal,
+          t('Skaner xatosi (kod ${r.code})', 'Ошибка сканера (код ${r.code})'));
   }
 }
 
@@ -193,15 +216,19 @@ class KaftpaySdkScanner implements KaftpayScanner {
   @override
   String? get unavailableReason {
     if (!Platform.isWindows) {
-      return 'Kaft skaneri faqat Windows kassada ishlaydi';
+      return KaftpayLang.t('Kaft skaneri faqat Windows kassada ishlaydi',
+          'Сканер ладони работает только на кассе Windows');
     }
     final dll = File('$sdkDir${Platform.pathSeparator}$wrapperDll');
     if (!dll.existsSync()) {
-      return 'Skaner dasturi topilmadi: ${dll.path}';
+      return KaftpayLang.t('Skaner dasturi topilmadi: ${dll.path}',
+          'ПО сканера не найдено: ${dll.path}');
     }
     final config = Directory('$sdkDir${Platform.pathSeparator}config');
     if (!config.existsSync()) {
-      return 'Skaner modellari (config) topilmadi: ${config.path}';
+      return KaftpayLang.t(
+          'Skaner modellari (config) topilmadi: ${config.path}',
+          'Модели сканера (config) не найдены: ${config.path}');
     }
     return null;
   }
@@ -224,10 +251,16 @@ class KaftpaySdkScanner implements KaftpayScanner {
     final previous = _inFlight;
     if (previous != null) {
       onStage?.call(
-          KaftpayScanStage.waitingDevice, 'Skaner bo\'shashini kutyapman...');
+          KaftpayScanStage.waitingDevice,
+          KaftpayLang.t('Skaner bo\'shashini kutyapman...',
+              'Жду, пока сканер освободится...'));
       await Future.any<void>([previous, signal.future]);
     }
-    var message = 'Kaftni skanerga qo\'ying va harakatsiz tuting';
+    // VP930 chirog'i: oq — masofa to'g'ri emas, yashil — to'g'ri joy
+    // (2026-10-31, Windows sinovi).
+    var message = KaftpayLang.t(
+        'Kaftni skanerga yaqinlashtiring — chiroq yashil bo\'lganda qimirlamang',
+        'Поднесите ладонь к сканеру — при зелёном свете не двигайте');
     for (var i = 0; i < attempts; i++) {
       if (_cancelled) throw cancelled;
       onStage?.call(
@@ -251,7 +284,9 @@ class KaftpaySdkScanner implements KaftpayScanner {
             hand: KaftpayHand.fromSdk(raw.palmType),
           );
           if (scan.validate() == null) return scan;
-          message = 'Skan sifatsiz — kaftni yana bir bor qo\'ying';
+          message = KaftpayLang.t(
+              'Skan sifatsiz — kaftni yana bir bor qo\'ying',
+              'Плохой скан — приложите ладонь ещё раз');
           break;
         case KaftpayCaptureVerdict.retry:
           message = outcome.message;
@@ -383,8 +418,10 @@ class KaftpaySyntheticScanner implements KaftpayScanner {
     void Function(KaftpayScanStage stage, String message)? onStage,
   }) async {
     _cancelled = false;
-    onStage?.call(KaftpayScanStage.waitingPalm,
-        'SINOV: kaft o\'rniga sun\'iy vektor (skanersiz)');
+    onStage?.call(
+        KaftpayScanStage.waitingPalm,
+        KaftpayLang.t('SINOV: kaft o\'rniga sun\'iy vektor (skanersiz)',
+            'ТЕСТ: вместо ладони — синтетический вектор (без сканера)'));
     await Future<void>.delayed(const Duration(milliseconds: 900));
     if (_cancelled) {
       throw const KaftpayScannerException('Bekor qilindi', cancelled: true);

@@ -9,6 +9,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_api.dart';
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_models.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_payment_flow.dart';
 import 'package:invan2/changes/services/payment/kaftpay/kaftpay_scanner.dart';
@@ -121,7 +122,10 @@ class KaftpayCheckout extends ChangeNotifier {
     identified = null;
     selectedGuid = null;
     _deadline = null;
-    _set(KaftpayCheckoutStep.scanning, 'Kaftni skanerga qo\'ying');
+    _set(
+        KaftpayCheckoutStep.scanning,
+        KaftpayLang.t(
+            'Kaftni skanerga qo\'ying', 'Приложите ладонь к сканеру'));
     final KaftpayPalmScan scan;
     try {
       scan = await scanner.capture(onStage: (_, m) {
@@ -133,7 +137,8 @@ class KaftpayCheckout extends ChangeNotifier {
       return;
     }
     if (_disposed) return;
-    _set(KaftpayCheckoutStep.identifying, 'Mijoz aniqlanmoqda...');
+    _set(KaftpayCheckoutStep.identifying,
+        KaftpayLang.t('Mijoz aniqlanmoqda...', 'Определяем клиента...'));
     final res = await api.identify(scan);
     if (_disposed) return;
     final data = res.data;
@@ -147,8 +152,11 @@ class KaftpayCheckout extends ChangeNotifier {
     if (data.isNoMatch) {
       _set(
           KaftpayCheckoutStep.noMatch,
-          'Mijoz topilmadi. Kaftni qayta skanerlang yoki mijoz Kaftpay\'da '
-          'ro\'yxatdan o\'tmagan.');
+          KaftpayLang.t(
+              'Mijoz topilmadi. Kaftni qayta skanerlang yoki mijoz Kaftpay\'da '
+                  'ro\'yxatdan o\'tmagan.',
+              'Клиент не найден. Отсканируйте ладонь ещё раз или клиент не '
+                  'зарегистрирован в Kaftpay.'));
       return;
     }
     // `ambiguous` — kassir o'zi tanlaydi (avtomatik tanlov yo'q).
@@ -156,8 +164,10 @@ class KaftpayCheckout extends ChangeNotifier {
     _set(
         KaftpayCheckoutStep.choosing,
         data.needsCashierChoice
-            ? 'Bir nechta o\'xshash mijoz — telefon raqami bo\'yicha to\'g\'risini tanlang'
-            : 'Mijozni tasdiqlang');
+            ? KaftpayLang.t(
+                'Bir nechta o\'xshash mijoz — telefon raqami bo\'yicha to\'g\'risini tanlang',
+                'Несколько похожих клиентов — выберите по номеру телефона')
+            : KaftpayLang.t('Mijozni tasdiqlang', 'Подтвердите клиента'));
   }
 
   void select(String consumerGuid) {
@@ -174,8 +184,10 @@ class KaftpayCheckout extends ChangeNotifier {
     final req = identified;
     if (who == null || req == null) return;
     if (isExpired) {
-      _set(KaftpayCheckoutStep.failed,
-          'Aniqlash muddati tugadi — kaftni qayta skanerlang');
+      _set(
+          KaftpayCheckoutStep.failed,
+          KaftpayLang.t('Aniqlash muddati tugadi — kaftni qayta skanerlang',
+              'Время истекло — отсканируйте ладонь заново'));
       return;
     }
     final request = KaftpayPayRequest(
@@ -201,7 +213,8 @@ class KaftpayCheckout extends ChangeNotifier {
       createdAt: _now(),
       status: KaftpayJournalStatus.pending,
     ));
-    _set(KaftpayCheckoutStep.charging, 'To\'lov o\'tkazilmoqda...');
+    _set(KaftpayCheckoutStep.charging,
+        KaftpayLang.t('To\'lov o\'tkazilmoqda...', 'Проводим оплату...'));
     final o = await flow.charge(idempotencyKey: key, request: request);
     await _apply(o);
   }
@@ -210,7 +223,8 @@ class KaftpayCheckout extends ChangeNotifier {
   Future<void> checkStatus() async {
     final o = outcome;
     if (step != KaftpayCheckoutStep.unknown || o == null) return;
-    _set(KaftpayCheckoutStep.charging, 'Holat tekshirilmoqda...');
+    _set(KaftpayCheckoutStep.charging,
+        KaftpayLang.t('Holat tekshirilmoqda...', 'Проверяем статус...'));
     final r = await flow.resolve(o.idempotencyKey, expected: _request);
     await _apply(r);
   }
@@ -238,7 +252,10 @@ class KaftpayCheckout extends ChangeNotifier {
         _set(KaftpayCheckoutStep.unknown, o.message);
         break;
       case KaftpayChargeState.notCharged:
-        _set(KaftpayCheckoutStep.failed, '${o.message}. Pul yechilmadi.');
+        _set(
+            KaftpayCheckoutStep.failed,
+            KaftpayLang.t('${o.message}. Pul yechilmadi.',
+                '${o.message}. Деньги не списаны.'));
         break;
     }
   }

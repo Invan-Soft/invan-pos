@@ -121,11 +121,11 @@ void main() {
     expect(find.text('*** 1234'), findsOneWidget);
     expect(find.text(kConsumer), findsNothing, reason: 'GUID ko\'rsatilmaydi');
     final payBtn = find.byKey(const ValueKey('kaftpay_pay'));
-    expect(tester.widget<ElevatedButton>(payBtn).onPressed, isNull);
+    expect(tester.widget<ButtonStyleButton>(payBtn).onPressed, isNull);
 
     await tester.tap(find.byKey(ValueKey('kaftpay_cand_$kConsumer2')));
     await tester.pump();
-    expect(tester.widget<ElevatedButton>(payBtn).onPressed, isNotNull);
+    expect(tester.widget<ButtonStyleButton>(payBtn).onPressed, isNotNull);
     await tester.tap(payBtn);
     await settle(tester);
 
@@ -180,14 +180,14 @@ void main() {
         (ctx) => KaftpayEnrollDialog.show(ctx, api: api(), scanner: scanner));
 
     final start = find.byKey(const ValueKey('kaftpay_enroll_start'));
-    expect(tester.widget<ElevatedButton>(start).onPressed, isNull);
+    expect(tester.widget<ButtonStyleButton>(start).onPressed, isNull);
 
     // Barcode skaner: matn + Enter.
     await tester.enterText(find.byKey(const ValueKey('kaftpay_enroll_qr')),
         'PPENROLL:3f1b8c2d-9a4e-4c11-b6d5-77e0a1c93b4f');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
-    expect(tester.widget<ElevatedButton>(start).onPressed, isNull,
+    expect(tester.widget<ButtonStyleButton>(start).onPressed, isNull,
         reason: 'qo\'l tanlanmagan');
 
     await tester.tap(find.byKey(const ValueKey('kaftpay_enroll_LEFT')));

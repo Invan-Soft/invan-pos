@@ -12,6 +12,8 @@
     Kod bo'yicha tarmoqlanamiz, `reason` matni bo'yicha emas (swagger talabi).
 */
 
+import 'package:invan2/changes/services/payment/kaftpay/kaftpay_lang.dart';
+
 enum KaftpayErrorKind {
   /// 401/403, `1100` (imzo/soat/nonce/terminal), `1108` (IP), `1002`.
   auth,
@@ -75,6 +77,15 @@ class KaftpayError {
   /// Kassirga ko'rsatiladigan matn: ma'lum kod → o'zbekcha izoh, aks holda
   /// server matni, u ham bo'lmasa tur bo'yicha umumiy matn.
   String get message {
+    // Rus tilida — Kaftpay'ning o'z ruscha matni (`Accept-Language: ru`);
+    // auth (1100) matni ichki inglizcha bo'lgani uchun u bundan mustasno.
+    final r0 = reason?.trim();
+    if (!KaftpayLang.uz &&
+        kind != KaftpayErrorKind.auth &&
+        r0 != null &&
+        r0.isNotEmpty) {
+      return r0;
+    }
     final known = KaftpayErrorCodes.describe(code);
     if (known != null) return known;
     if (kind == KaftpayErrorKind.validation && fieldErrors.isNotEmpty) {
