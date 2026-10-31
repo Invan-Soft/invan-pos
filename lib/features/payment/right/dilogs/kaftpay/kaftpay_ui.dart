@@ -172,19 +172,27 @@ class KaftpayUi {
 /// Kichik holat belgisi: `● Matn`.
 class KaftpayPill extends StatelessWidget {
   const KaftpayPill(this.text,
-      {super.key, required this.color, this.icon, this.dense = false});
+      {super.key,
+      required this.color,
+      this.icon,
+      this.dense = false,
+      this.large = false});
 
   final String text;
   final Color color;
   final IconData? icon;
   final bool dense;
 
+  /// Kassir oynasida (telefon raqami) — yirikroq.
+  final bool large;
+
   @override
   Widget build(BuildContext context) {
     final ui = KaftpayUi.of(context);
     return Container(
       padding: EdgeInsets.symmetric(
-          horizontal: dense ? 8 : 10, vertical: dense ? 3 : 5),
+          horizontal: large ? 14 : (dense ? 8 : 10),
+          vertical: large ? 8 : (dense ? 3 : 5)),
       decoration: BoxDecoration(
         color: ui.tint(color),
         borderRadius: BorderRadius.circular(20),
@@ -193,7 +201,7 @@ class KaftpayPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null)
-            Icon(icon, size: dense ? 13 : 15, color: color)
+            Icon(icon, size: large ? 20 : (dense ? 13 : 15), color: color)
           else
             Container(
               width: 7,
@@ -207,7 +215,7 @@ class KaftpayPill extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                     color: color,
-                    fontSize: dense ? 12 : 13,
+                    fontSize: large ? 17 : (dense ? 12 : 13),
                     fontWeight: FontWeight.w600)),
           ),
         ],

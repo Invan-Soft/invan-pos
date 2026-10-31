@@ -282,6 +282,11 @@ class KaftpayCandidate {
   final String? name;
   final String? firstName;
 
+  /// Swagger'da YO'Q (2026-10-31) — Kaftpay qo'shsa darhol ko'rinadi
+  /// (`lastName` yoki `fullName`).
+  final String? lastName;
+  final String? fullName;
+
   /// 0..1, faqat tartib uchun — chegaralarni server qo'llagan.
   final double? score;
   final String? phoneLast4;
@@ -290,6 +295,8 @@ class KaftpayCandidate {
     required this.consumerGuid,
     this.name,
     this.firstName,
+    this.lastName,
+    this.fullName,
     this.score,
     this.phoneLast4,
   });
@@ -298,6 +305,8 @@ class KaftpayCandidate {
         consumerGuid: _str(j['consumerGuid']) ?? '',
         name: _str(j['name']),
         firstName: _str(j['firstName']),
+        lastName: _str(j['lastName']),
+        fullName: _str(j['fullName']),
         score: _double(j['score']),
         phoneLast4: _str(j['phoneLast4']),
       );
@@ -306,17 +315,34 @@ class KaftpayCandidate {
       r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
       caseSensitive: false);
 
-  /// Kassir ko'radigan ism: `firstName`, u bo'lmasa `name` (GUID bo'lsa —
-  /// ko'rsatilmaydi).
+  /// Kassir ko'radigan ism — iloji boricha ism VA familiya:
+  /// `fullName` → `firstName lastName` → `name` (swagger: "Alisher U.",
+  /// `firstName` dan to'liqroq bo'lsa) → `firstName`. GUID ko'rsatilmaydi.
   String? get displayName {
-    final f = firstName?.trim();
-    if (f != null && f.isNotEmpty) return f;
-    final n = name?.trim();
-    if (n == null || n.isEmpty || _uuid.hasMatch(n) || n == consumerGuid) {
-      return null;
+    String? clean(String? v) {
+      final t = v?.trim();
+      return t == null || t.isEmpty ? null : t;
     }
-    return n;
+
+    final full = clean(fullName);
+    if (full != null && !_isGuid(full)) return full;
+    final f = clean(firstName);
+    final l = clean(lastName);
+    if (f != null && l != null) return '$f $l';
+    var n = clean(name);
+    if (n != null && _isGuid(n)) n = null;
+    if (f != null) {
+      if (n != null &&
+          n.length > f.length &&
+          n.toLowerCase().startsWith(f.toLowerCase())) {
+        return n;
+      }
+      return f;
+    }
+    return l ?? n;
   }
+
+  bool _isGuid(String v) => _uuid.hasMatch(v) || v == consumerGuid;
 
   /// Kassir ko'radigan qator: `Alisher · ***4567`.
   String get label {

@@ -103,12 +103,12 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
                 title: Row(
                   children: [
                     KaftpayIconBadge(Icons.back_hand_outlined,
-                        color: ui.accent, size: 40),
+                        color: ui.accent, size: 48),
                     const SizedBox(width: 12),
                     const Expanded(child: Text('Kaftpay')),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                          horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                         color: ui.tint(ui.accent),
                         borderRadius: BorderRadius.circular(10),
@@ -117,7 +117,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
                           key: const ValueKey('kaftpay_amount'),
                           style: TextStyle(
                               color: ui.fg,
-                              fontSize: 18,
+                              fontSize: 22,
                               fontWeight: FontWeight.w800)),
                     ),
                   ],
@@ -125,7 +125,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
                 contentPadding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
                 content: ConstrainedBox(
                   constraints:
-                      const BoxConstraints(minWidth: 480, maxWidth: 560),
+                      const BoxConstraints(minWidth: 580, maxWidth: 680),
                   child: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -260,7 +260,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
       children: [
         Text(c.message,
             key: const ValueKey('kaftpay_message'),
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
         const SizedBox(height: 14),
         for (final cand in c.candidates)
           Padding(
@@ -293,12 +293,12 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
         borderRadius: BorderRadius.circular(14),
         onTap: () => c.select(cand.consumerGuid),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 56,
+                height: 56,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                     color: ui.tint(ui.accent), shape: BoxShape.circle),
@@ -307,7 +307,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
                     : Text(name.characters.first.toUpperCase(),
                         style: TextStyle(
                             color: ui.accent,
-                            fontSize: 18,
+                            fontSize: 22,
                             fontWeight: FontWeight.w800)),
               ),
               const SizedBox(width: 14),
@@ -315,12 +315,12 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
                 child: Text(
                   name ?? t('Ism ko\'rsatilmagan', 'Имя не указано'),
                   style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w700),
+                      fontSize: 21, fontWeight: FontWeight.w700),
                 ),
               ),
               if (cand.phoneLast4 != null)
                 KaftpayPill('*** ${cand.phoneLast4}',
-                    color: ui.fg, icon: Icons.phone_iphone),
+                    color: ui.fg, icon: Icons.phone_iphone, large: true),
               const SizedBox(width: 12),
               Icon(
                 selected ? Icons.check_circle : Icons.radio_button_unchecked,
@@ -334,9 +334,17 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
   }
 
   Widget _buttons() {
+    // Bekor qilish — qizil chegara: "Qayta skanerlash" bilan adashmasin.
     final cancel = OutlinedButton.icon(
       key: const ValueKey('kaftpay_cancel'),
-      style: ui.big(ui.secondaryButton),
+      style: ui.big(
+          ui.secondaryButton.copyWith(
+            foregroundColor: WidgetStatePropertyAll(ui.error),
+            side: WidgetStatePropertyAll(
+                BorderSide(color: ui.error.withValues(alpha: 0.7), width: 1.5)),
+          ),
+          height: 68,
+          font: 20),
       onPressed: () => _close(),
       icon: const Icon(Icons.close_rounded),
       label: Text(t('Bekor qilish', 'Отмена')),
@@ -344,19 +352,19 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
     Widget rescan({bool primary = false}) => primary
         ? FilledButton.icon(
             key: const ValueKey('kaftpay_rescan'),
-            style: ui.big(ui.primaryButton),
+            style: ui.big(ui.primaryButton, height: 68, font: 20),
             onPressed: () => c.start(),
             icon: const Icon(Icons.refresh_rounded),
             label: Text(t('Qayta skanerlash', 'Сканировать заново')),
           )
         : OutlinedButton.icon(
             key: const ValueKey('kaftpay_rescan'),
-            style: ui.big(ui.secondaryButton),
+            style: ui.big(ui.secondaryButton, height: 68, font: 20),
             onPressed: () => c.start(),
             icon: const Icon(Icons.refresh_rounded),
             label: Text(t('Qayta skanerlash', 'Сканировать заново')),
           );
-    const gap = SizedBox(height: 10);
+    const gap = SizedBox(height: 18);
     switch (c.step) {
       case KaftpayCheckoutStep.scanning:
         return cancel;
@@ -366,8 +374,11 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
       case KaftpayCheckoutStep.charged:
         return FilledButton.icon(
           key: const ValueKey('kaftpay_done'),
-          style: ui.big(ui.primaryButton
-              .copyWith(backgroundColor: WidgetStatePropertyAll(ui.success))),
+          style: ui.big(
+              ui.primaryButton.copyWith(
+                  backgroundColor: WidgetStatePropertyAll(ui.success)),
+              height: 68,
+              font: 20),
           onPressed: () => _close(c.outcome),
           icon: const Icon(Icons.check_rounded),
           label: Text(t('Tayyor', 'Готово')),
@@ -384,7 +395,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
           children: [
             FilledButton.icon(
               key: const ValueKey('kaftpay_pay'),
-              style: ui.big(ui.primaryButton, height: 66, font: 20),
+              style: ui.big(ui.primaryButton, height: 80, font: 24),
               onPressed: c.canPay ? () => c.pay() : null,
               icon: const Icon(Icons.check_rounded),
               label: Text(
@@ -394,7 +405,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
             Row(
               children: [
                 Expanded(child: rescan()),
-                const SizedBox(width: 10),
+                const SizedBox(width: 24),
                 Expanded(child: cancel),
               ],
             ),
@@ -406,7 +417,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
           children: [
             FilledButton.icon(
               key: const ValueKey('kaftpay_check'),
-              style: ui.big(ui.primaryButton),
+              style: ui.big(ui.primaryButton, height: 68, font: 20),
               onPressed: () => c.checkStatus(),
               icon: const Icon(Icons.sync_rounded),
               label: Text(t('Holatni tekshirish', 'Проверить статус')),
@@ -414,7 +425,7 @@ class _KaftpayPayDialogState extends State<KaftpayPayDialog> {
             gap,
             OutlinedButton(
               key: const ValueKey('kaftpay_later'),
-              style: ui.big(ui.secondaryButton),
+              style: ui.big(ui.secondaryButton, height: 68, font: 20),
               onPressed: () => _close(),
               child: Text(t('Keyinroq tekshirish', 'Проверить позже')),
             ),
