@@ -384,9 +384,9 @@ class _KaftpayContentState extends State<KaftpayContent> {
       required String subtitle,
       required VoidCallback onTap,
     }) =>
-        SizedBox(
-          width: 270,
-          height: 84,
+        // Matn ikki qatorga o'tsa — balandlik o'sadi (toshib ketmaydi).
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 84),
           child: KaftpayChoiceCard(
             key: key,
             icon: icon,
@@ -401,10 +401,8 @@ class _KaftpayContentState extends State<KaftpayContent> {
           t('Tekshirish va ro\'yxatdan o\'tkazish', 'Проверка и регистрация'),
       icon: Icons.bolt_outlined,
       children: [
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
+        LayoutBuilder(builder: (context, c) {
+          final tiles = [
             actionTile(
               key: const ValueKey('kaftpay_ping'),
               icon: Icons.wifi_tethering,
@@ -426,8 +424,31 @@ class _KaftpayContentState extends State<KaftpayContent> {
               subtitle: t('Mijoz: QR + kaft', 'Клиент: QR + ладонь'),
               onTap: _enroll,
             ),
-          ],
-        ),
+          ];
+          // Keng — bir qatorda teng; tor — ustma-ust (butun eni).
+          if (c.maxWidth >= 840) {
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < tiles.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 12),
+                    Expanded(child: tiles[i]),
+                  ],
+                ],
+              ),
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(height: 10),
+                tiles[i],
+              ],
+            ],
+          );
+        }),
         if (_busy) ...[
           const SizedBox(height: 16),
           ClipRRect(
@@ -643,35 +664,50 @@ class _KaftpayContentState extends State<KaftpayContent> {
       ],
     );
 
+    final setup = <Widget>[
+      header,
+      for (final h in hints) ...[const SizedBox(height: 12), h],
+      const SizedBox(height: 16),
+      actions,
+      const SizedBox(height: 16),
+      keys,
+    ];
+
+    // Keng ekran (kassa) — ikki ustun: chapda holat, amallar va kalitlar,
+    // o'ngda to'lovlar tarixi; har biri alohida aylanadi. Tor — bitta ustun.
     return ui.wrap(AbsorbPointer(
       absorbing: _busy,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: _constrained([
-          header,
-          for (final h in hints) ...[const SizedBox(height: 12), h],
-          const SizedBox(height: 16),
-          actions,
-          const SizedBox(height: 16),
-          keys,
-          const SizedBox(height: 16),
-          journal,
-        ]),
-      ),
+      child: LayoutBuilder(builder: (context, c) {
+        if (c.maxWidth >= 1100) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 5,
+                child: ListView(
+                  key: const ValueKey('kaftpay_setup_column'),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 10, 20),
+                  children: setup,
+                ),
+              ),
+              Expanded(
+                flex: 6,
+                child: ListView(
+                  key: const ValueKey('kaftpay_history_column'),
+                  padding: const EdgeInsets.fromLTRB(10, 20, 20, 20),
+                  children: [journal],
+                ),
+              ),
+            ],
+          );
+        }
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [...setup, const SizedBox(height: 16), journal],
+        );
+      }),
     ));
   }
-
-  /// Keng ekranda kontent eni cheklanadi (maydonlar juda cho'zilmasin).
-  static List<Widget> _constrained(List<Widget> children) => [
-        for (final c in children)
-          Align(
-            alignment: Alignment.topLeft,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 980),
-              child: c,
-            ),
-          ),
-      ];
 
   Widget _journalRow(KaftpayUi ui, KaftpayJournalEntry e) {
     final d = e.createdAt;

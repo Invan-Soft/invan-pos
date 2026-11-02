@@ -190,6 +190,16 @@ salt=`TS\nNONCE`, info=`pp-palm-vector:v1`). TS/NONCE — aynan o'sha so'rov hea
   Bitta kadr dekodlash ~2-3 ms (JIT, test).
   → lib/changes/services/payment/kaftpay/kaftpay_qr_reader.dart, kaftpay_enroll_dialog.dart,
     test/kaftpay_qr_reader_test.dart (haqiqiy QR rasmi `qr` paketi bilan), test/kaftpay_dialogs_test.dart
+- [x] Kaftpay yon menyuda (2026-11-02, foydalanuvchi): "Sozlamalar" dan keyin, faqat Kaftpay to'lov turi ulangan
+  kassada; PIN — oyna (KaftpayPinDialog, qoida `SettingsBloc.pinAllowed`), keyin KaftpayPage. Sozlamalardan olib
+  tashlandi. Sahifa butun oyna bo'ylab: keng ekranda ikki ustun (chap — holat/amallar/kalitlar, o'ng — to'lovlar
+  tarixi), tor — bitta; amal kartalari matn uzunligiga qarab o'sadi.
+  → lib/features/kaftpay/ (kaftpay_page, kaftpay_pin_dialog), drawer_item.dart, drawer_list_tile.dart
+- [x] X/Z: Kaftpay "Пластик" ichida (YagonaQr kabi `uzCardPayment`; oldin "Other" ga tushardi — avval men noto'g'ri
+  "Plastik ichida" degan edim, tekshirib tuzatildi).
+  → shift_singleton_4.dart, test/kaftpay_shift_report_test.dart (ObjectBox; libobjectbox bo'lmasa SKIP)
+- [x] Windows'da foydalanuvchi sinovi (2026-11-02): to'lov, vozvrat, ro'yxatdan o'tkazish va qolgan bandlar "o'zi
+  test qilingan" (foydalanuvchi).
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] **Windows'da birinchi to'lov sinovi** (foydalanuvchi, qurilma bilan):
   1. Adminkada (dev) test kassasiga "Kaftpay" nomli to'lov turi, "Apps" da yoqilgan → POS "Ma'lumotlarni yangilash".

@@ -551,6 +551,9 @@ class ShiftSingleton4 {
           case 'uzcard':
           // YagonaQr — fiskalda karta: hisobotda karta (Plastik) ichida.
           case 'yagonaqr':
+          // Kaftpay — pul mijozning kartasidan: ham Plastik ichida
+          // (foydalanuvchi, 2026-11-02; oldin "Other" ga tushardi).
+          case 'kaftpay':
             uzCardPayment += p.value;
             break;
           case 'debt':
