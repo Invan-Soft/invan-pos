@@ -149,8 +149,9 @@ class KaftpayApi {
   /// (2026-10-31) `PPENROLL:<uuid>` → HTTP 200 + `9999`, faqat `<uuid>` →
   /// to'g'ri javob (`1150` / ACTIVE).
   ///
-  /// Qo'l (chap/o'ng) MAJBURIY va kassir tanlaydi: `UNSPECIFIED` da server
-  /// adashtiruvchi `1104` qaytaradi, QR sessiyasi esa ochiq qoladi.
+  /// Qo'l (chap/o'ng) MAJBURIY — SDK `palm_type` dan (aniqlanmasa kassir
+  /// tanlaydi, KaftpayEnrollDialog): `UNSPECIFIED` da server adashtiruvchi
+  /// `1104` qaytaradi, QR sessiyasi esa ochiq qoladi.
   Future<KaftpayResult<KaftpayEnrollResult>> enroll({
     required String qrSessionId,
     required KaftpayPalmScan scan,

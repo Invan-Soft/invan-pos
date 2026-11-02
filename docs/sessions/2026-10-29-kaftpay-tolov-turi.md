@@ -251,6 +251,11 @@ salt=`TS\nNONCE`, info=`pp-palm-vector:v1`). TS/NONCE — aynan o'sha so'rov hea
 - Kod Dart 2.19 tilida (pubspec `sdk: >=2.19.2`) — sealed/record/pattern yo'q.
 
 ## Ochiq savollar
+- ~~Qayta ro'yxatdan o'tkazish (o'sha qo'l — server jim almashtiradi)~~ — YOPILDI (2026-11-02, foydalanuvchi): Kaftpay
+  ilovasi o'sha qo'l uchun QR ochishga yo'l qo'ymaydi — avval ilovada qo'lni o'chirish kerak; ya'ni almashtirish faqat
+  mijozning o'z qarori bilan. Kaftpay'ga savol shart emas.
+- `PPENROLL:` prefiksi bilan `/enroll` → 9999 (hujjatga zid) — Kaftpay'ga xabar qilish kerak (kassa prefiksni o'zi
+  oladi, ishlaydi). — foydalanuvchi/Kaftpay
 - POS vozvrati (cheklar sahifasi) Kaftpay chekini naqd qaytaradi — kartaga qaytarish kerakmi? Foydalanuvchi:
   "aniq qarorga kelmagan, turib tursin" (2026-10-31). Chekda tx bor — qaror bo'lsa ulash oson. — foydalanuvchi
 - Chap qo'l QR / o'ng qo'l tanlansa: QR'da qo'l yo'q (`PPENROLL:<uuid>`), server kassir yuborgan `hand` ni yozadi →
