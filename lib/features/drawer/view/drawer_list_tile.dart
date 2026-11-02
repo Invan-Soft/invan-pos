@@ -10,6 +10,8 @@ import 'package:invan2/features/drawer/features/features.dart';
 import 'package:invan2/features/features.dart';
 import 'package:invan2/features/hive_repository/hive_boxes.dart';
 import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
+import 'package:invan2/features/kaftpay/kaftpay_page.dart';
+import 'package:invan2/features/kaftpay/kaftpay_pin_dialog.dart';
 import 'package:invan2/features/settings_page.dart';
 import 'package:provider/provider.dart';
 import 'package:invan2/utils/utils.dart';
@@ -66,6 +68,27 @@ class DrawerListTile extends StatelessWidget {
                 AppNavigation.pushReplacement(const SettingsPage());
               }
               pagingProvider.setCurrentPageId(DrawerItemId.settings);
+              break;
+            }
+          case DrawerItemId.kaftpay:
+            {
+              if (currentPageId == DrawerItemId.kaftpay) break;
+              final ctx = AppNavigation.navigatorKey.currentContext!;
+              final uz = AppLocalizations.of(ctx)?.ha == 'Ha';
+              // PIN — oynada; kiritilayotgan raqamlar savatga tushmasin.
+              final before = blBloc.status;
+              blBloc.add(BlStatusChangedEvent(
+                  status: BLStatus.other, where: 'drawer kaftpay pin'));
+              final ok = await KaftpayPinDialog.show(ctx, uz: uz);
+              blBloc.add(BlStatusChangedEvent(
+                  status: before, where: 'drawer kaftpay pin'));
+              if (!ok) break;
+              if (currentPageId == DrawerItemId.home) {
+                AppNavigation.push(const KaftpayPage());
+              } else {
+                AppNavigation.pushReplacement(const KaftpayPage());
+              }
+              pagingProvider.setCurrentPageId(DrawerItemId.kaftpay);
               break;
             }
           case DrawerItemId.report:

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:invan2/features/features.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
 
 import '../../../utils/l10n/app_localizations.dart';
 
@@ -13,7 +15,8 @@ enum DrawerItemId {
   update,
   log,
   about,
-  version
+  version,
+  kaftpay
 }
 
 class DrawerItem {
@@ -36,6 +39,14 @@ class DrawerItem {
         text: loc.sozlamalar,
         icon: Icons.settings,
       ),
+      // Kaftpay to'lov turi ulangan kassada (o'chirilsa ham tarix/vozvrat
+      // uchun qoladi — id saqlanadi).
+      if (Pref.getString(PrefKeys.kaftpayId, '').isNotEmpty)
+        const DrawerItem(
+          id: DrawerItemId.kaftpay,
+          text: 'Kaftpay',
+          icon: Icons.back_hand_outlined,
+        ),
       DrawerItem(
         id: DrawerItemId.feedback,
         text: loc.izohJonatish,

@@ -24,13 +24,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   _pinComplete(SettingsPinCompeteEvent event, Emitter<SettingsState> emit) {
     // if (event.pin == "2705") {
     //2705 pass
-    List<Employee> employeeList =
-        HiveBoxes.getEmployees().values.toList().cast<Employee>();
-    List<Employee>? cemp =
-        employeeList.where((e) => e.user?.passCode == event.pin).toList();
-    if (cemp.isNotEmpty &&
-        event.pin == cemp.first.user?.passCode.toString() &&
-        cemp.first.access?.openShift == true) {
+    if (pinAllowed(event.pin)) {
       switch (event.status) {
         case PinStatus.payme:
           emit(SettingsPaymeState());
@@ -47,13 +41,22 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         case PinStatus.uzum:
           emit(SettingsUzumState());
           break;
-        case PinStatus.kaftpay:
-          emit(SettingsKaftpayState());
-          break;
       }
     } else {
       emit(SettingsInvalidPinState(event.status));
     }
+  }
+
+  /// To'lov sozlamalari PIN'i: shu PIN'li xodimda smena ochish huquqi bor
+  /// (yon menyudagi Kaftpay ham shu qoida bilan — KaftpayPinDialog).
+  static bool pinAllowed(String pin) {
+    List<Employee> employeeList =
+        HiveBoxes.getEmployees().values.toList().cast<Employee>();
+    List<Employee>? cemp =
+        employeeList.where((e) => e.user?.passCode == pin).toList();
+    return cemp.isNotEmpty &&
+        pin == cemp.first.user?.passCode.toString() &&
+        cemp.first.access?.openShift == true;
   }
 
   _callReports(SettingsCallReportsEvent event, Emitter<SettingsState> emit) {
@@ -89,14 +92,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
         emit(SettingsPinState(PinStatus.uzum));
         break;
 
-      case 6:
-        // Kaftpay: terminal kaliti (secret) — PIN bilan.
-        emit(SettingsPinState(PinStatus.kaftpay));
-        break;
-
       default:
     }
   }
 }
 
-enum PinStatus { payme, click, humo, report, uzum, kaftpay }
+enum PinStatus { payme, click, humo, report, uzum }
