@@ -47,10 +47,16 @@ summa, yopilgan oyna ortidan PIN oynasi yoki `focusNode.context!` da xato.
 - [x] Klaviatura `-` va quti `-` → `attemptDecreaseQuantity`; O'chirish va `-` kutilayotgan taymerni bekor qiladi
   → opd_center.dart, opd_box.dart, opd_bottom.dart, opd_value.dart
 - [x] Backspace narx maydonlarida `editPrice` talab qiladi (raqam tugmalaridagi kabi)
-- [x] Kg og'irlik oynasi: `approvedQty` = qo'shishdan oldingi qty
+- [x] Kg og'irlik oynasi: `qtyBeforeAdd` = qo'shishdan oldingi qty
   → ordering_provider_4.dart (`addProduct`), operation_on_product.dart, operation_on_product_dialog.dart
   → Sabab: kg mahsulot `value: 1` bilan qo'shilib oyna o'zi ochiladi; 0.35 kiritish kamaytirish emas. Yangi tekshiruv buni har sotuvda PIN ga aylantirib qo'yardi.
-- [x] Testlar: test/opd_qty_access_test.dart (56 ta, haqiqiy dialog ustida)
+- [x] Statik `4615@` va skaner yo'lidagi `'4615'` olib tashlandi, chaqirilmaydigan `onUniversalPinEntered` ham (fd369e9)
+  → lib/features/home/features/operation_on_product/delete_item/input_alert_dialog.dart
+  → Sabab: foydalanuvchi qarori; kod joriy kassir nomidan barcha PIN oynalarini (accessCheck ham) o'tkazardi
+- [x] Og'irlik kiritish `deleted_items` ga soxta yozilmaydi (fd369e9)
+  → ordering_provider_4.dart (`pressDialogSaveButton`, `qtyBeforeAdd`)
+  → Sabab: foydalanuvchi qarori; 1 kg → 0.35 da 0.65 "o'chirilgan" ko'rinardi
+- [x] Testlar: test/opd_qty_access_test.dart (69 ta, haqiqiy dialog ustida)
 
 ## Keyingi qadamlar (prioritet bo'yicha)
 - [ ] Windows'da qo'lda sinov (§ Test / Verifikatsiya)
@@ -63,12 +69,11 @@ summa, yopilgan oyna ortidan PIN oynasi yoki `focusNode.context!` da xato.
 - "Rad etilganda" qty `_approvedQty` ga qaytadi (oldin terish boshidagi songa): "10 → +5 → 15 → 3 → rad" endi 10 ga qaytadi.
 
 ## Ochiq savollar
-- Kg og'irlik oynasida 1 kg → 0.35: `pressDialogSaveButton` 0.65 ni `deleted_items` ga yozadi (eski xatti-harakat), hisobotda soxta "o'chirilgan" ko'rinadi. Tegilmadi — foydalanuvchi qarori.
-- `4615@` umumiy kodi: O'chirishda va Del da ishlaydi, qty kamaytirishda ishlamaydi. Tegilmadi — foydalanuvchi qarori.
+- Og'irlik oynasida qatorni butunlay o'chirish (0 yoki O'chirish) qo'shilgan miqdor bilan yoziladi: yangi qatorda 1 kg, savatda 2 kg bo'lsa 3 kg. Tovar haqiqatan qo'shilib o'chirilgan, nazorat uchun qoldirildi.
 - `_updateExistingProduct` qatorni olib, `_checkAndShowDialogsIfNeeded` true qaytarsa qaytarib qo'ymaydi (narx 0 ga aylangan mahsulot qayta skanerlansa qator yo'qoladi). Kassir qo'lidagi yo'l emas, tegilmadi.
 
 ## Test / Verifikatsiya
-- `flutter test test/opd_qty_access_test.dart` — 56 o'tdi
-- Sezgirlik: fix olib tashlanganda o'sha paytdagi 48 testdan 29 tasi yiqildi
-- `flutter test` to'liq — 2562 o'tdi, 11 skip, 0 yiqildi; `flutter analyze` — xato yo'q
-- Haqiqiy ilovada (Windows) sinalmagan. Qo'lda: ruxsatsiz kassir bilan (1) Pepsi 10 → 3 → darhol Saqlash: PIN, rad etilsa 10; (2) PIN bilan: ro'yxat va to'lov sahifasi 3 talik; (3) Backspace → Saqlash: PIN; (4) kg mahsulot qo'shib 0.35: PIN yo'q; (5) ruxsatli kassir: PIN siz, 3 da qoladi.
+- `flutter test test/opd_qty_access_test.dart` — 69 o'tdi
+- Sezgirlik: 1-commit olib tashlanganda o'sha paytdagi 48 testdan 29 tasi, 2-commit olib tashlanganda 8 tasi yiqildi
+- `flutter test` to'liq — 2575 o'tdi, 11 skip, 0 yiqildi; `flutter analyze` — xato yo'q
+- Haqiqiy ilovada (Windows) sinalmagan. Qo'lda: ruxsatsiz kassir bilan (1) Pepsi 10 → 3 → darhol Saqlash: PIN, rad etilsa 10; (2) PIN bilan: ro'yxat va to'lov sahifasi 3 talik; (3) Backspace → Saqlash: PIN; (4) kg mahsulot qo'shib 0.35: PIN yo'q, hisobotda o'chirilgan yozuv yo'q; (5) ruxsatli kassir: PIN siz, 3 da qoladi; (6) `4615@` hech qaysi PIN oynasidan o'tmaydi.

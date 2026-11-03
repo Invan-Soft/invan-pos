@@ -42,7 +42,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 17 | 2026-10-21 | KM to'g'ridan skanerlanganda mahsulot topilmasdi: KM ichidagi GTIN-14 (`00049000033939`) katalogdagi UPC-12/EAN-13 (`049000033939`/`0049000033939`) ga GS1 tengligi bilan moslanadi — dona, blok, narxi 0; oddiy skan/SKU o'zgarmagan | 1.1.2+130 (Shorebird Patch 2, stable) | Patch chiqdi (2026-10-21); do'kon sinovi kutilmoqda | `38e40f3`, `0bb3faa` |
 | 18 | 2026-10-21 | Telegram log'idagi `Employee` joriy kassir (`static final` qotib qolardi). Vozvrat OFD xatosi 65274 tahlili: bizniki emas, fiskal modul OFD serveriga ulana olmagan | 1.1.2+130 (Shorebird Patch 2, stable) | Patch chiqdi (2026-10-21); do'kon sinovi kutilmoqda | `4de89e6` |
 | 19 | 2026-10-27 | Vozvratda markirovka: KM (dona + blok) serverdan; kassir qaytayotgan mahsulotni skanerlaydi, faqat shu chekdagi qaytarilmagan KM o'tadi (`refunded_*`); fiskalga sotuvdagidek har KM alohida pozitsiya; `refund_order_items` ga KM; rus klaviatura tartibi; boshqa kassa blok cheki token → dona | 1.1.2+130 (Shorebird Patch 3, stable) | Patch chiqdi (2026-10-28); Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `73ecadc` (merge `815d9d8`) |
-| 21 | 2026-11-03 | OPD: qty kamaytirish va narx tahriri ruxsatsiz o'tardi (tez Saqlash, Backspace, 0, klaviatura `-`); ruxsat Saqlashda tekshiriladi, taymer savat qatorini o'zgartirmaydi | relizda emas | Commit bor; Windows sinovi kutilmoqda | `75fbf20` |
+| 21 | 2026-11-03 | OPD: qty kamaytirish va narx tahriri ruxsatsiz o'tardi (tez Saqlash, Backspace, 0, klaviatura `-`); ruxsat Saqlashda tekshiriladi, taymer savat qatorini o'zgartirmaydi; statik `4615@` kodi olib tashlandi; og'irlik kiritish `deleted_items` ga yozilmaydi | relizda emas | Commit bor; Windows sinovi kutilmoqda | `75fbf20`, `fd369e9` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -104,6 +104,7 @@ d5b6432 2026-10-20 fix(terminal): karta raqami yangi terminal formatlarida ham o
 73ecadc 2026-10-28 fix(vozvrat): markirovkali mahsulot KM skanerlab qaytariladi             ← 19-task
 815d9d8 2026-10-28 merge: fix/vozvrat-markirovka → ayyubxon; Shorebird Patch 3 → 1.1.2+130 stable
 75fbf20 2026-11-03 fix(opd): qty kamaytirish va narx tahriri ruxsatsiz o'tmaydi            ← 21-task
+fd369e9 2026-11-03 fix(pin): statik 4615 kodi; og'irlik kiritish o'chirilgan deb yozilmaydi ← 21-task
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -30348,7 +30349,7 @@ Commit bo'lgach to'liq bo'limga aylantiriladi.
 
 # 21-TASK — OPD dialogida qty kamaytirish va narx tahriri ruxsatsiz o'tardi (relizda emas)
 
-> **Commit:** `75fbf20` (2026-11-03), reliz yo'q, Shorebird'ga chiqarilmagan.
+> **Commit:** `75fbf20`, `fd369e9` (2026-11-03), reliz yo'q, Shorebird'ga chiqarilmagan.
 > **Sessiya hujjati:** docs/sessions/2026-11-03-opd-qty-access.md
 > **Holat 2026-11-03:** `ayyubxon` da; testlar o'tdi, haqiqiy ilovada (Windows) sinalmagan.
 
@@ -30360,6 +30361,8 @@ O'lchangan (10 × 10 000, "3" + Saqlash): saqlashdan keyin qty 3, jami 30 000, `
 
 Yechim: ruxsat Saqlash paytida tekshiriladi, saqlangach provider qatorga tegmaydi. Shu bilan boshqa yo'llar ham yopildi: Backspace → Saqlash, 0 + Saqlash (qator, blok va marka guruhi PIN siz o'chardi), klaviatura `-`, quti maydonidagi `-`, narx maydonlarida Backspace (`editPrice` siz), raqam + O'chirish (ikkita PIN oynasi).
 
+Ikkinchi commit (`fd369e9`): statik `4615@` kodi olib tashlandi — u joriy kassir nomidan `InputAlertDialog` ning barcha tekshiruvlarini o'tkazib yuborardi (qarz, cheklar tarixi, chop etish, yangi mijoz, O'chirish, savatni tozalash), skaner yo'lida PIN i `4615` bo'lgan xodim ruxsatsiz o'tardi. Va og'irlik oynasidagi soxta yozuv: 1 kg o'rniga 0.35 kiritilsa 0.65 `deleted_items` ga ketardi.
+
 ## 2. Qanday ishlaydi
 
 Eski: raqam → qty o'zgaradi → 400 ms → `target.value < snapshot` bo'lsa PIN. Saqlash tekshirmaydi.
@@ -30370,21 +30373,24 @@ Yangi:
 - Taymer qoladi (terib to'xtaganda PIN), lekin faqat qulaylik: dialog yopilayotgan bo'lsa ochilmaydi.
 - `_finished` (saqlangach yoki `dispose` da): raqam, Backspace, `+`, `-`, taymer `target` ga tegmaydi.
 - Oshirib keyin tushirish ("10 → 15 → 12") PIN so'ramaydi: savatdan hech narsa chiqmaydi.
-- Kg mahsulot `value: 1` bilan qo'shilib og'irlik oynasi o'zi ochiladi: `approvedQty` = qo'shishdan oldingi qty (yangi qatorda 0). Aks holda 1 kg dan kam har sotuv PIN so'rardi.
+- Kg mahsulot `value: 1` bilan qo'shilib og'irlik oynasi o'zi ochiladi: `qtyBeforeAdd` = qo'shishdan oldingi qty (yangi qatorda 0). Undan past tushish PIN so'raydi va `baseQty − qty` o'chirilgan deb yoziladi (`pressDialogSaveButton`); undan yuqorisi — PIN ham, yozuv ham yo'q.
+- `InputAlertDialog` da faqat xodimning o'z PINi va huquqi (`accessCheck` yoki `deletePrice`); `onUniversalPinEntered` parametri yo'q.
 
 ## 3. O'zgarishlar ro'yxati
 
 | Fayl | Tur | Nima |
 |---|---|---|
 | `lib/changes/providers/operation_on_product_provider.dart` | o'zgargan | `_approvedQty`, `_finished`, `dispose`, `_askDecreaseApproval`, `_checkTypedDecrease`, `cancelPendingDecreaseCheck`, Saqlashdagi tekshiruv, Backspace'da `editPrice`; `_oldValue`, `_snapshotBeforeTyping` olib tashlandi |
-| `lib/changes/providers/ordering_provider_4.dart` | o'zgargan | `addProduct`: og'irlik oynasiga `approvedQty` |
-| `lib/features/home/features/operation_on_product/operation_on_product.dart` | o'zgargan | `approvedQty` parametri |
-| `lib/features/home/features/operation_on_product/operation_on_product_dialog.dart` | o'zgargan | `approvedQty` ni providerga uzatadi |
+| `lib/changes/providers/ordering_provider_4.dart` | o'zgargan | `addProduct`: og'irlik oynasiga `qtyBeforeAdd`; `pressDialogSaveButton`: o'chirilgan miqdor shu bazadan |
+| `lib/features/home/features/operation_on_product/delete_item/input_alert_dialog.dart` | o'zgargan | `4615@`, `'4615'`, `onUniversalPinEntered` olib tashlandi |
+| `lib/features/home/home_page.dart` | o'zgargan | `onUniversalPinEntered` chaqiruvi olib tashlandi |
+| `lib/features/home/features/operation_on_product/operation_on_product.dart` | o'zgargan | `qtyBeforeAdd` parametri |
+| `lib/features/home/features/operation_on_product/operation_on_product_dialog.dart` | o'zgargan | `qtyBeforeAdd` ni providerga uzatadi |
 | `lib/features/home/features/operation_on_product/opd_bottom.dart` | o'zgargan | O'chirish kutilayotgan taymerni bekor qiladi |
 | `lib/features/home/features/operation_on_product/opd_center/opd_center.dart` | o'zgargan | Klaviatura `-` → `attemptDecreaseQuantity` |
 | `lib/features/home/features/operation_on_product/opd_center/components/opd_box.dart` | o'zgargan | Quti `-` → `attemptDecreaseQuantity` |
 | `lib/features/home/features/operation_on_product/opd_center/components/opd_value.dart` | o'zgargan | Qty ≤ 1 da `-` taymerni bekor qiladi |
-| `test/opd_qty_access_test.dart` | YANGI | 56 test, haqiqiy dialog ustida |
+| `test/opd_qty_access_test.dart` | YANGI | 69 test, haqiqiy dialog ustida |
 
 ## 4. Bog'liqliklar
 
@@ -30392,13 +30398,13 @@ Yangi:
 
 ## 5. Qo'llash tartibi
 
-1. §6 dagi diff'ni qo'llang (`git apply` yoki qo'lda). Provider faylida `_oldValue` va `_snapshotBeforeTyping` butunlay chiqadi.
+1. §6 dagi ikkala diff'ni tartib bilan qo'llang (`git apply` yoki qo'lda). Provider faylida `_oldValue` va `_snapshotBeforeTyping` butunlay chiqadi. InVan 1 da `InputAlertDialog` ning boshqa chaqiruvlari `onUniversalPinEntered` berayotgan bo'lsa, ular ham olib tashlanadi.
 2. Testni qo'shing va `flutter test test/opd_qty_access_test.dart` ni ishga tushiring.
-3. Boshqa tahrir dialoglari bo'lsa (`OperationOnProduct.operationOnProductDialog` chaqiruvlari), kg og'irlik oynasi kabi avtomatik ochilishlarga `approvedQty` bering.
+3. Boshqa tahrir dialoglari bo'lsa (`OperationOnProduct.operationOnProductDialog` chaqiruvlari), kg og'irlik oynasi kabi avtomatik ochilishlarga `qtyBeforeAdd` bering.
 
 ## 6. Kod
 
-Diff (`git show 75fbf20 -- lib/`):
+1-commit (`git show 75fbf20 -- lib/`):
 
 ````diff
 diff --git a/lib/changes/providers/operation_on_product_provider.dart b/lib/changes/providers/operation_on_product_provider.dart
@@ -30789,6 +30795,256 @@ index 7718b57..e606a3e 100644
        ),
        builder: (context, child) {
          double subLength = item.productDiscount.length > 5
+````
+
+2-commit (`git show fd369e9 -- lib/`):
+
+````diff
+diff --git a/lib/changes/providers/operation_on_product_provider.dart b/lib/changes/providers/operation_on_product_provider.dart
+index 5209cab..65c4be6 100644
+--- a/lib/changes/providers/operation_on_product_provider.dart
++++ b/lib/changes/providers/operation_on_product_provider.dart
+@@ -18,11 +18,12 @@ class OperationOnProductProvider extends ChangeNotifier {
+     required ReceiptModelSoldItem4 item,
+     required bool isClientMinimumPrice,
+     this.baseUnitsFromOtherRows = 0,
+-    num? approvedQty,
++    num? qtyBeforeAdd,
+   })  : _isClientMinimumPrice = isClientMinimumPrice,
++        _qtyBeforeAdd = qtyBeforeAdd,
+         target = item,
+         _currentEmployee = HiveBoxes.getCurrentEmployee! {
+-    _approvedQty = (approvedQty ?? target.value).toDouble();
++    _approvedQty = (qtyBeforeAdd ?? target.value).toDouble();
+   }
+ 
+   /// Shu mahsulotning savatdagi BOSHQA qatorlaridagi (tahrirlanayotgan qatordan
+@@ -60,6 +61,9 @@ class OperationOnProductProvider extends ChangeNotifier {
+   Timer? _debounceTimer;
+   Timer? _inputReleaseTimer;
+ 
++  /// Faqat og'irlik oynasida: hozirgina qo'shilgan miqdordan oldingi qty.
++  final num? _qtyBeforeAdd;
++
+   /// Qty shu qiymatdan pastga tushsa ruxsat kerak: kassirda `deletePrice` yoki
+   /// PIN. Boshida dialog ochilgandagi qty (og'irlik kiritishda — qo'shishdan
+   /// oldingi qty), PIN bilan kamaytirilgach — o'sha qty.
+@@ -309,9 +313,6 @@ class OperationOnProductProvider extends ChangeNotifier {
+               Navigator.pop(dialogContext, null);
+             }
+           },
+-          onUniversalPinEntered: () {
+-            Navigator.pop(dialogContext, HiveBoxes.getCurrentEmployee);
+-          },
+         );
+       },
+     );
+@@ -387,7 +388,8 @@ class OperationOnProductProvider extends ChangeNotifier {
+     }
+ 
+     await Provider.of<OrderingProvider4>(context, listen: false)
+-        .pressDialogSaveButton(target, approvedBy: _qtyDecreaseApprovedBy);
++        .pressDialogSaveButton(target,
++            approvedBy: _qtyDecreaseApprovedBy, qtyBeforeAdd: _qtyBeforeAdd);
+     AppNavigation.pop();
+     Provider.of<OrderingProvider4>(context, listen: false).freeGiftDialog();
+   }
+diff --git a/lib/changes/providers/ordering_provider_4.dart b/lib/changes/providers/ordering_provider_4.dart
+index f75cd9d..04f76e1 100644
+--- a/lib/changes/providers/ordering_provider_4.dart
++++ b/lib/changes/providers/ordering_provider_4.dart
+@@ -445,7 +445,7 @@ class OrderingProvider4 extends ChangeNotifier {
+           isClientMinimumPrice: false,
+           // Og'irlik kiritish: hozirgina qo'shilgan [value] hali o'lchanmagan
+           // son, uni kamaytirish savatdagi tovarni kamaytirish emas.
+-          approvedQty: added.productId == product.id
++          qtyBeforeAdd: added.productId == product.id
+               ? (added.value - value).clamp(0, double.infinity)
+               : null,
+         );
+@@ -1326,7 +1326,7 @@ class OrderingProvider4 extends ChangeNotifier {
+   }
+ 
+   Future<void> pressDialogSaveButton(ReceiptModelSoldItem4 item,
+-      {Employee? approvedBy}) async {
++      {Employee? approvedBy, num? qtyBeforeAdd}) async {
+     if (_boxGroupEditProductId != null) {
+       await _saveBoxGroup(item, approvedBy: approvedBy);
+       return;
+@@ -1337,9 +1337,11 @@ class OrderingProvider4 extends ChangeNotifier {
+     }
+     if (item.value > 0) {
+       final oldItem = _currentClient.orderedProducts[_tappedIndexToEdit];
+-      if (item.value < oldItem.value) {
++      final num baseQty = qtyBeforeAdd ?? oldItem.value;
++      if (item.value < baseQty) {
+         _recordDeletedItem(oldItem,
+-            quantity: oldItem.value - item.value, approvedBy: approvedBy);
++            quantity: (baseQty - item.value).toDouble(),
++            approvedBy: approvedBy);
+       }
+       _currentClient.orderedProducts[_tappedIndexToEdit] = item;
+ 
+diff --git a/lib/features/home/features/operation_on_product/delete_item/input_alert_dialog.dart b/lib/features/home/features/operation_on_product/delete_item/input_alert_dialog.dart
+index d11adb8..6a1c340 100644
+--- a/lib/features/home/features/operation_on_product/delete_item/input_alert_dialog.dart
++++ b/lib/features/home/features/operation_on_product/delete_item/input_alert_dialog.dart
+@@ -11,17 +11,13 @@ import '../../../../hive_repository/hive_boxes.dart';
+ 
+ class InputAlertDialog extends StatefulWidget {
+   final ValueChanged<Employee> onValueEntered;
+-  final VoidCallback? onUniversalPinEntered;
+ 
+   /// PIN kiritgan xodim shu amalni bajarishga haqli-yo'qligini tekshiradi.
+   /// null bo'lsa — eski xatti-harakat: `deletePrice` ruxsati talab qilinadi.
+   final bool Function(Employee)? accessCheck;
+ 
+   const InputAlertDialog(
+-      {super.key,
+-      required this.onValueEntered,
+-      this.onUniversalPinEntered,
+-      this.accessCheck});
++      {super.key, required this.onValueEntered, this.accessCheck});
+ 
+   @override
+   State<InputAlertDialog> createState() => _InputAlertDialogState();
+@@ -74,16 +70,6 @@ class _InputAlertDialogState extends State<InputAlertDialog> {
+                     HiveBoxes.getEmployees().values.toList().cast<Employee>();
+                 Employee? employee;
+ 
+-                if (value == "4615@") {
+-                  employee = HiveBoxes.getCurrentEmployee;
+-                  if (employee != null) {
+-                    widget.onValueEntered(employee);
+-                    return;
+-                  } else {
+-                    return;
+-                  }
+-                }
+-
+                 for (Employee e in employeeList) {
+                   if (e.user?.passCode == value) {
+                     employee = e;
+@@ -95,7 +81,7 @@ class _InputAlertDialogState extends State<InputAlertDialog> {
+                   final bool allowed = widget.accessCheck != null
+                       ? widget.accessCheck!(employee)
+                       : (employee.access?.deletePrice == true);
+-                  if (allowed || value == '4615') {
++                  if (allowed) {
+                     widget.onValueEntered(employee);
+                   } else {}
+                 } else {
+@@ -191,16 +177,6 @@ class _InputAlertDialogState extends State<InputAlertDialog> {
+                           }
+ 
+                           if (value.length == 4 || value.length == 5) {
+-                            if (value == "4615@") {
+-                              Employee? employee = HiveBoxes.getCurrentEmployee;
+-                              if (employee != null) {
+-                                widget.onValueEntered(employee);
+-                                return;
+-                              } else {
+-                                return;
+-                              }
+-                            }
+-
+                             List<Employee> employeeList =
+                                 HiveBoxes.getEmployees()
+                                     .values
+diff --git a/lib/features/home/features/operation_on_product/opd_bottom.dart b/lib/features/home/features/operation_on_product/opd_bottom.dart
+index 4241355..e78dd6e 100644
+--- a/lib/features/home/features/operation_on_product/opd_bottom.dart
++++ b/lib/features/home/features/operation_on_product/opd_bottom.dart
+@@ -45,7 +45,6 @@ class OPDBottom extends StatelessWidget {
+                   await showDialog(
+                     context: context,
+                     builder: (_) => InputAlertDialog(
+-                      onUniversalPinEntered: () {},
+                       // PIN kiritgan xodim deleted_by da ketadi (kassir emas)
+                       onValueEntered: (employee) {
+                         Provider.of<OrderingProvider4>(context, listen: false)
+diff --git a/lib/features/home/features/operation_on_product/opd_center/components/opd_value.dart b/lib/features/home/features/operation_on_product/opd_center/components/opd_value.dart
+index dbb9ff6..4e81d46 100644
+--- a/lib/features/home/features/operation_on_product/opd_center/components/opd_value.dart
++++ b/lib/features/home/features/operation_on_product/opd_center/components/opd_value.dart
+@@ -118,7 +118,6 @@ class OPDQuantityState extends State<OPDQuantity> {
+             await showDialog(
+               context: context,
+               builder: (_) => InputAlertDialog(
+-                onUniversalPinEntered: () {},
+                 // PIN kiritgan xodim deleted_by da ketadi (kassir emas)
+                 onValueEntered: (employee) {
+                   Provider.of<OrderingProvider4>(context, listen: false)
+diff --git a/lib/features/home/features/operation_on_product/operation_on_product.dart b/lib/features/home/features/operation_on_product/operation_on_product.dart
+index 0cea311..6d59eee 100644
+--- a/lib/features/home/features/operation_on_product/operation_on_product.dart
++++ b/lib/features/home/features/operation_on_product/operation_on_product.dart
+@@ -8,8 +8,9 @@ class OperationOnProduct {
+     required bool isClientMinimumPrice,
+     required ReceiptModelSoldItem4 item,
+     num? displayValue,
+-    // Qty shu qiymatgacha PIN siz tushadi; null bo'lsa — dialogdagi qty.
+-    num? approvedQty,
++    // Og'irlik oynasi: qo'shishdan oldingi qty. Undan pastga tushish PIN so'raydi
++    // va o'chirilgan deb yoziladi; hozirgina qo'shilgan miqdor hisobga kirmaydi.
++    num? qtyBeforeAdd,
+   }) async {
+     final focusedItem = ReceiptModelSoldItem4(
+       isPriceOnlyChanged: item.isPriceOnlyChanged,
+@@ -56,7 +57,7 @@ class OperationOnProduct {
+       builder: (_) => OperationOnProductDialog(
+         item: focusedItem,
+         isClientMinimumPrice: isClientMinimumPrice,
+-        approvedQty: approvedQty,
++        qtyBeforeAdd: qtyBeforeAdd,
+       ),
+     );
+     return;
+diff --git a/lib/features/home/features/operation_on_product/operation_on_product_dialog.dart b/lib/features/home/features/operation_on_product/operation_on_product_dialog.dart
+index e606a3e..621f367 100644
+--- a/lib/features/home/features/operation_on_product/operation_on_product_dialog.dart
++++ b/lib/features/home/features/operation_on_product/operation_on_product_dialog.dart
+@@ -15,12 +15,12 @@ class OperationOnProductDialog extends StatelessWidget {
+     super.key,
+     required this.item,
+     required this.isClientMinimumPrice,
+-    this.approvedQty,
++    this.qtyBeforeAdd,
+   });
+ 
+   final bool isClientMinimumPrice;
+   final ReceiptModelSoldItem4 item;
+-  final num? approvedQty;
++  final num? qtyBeforeAdd;
+ 
+   @override
+   Widget build(BuildContext context) {
+@@ -32,7 +32,7 @@ class OperationOnProductDialog extends StatelessWidget {
+         // narx ko'rsatishi uchun shu mahsulotning BOSHQA qatorlaridagi (blok +
+         // dona, tahrirlanayotgan qatordan tashqari) donasini oldindan hisoblaymiz.
+         baseUnitsFromOtherRows: _baseUnitsFromOtherRows(context, item),
+-        approvedQty: approvedQty,
++        qtyBeforeAdd: qtyBeforeAdd,
+       ),
+       builder: (context, child) {
+         double subLength = item.productDiscount.length > 5
+diff --git a/lib/features/home/home_page.dart b/lib/features/home/home_page.dart
+index 7a3dded..12fa7ab 100644
+--- a/lib/features/home/home_page.dart
++++ b/lib/features/home/home_page.dart
+@@ -292,12 +292,6 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
+                         await showDialog(
+                           context: context,
+                           builder: (_) => InputAlertDialog(
+-                            onUniversalPinEntered: () {
+-                              Provider.of<OrderingProvider4>(context,
+-                                      listen: false)
+-                                  .cancelOrderingWithTelegram();
+-                              AppNavigation.pop();
+-                            },
+                             onValueEntered: (emp) {
+                               Provider.of<OrderingProvider4>(context,
+                                       listen: false)
 ````
 
 <details>
@@ -31729,6 +31985,18 @@ void main() {
       await h.afterTimers();
       expect(h.pinDialog, findsNothing);
       expect(h.rows.single.value, 0.35);
+      expect(h.deleted, isEmpty, reason: 'og\'irlik kiritish o\'chirish emas');
+    });
+
+    testWidgets('yangi qator: og\'irlik 1 dan katta, yozuv yo\'q', (t) async {
+      final h = await addKg(t);
+
+      await h.tapDigit('5');
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.rows.single.value, 5);
+      expect(h.deleted, isEmpty);
     });
 
     testWidgets('savatda 2 kg bor edi, +1: 2.5 ga PIN kerak emas', (t) async {
@@ -31743,6 +32011,42 @@ void main() {
 
       expect(h.pinDialog, findsNothing);
       expect(h.rows.single.value, 2.5);
+      expect(h.deleted, isEmpty, reason: 'oldingi 2 kg dan kam emas');
+    });
+
+    testWidgets(
+        'savatda 2 kg bor edi, +1 → 1 + PIN: 1 kg o\'chirilgan yoziladi',
+        (t) async {
+      final h = await addKg(t, existing: 2);
+
+      await h.tapDigit('1');
+      await h.tapSave();
+      await h.settle();
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+
+      expect(h.rows.single.value, 1);
+      expect(h.deleted.single.quantity, 1, reason: '2 − 1, qo\'shilgani emas');
+      expect(h.deleted.single.deletedBy, kManagerId);
+    });
+
+    testWidgets('og\'irlik oynasidan keyin qatorni bosib kamaytirish yoziladi',
+        (t) async {
+      final h = await addKg(t);
+      await h.tapDigit('2');
+      await h.tapSave();
+      await h.afterTimers();
+      expect(h.deleted, isEmpty);
+
+      await h.openRow(0);
+      await h.tapDigit('1');
+      await h.tapSave();
+      await h.settle();
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+
+      expect(h.rows.single.value, 1);
+      expect(h.deleted.single.quantity, 1);
     });
 
     testWidgets('savatda 2 kg bor edi, +1: 1 ga tushirishga PIN kerak',
@@ -31775,6 +32079,134 @@ void main() {
       expect(h.pinDialog, findsOneWidget);
       expect(h.rows.single.value, 1);
       await h.refusePin();
+    });
+  });
+
+  group('Statik `4615` kodi ishlamaydi', () {
+    const kCodes = ['4615@', '4615'];
+
+    /// Skaner/magnit karta: `MyBarcodeListener` ning haqiqiy yo'li.
+    Future<void> scan(WidgetTester t, String value) async {
+      final listener = find.descendant(
+          of: find.byType(InputAlertDialog),
+          matching: find.byType(MyBarcodeListener));
+      final bloc = t.element(listener).read<BlBloc>();
+      bloc.status = BLStatus.magneticStripe;
+      bloc.isVisible = true;
+      final state = t.state<MyBarcodeListenerState>(listener);
+      state.lastEnter = DateTime(2000);
+      state.resetScannedCharCodes();
+      value.codeUnits.forEach(state.onKeyEvent);
+      state.onKeyEvent(10);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 300));
+    }
+
+    for (final code in kCodes) {
+      testWidgets('qty kamaytirish, qo\'lda $code: PIN oynasi yopilmaydi',
+          (t) async {
+        final h = await hostWith(t);
+        await h.openRow(0);
+        await h.tapDigit('3');
+        await h.tapSave();
+        await h.settle();
+
+        await h.enterPin(code);
+
+        expect(h.pinDialog, findsOneWidget);
+        expect(h.rows.first.value, 10);
+        expect(h.deleted, isEmpty);
+        await h.refusePin();
+      });
+
+      testWidgets('qty kamaytirish, skaner $code: PIN oynasi yopilmaydi',
+          (t) async {
+        final h = await hostWith(t);
+        await h.openRow(0);
+        await h.tapDigit('3');
+        await h.tapSave();
+        await h.settle();
+
+        await scan(t, code);
+
+        expect(h.pinDialog, findsOneWidget);
+        expect(h.rows.first.value, 10);
+        await h.refusePin();
+      });
+
+      testWidgets('O\'chirish, $code: qator joyida', (t) async {
+        final h = await hostWith(t);
+        await h.openRow(0);
+        await h.tapDelete();
+        await h.settle();
+
+        await h.enterPin(code);
+        expect(h.pinDialog, findsOneWidget);
+        await scan(t, code);
+        expect(h.pinDialog, findsOneWidget);
+
+        expect(h.rows.single.value, 10);
+        expect(h.deleted, isEmpty);
+        await h.refusePin();
+      });
+
+      testWidgets('accessCheck li oyna, $code: chaqirilmaydi', (t) async {
+        final h = await hostWith(t);
+        var entered = 0;
+        unawaited(showDialog(
+          context: h.ctx,
+          builder: (_) => InputAlertDialog(
+            accessCheck: (e) => e.access?.saleAsDebt ?? false,
+            onValueEntered: (_) => entered++,
+          ),
+        ));
+        await h.settle();
+
+        await h.enterPin(code);
+        await scan(t, code);
+
+        expect(entered, 0);
+        await h.refusePin();
+      });
+    }
+
+    testWidgets('PIN i 4615 bo\'lgan ruxsatsiz xodim skaner bilan o\'tmaydi',
+        (t) async {
+      await t.runAsync(() => HiveBoxes.getEmployees().add(Employee(
+            user:
+                EmployeeUser(id: 'kassir-3', firstName: 'K', passCode: '4615'),
+            access: EmployeeAccess(deletePrice: false),
+          )));
+      final h = await hostWith(t);
+      await h.openRow(0);
+      await h.tapDelete();
+      await h.settle();
+
+      await scan(t, '4615');
+
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.single.value, 10);
+      await h.refusePin();
+    });
+
+    testWidgets('PIN i 4615 bo\'lgan ruxsatli xodim oddiy PIN kabi o\'tadi',
+        (t) async {
+      await t.runAsync(() => HiveBoxes.getEmployees().add(Employee(
+            user:
+                EmployeeUser(id: 'rahbar-2', firstName: 'R', passCode: '4615'),
+            access: EmployeeAccess(deletePrice: true),
+          )));
+      final h = await hostWith(t);
+      await h.openRow(0);
+      await h.tapDelete();
+      await h.settle();
+
+      await scan(t, '4615');
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows, isEmpty);
+      expect(h.deleted.single.deletedBy, 'rahbar-2');
     });
   });
 
@@ -31954,16 +32386,16 @@ void main() {
 
 ## 7. Tekshirish
 
-- `flutter test test/opd_qty_access_test.dart` — 56 o'tdi. Fix olib tashlanganda o'sha paytdagi 48 testdan 29 tasi yiqildi.
-- `flutter test` to'liq — 2562 o'tdi, 11 skip, 0 yiqildi. `flutter analyze` — xato yo'q.
-- Haqiqiy ilovada (Windows) sinalmagan. Qo'lda: ruxsatsiz kassir bilan Pepsi 10 → 3 → darhol Saqlash (PIN; rad etilsa 10; PIN bilan ro'yxat va to'lov sahifasi 3 talik); Backspace → Saqlash (PIN); kg mahsulot qo'shib 0.35 (PIN yo'q); ruxsatli kassir (PIN siz, 3 da qoladi).
+- `flutter test test/opd_qty_access_test.dart` — 69 o'tdi. 1-commit olib tashlanganda o'sha paytdagi 48 testdan 29 tasi, 2-commit olib tashlanganda 8 tasi yiqildi.
+- `flutter test` to'liq — 2575 o'tdi, 11 skip, 0 yiqildi. `flutter analyze` — xato yo'q.
+- Haqiqiy ilovada (Windows) sinalmagan. Qo'lda: ruxsatsiz kassir bilan Pepsi 10 → 3 → darhol Saqlash (PIN; rad etilsa 10; PIN bilan ro'yxat va to'lov sahifasi 3 talik); Backspace → Saqlash (PIN); kg mahsulot qo'shib 0.35 (PIN yo'q, hisobotda o'chirilgan yozuv yo'q); `4615@` kiritish (hech qaysi PIN oynasi o'tkazmaydi); ruxsatli kassir (PIN siz, 3 da qoladi).
 
 ## 8. Eslatmalar va ochiq savollar
 
 **Odoo forkiga: kerak** — savat va ruxsat mantig'i.
 
-- Xatti-harakat o'zgarishi: rad etilganda qty terish boshidagi songa emas, oxirgi ruxsat etilganga qaytadi; oshirib keyin dastlabki songacha tushirish PIN so'ramaydi; kg og'irlik oynasida yangi qator PIN so'ramaydi (oldin sekin tersa so'rardi).
-- Tegilmadi: kg oynasida 1 → 0.35 `deleted_items` ga 0.65 yozadi; `4615@` umumiy kodi O'chirishda ishlaydi, qty kamaytirishda ishlamaydi; `_updateExistingProduct` da dialog true qaytarsa qator qaytmaydi.
+- Xatti-harakat o'zgarishi: rad etilganda qty terish boshidagi songa emas, oxirgi ruxsat etilganga qaytadi; oshirib keyin dastlabki songacha tushirish PIN so'ramaydi; kg og'irlik oynasida yangi qator PIN so'ramaydi (oldin sekin tersa so'rardi). `4615@` bilan ishlagan xodim yoki karta endi o'tmaydi.
+- Tegilmadi: og'irlik oynasida qatorni butunlay o'chirish (0 yoki O'chirish) qo'shilgan miqdor bilan yoziladi — tovar haqiqatan qo'shilib o'chirilgan; `_updateExistingProduct` da dialog true qaytarsa qator qaytmaydi.
 
 ---
 
