@@ -932,6 +932,18 @@ void main() {
       await h.afterTimers();
       expect(h.pinDialog, findsNothing);
       expect(h.rows.single.value, 0.35);
+      expect(h.deleted, isEmpty, reason: 'og\'irlik kiritish o\'chirish emas');
+    });
+
+    testWidgets('yangi qator: og\'irlik 1 dan katta, yozuv yo\'q', (t) async {
+      final h = await addKg(t);
+
+      await h.tapDigit('5');
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.rows.single.value, 5);
+      expect(h.deleted, isEmpty);
     });
 
     testWidgets('savatda 2 kg bor edi, +1: 2.5 ga PIN kerak emas', (t) async {
@@ -946,6 +958,42 @@ void main() {
 
       expect(h.pinDialog, findsNothing);
       expect(h.rows.single.value, 2.5);
+      expect(h.deleted, isEmpty, reason: 'oldingi 2 kg dan kam emas');
+    });
+
+    testWidgets(
+        'savatda 2 kg bor edi, +1 → 1 + PIN: 1 kg o\'chirilgan yoziladi',
+        (t) async {
+      final h = await addKg(t, existing: 2);
+
+      await h.tapDigit('1');
+      await h.tapSave();
+      await h.settle();
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+
+      expect(h.rows.single.value, 1);
+      expect(h.deleted.single.quantity, 1, reason: '2 − 1, qo\'shilgani emas');
+      expect(h.deleted.single.deletedBy, kManagerId);
+    });
+
+    testWidgets('og\'irlik oynasidan keyin qatorni bosib kamaytirish yoziladi',
+        (t) async {
+      final h = await addKg(t);
+      await h.tapDigit('2');
+      await h.tapSave();
+      await h.afterTimers();
+      expect(h.deleted, isEmpty);
+
+      await h.openRow(0);
+      await h.tapDigit('1');
+      await h.tapSave();
+      await h.settle();
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+
+      expect(h.rows.single.value, 1);
+      expect(h.deleted.single.quantity, 1);
     });
 
     testWidgets('savatda 2 kg bor edi, +1: 1 ga tushirishga PIN kerak',
@@ -978,6 +1026,134 @@ void main() {
       expect(h.pinDialog, findsOneWidget);
       expect(h.rows.single.value, 1);
       await h.refusePin();
+    });
+  });
+
+  group('Statik `4615` kodi ishlamaydi', () {
+    const kCodes = ['4615@', '4615'];
+
+    /// Skaner/magnit karta: `MyBarcodeListener` ning haqiqiy yo'li.
+    Future<void> scan(WidgetTester t, String value) async {
+      final listener = find.descendant(
+          of: find.byType(InputAlertDialog),
+          matching: find.byType(MyBarcodeListener));
+      final bloc = t.element(listener).read<BlBloc>();
+      bloc.status = BLStatus.magneticStripe;
+      bloc.isVisible = true;
+      final state = t.state<MyBarcodeListenerState>(listener);
+      state.lastEnter = DateTime(2000);
+      state.resetScannedCharCodes();
+      value.codeUnits.forEach(state.onKeyEvent);
+      state.onKeyEvent(10);
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 300));
+    }
+
+    for (final code in kCodes) {
+      testWidgets('qty kamaytirish, qo\'lda $code: PIN oynasi yopilmaydi',
+          (t) async {
+        final h = await hostWith(t);
+        await h.openRow(0);
+        await h.tapDigit('3');
+        await h.tapSave();
+        await h.settle();
+
+        await h.enterPin(code);
+
+        expect(h.pinDialog, findsOneWidget);
+        expect(h.rows.first.value, 10);
+        expect(h.deleted, isEmpty);
+        await h.refusePin();
+      });
+
+      testWidgets('qty kamaytirish, skaner $code: PIN oynasi yopilmaydi',
+          (t) async {
+        final h = await hostWith(t);
+        await h.openRow(0);
+        await h.tapDigit('3');
+        await h.tapSave();
+        await h.settle();
+
+        await scan(t, code);
+
+        expect(h.pinDialog, findsOneWidget);
+        expect(h.rows.first.value, 10);
+        await h.refusePin();
+      });
+
+      testWidgets('O\'chirish, $code: qator joyida', (t) async {
+        final h = await hostWith(t);
+        await h.openRow(0);
+        await h.tapDelete();
+        await h.settle();
+
+        await h.enterPin(code);
+        expect(h.pinDialog, findsOneWidget);
+        await scan(t, code);
+        expect(h.pinDialog, findsOneWidget);
+
+        expect(h.rows.single.value, 10);
+        expect(h.deleted, isEmpty);
+        await h.refusePin();
+      });
+
+      testWidgets('accessCheck li oyna, $code: chaqirilmaydi', (t) async {
+        final h = await hostWith(t);
+        var entered = 0;
+        unawaited(showDialog(
+          context: h.ctx,
+          builder: (_) => InputAlertDialog(
+            accessCheck: (e) => e.access?.saleAsDebt ?? false,
+            onValueEntered: (_) => entered++,
+          ),
+        ));
+        await h.settle();
+
+        await h.enterPin(code);
+        await scan(t, code);
+
+        expect(entered, 0);
+        await h.refusePin();
+      });
+    }
+
+    testWidgets('PIN i 4615 bo\'lgan ruxsatsiz xodim skaner bilan o\'tmaydi',
+        (t) async {
+      await t.runAsync(() => HiveBoxes.getEmployees().add(Employee(
+            user:
+                EmployeeUser(id: 'kassir-3', firstName: 'K', passCode: '4615'),
+            access: EmployeeAccess(deletePrice: false),
+          )));
+      final h = await hostWith(t);
+      await h.openRow(0);
+      await h.tapDelete();
+      await h.settle();
+
+      await scan(t, '4615');
+
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.single.value, 10);
+      await h.refusePin();
+    });
+
+    testWidgets('PIN i 4615 bo\'lgan ruxsatli xodim oddiy PIN kabi o\'tadi',
+        (t) async {
+      await t.runAsync(() => HiveBoxes.getEmployees().add(Employee(
+            user:
+                EmployeeUser(id: 'rahbar-2', firstName: 'R', passCode: '4615'),
+            access: EmployeeAccess(deletePrice: true),
+          )));
+      final h = await hostWith(t);
+      await h.openRow(0);
+      await h.tapDelete();
+      await h.settle();
+
+      await scan(t, '4615');
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows, isEmpty);
+      expect(h.deleted.single.deletedBy, 'rahbar-2');
     });
   });
 

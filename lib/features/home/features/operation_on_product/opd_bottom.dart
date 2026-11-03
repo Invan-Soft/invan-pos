@@ -45,7 +45,6 @@ class OPDBottom extends StatelessWidget {
                   await showDialog(
                     context: context,
                     builder: (_) => InputAlertDialog(
-                      onUniversalPinEntered: () {},
                       // PIN kiritgan xodim deleted_by da ketadi (kassir emas)
                       onValueEntered: (employee) {
                         Provider.of<OrderingProvider4>(context, listen: false)

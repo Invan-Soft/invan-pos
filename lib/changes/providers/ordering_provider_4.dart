@@ -445,7 +445,7 @@ class OrderingProvider4 extends ChangeNotifier {
           isClientMinimumPrice: false,
           // Og'irlik kiritish: hozirgina qo'shilgan [value] hali o'lchanmagan
           // son, uni kamaytirish savatdagi tovarni kamaytirish emas.
-          approvedQty: added.productId == product.id
+          qtyBeforeAdd: added.productId == product.id
               ? (added.value - value).clamp(0, double.infinity)
               : null,
         );
@@ -1326,7 +1326,7 @@ class OrderingProvider4 extends ChangeNotifier {
   }
 
   Future<void> pressDialogSaveButton(ReceiptModelSoldItem4 item,
-      {Employee? approvedBy}) async {
+      {Employee? approvedBy, num? qtyBeforeAdd}) async {
     if (_boxGroupEditProductId != null) {
       await _saveBoxGroup(item, approvedBy: approvedBy);
       return;
@@ -1337,9 +1337,11 @@ class OrderingProvider4 extends ChangeNotifier {
     }
     if (item.value > 0) {
       final oldItem = _currentClient.orderedProducts[_tappedIndexToEdit];
-      if (item.value < oldItem.value) {
+      final num baseQty = qtyBeforeAdd ?? oldItem.value;
+      if (item.value < baseQty) {
         _recordDeletedItem(oldItem,
-            quantity: oldItem.value - item.value, approvedBy: approvedBy);
+            quantity: (baseQty - item.value).toDouble(),
+            approvedBy: approvedBy);
       }
       _currentClient.orderedProducts[_tappedIndexToEdit] = item;
 
