@@ -292,12 +292,6 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         await showDialog(
                           context: context,
                           builder: (_) => InputAlertDialog(
-                            onUniversalPinEntered: () {
-                              Provider.of<OrderingProvider4>(context,
-                                      listen: false)
-                                  .cancelOrderingWithTelegram();
-                              AppNavigation.pop();
-                            },
                             onValueEntered: (emp) {
                               Provider.of<OrderingProvider4>(context,
                                       listen: false)

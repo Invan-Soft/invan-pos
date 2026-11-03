@@ -8,8 +8,9 @@ class OperationOnProduct {
     required bool isClientMinimumPrice,
     required ReceiptModelSoldItem4 item,
     num? displayValue,
-    // Qty shu qiymatgacha PIN siz tushadi; null bo'lsa — dialogdagi qty.
-    num? approvedQty,
+    // Og'irlik oynasi: qo'shishdan oldingi qty. Undan pastga tushish PIN so'raydi
+    // va o'chirilgan deb yoziladi; hozirgina qo'shilgan miqdor hisobga kirmaydi.
+    num? qtyBeforeAdd,
   }) async {
     final focusedItem = ReceiptModelSoldItem4(
       isPriceOnlyChanged: item.isPriceOnlyChanged,
@@ -56,7 +57,7 @@ class OperationOnProduct {
       builder: (_) => OperationOnProductDialog(
         item: focusedItem,
         isClientMinimumPrice: isClientMinimumPrice,
-        approvedQty: approvedQty,
+        qtyBeforeAdd: qtyBeforeAdd,
       ),
     );
     return;

@@ -18,11 +18,12 @@ class OperationOnProductProvider extends ChangeNotifier {
     required ReceiptModelSoldItem4 item,
     required bool isClientMinimumPrice,
     this.baseUnitsFromOtherRows = 0,
-    num? approvedQty,
+    num? qtyBeforeAdd,
   })  : _isClientMinimumPrice = isClientMinimumPrice,
+        _qtyBeforeAdd = qtyBeforeAdd,
         target = item,
         _currentEmployee = HiveBoxes.getCurrentEmployee! {
-    _approvedQty = (approvedQty ?? target.value).toDouble();
+    _approvedQty = (qtyBeforeAdd ?? target.value).toDouble();
   }
 
   /// Shu mahsulotning savatdagi BOSHQA qatorlaridagi (tahrirlanayotgan qatordan
@@ -59,6 +60,9 @@ class OperationOnProductProvider extends ChangeNotifier {
   FocusNode focusNode = FocusNode();
   Timer? _debounceTimer;
   Timer? _inputReleaseTimer;
+
+  /// Faqat og'irlik oynasida: hozirgina qo'shilgan miqdordan oldingi qty.
+  final num? _qtyBeforeAdd;
 
   /// Qty shu qiymatdan pastga tushsa ruxsat kerak: kassirda `deletePrice` yoki
   /// PIN. Boshida dialog ochilgandagi qty (og'irlik kiritishda — qo'shishdan
@@ -309,9 +313,6 @@ class OperationOnProductProvider extends ChangeNotifier {
               Navigator.pop(dialogContext, null);
             }
           },
-          onUniversalPinEntered: () {
-            Navigator.pop(dialogContext, HiveBoxes.getCurrentEmployee);
-          },
         );
       },
     );
@@ -387,7 +388,8 @@ class OperationOnProductProvider extends ChangeNotifier {
     }
 
     await Provider.of<OrderingProvider4>(context, listen: false)
-        .pressDialogSaveButton(target, approvedBy: _qtyDecreaseApprovedBy);
+        .pressDialogSaveButton(target,
+            approvedBy: _qtyDecreaseApprovedBy, qtyBeforeAdd: _qtyBeforeAdd);
     AppNavigation.pop();
     Provider.of<OrderingProvider4>(context, listen: false).freeGiftDialog();
   }

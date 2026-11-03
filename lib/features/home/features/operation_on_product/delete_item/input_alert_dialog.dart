@@ -11,17 +11,13 @@ import '../../../../hive_repository/hive_boxes.dart';
 
 class InputAlertDialog extends StatefulWidget {
   final ValueChanged<Employee> onValueEntered;
-  final VoidCallback? onUniversalPinEntered;
 
   /// PIN kiritgan xodim shu amalni bajarishga haqli-yo'qligini tekshiradi.
   /// null bo'lsa — eski xatti-harakat: `deletePrice` ruxsati talab qilinadi.
   final bool Function(Employee)? accessCheck;
 
   const InputAlertDialog(
-      {super.key,
-      required this.onValueEntered,
-      this.onUniversalPinEntered,
-      this.accessCheck});
+      {super.key, required this.onValueEntered, this.accessCheck});
 
   @override
   State<InputAlertDialog> createState() => _InputAlertDialogState();
@@ -74,16 +70,6 @@ class _InputAlertDialogState extends State<InputAlertDialog> {
                     HiveBoxes.getEmployees().values.toList().cast<Employee>();
                 Employee? employee;
 
-                if (value == "4615@") {
-                  employee = HiveBoxes.getCurrentEmployee;
-                  if (employee != null) {
-                    widget.onValueEntered(employee);
-                    return;
-                  } else {
-                    return;
-                  }
-                }
-
                 for (Employee e in employeeList) {
                   if (e.user?.passCode == value) {
                     employee = e;
@@ -95,7 +81,7 @@ class _InputAlertDialogState extends State<InputAlertDialog> {
                   final bool allowed = widget.accessCheck != null
                       ? widget.accessCheck!(employee)
                       : (employee.access?.deletePrice == true);
-                  if (allowed || value == '4615') {
+                  if (allowed) {
                     widget.onValueEntered(employee);
                   } else {}
                 } else {
@@ -191,16 +177,6 @@ class _InputAlertDialogState extends State<InputAlertDialog> {
                           }
 
                           if (value.length == 4 || value.length == 5) {
-                            if (value == "4615@") {
-                              Employee? employee = HiveBoxes.getCurrentEmployee;
-                              if (employee != null) {
-                                widget.onValueEntered(employee);
-                                return;
-                              } else {
-                                return;
-                              }
-                            }
-
                             List<Employee> employeeList =
                                 HiveBoxes.getEmployees()
                                     .values
