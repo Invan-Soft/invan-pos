@@ -18,10 +18,11 @@ class OperationOnProductProvider extends ChangeNotifier {
     required ReceiptModelSoldItem4 item,
     required bool isClientMinimumPrice,
     this.baseUnitsFromOtherRows = 0,
+    num? approvedQty,
   })  : _isClientMinimumPrice = isClientMinimumPrice,
         target = item,
         _currentEmployee = HiveBoxes.getCurrentEmployee! {
-    _oldValue = target.value.toDouble();
+    _approvedQty = (approvedQty ?? target.value).toDouble();
   }
 
   /// Shu mahsulotning savatdagi BOSHQA qatorlaridagi (tahrirlanayotgan qatordan
@@ -57,6 +58,31 @@ class OperationOnProductProvider extends ChangeNotifier {
   bool _dotted = false;
   FocusNode focusNode = FocusNode();
   Timer? _debounceTimer;
+  Timer? _inputReleaseTimer;
+
+  /// Qty shu qiymatdan pastga tushsa ruxsat kerak: kassirda `deletePrice` yoki
+  /// PIN. Boshida dialog ochilgandagi qty (og'irlik kiritishda — qo'shishdan
+  /// oldingi qty), PIN bilan kamaytirilgach — o'sha qty.
+  late double _approvedQty;
+
+  /// Saqlandi yoki dialog yopildi. Saqlangach `target` savat qatorining o'zi
+  /// bo'ladi, shundan keyin bu provider unga tegmasligi kerak.
+  bool _finished = false;
+
+  bool get _canDecreaseFreely => _currentEmployee?.access?.deletePrice == true;
+
+  bool get _canEditPrice => _currentEmployee?.access?.editPrice ?? false;
+
+  bool get _needsDecreaseApproval =>
+      !_canDecreaseFreely && target.value < _approvedQty;
+
+  @override
+  void dispose() {
+    _finished = true;
+    _debounceTimer?.cancel();
+    _inputReleaseTimer?.cancel();
+    super.dispose();
+  }
 
 
   String get boxValueStr {
@@ -86,7 +112,6 @@ class OperationOnProductProvider extends ChangeNotifier {
       MoneyFormatter.inputMoneyFormatter.format(target.onlyPrice);
   bool onlyPriceIsEdited = false;
   bool _usedDiscountInput = false;
-  double _oldValue = 0;
 
   String get valueStr {
     if (target.soldBy == "box") {
@@ -122,6 +147,7 @@ class OperationOnProductProvider extends ChangeNotifier {
   }
 
   void increaseQuantity(int n) {
+    if (_finished) return;
     _cancelSelectedAll();
     if (target.marking && OfdAdminSetting.isEnabled) return;
     // Blok qatori qty'sini oshirib bo'lmaydi — yangi blok skanerlanishi kerak
@@ -150,6 +176,7 @@ class OperationOnProductProvider extends ChangeNotifier {
   }
 
   void decreaseQuantity(int n) {
+    if (_finished) return;
     _cancelSelectedAll();
     if (n < target.value) {
       target.value = target.value - n;
@@ -178,7 +205,8 @@ class OperationOnProductProvider extends ChangeNotifier {
   }
 
   void _updatePricesAfterQuantityChange() {
-    ItemModel item = ItemsSingleton.getProductById(target.productId)!;
+    final ItemModel? item = ItemsSingleton.getProductById(target.productId);
+    if (item == null) return;
 
     double price;
     if (target.isPriceOnlyChanged) {
@@ -204,30 +232,68 @@ class OperationOnProductProvider extends ChangeNotifier {
   Employee? get qtyDecreaseApprovedBy => _qtyDecreaseApprovedBy;
 
   Future<bool> attemptDecreaseQuantity(int amount, BuildContext context) async {
-    if (_currentEmployee?.access?.deletePrice == true) {
-      decreaseQuantity(amount);
-      return true;
-    }
+    if (_finished || _dialogOpened) return false;
+    cancelPendingDecreaseCheck();
+    decreaseQuantity(amount);
+    if (!_needsDecreaseApproval) return true;
+    return _askDecreaseApproval(context);
+  }
 
+  /// O'chirish tugmasi yoki `-` bosilganda: terib to'xtagandagi kechikkan
+  /// tekshiruv ularning PIN oynasi ustidan ikkinchi oyna ochmasin.
+  void cancelPendingDecreaseCheck() => _debounceTimer?.cancel();
+
+  /// Raqam terib to'xtagach. Dialog yopilayotgan bo'lsa PIN oynasi ochilmaydi —
+  /// saqlash baribir [onSaveButtonPressed] da tekshiriladi.
+  void _checkTypedDecrease() {
+    if (_finished) return;
+    final context = focusNode.context;
+    if (context != null &&
+        ModalRoute.of(context)?.isCurrent == true &&
+        _needsDecreaseApproval) {
+      _askDecreaseApproval(context);
+    } else {
+      notifyListeners();
+    }
+  }
+
+  /// Hozirgi (kamaygan) qty ga PIN so'raydi. Oyna ochiq turganda ruxsat etilgan
+  /// qty ko'rinadi; rad etilsa o'sha qoladi, PIN to'g'ri bo'lsa kamaygan qty.
+  Future<bool> _askDecreaseApproval(BuildContext context) async {
+    final double requested = target.value.toDouble();
+    target.value = _approvedQty;
+    _updatePricesAfterQuantityChange();
+    _dialogOpened = true;
     _ignoreInput = true;
+    _inputReleaseTimer?.cancel();
+    notifyListeners();
 
     final Employee? authorizedEmployee =
         await _showInputAlertForDecrease(context);
+    if (_finished) return false;
 
-    if (authorizedEmployee != null) {
+    final bool approved = authorizedEmployee != null;
+    if (approved) {
       _qtyDecreaseApprovedBy = authorizedEmployee;
-      decreaseQuantity(amount);
-
-      await Future.delayed(Duration(milliseconds: 300));
-      _ignoreInput = false;
-
-      return true;
+      _approvedQty = requested;
+      target.value = requested;
+      _updatePricesAfterQuantityChange();
+    } else if (_selectedInput == 1) {
+      // Keyingi raqam qaytarilgan qty oxiriga emas, uning o'rniga yozilsin.
+      isSelectedAlls = List.generate(6, (index) => index == 1);
+      _dotted = false;
+      isDouble = false;
+      index1 = false;
+      index2 = false;
+      index3 = false;
     }
-
-    await Future.delayed(Duration(milliseconds: 300));
-    _ignoreInput = false;
-
-    return false;
+    _dialogOpened = false;
+    // PIN ning oxirgi raqami qo'yib yuborilganda qty ga tushib qolmasin.
+    _inputReleaseTimer = Timer(const Duration(milliseconds: 300), () {
+      _ignoreInput = false;
+    });
+    notifyListeners();
+    return approved;
   }
 
   Future<Employee?> _showInputAlertForDecrease(BuildContext context) async {
@@ -273,6 +339,14 @@ class OperationOnProductProvider extends ChangeNotifier {
   }
 
   Future<void> onSaveButtonPressed(BuildContext context) async {
+    if (_finished || _dialogOpened) return;
+    cancelPendingDecreaseCheck();
+    // Qty qaysi yo'l bilan kamaygan bo'lsa ham (raqam, Backspace, klaviatura
+    // `-`, 0) ruxsat shu yerda tekshiriladi: terib to'xtagandagi tekshiruvga
+    // ulgurmasdan Saqlash bosilishi mumkin.
+    if (_needsDecreaseApproval && !await _askDecreaseApproval(context)) return;
+    _finished = true;
+
     final bool priceManuallyEdited =
         onlyPriceIsEdited || target.isPriceOnlyChanged || target.isPriceChanged;
 
@@ -343,6 +417,7 @@ class OperationOnProductProvider extends ChangeNotifier {
   }
 
   onNumPressed(String s) {
+    if (_finished) return;
     switch (_selectedInput) {
       case 0:
         if (s != '.') onPriceChanged(num.parse(s));
@@ -455,7 +530,6 @@ class OperationOnProductProvider extends ChangeNotifier {
   bool index1 = false;
   bool index2 = false;
   bool index3 = false;
-  double? _snapshotBeforeTyping;
 
   void onCountChanged(String s) {
     if (_ignoreInput) {
@@ -471,12 +545,6 @@ class OperationOnProductProvider extends ChangeNotifier {
     }
     if (_dialogOpened) {
       return;
-    }
-
-    final double oldValue = target.value.toDouble();
-
-    if (_debounceTimer == null || !_debounceTimer!.isActive) {
-      _snapshotBeforeTyping = target.value.toDouble();
     }
 
     if (target.isKg) {
@@ -628,44 +696,8 @@ class OperationOnProductProvider extends ChangeNotifier {
       }
     }
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 400), () {
-      final double snapshot = _snapshotBeforeTyping ?? _oldValue;
-
-      if (target.value < snapshot && snapshot > 0) {
-        final double newValue = target.value.toDouble();
-        final num decreaseAmount = snapshot - newValue;
-
-        target.value = snapshot;
-        _updatePricesAfterQuantityChange();
-
-        _dialogOpened = true;
-        _ignoreInput = true;
-        _snapshotBeforeTyping = null;
-
-        attemptDecreaseQuantity(
-          decreaseAmount.toInt(),
-          focusNode.context!,
-        ).then((success) {
-          _dialogOpened = false;
-          _ignoreInput = false;
-
-          if (success) {
-            target.value = newValue;
-            _updatePricesAfterQuantityChange();
-            _oldValue = target.value.toDouble();
-          } else {
-            _oldValue = snapshot;
-          }
-
-          notifyListeners();
-        });
-      } else {
-        _snapshotBeforeTyping = null;
-        _oldValue = target.value.toDouble();
-      }
-
-      notifyListeners();
-    });
+    _debounceTimer =
+        Timer(const Duration(milliseconds: 400), _checkTypedDecrease);
     notifyListeners();
   }
 
@@ -692,6 +724,9 @@ class OperationOnProductProvider extends ChangeNotifier {
   }
 
   onBackSpacePressed() {
+    if (_finished || _ignoreInput) return;
+    // Raqam tugmalaridagi kabi: narx maydonlari faqat `editPrice` egasiga.
+    if (_selectedInput != 1 && _selectedInput != 2 && !_canEditPrice) return;
     switch (_selectedInput) {
       case 0: // stands for price
         {

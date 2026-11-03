@@ -42,6 +42,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 17 | 2026-10-21 | KM to'g'ridan skanerlanganda mahsulot topilmasdi: KM ichidagi GTIN-14 (`00049000033939`) katalogdagi UPC-12/EAN-13 (`049000033939`/`0049000033939`) ga GS1 tengligi bilan moslanadi — dona, blok, narxi 0; oddiy skan/SKU o'zgarmagan | 1.1.2+130 (Shorebird Patch 2, stable) | Patch chiqdi (2026-10-21); do'kon sinovi kutilmoqda | `38e40f3`, `0bb3faa` |
 | 18 | 2026-10-21 | Telegram log'idagi `Employee` joriy kassir (`static final` qotib qolardi). Vozvrat OFD xatosi 65274 tahlili: bizniki emas, fiskal modul OFD serveriga ulana olmagan | 1.1.2+130 (Shorebird Patch 2, stable) | Patch chiqdi (2026-10-21); do'kon sinovi kutilmoqda | `4de89e6` |
 | 19 | 2026-10-27 | Vozvratda markirovka: KM (dona + blok) serverdan; kassir qaytayotgan mahsulotni skanerlaydi, faqat shu chekdagi qaytarilmagan KM o'tadi (`refunded_*`); fiskalga sotuvdagidek har KM alohida pozitsiya; `refund_order_items` ga KM; rus klaviatura tartibi; boshqa kassa blok cheki token → dona | 1.1.2+130 (Shorebird Patch 3, stable) | Patch chiqdi (2026-10-28); Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `73ecadc` (merge `815d9d8`) |
+| 21 | 2026-11-03 | OPD: qty kamaytirish va narx tahriri ruxsatsiz o'tardi (tez Saqlash, Backspace, 0, klaviatura `-`); ruxsat Saqlashda tekshiriladi, taymer savat qatorini o'zgartirmaydi | relizda emas | Commit bor; Windows sinovi kutilmoqda | `75fbf20` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -102,6 +103,7 @@ d5b6432 2026-10-20 fix(terminal): karta raqami yangi terminal formatlarida ham o
 4de89e6 2026-10-21 fix(log): Telegram log'idagi xodim — joriy kassir                       ← 18-task
 73ecadc 2026-10-28 fix(vozvrat): markirovkali mahsulot KM skanerlab qaytariladi             ← 19-task
 815d9d8 2026-10-28 merge: fix/vozvrat-markirovka → ayyubxon; Shorebird Patch 3 → 1.1.2+130 stable
+75fbf20 2026-11-03 fix(opd): qty kamaytirish va narx tahriri ruxsatsiz o'tmaydi            ← 21-task
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -30341,6 +30343,1627 @@ vozvrat). POS: adminkadagi "Kaftpay" turi nom bo'yicha (YagonaQr kabi), chekda
 `KAFTPAY`, fiskalda karta, qatorini o'chirib bo'lmaydi. Windows'da sinalmagan.
 Qoldi: chek URL → Kaftpay, tx ↔ chek, X/Z qatori.
 Commit bo'lgach to'liq bo'limga aylantiriladi.
+
+---
+
+# 21-TASK — OPD dialogida qty kamaytirish va narx tahriri ruxsatsiz o'tardi (relizda emas)
+
+> **Commit:** `75fbf20` (2026-11-03), reliz yo'q, Shorebird'ga chiqarilmagan.
+> **Sessiya hujjati:** docs/sessions/2026-11-03-opd-qty-access.md
+> **Holat 2026-11-03:** `ayyubxon` da; testlar o'tdi, haqiqiy ilovada (Windows) sinalmagan.
+
+## 1. Nima va nima uchun
+
+`deletePrice` ruxsati yo'q kassir mahsulotni PIN siz kamaytira olardi: qatorni bosib (Pepsi, qty 10) kichik son yozib tez Saqlash bossa qty o'zgarardi, PIN chiqishga ulgurmasdi, to'lov sahifasida esa 10 talik summa turardi. Sabab: `onCountChanged` tekshiruvni 400 ms kechikkan taymerga qoldirardi, `onSaveButtonPressed` hech narsa tekshirmasdi va taymerni to'xtatmasdi. Saqlangach `target` savat qatorining o'zi bo'ladi, shuning uchun taymer savat qatorini orqaga qaytarardi (ro'yxat yangilanmaydi).
+
+O'lchangan (10 × 10 000, "3" + Saqlash): saqlashdan keyin qty 3, jami 30 000, `deleted_items` da 7 ta kassir nomidan; +400 ms da qty 10, jami 100 000.
+
+Yechim: ruxsat Saqlash paytida tekshiriladi, saqlangach provider qatorga tegmaydi. Shu bilan boshqa yo'llar ham yopildi: Backspace → Saqlash, 0 + Saqlash (qator, blok va marka guruhi PIN siz o'chardi), klaviatura `-`, quti maydonidagi `-`, narx maydonlarida Backspace (`editPrice` siz), raqam + O'chirish (ikkita PIN oynasi).
+
+## 2. Qanday ishlaydi
+
+Eski: raqam → qty o'zgaradi → 400 ms → `target.value < snapshot` bo'lsa PIN. Saqlash tekshirmaydi.
+
+Yangi:
+- `_approvedQty` — PIN siz tushib bo'lmaydigan qty: ochilgandagi qty yoki oxirgi ruxsat etilgani.
+- `onSaveButtonPressed`: taymer bekor qilinadi; `target.value < _approvedQty` va kassirda `deletePrice` yo'q bo'lsa PIN. Rad etilsa oyna ochiq, qty `_approvedQty` ga qaytadi, saqlanmaydi. To'g'ri PIN: saqlash davom etadi, `deleted_by` = PIN egasi.
+- Taymer qoladi (terib to'xtaganda PIN), lekin faqat qulaylik: dialog yopilayotgan bo'lsa ochilmaydi.
+- `_finished` (saqlangach yoki `dispose` da): raqam, Backspace, `+`, `-`, taymer `target` ga tegmaydi.
+- Oshirib keyin tushirish ("10 → 15 → 12") PIN so'ramaydi: savatdan hech narsa chiqmaydi.
+- Kg mahsulot `value: 1` bilan qo'shilib og'irlik oynasi o'zi ochiladi: `approvedQty` = qo'shishdan oldingi qty (yangi qatorda 0). Aks holda 1 kg dan kam har sotuv PIN so'rardi.
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/providers/operation_on_product_provider.dart` | o'zgargan | `_approvedQty`, `_finished`, `dispose`, `_askDecreaseApproval`, `_checkTypedDecrease`, `cancelPendingDecreaseCheck`, Saqlashdagi tekshiruv, Backspace'da `editPrice`; `_oldValue`, `_snapshotBeforeTyping` olib tashlandi |
+| `lib/changes/providers/ordering_provider_4.dart` | o'zgargan | `addProduct`: og'irlik oynasiga `approvedQty` |
+| `lib/features/home/features/operation_on_product/operation_on_product.dart` | o'zgargan | `approvedQty` parametri |
+| `lib/features/home/features/operation_on_product/operation_on_product_dialog.dart` | o'zgargan | `approvedQty` ni providerga uzatadi |
+| `lib/features/home/features/operation_on_product/opd_bottom.dart` | o'zgargan | O'chirish kutilayotgan taymerni bekor qiladi |
+| `lib/features/home/features/operation_on_product/opd_center/opd_center.dart` | o'zgargan | Klaviatura `-` → `attemptDecreaseQuantity` |
+| `lib/features/home/features/operation_on_product/opd_center/components/opd_box.dart` | o'zgargan | Quti `-` → `attemptDecreaseQuantity` |
+| `lib/features/home/features/operation_on_product/opd_center/components/opd_value.dart` | o'zgargan | Qty ≤ 1 da `-` taymerni bekor qiladi |
+| `test/opd_qty_access_test.dart` | YANGI | 56 test, haqiqiy dialog ustida |
+
+## 4. Bog'liqliklar
+
+`InputAlertDialog`, `deletePrice`/`editPrice` huquqlari, `DeletedItemRecorder` (`approvedBy` — 10-task va undan oldingi ishlar). Test `test/support/provider_harness.dart` ni ishlatadi. Yangi paket yo'q.
+
+## 5. Qo'llash tartibi
+
+1. §6 dagi diff'ni qo'llang (`git apply` yoki qo'lda). Provider faylida `_oldValue` va `_snapshotBeforeTyping` butunlay chiqadi.
+2. Testni qo'shing va `flutter test test/opd_qty_access_test.dart` ni ishga tushiring.
+3. Boshqa tahrir dialoglari bo'lsa (`OperationOnProduct.operationOnProductDialog` chaqiruvlari), kg og'irlik oynasi kabi avtomatik ochilishlarga `approvedQty` bering.
+
+## 6. Kod
+
+Diff (`git show 75fbf20 -- lib/`):
+
+````diff
+diff --git a/lib/changes/providers/operation_on_product_provider.dart b/lib/changes/providers/operation_on_product_provider.dart
+index 10a980e..5209cab 100644
+--- a/lib/changes/providers/operation_on_product_provider.dart
++++ b/lib/changes/providers/operation_on_product_provider.dart
+@@ -18,10 +18,11 @@ class OperationOnProductProvider extends ChangeNotifier {
+     required ReceiptModelSoldItem4 item,
+     required bool isClientMinimumPrice,
+     this.baseUnitsFromOtherRows = 0,
++    num? approvedQty,
+   })  : _isClientMinimumPrice = isClientMinimumPrice,
+         target = item,
+         _currentEmployee = HiveBoxes.getCurrentEmployee! {
+-    _oldValue = target.value.toDouble();
++    _approvedQty = (approvedQty ?? target.value).toDouble();
+   }
+ 
+   /// Shu mahsulotning savatdagi BOSHQA qatorlaridagi (tahrirlanayotgan qatordan
+@@ -57,6 +58,31 @@ class OperationOnProductProvider extends ChangeNotifier {
+   bool _dotted = false;
+   FocusNode focusNode = FocusNode();
+   Timer? _debounceTimer;
++  Timer? _inputReleaseTimer;
++
++  /// Qty shu qiymatdan pastga tushsa ruxsat kerak: kassirda `deletePrice` yoki
++  /// PIN. Boshida dialog ochilgandagi qty (og'irlik kiritishda — qo'shishdan
++  /// oldingi qty), PIN bilan kamaytirilgach — o'sha qty.
++  late double _approvedQty;
++
++  /// Saqlandi yoki dialog yopildi. Saqlangach `target` savat qatorining o'zi
++  /// bo'ladi, shundan keyin bu provider unga tegmasligi kerak.
++  bool _finished = false;
++
++  bool get _canDecreaseFreely => _currentEmployee?.access?.deletePrice == true;
++
++  bool get _canEditPrice => _currentEmployee?.access?.editPrice ?? false;
++
++  bool get _needsDecreaseApproval =>
++      !_canDecreaseFreely && target.value < _approvedQty;
++
++  @override
++  void dispose() {
++    _finished = true;
++    _debounceTimer?.cancel();
++    _inputReleaseTimer?.cancel();
++    super.dispose();
++  }
+ 
+ 
+   String get boxValueStr {
+@@ -86,7 +112,6 @@ class OperationOnProductProvider extends ChangeNotifier {
+       MoneyFormatter.inputMoneyFormatter.format(target.onlyPrice);
+   bool onlyPriceIsEdited = false;
+   bool _usedDiscountInput = false;
+-  double _oldValue = 0;
+ 
+   String get valueStr {
+     if (target.soldBy == "box") {
+@@ -122,6 +147,7 @@ class OperationOnProductProvider extends ChangeNotifier {
+   }
+ 
+   void increaseQuantity(int n) {
++    if (_finished) return;
+     _cancelSelectedAll();
+     if (target.marking && OfdAdminSetting.isEnabled) return;
+     // Blok qatori qty'sini oshirib bo'lmaydi — yangi blok skanerlanishi kerak
+@@ -150,6 +176,7 @@ class OperationOnProductProvider extends ChangeNotifier {
+   }
+ 
+   void decreaseQuantity(int n) {
++    if (_finished) return;
+     _cancelSelectedAll();
+     if (n < target.value) {
+       target.value = target.value - n;
+@@ -178,7 +205,8 @@ class OperationOnProductProvider extends ChangeNotifier {
+   }
+ 
+   void _updatePricesAfterQuantityChange() {
+-    ItemModel item = ItemsSingleton.getProductById(target.productId)!;
++    final ItemModel? item = ItemsSingleton.getProductById(target.productId);
++    if (item == null) return;
+ 
+     double price;
+     if (target.isPriceOnlyChanged) {
+@@ -204,30 +232,68 @@ class OperationOnProductProvider extends ChangeNotifier {
+   Employee? get qtyDecreaseApprovedBy => _qtyDecreaseApprovedBy;
+ 
+   Future<bool> attemptDecreaseQuantity(int amount, BuildContext context) async {
+-    if (_currentEmployee?.access?.deletePrice == true) {
+-      decreaseQuantity(amount);
+-      return true;
++    if (_finished || _dialogOpened) return false;
++    cancelPendingDecreaseCheck();
++    decreaseQuantity(amount);
++    if (!_needsDecreaseApproval) return true;
++    return _askDecreaseApproval(context);
++  }
++
++  /// O'chirish tugmasi yoki `-` bosilganda: terib to'xtagandagi kechikkan
++  /// tekshiruv ularning PIN oynasi ustidan ikkinchi oyna ochmasin.
++  void cancelPendingDecreaseCheck() => _debounceTimer?.cancel();
++
++  /// Raqam terib to'xtagach. Dialog yopilayotgan bo'lsa PIN oynasi ochilmaydi —
++  /// saqlash baribir [onSaveButtonPressed] da tekshiriladi.
++  void _checkTypedDecrease() {
++    if (_finished) return;
++    final context = focusNode.context;
++    if (context != null &&
++        ModalRoute.of(context)?.isCurrent == true &&
++        _needsDecreaseApproval) {
++      _askDecreaseApproval(context);
++    } else {
++      notifyListeners();
+     }
++  }
+ 
++  /// Hozirgi (kamaygan) qty ga PIN so'raydi. Oyna ochiq turganda ruxsat etilgan
++  /// qty ko'rinadi; rad etilsa o'sha qoladi, PIN to'g'ri bo'lsa kamaygan qty.
++  Future<bool> _askDecreaseApproval(BuildContext context) async {
++    final double requested = target.value.toDouble();
++    target.value = _approvedQty;
++    _updatePricesAfterQuantityChange();
++    _dialogOpened = true;
+     _ignoreInput = true;
++    _inputReleaseTimer?.cancel();
++    notifyListeners();
+ 
+     final Employee? authorizedEmployee =
+         await _showInputAlertForDecrease(context);
++    if (_finished) return false;
+ 
+-    if (authorizedEmployee != null) {
++    final bool approved = authorizedEmployee != null;
++    if (approved) {
+       _qtyDecreaseApprovedBy = authorizedEmployee;
+-      decreaseQuantity(amount);
+-
+-      await Future.delayed(Duration(milliseconds: 300));
+-      _ignoreInput = false;
+-
+-      return true;
++      _approvedQty = requested;
++      target.value = requested;
++      _updatePricesAfterQuantityChange();
++    } else if (_selectedInput == 1) {
++      // Keyingi raqam qaytarilgan qty oxiriga emas, uning o'rniga yozilsin.
++      isSelectedAlls = List.generate(6, (index) => index == 1);
++      _dotted = false;
++      isDouble = false;
++      index1 = false;
++      index2 = false;
++      index3 = false;
+     }
+-
+-    await Future.delayed(Duration(milliseconds: 300));
+-    _ignoreInput = false;
+-
+-    return false;
++    _dialogOpened = false;
++    // PIN ning oxirgi raqami qo'yib yuborilganda qty ga tushib qolmasin.
++    _inputReleaseTimer = Timer(const Duration(milliseconds: 300), () {
++      _ignoreInput = false;
++    });
++    notifyListeners();
++    return approved;
+   }
+ 
+   Future<Employee?> _showInputAlertForDecrease(BuildContext context) async {
+@@ -273,6 +339,14 @@ class OperationOnProductProvider extends ChangeNotifier {
+   }
+ 
+   Future<void> onSaveButtonPressed(BuildContext context) async {
++    if (_finished || _dialogOpened) return;
++    cancelPendingDecreaseCheck();
++    // Qty qaysi yo'l bilan kamaygan bo'lsa ham (raqam, Backspace, klaviatura
++    // `-`, 0) ruxsat shu yerda tekshiriladi: terib to'xtagandagi tekshiruvga
++    // ulgurmasdan Saqlash bosilishi mumkin.
++    if (_needsDecreaseApproval && !await _askDecreaseApproval(context)) return;
++    _finished = true;
++
+     final bool priceManuallyEdited =
+         onlyPriceIsEdited || target.isPriceOnlyChanged || target.isPriceChanged;
+ 
+@@ -343,6 +417,7 @@ class OperationOnProductProvider extends ChangeNotifier {
+   }
+ 
+   onNumPressed(String s) {
++    if (_finished) return;
+     switch (_selectedInput) {
+       case 0:
+         if (s != '.') onPriceChanged(num.parse(s));
+@@ -455,7 +530,6 @@ class OperationOnProductProvider extends ChangeNotifier {
+   bool index1 = false;
+   bool index2 = false;
+   bool index3 = false;
+-  double? _snapshotBeforeTyping;
+ 
+   void onCountChanged(String s) {
+     if (_ignoreInput) {
+@@ -473,12 +547,6 @@ class OperationOnProductProvider extends ChangeNotifier {
+       return;
+     }
+ 
+-    final double oldValue = target.value.toDouble();
+-
+-    if (_debounceTimer == null || !_debounceTimer!.isActive) {
+-      _snapshotBeforeTyping = target.value.toDouble();
+-    }
+-
+     if (target.isKg) {
+       if (s == '10') {
+         if (num.parse((target.value % 1).toStringAsFixed(1)) == 0) {
+@@ -628,44 +696,8 @@ class OperationOnProductProvider extends ChangeNotifier {
+       }
+     }
+     _debounceTimer?.cancel();
+-    _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+-      final double snapshot = _snapshotBeforeTyping ?? _oldValue;
+-
+-      if (target.value < snapshot && snapshot > 0) {
+-        final double newValue = target.value.toDouble();
+-        final num decreaseAmount = snapshot - newValue;
+-
+-        target.value = snapshot;
+-        _updatePricesAfterQuantityChange();
+-
+-        _dialogOpened = true;
+-        _ignoreInput = true;
+-        _snapshotBeforeTyping = null;
+-
+-        attemptDecreaseQuantity(
+-          decreaseAmount.toInt(),
+-          focusNode.context!,
+-        ).then((success) {
+-          _dialogOpened = false;
+-          _ignoreInput = false;
+-
+-          if (success) {
+-            target.value = newValue;
+-            _updatePricesAfterQuantityChange();
+-            _oldValue = target.value.toDouble();
+-          } else {
+-            _oldValue = snapshot;
+-          }
+-
+-          notifyListeners();
+-        });
+-      } else {
+-        _snapshotBeforeTyping = null;
+-        _oldValue = target.value.toDouble();
+-      }
+-
+-      notifyListeners();
+-    });
++    _debounceTimer =
++        Timer(const Duration(milliseconds: 400), _checkTypedDecrease);
+     notifyListeners();
+   }
+ 
+@@ -692,6 +724,9 @@ class OperationOnProductProvider extends ChangeNotifier {
+   }
+ 
+   onBackSpacePressed() {
++    if (_finished || _ignoreInput) return;
++    // Raqam tugmalaridagi kabi: narx maydonlari faqat `editPrice` egasiga.
++    if (_selectedInput != 1 && _selectedInput != 2 && !_canEditPrice) return;
+     switch (_selectedInput) {
+       case 0: // stands for price
+         {
+diff --git a/lib/changes/providers/ordering_provider_4.dart b/lib/changes/providers/ordering_provider_4.dart
+index c9c4bda..f75cd9d 100644
+--- a/lib/changes/providers/ordering_provider_4.dart
++++ b/lib/changes/providers/ordering_provider_4.dart
+@@ -438,10 +438,16 @@ class OrderingProvider4 extends ChangeNotifier {
+           _currentClient.orderedProducts[0].isKg &&
+           !isTarozi) {
+         _tappedIndexToEdit = 0;
++        final added = _currentClient.orderedProducts[0];
+         await OperationOnProduct.operationOnProductDialog(
+           context: context,
+-          item: _currentClient.orderedProducts[0],
++          item: added,
+           isClientMinimumPrice: false,
++          // Og'irlik kiritish: hozirgina qo'shilgan [value] hali o'lchanmagan
++          // son, uni kamaytirish savatdagi tovarni kamaytirish emas.
++          approvedQty: added.productId == product.id
++              ? (added.value - value).clamp(0, double.infinity)
++              : null,
+         );
+       }
+     } catch (e, stackTrace) {
+diff --git a/lib/features/home/features/operation_on_product/opd_bottom.dart b/lib/features/home/features/operation_on_product/opd_bottom.dart
+index a5aecba..4241355 100644
+--- a/lib/features/home/features/operation_on_product/opd_bottom.dart
++++ b/lib/features/home/features/operation_on_product/opd_bottom.dart
+@@ -32,6 +32,9 @@ class OPDBottom extends StatelessWidget {
+                 ),
+               ),
+               onPressed: () async {
++                context
++                    .read<OperationOnProductProvider>()
++                    .cancelPendingDecreaseCheck();
+                 Employee currentEmployee = HiveBoxes.getCurrentEmployee!;
+ 
+                 if ((currentEmployee.access?.deletePrice ?? false)) {
+diff --git a/lib/features/home/features/operation_on_product/opd_center/components/opd_box.dart b/lib/features/home/features/operation_on_product/opd_center/components/opd_box.dart
+index 97d6f68..f30b683 100644
+--- a/lib/features/home/features/operation_on_product/opd_center/components/opd_box.dart
++++ b/lib/features/home/features/operation_on_product/opd_center/components/opd_box.dart
+@@ -97,7 +97,7 @@ class OPDboxState extends State<OPDbox> {
+         padding: const EdgeInsets.all(0.0),
+       ),
+       onPressed: () {
+-        opdProvider.decreaseQuantity(item.inBox);
++        opdProvider.attemptDecreaseQuantity(item.inBox, context);
+       },
+       child: Icon(
+         Icons.remove,
+diff --git a/lib/features/home/features/operation_on_product/opd_center/components/opd_value.dart b/lib/features/home/features/operation_on_product/opd_center/components/opd_value.dart
+index 6d0b14f..dbb9ff6 100644
+--- a/lib/features/home/features/operation_on_product/opd_center/components/opd_value.dart
++++ b/lib/features/home/features/operation_on_product/opd_center/components/opd_value.dart
+@@ -108,6 +108,7 @@ class OPDQuantityState extends State<OPDQuantity> {
+             Provider.of<OperationOnProductProvider>(context, listen: false);
+ 
+         if (item.value <= 1) {
++          provider.cancelPendingDecreaseCheck();
+           final Employee currentEmployee = HiveBoxes.getCurrentEmployee!;
+           if (currentEmployee.access?.deletePrice ?? false) {
+             Provider.of<OrderingProvider4>(context, listen: false)
+diff --git a/lib/features/home/features/operation_on_product/opd_center/opd_center.dart b/lib/features/home/features/operation_on_product/opd_center/opd_center.dart
+index 4b2e4a0..c750f14 100644
+--- a/lib/features/home/features/operation_on_product/opd_center/opd_center.dart
++++ b/lib/features/home/features/operation_on_product/opd_center/opd_center.dart
+@@ -160,7 +160,7 @@ class OPDCenterState extends State<OPDCenter> {
+       // }
+     } else if (event.isKeyPressed(LogicalKeyboardKey.numpadSubtract)) {
+       Provider.of<OperationOnProductProvider>(context, listen: false)
+-          .decreaseQuantity(1);
++          .attemptDecreaseQuantity(1, context);
+     } else if (event.isKeyPressed(LogicalKeyboardKey.numpadAdd)) {
+       Provider.of<OperationOnProductProvider>(context, listen: false)
+           .increaseQuantity(1);
+diff --git a/lib/features/home/features/operation_on_product/operation_on_product.dart b/lib/features/home/features/operation_on_product/operation_on_product.dart
+index 2a0e656..0cea311 100644
+--- a/lib/features/home/features/operation_on_product/operation_on_product.dart
++++ b/lib/features/home/features/operation_on_product/operation_on_product.dart
+@@ -8,6 +8,8 @@ class OperationOnProduct {
+     required bool isClientMinimumPrice,
+     required ReceiptModelSoldItem4 item,
+     num? displayValue,
++    // Qty shu qiymatgacha PIN siz tushadi; null bo'lsa — dialogdagi qty.
++    num? approvedQty,
+   }) async {
+     final focusedItem = ReceiptModelSoldItem4(
+       isPriceOnlyChanged: item.isPriceOnlyChanged,
+@@ -54,6 +56,7 @@ class OperationOnProduct {
+       builder: (_) => OperationOnProductDialog(
+         item: focusedItem,
+         isClientMinimumPrice: isClientMinimumPrice,
++        approvedQty: approvedQty,
+       ),
+     );
+     return;
+diff --git a/lib/features/home/features/operation_on_product/operation_on_product_dialog.dart b/lib/features/home/features/operation_on_product/operation_on_product_dialog.dart
+index 7718b57..e606a3e 100644
+--- a/lib/features/home/features/operation_on_product/operation_on_product_dialog.dart
++++ b/lib/features/home/features/operation_on_product/operation_on_product_dialog.dart
+@@ -15,10 +15,12 @@ class OperationOnProductDialog extends StatelessWidget {
+     super.key,
+     required this.item,
+     required this.isClientMinimumPrice,
++    this.approvedQty,
+   });
+ 
+   final bool isClientMinimumPrice;
+   final ReceiptModelSoldItem4 item;
++  final num? approvedQty;
+ 
+   @override
+   Widget build(BuildContext context) {
+@@ -30,6 +32,7 @@ class OperationOnProductDialog extends StatelessWidget {
+         // narx ko'rsatishi uchun shu mahsulotning BOSHQA qatorlaridagi (blok +
+         // dona, tahrirlanayotgan qatordan tashqari) donasini oldindan hisoblaymiz.
+         baseUnitsFromOtherRows: _baseUnitsFromOtherRows(context, item),
++        approvedQty: approvedQty,
+       ),
+       builder: (context, child) {
+         double subLength = item.productDiscount.length > 5
+````
+
+<details>
+<summary><code>test/opd_qty_access_test.dart</code> (YANGI)</summary>
+
+````dart
+// OPD dialogi: ruxsatsiz kassir savatni PIN siz kamaytira olmaydi va narxni
+// o'zgartira olmaydi. Testlar haqiqiy dialog ustida (tugmalar, klaviatura).
+//
+// Bug: qty tekshiruvi faqat 400 ms kechikkan taymerda edi. Undan oldin
+// Saqlash bosilsa qty PIN siz saqlanardi, keyin taymer savat qatorining o'zini
+// orqaga qaytarardi: ro'yxatda 3 ta, to'lov sahifasida 10 talik summa.
+// Hujjat: docs/sessions/2026-11-03-opd-qty-access.md
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/app_navigation.dart';
+import 'package:invan2/changes/models/product/item_model.dart';
+import 'package:invan2/changes/providers/operation_on_product_provider.dart';
+import 'package:invan2/changes/providers/ordering_provider_4.dart';
+import 'package:invan2/features/features.dart';
+import 'package:invan2/features/get_products/singletons/items_singleton.dart';
+import 'package:invan2/features/hive_repository/hive_boxes.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/features/home/bloc/barcode_listener_bloc/bl_bloc.dart';
+import 'package:invan2/features/home/features/operation_on_product/delete_item/input_alert_dialog.dart';
+import 'package:invan2/features/home/features/operation_on_product/opd_bottom.dart';
+import 'package:invan2/features/home/features/operation_on_product/operation_on_product.dart';
+import 'package:invan2/features/home/features/operation_on_product/operation_on_product_dialog.dart';
+import 'package:invan2/features/lock/lock/view/lock_number_button.dart';
+import 'package:invan2/utils/utils.dart';
+import 'package:provider/provider.dart';
+import 'package:visibility_detector/visibility_detector.dart';
+
+import 'support/provider_harness.dart';
+
+const kPid = 'pepsi-id';
+const kManagerId = 'rahbar-1';
+const kManagerPin = '7777';
+const kNoRightsPin = '8888';
+const kUnit = 10000.0;
+
+ItemModel pepsi({bool kg = false, List<ShopPriceTiers>? tiers}) {
+  final m = ItemModel();
+  m.id = kPid;
+  m.name = 'Pepsi';
+  m.vat = Vat(percentage: 12);
+  m.measurementUnit = MeasurementUnit(shortName: kg ? 'kg' : 'dona');
+  m.shopPrices = ShopPrices(
+    shID: ShID(
+      shopId: 'shop-1',
+      shopPriceTiers:
+          tiers ?? [ShopPriceTiers(minQuantity: 1, retailPrice: kUnit)],
+    ),
+  );
+  return m;
+}
+
+Future<void> setEmployees({bool delete = false, bool edit = false}) async {
+  final box = HiveBoxes.getEmployees();
+  await box.clear();
+  await box.add(Employee(
+    user:
+        EmployeeUser(id: kCashierId, firstName: kCashierName, passCode: '1111'),
+    access: EmployeeAccess(deletePrice: delete, editPrice: edit),
+  ));
+  await box.add(Employee(
+    user: EmployeeUser(
+        id: kManagerId, firstName: 'Rahbar', passCode: kManagerPin),
+    access: EmployeeAccess(deletePrice: true, editPrice: true),
+  ));
+  await box.add(Employee(
+    user: EmployeeUser(
+        id: 'kassir-2', firstName: 'Kassir', passCode: kNoRightsPin),
+    access: EmployeeAccess(deletePrice: false, editPrice: false),
+  ));
+}
+
+class Host {
+  Host(this.tester, this.p);
+
+  final WidgetTester tester;
+  final OrderingProvider4 p;
+  late BuildContext ctx;
+
+  List<ReceiptModelSoldItem4> get rows => p.getCurrentClient.orderedProducts;
+
+  List get deleted => p.getCurrentClient.deletedItems;
+
+  double get total => ItemsSingleton.getTotalPrice(rows);
+
+  Finder get pinDialog => find.byType(InputAlertDialog);
+
+  Finder get opdDialog => find.byType(OperationOnProductDialog);
+
+  OperationOnProductProvider get opd =>
+      tester.element(find.byType(OPDBottom)).read<OperationOnProductProvider>();
+
+  Future<void> pump() async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<OrderingProvider4>.value(value: p),
+          BlocProvider<BlBloc>(create: (_) => BlBloc()),
+        ],
+        child: MaterialApp(
+          navigatorKey: AppNavigation.navigatorKey,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('uz'),
+          home: Builder(builder: (c) {
+            SizeConfig().init(c);
+            ctx = c;
+            return const Scaffold(body: SizedBox.expand());
+          }),
+        ),
+      ),
+    );
+    await tester.pump();
+  }
+
+  /// `OrderList._openRowEditor` bilan bir xil ochiladi.
+  Future<void> openRow(int index) async {
+    p.tapIndexToEdit(index);
+    unawaited(OperationOnProduct.operationOnProductDialog(
+      context: ctx,
+      item: rows[index],
+      isClientMinimumPrice: false,
+    ));
+    await settle();
+  }
+
+  Future<void> openBoxGroup(num count) async {
+    p.beginBoxGroupEdit(kPid);
+    p.tapIndexToEdit(0);
+    unawaited(OperationOnProduct.operationOnProductDialog(
+      context: ctx,
+      item: rows.first,
+      isClientMinimumPrice: false,
+      displayValue: count,
+    ).whenComplete(p.endBoxGroupEdit));
+    await settle();
+  }
+
+  Future<void> openMarkGroup(num count) async {
+    p.beginMarkGroupEdit(kPid);
+    p.tapIndexToEdit(0);
+    unawaited(OperationOnProduct.operationOnProductDialog(
+      context: ctx,
+      item: rows.first,
+      isClientMinimumPrice: false,
+      displayValue: count,
+    ).whenComplete(p.endMarkGroupEdit));
+    await settle();
+  }
+
+  /// Dialog animatsiyasi tugasin, lekin 400 ms lik taymerga yetmasin.
+  Future<void> settle() async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+
+  Future<void> tapDigit(String d) async {
+    await tester.tap(find.byWidgetPredicate(
+        (w) => w is LockNumberButton && w.number == d,
+        description: 'raqam $d'));
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+
+  Future<void> key(LogicalKeyboardKey k) async {
+    await tester.sendKeyEvent(k);
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+
+  /// Bitta bosish = down + up; `OPDCenter` ulardan bittasida ishlaydi.
+  Future<void> backspace() => key(LogicalKeyboardKey.backspace);
+
+  Future<void> _tapButton(String text) async {
+    await tester.tap(find.widgetWithText(MaterialButton, text));
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+
+  Future<void> tapSave() => _tapButton(AppLocalizations.of(ctx)!.saqlash);
+
+  Future<void> tapDelete() => _tapButton(AppLocalizations.of(ctx)!.ochirish);
+
+  Future<void> tapIcon(IconData icon, {int at = 0}) async {
+    await tester.tap(find.widgetWithIcon(ElevatedButton, icon).at(at));
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+
+  /// Barcha taymerlar ishlab bo'lsin: yopilgan dialog ham savatga tegmasin.
+  Future<void> afterTimers() async {
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(milliseconds: 500));
+  }
+
+  Future<void> enterPin(String pin) async {
+    await tester.enterText(find.byType(TextField).last, pin);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+  }
+
+  /// PIN oynasini tashqariga bosib yopish (rad etish).
+  Future<void> refusePin() async {
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+  }
+}
+
+Future<Host> hostWith(
+  WidgetTester t, {
+  double value = 10,
+  double price = kUnit,
+  bool kg = false,
+}) async {
+  final p = freshProvider();
+  p.getCurrentClient.orderedProducts
+      .add(makeSoldItem(productId: kPid, price: price, value: value, isKg: kg));
+  final h = Host(t, p);
+  await h.pump();
+  return h;
+}
+
+/// Bitta blok = bitta qator; `value` = 1.
+Future<Host> hostWithBoxes(WidgetTester t, int count) async {
+  final p = freshProvider();
+  for (var i = 0; i < count; i++) {
+    p.getCurrentClient.orderedProducts.add(makeSoldItem(
+      productId: kPid,
+      price: kUnit * 12,
+      saleType: 2,
+      boxValue: 12,
+      boxQuantity: count,
+      mark: 'blok-$i',
+    ));
+  }
+  final h = Host(t, p);
+  await h.pump();
+  return h;
+}
+
+Future<Host> hostWithMarks(WidgetTester t, int count) async {
+  final p = freshProvider();
+  for (var i = 0; i < count; i++) {
+    p.getCurrentClient.orderedProducts.add(makeSoldItem(
+      productId: kPid,
+      price: kUnit,
+      marking: true,
+      mark: 'marka-$i',
+    ));
+  }
+  final h = Host(t, p);
+  await h.pump();
+  return h;
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await setUpPosTestEnv('opd_qty_access', withEmployee: false);
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
+  });
+  tearDownAll(tearDownPosTestEnv);
+
+  // testWidgets ichida Hive IO kutilsa osilib qoladi — sozlash shu yerda.
+  setUp(() async {
+    ItemsSingleton.products = [pepsi()];
+    await Pref.setBool(PrefKeys.isRedDeleteActivated, false);
+    await setEmployees();
+  });
+
+  group('Raqam + tez Saqlash (kassirda ruxsat yo\'q)', () {
+    testWidgets('PIN so\'raladi, rad etilsa savat va oyna o\'zgarmaydi',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      await h.tapSave();
+      await h.settle();
+
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.first.value, 10);
+      expect(h.deleted, isEmpty);
+
+      await h.refusePin();
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.opdDialog, findsOneWidget);
+      expect(h.opd.target.value, 10);
+      expect(h.rows.first.value, 10);
+      expect(h.total, 10 * kUnit);
+      expect(h.deleted, isEmpty);
+    });
+
+    testWidgets('rad etilgach qayta Saqlash: 10 qoladi, PIN so\'ralmaydi',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+      await h.tapDigit('3');
+      await h.tapSave();
+      await h.settle();
+      await h.refusePin();
+
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.opdDialog, findsNothing);
+      expect(h.rows.first.value, 10);
+      expect(h.deleted, isEmpty);
+    });
+
+    testWidgets('rad etilgach keyingi raqam qty o\'rniga yoziladi', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+      await h.tapDigit('3');
+      await h.tapSave();
+      await h.settle();
+      await h.refusePin();
+
+      await h.tapDigit('2');
+      expect(h.opd.target.value, 2);
+      await h.afterTimers(); // taymer PIN so'raydi
+      await h.refusePin();
+    });
+
+    testWidgets('to\'g\'ri PIN: 3 saqlanadi, jami 3 talik, deleted_by = rahbar',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      await h.tapSave();
+      await h.settle();
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+
+      expect(h.opdDialog, findsNothing);
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows.first.value, 3);
+      expect(h.total, 3 * kUnit, reason: 'to\'lov sahifasi shu summani oladi');
+      expect(h.deleted.single.quantity, 7);
+      expect(h.deleted.single.deletedBy, kManagerId);
+    });
+
+    testWidgets('ruxsati yo\'q xodim PINi o\'tmaydi', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      await h.tapSave();
+      await h.settle();
+      await h.enterPin(kNoRightsPin);
+
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.first.value, 10);
+      expect(h.deleted, isEmpty);
+      await h.refusePin();
+    });
+
+    testWidgets('Enter ham Saqlash kabi tekshiriladi', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.key(LogicalKeyboardKey.digit3);
+      await h.key(LogicalKeyboardKey.enter);
+      await h.settle();
+
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.first.value, 10);
+      await h.refusePin();
+    });
+
+    for (final ms in [0, 50, 150, 300, 390]) {
+      testWidgets('raqamdan $ms ms keyin Saqlash: bitta PIN, savat 10',
+          (t) async {
+        final h = await hostWith(t);
+        await h.openRow(0);
+
+        await h.tapDigit('3');
+        await t.pump(Duration(milliseconds: ms));
+        await h.tapSave();
+        await t.pump(const Duration(milliseconds: 700));
+
+        expect(h.pinDialog, findsOneWidget);
+        expect(h.opdDialog, findsOneWidget);
+        expect(h.rows.first.value, 10);
+        expect(h.total, 10 * kUnit);
+        await h.refusePin();
+        await h.afterTimers();
+        expect(h.rows.first.value, 10);
+      });
+    }
+
+    testWidgets('boshqa qatorlarga tegilmaydi', (t) async {
+      final h = await hostWith(t);
+      h.rows.insert(0, makeSoldItem(productId: 'cola', price: 500, value: 4));
+      await h.openRow(1);
+
+      await h.tapDigit('3');
+      await h.tapSave();
+      await h.settle();
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+
+      expect(h.rows[0].productId, 'cola');
+      expect(h.rows[0].value, 4);
+      expect(h.rows[1].value, 3);
+    });
+
+    testWidgets('pog\'ona narx: PIN dan keyin 3 ta o\'z narxida', (t) async {
+      ItemsSingleton.products = [
+        pepsi(tiers: [
+          ShopPriceTiers(minQuantity: 1, retailPrice: kUnit),
+          ShopPriceTiers(minQuantity: 10, retailPrice: 8000),
+        ]),
+      ];
+      final h = await hostWith(t, price: 8000);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      await h.tapSave();
+      await h.settle();
+      expect(h.opd.target.price, 8000, reason: 'PIN paytida 10 talik narx');
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+
+      expect(h.rows.first.value, 3);
+      expect(h.rows.first.price, kUnit);
+      expect(h.total, 3 * kUnit);
+    });
+  });
+
+  group('Terib to\'xtaganda PIN', () {
+    testWidgets('rad etilsa 10 qaytadi, keyin Saqlash PIN siz', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      await t.pump(const Duration(milliseconds: 500));
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.opd.target.value, 10);
+
+      await h.refusePin();
+      expect(h.opd.target.value, 10);
+
+      await h.tapSave();
+      await h.afterTimers();
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows.first.value, 10);
+      expect(h.deleted, isEmpty);
+    });
+
+    testWidgets('to\'g\'ri PIN: Saqlashda ikkinchi marta so\'ralmaydi',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      await t.pump(const Duration(milliseconds: 500));
+      await h.enterPin(kManagerPin);
+      expect(h.opd.target.value, 3);
+
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows.first.value, 3);
+      expect(h.total, 3 * kUnit);
+      expect(h.deleted.single.deletedBy, kManagerId);
+    });
+
+    testWidgets(
+        'kassa kg: 2.5 → 1 tez Saqlash → PIN, 1.5 o\'chirilgan yoziladi',
+        (t) async {
+      ItemsSingleton.products = [pepsi(kg: true)];
+      final h = await hostWith(t, value: 2.5, kg: true);
+      await h.openRow(0);
+
+      await h.tapDigit('1');
+      await h.tapSave();
+      await h.settle();
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.first.value, 2.5);
+
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+      expect(h.rows.first.value, 1);
+      expect(h.deleted.single.quantity, 1.5);
+      expect(h.deleted.single.deletedBy, kManagerId);
+    });
+
+    testWidgets('kg: "1." da rad etilsa keyingi raqam butun son bo\'ladi',
+        (t) async {
+      ItemsSingleton.products = [pepsi(kg: true)];
+      final h = await hostWith(t, value: 2.5, kg: true);
+      await h.openRow(0);
+
+      await h.tapDigit('1');
+      await h.tapDigit('.');
+      await t.pump(const Duration(milliseconds: 500));
+      expect(h.pinDialog, findsOneWidget);
+      await h.refusePin();
+      expect(h.opd.target.value, 2.5);
+
+      await h.tapDigit('3');
+      expect(h.opd.target.value, 3);
+    });
+
+    testWidgets('ruxsat 7 gacha: undan pastga yana PIN', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+      await h.tapDigit('7');
+      await t.pump(const Duration(milliseconds: 500));
+      await h.enterPin(kManagerPin);
+      expect(h.opd.target.value, 7);
+
+      await h.backspace(); // 7 → 0
+      await h.tapDigit('3');
+      await h.tapSave();
+      await h.settle();
+
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.first.value, 10);
+      await h.refusePin();
+      expect(h.opd.target.value, 7, reason: 'oxirgi ruxsat etilgan qty');
+    });
+
+    testWidgets('ruxsat 7 gacha, keyin + bilan 9: PIN siz, 1 ta o\'chiriladi',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+      await h.tapDigit('7');
+      await t.pump(const Duration(milliseconds: 500));
+      await h.enterPin(kManagerPin);
+
+      await h.tapIcon(Icons.add);
+      await h.tapIcon(Icons.add);
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.rows.first.value, 9);
+      expect(h.deleted.single.quantity, 1);
+      expect(h.deleted.single.deletedBy, kManagerId);
+    });
+  });
+
+  group('Oshirish: PIN kerak emas', () {
+    testWidgets('10 → "15" tez Saqlash', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('1');
+      await h.tapDigit('5');
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows.first.value, 15);
+      expect(h.deleted, isEmpty);
+    });
+
+    testWidgets('10 → "15" terib to\'xtash: PIN yo\'q', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('1');
+      await h.tapDigit('5');
+      await t.pump(const Duration(milliseconds: 600));
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.opd.target.value, 15);
+    });
+
+    testWidgets('+ bilan 11, - bilan 10: PIN yo\'q, hech narsa o\'chmaydi',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapIcon(Icons.add);
+      await h.tapIcon(Icons.remove);
+      await t.pump(const Duration(milliseconds: 600));
+      expect(h.pinDialog, findsNothing);
+      expect(h.opd.target.value, 10);
+
+      await h.tapSave();
+      await h.afterTimers();
+      expect(h.rows.first.value, 10);
+      expect(h.deleted, isEmpty);
+    });
+
+    testWidgets('raqam terilmagan: Saqlash shunchaki yopadi', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.opdDialog, findsNothing);
+      expect(h.rows.first.value, 10);
+    });
+  });
+
+  group('Boshqa yo\'llar bilan kamaytirish', () {
+    testWidgets('Backspace → 0 → Saqlash: PIN siz qator o\'chmaydi', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.backspace();
+      expect(h.opd.target.value, 0);
+      await h.tapSave();
+      await h.settle();
+
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.single.value, 10);
+      expect(h.deleted, isEmpty);
+
+      await h.refusePin();
+      expect(h.opd.target.value, 10);
+      expect(h.opdDialog, findsOneWidget);
+    });
+
+    testWidgets('Backspace → 0 → Saqlash + PIN: qator o\'chadi, rahbar nomidan',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.backspace();
+      await h.tapSave();
+      await h.settle();
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+
+      expect(h.rows, isEmpty);
+      expect(h.total, 0);
+      expect(h.opdDialog, findsNothing);
+      expect(h.deleted.single.quantity, 10);
+      expect(h.deleted.single.deletedBy, kManagerId);
+    });
+
+    testWidgets('qizil o\'chirish: PIN bilan qator qizil, jami 0', (t) async {
+      final h = await hostWith(t);
+      await t.runAsync(() => Pref.setBool(PrefKeys.isRedDeleteActivated, true));
+      await h.openRow(0);
+
+      await h.backspace();
+      await h.tapSave();
+      await h.settle();
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.single.isDeleted, isFalse);
+
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+      expect(h.rows.single.isDeleted, isTrue);
+      expect(h.total, 0);
+      expect(h.deleted.single.deletedBy, kManagerId);
+    });
+
+    testWidgets(
+        'Backspace, keyin raqam: to\'xtaganda PIN (eski kodda yo\'q edi)',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.backspace(); // 10 → 0
+      await h.tapDigit('3'); // 0 → 3
+      await t.pump(const Duration(milliseconds: 500));
+
+      expect(h.pinDialog, findsOneWidget);
+      await h.refusePin();
+      expect(h.opd.target.value, 10);
+    });
+
+    testWidgets('Backspace, keyin 10 dan katta son: PIN yo\'q', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.backspace(); // 10 → 0
+      await h.tapDigit('1');
+      await h.tapDigit('2');
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows.first.value, 12);
+      expect(h.deleted, isEmpty);
+    });
+
+    testWidgets('0 terib Saqlash: PIN siz qator o\'chmaydi', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('0');
+      await h.tapSave();
+      await h.settle();
+
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.single.value, 10);
+      await h.refusePin();
+      expect(h.rows.single.value, 10);
+    });
+
+    testWidgets('klaviatura `-`: darhol PIN, rad etilsa 10', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.key(LogicalKeyboardKey.numpadSubtract);
+      await h.settle();
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.opd.target.value, 10);
+
+      await h.refusePin();
+      expect(h.opd.target.value, 10);
+      await h.tapSave();
+      await h.afterTimers();
+      expect(h.rows.first.value, 10);
+      expect(h.deleted, isEmpty);
+    });
+
+    testWidgets('ekrandagi `-` + PIN: 9, Saqlashda qayta so\'ralmaydi',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapIcon(Icons.remove);
+      await h.settle();
+      expect(h.pinDialog, findsOneWidget);
+      await h.enterPin(kManagerPin);
+      expect(h.opd.target.value, 9);
+
+      await h.tapSave();
+      await h.afterTimers();
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows.first.value, 9);
+      expect(h.deleted.single.quantity, 1);
+      expect(h.deleted.single.deletedBy, kManagerId);
+    });
+
+    testWidgets('quti maydonidagi `-`: PIN so\'raladi', (t) async {
+      final h = await hostWith(t, value: 12);
+      h.rows.first
+        ..soldBy = 'box'
+        ..inBox = 6;
+      await h.openRow(0);
+
+      await h.tapIcon(Icons.remove, at: 1);
+      await h.settle();
+      expect(h.pinDialog, findsOneWidget);
+
+      await h.refusePin();
+      expect(h.opd.target.value, 12);
+    });
+
+    testWidgets('blok guruhi: Backspace → 0 → Saqlash PIN siz o\'chmaydi',
+        (t) async {
+      final h = await hostWithBoxes(t, 3);
+      await h.openBoxGroup(3);
+
+      await h.backspace();
+      await h.tapSave();
+      await h.settle();
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.length, 3);
+      expect(h.deleted, isEmpty);
+
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+      expect(h.rows, isEmpty);
+      expect(h.deleted.length, 3);
+      expect(h.deleted.every((d) => d.deletedBy == kManagerId), isTrue);
+    });
+
+    testWidgets('marka guruhi: Backspace → 0 → Saqlash PIN siz o\'chmaydi',
+        (t) async {
+      final h = await hostWithMarks(t, 3);
+      await h.openMarkGroup(3);
+
+      await h.backspace();
+      await h.tapSave();
+      await h.settle();
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.length, 3);
+
+      await h.refusePin();
+      expect(h.rows.length, 3);
+      expect(h.deleted, isEmpty);
+    });
+
+    testWidgets('marka guruhi: `-` + PIN: 1 ta marka o\'chadi', (t) async {
+      final h = await hostWithMarks(t, 3);
+      await h.openMarkGroup(3);
+
+      await h.tapIcon(Icons.remove);
+      await h.settle();
+      await h.enterPin(kManagerPin);
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.rows.length, 2);
+      expect(h.deleted.single.deletedBy, kManagerId);
+    });
+  });
+
+  group('Dialog yopilishi va kechikkan taymer', () {
+    testWidgets('raqam terib oynani yopsa: PIN chiqmaydi, savat o\'zgarmaydi',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      await t.tapAt(const Offset(5, 5));
+      await h.afterTimers();
+
+      expect(h.opdDialog, findsNothing);
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows.first.value, 10);
+      expect(h.deleted, isEmpty);
+    });
+
+    testWidgets('raqam + O\'chirish: bitta PIN oynasi, rad etilsa qator joyida',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      await h.tapDelete();
+      await t.pump(const Duration(milliseconds: 700));
+
+      expect(h.pinDialog, findsOneWidget, reason: 'ikkinchi PIN ochilmaydi');
+      await h.refusePin();
+      expect(h.opdDialog, findsOneWidget);
+      expect(h.rows.single.value, 10);
+      expect(h.deleted, isEmpty);
+    });
+
+    testWidgets('raqam + O\'chirish + PIN: qator o\'chadi, oyna yopiladi',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      await h.tapDelete();
+      await h.settle();
+      await h.enterPin(kManagerPin);
+      await h.afterTimers();
+
+      expect(h.opdDialog, findsNothing);
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows, isEmpty);
+      expect(h.deleted.single.quantity, 10);
+      expect(h.deleted.single.deletedBy, kManagerId);
+    });
+  });
+
+  group('PIN oynasi ochiq turganda', () {
+    testWidgets('Saqlash hisobga olinmaydi, oyna ikkinchi marta ochilmaydi',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+      await h.tapDigit('3');
+      await t.pump(const Duration(milliseconds: 500));
+      expect(h.pinDialog, findsOneWidget);
+
+      final opd = h.opd;
+      final ctx = t.element(find.byType(OPDBottom));
+      unawaited(opd.onSaveButtonPressed(ctx));
+      unawaited(opd.attemptDecreaseQuantity(1, ctx));
+      await h.settle();
+
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.first.value, 10);
+      expect(h.opd.target.value, 10);
+      await h.refusePin();
+    });
+
+    testWidgets('qty 1 da `-` + kutilayotgan taymer: bitta PIN (o\'chirish)',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('1'); // value=1, taymer ishlayapti
+      await h.tapIcon(Icons.remove); // qty <= 1 → o'chirish PIN i
+      await t.pump(const Duration(milliseconds: 700));
+
+      expect(h.pinDialog, findsOneWidget);
+      await h.refusePin();
+      expect(h.rows.single.value, 10);
+      expect(h.deleted, isEmpty);
+    });
+  });
+
+  group('Kg mahsulot qo\'shilganda ochilgan og\'irlik oynasi', () {
+    setUp(() => ItemsSingleton.products = [pepsi(kg: true)]);
+
+    Future<Host> addKg(WidgetTester t, {double? existing}) async {
+      final p = freshProvider();
+      if (existing != null) {
+        p.getCurrentClient.orderedProducts.add(makeSoldItem(
+            productId: kPid, price: kUnit, value: existing, isKg: true));
+      }
+      final h = Host(t, p);
+      await h.pump();
+      p.addProduct(
+          value: 1, product: pepsi(kg: true), where: 'test', context: h.ctx);
+      await h.settle();
+      await h.settle();
+      expect(h.opdDialog, findsOneWidget);
+      return h;
+    }
+
+    testWidgets('yangi qator: 0.35 PIN siz (sekin tersa ham)', (t) async {
+      final h = await addKg(t);
+
+      await h.tapDigit('0');
+      await t.pump(const Duration(milliseconds: 500));
+      expect(h.pinDialog, findsNothing);
+      await h.tapDigit('.');
+      await t.pump(const Duration(milliseconds: 500));
+      await h.tapDigit('3');
+      await t.pump(const Duration(milliseconds: 500));
+      await h.tapDigit('5');
+      await t.pump(const Duration(milliseconds: 500));
+      expect(h.pinDialog, findsNothing);
+
+      await h.tapSave();
+      await h.afterTimers();
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows.single.value, 0.35);
+    });
+
+    testWidgets('savatda 2 kg bor edi, +1: 2.5 ga PIN kerak emas', (t) async {
+      final h = await addKg(t, existing: 2);
+      expect(h.rows.single.value, 3);
+
+      await h.tapDigit('2');
+      await h.tapDigit('.');
+      await h.tapDigit('5');
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows.single.value, 2.5);
+    });
+
+    testWidgets('savatda 2 kg bor edi, +1: 1 ga tushirishga PIN kerak',
+        (t) async {
+      final h = await addKg(t, existing: 2);
+
+      await h.tapDigit('1');
+      await h.tapSave();
+      await h.settle();
+
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.single.value, 3);
+      await h.refusePin();
+      expect(h.opd.target.value, 2, reason: 'qo\'shishdan oldingi qty');
+    });
+
+    testWidgets('keyin qatorni bosib kamaytirsa PIN kerak', (t) async {
+      final h = await addKg(t);
+      await h.tapSave(); // og'irlik oynasi: 1 kg
+      await h.afterTimers();
+      expect(h.rows.single.value, 1);
+
+      await h.openRow(0);
+      await h.tapDigit('0');
+      await h.tapDigit('.');
+      await h.tapDigit('5');
+      await h.tapSave();
+      await h.settle();
+
+      expect(h.pinDialog, findsOneWidget);
+      expect(h.rows.single.value, 1);
+      await h.refusePin();
+    });
+  });
+
+  group('Kassirda deletePrice ruxsati bor', () {
+    setUp(() => setEmployees(delete: true));
+
+    testWidgets('raqam + tez Saqlash: PIN yo\'q, qator 3 da qoladi', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows.first.value, 3);
+      expect(h.total, 3 * kUnit);
+      expect(h.deleted.single.quantity, 7);
+      expect(h.deleted.single.deletedBy, kCashierId);
+    });
+
+    testWidgets('terib to\'xtash: PIN yo\'q, qty terilgani', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      await t.pump(const Duration(milliseconds: 600));
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.opd.target.value, 3);
+    });
+
+    testWidgets('`-`: PIN yo\'q, 9', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapIcon(Icons.remove);
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows.first.value, 9);
+    });
+
+    testWidgets('Backspace → 0 → Saqlash: PIN siz o\'chadi', (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.backspace();
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.pinDialog, findsNothing);
+      expect(h.rows, isEmpty);
+      expect(h.deleted.single.deletedBy, kCashierId);
+    });
+
+    testWidgets('Enter ikki marta: bitta saqlash, asosiy sahifa joyida',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      final opd = h.opd;
+      final ctx = t.element(find.byType(OPDBottom));
+      await opd.onSaveButtonPressed(ctx);
+      await opd.onSaveButtonPressed(ctx);
+      await h.afterTimers();
+
+      expect(find.byType(Scaffold), findsOneWidget);
+      expect(h.opdDialog, findsNothing);
+      expect(h.rows.first.value, 3);
+      expect(h.deleted.length, 1);
+    });
+
+    testWidgets('saqlangach kechikkan tugma savat qatoriga tegmaydi',
+        (t) async {
+      final h = await hostWith(t);
+      await h.openRow(0);
+
+      await h.tapDigit('3');
+      final opd = h.opd;
+      await h.tapSave();
+
+      opd
+        ..onNumPressed('5')
+        ..onBackSpacePressed()
+        ..increaseQuantity(1)
+        ..decreaseQuantity(1);
+      await h.afterTimers();
+
+      expect(h.rows.first.value, 3);
+      expect(h.total, 3 * kUnit);
+    });
+  });
+
+  group('Narx maydonlari: Backspace ham editPrice talab qiladi', () {
+    Future<Host> manualRow(WidgetTester t) async {
+      final h = await hostWith(t);
+      h.rows.first
+        ..isPriceOnlyChanged = true
+        ..isPriceChanged = true;
+      await h.openRow(0);
+      return h;
+    }
+
+    for (final field in {0: 'narx', 3: 'chegirma', 5: 'asl narx'}.entries) {
+      testWidgets('ruxsatsiz, ${field.value}: o\'zgarmaydi', (t) async {
+        final h = await manualRow(t);
+
+        h.opd.selectInput(field.key);
+        await t.pump();
+        await h.backspace();
+        await h.tapSave();
+        await h.afterTimers();
+
+        expect(h.rows.first.price, kUnit);
+        expect(h.rows.first.onlyPrice, kUnit);
+        expect(h.rows.first.discountPercent ?? 0, 0);
+        expect(h.total, 10 * kUnit);
+      });
+    }
+
+    testWidgets('ruxsatsiz, 20% chegirmali qator: chegirma o\'zgarmaydi',
+        (t) async {
+      final h = await hostWith(t, price: 8000);
+      h.rows.first
+        ..realPrice = kUnit
+        ..onlyPrice = kUnit
+        ..discountPercent = 20
+        ..isPriceOnlyChanged = true
+        ..isPriceChanged = true;
+      await h.openRow(0);
+
+      h.opd.selectInput(3);
+      await t.pump();
+      h.opd.isSelectedAlls = List.generate(6, (_) => false);
+      await h.backspace();
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.rows.first.price, 8000);
+      expect(h.rows.first.discountPercent, 20);
+    });
+
+    testWidgets('ruxsati bor kassir narxni Backspace bilan o\'zgartiradi',
+        (t) async {
+      await t.runAsync(() => setEmployees(edit: true));
+      final h = await manualRow(t);
+
+      h.opd.selectInput(0);
+      await t.pump();
+      await h.backspace();
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.rows.first.price, lessThan(kUnit));
+    });
+
+    testWidgets('narx maydoni tanlangan, raqam: ruxsatsiz o\'zgarmaydi',
+        (t) async {
+      final h = await manualRow(t);
+
+      h.opd.selectInput(0);
+      await t.pump();
+      await h.tapDigit('5');
+      await h.tapSave();
+      await h.afterTimers();
+
+      expect(h.rows.first.price, kUnit);
+    });
+  });
+}
+````
+
+</details>
+
+## 7. Tekshirish
+
+- `flutter test test/opd_qty_access_test.dart` — 56 o'tdi. Fix olib tashlanganda o'sha paytdagi 48 testdan 29 tasi yiqildi.
+- `flutter test` to'liq — 2562 o'tdi, 11 skip, 0 yiqildi. `flutter analyze` — xato yo'q.
+- Haqiqiy ilovada (Windows) sinalmagan. Qo'lda: ruxsatsiz kassir bilan Pepsi 10 → 3 → darhol Saqlash (PIN; rad etilsa 10; PIN bilan ro'yxat va to'lov sahifasi 3 talik); Backspace → Saqlash (PIN); kg mahsulot qo'shib 0.35 (PIN yo'q); ruxsatli kassir (PIN siz, 3 da qoladi).
+
+## 8. Eslatmalar va ochiq savollar
+
+**Odoo forkiga: kerak** — savat va ruxsat mantig'i.
+
+- Xatti-harakat o'zgarishi: rad etilganda qty terish boshidagi songa emas, oxirgi ruxsat etilganga qaytadi; oshirib keyin dastlabki songacha tushirish PIN so'ramaydi; kg og'irlik oynasida yangi qator PIN so'ramaydi (oldin sekin tersa so'rardi).
+- Tegilmadi: kg oynasida 1 → 0.35 `deleted_items` ga 0.65 yozadi; `4615@` umumiy kodi O'chirishda ishlaydi, qty kamaytirishda ishlamaydi; `_updateExistingProduct` da dialog true qaytarsa qator qaytmaydi.
 
 ---
 

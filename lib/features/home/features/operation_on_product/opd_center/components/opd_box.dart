@@ -97,7 +97,7 @@ class OPDboxState extends State<OPDbox> {
         padding: const EdgeInsets.all(0.0),
       ),
       onPressed: () {
-        opdProvider.decreaseQuantity(item.inBox);
+        opdProvider.attemptDecreaseQuantity(item.inBox, context);
       },
       child: Icon(
         Icons.remove,

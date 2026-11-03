@@ -32,6 +32,9 @@ class OPDBottom extends StatelessWidget {
                 ),
               ),
               onPressed: () async {
+                context
+                    .read<OperationOnProductProvider>()
+                    .cancelPendingDecreaseCheck();
                 Employee currentEmployee = HiveBoxes.getCurrentEmployee!;
 
                 if ((currentEmployee.access?.deletePrice ?? false)) {
