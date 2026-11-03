@@ -438,10 +438,16 @@ class OrderingProvider4 extends ChangeNotifier {
           _currentClient.orderedProducts[0].isKg &&
           !isTarozi) {
         _tappedIndexToEdit = 0;
+        final added = _currentClient.orderedProducts[0];
         await OperationOnProduct.operationOnProductDialog(
           context: context,
-          item: _currentClient.orderedProducts[0],
+          item: added,
           isClientMinimumPrice: false,
+          // Og'irlik kiritish: hozirgina qo'shilgan [value] hali o'lchanmagan
+          // son, uni kamaytirish savatdagi tovarni kamaytirish emas.
+          approvedQty: added.productId == product.id
+              ? (added.value - value).clamp(0, double.infinity)
+              : null,
         );
       }
     } catch (e, stackTrace) {

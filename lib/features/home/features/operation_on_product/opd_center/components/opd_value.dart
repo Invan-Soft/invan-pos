@@ -108,6 +108,7 @@ class OPDQuantityState extends State<OPDQuantity> {
             Provider.of<OperationOnProductProvider>(context, listen: false);
 
         if (item.value <= 1) {
+          provider.cancelPendingDecreaseCheck();
           final Employee currentEmployee = HiveBoxes.getCurrentEmployee!;
           if (currentEmployee.access?.deletePrice ?? false) {
             Provider.of<OrderingProvider4>(context, listen: false)

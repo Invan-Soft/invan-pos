@@ -160,7 +160,7 @@ class OPDCenterState extends State<OPDCenter> {
       // }
     } else if (event.isKeyPressed(LogicalKeyboardKey.numpadSubtract)) {
       Provider.of<OperationOnProductProvider>(context, listen: false)
-          .decreaseQuantity(1);
+          .attemptDecreaseQuantity(1, context);
     } else if (event.isKeyPressed(LogicalKeyboardKey.numpadAdd)) {
       Provider.of<OperationOnProductProvider>(context, listen: false)
           .increaseQuantity(1);

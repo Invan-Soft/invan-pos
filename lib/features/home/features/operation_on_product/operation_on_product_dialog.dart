@@ -15,10 +15,12 @@ class OperationOnProductDialog extends StatelessWidget {
     super.key,
     required this.item,
     required this.isClientMinimumPrice,
+    this.approvedQty,
   });
 
   final bool isClientMinimumPrice;
   final ReceiptModelSoldItem4 item;
+  final num? approvedQty;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +32,7 @@ class OperationOnProductDialog extends StatelessWidget {
         // narx ko'rsatishi uchun shu mahsulotning BOSHQA qatorlaridagi (blok +
         // dona, tahrirlanayotgan qatordan tashqari) donasini oldindan hisoblaymiz.
         baseUnitsFromOtherRows: _baseUnitsFromOtherRows(context, item),
+        approvedQty: approvedQty,
       ),
       builder: (context, child) {
         double subLength = item.productDiscount.length > 5

@@ -8,6 +8,8 @@ class OperationOnProduct {
     required bool isClientMinimumPrice,
     required ReceiptModelSoldItem4 item,
     num? displayValue,
+    // Qty shu qiymatgacha PIN siz tushadi; null bo'lsa — dialogdagi qty.
+    num? approvedQty,
   }) async {
     final focusedItem = ReceiptModelSoldItem4(
       isPriceOnlyChanged: item.isPriceOnlyChanged,
@@ -54,6 +56,7 @@ class OperationOnProduct {
       builder: (_) => OperationOnProductDialog(
         item: focusedItem,
         isClientMinimumPrice: isClientMinimumPrice,
+        approvedQty: approvedQty,
       ),
     );
     return;
