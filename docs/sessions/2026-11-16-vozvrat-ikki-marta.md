@@ -51,7 +51,10 @@ ustiga ochiladi; ikkalasi bitta global `ReUpdateBloc` ni eshitadi → bitta bosi
 - [x] Testlar: test/refund_double_guard_test.dart (10 ta)
 
 ## Keyingi qadamlar (prioritet bo'yicha)
-- [ ] Foydalanuvchi: `fix/vozvrat-ikki-marta` → `ayyubxon` MR/merge; Shorebird patch yoki reliz qarori
+- [x] Shorebird Patch 4 → 1.1.2+130 stable (2026-11-16, run 43816945688) — `patch/130-vozvrat-ikki-marta`
+  (Patch 3 `815d9d8` + faqat shu fix; Kaftpay/OPD kirmagan)
+- [x] `fix/vozvrat-ikki-marta` → `ayyubxon` merge (2026-11-16)
+- [ ] Do'konda tekshirish: Patch 4 olgan kassada "Qaytarish" ikki marta → bitta sahifa
 - [ ] Windows'da sinov (fiskal modul bilan): ikki bosish, vozvrat, "Bekor qilish"
 - [ ] Do'kondagi AC93667 ni tasdiqlash: adminkada shu sotuvning muvaffaqiyatli vozvrati AC93667 dan oldingi
   raqam va bir-ikki daqiqa oldin bo'lishi kerak
