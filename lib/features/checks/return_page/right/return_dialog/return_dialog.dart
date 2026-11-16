@@ -15,7 +15,11 @@ class ReturnDialog extends StatelessWidget {
   final String clientNumber;
   final ReceiptModel4 receiptModel4;
   final List<ReceiptModelSoldItem4> rightList;
+
+  /// Vozvrat sahifasi ochilgan vaqt ("Qayta urinish" ham shuni yuboradi).
+  final int? pageOpenedAt;
   const ReturnDialog({
+    this.pageOpenedAt,
     required this.rightList,
     super.key,
     required this.clientNumber,
@@ -79,7 +83,12 @@ class ReturnDialog extends StatelessWidget {
                             ? DefaultButton(
                                 text: loc.bekor_qilish,
                                 isButtonEnabled: true,
-                                onPress: () => AppNavigation.pop(),
+                                // Oynani yopish yetmaydi: vozvratning o'zi
+                                // ham to'xtashi kerak (fiskaldan oldin).
+                                onPress: () {
+                                  returnBloc.cancelBeforeStart();
+                                  AppNavigation.pop();
+                                },
                               )
                             : const SizedBox()
                       ],
@@ -119,6 +128,7 @@ class ReturnDialog extends StatelessWidget {
                                 onPress: () => returnBloc.add(
                                   ReturnReturnEvent(
                                     isRetry: true,
+                                    pageOpenedAt: pageOpenedAt,
                                     clientNumber: clientNumber,
                                     receiptModel4: receiptModel4,
                                     rightList: rightList,
@@ -180,6 +190,7 @@ class ReturnDialog extends StatelessWidget {
                                 onPress: () => returnBloc.add(
                                   ReturnReturnEvent(
                                     isRetry: true,
+                                    pageOpenedAt: pageOpenedAt,
                                     clientNumber: clientNumber,
                                     receiptModel4: receiptModel4,
                                     rightList: rightList,
@@ -190,6 +201,30 @@ class ReturnDialog extends StatelessWidget {
                             ),
                           ],
                         )
+                      ],
+                    );
+                  }
+                  if (state is ReturnBlockedState) {
+                    // Vozvrat boshlanmadi (fiskal chek chiqmagan). "Qayta
+                    // urinish" yo'q: ro'yxat eskirgan, chek qayta ochiladi.
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              state.message,
+                              textAlign: TextAlign.center,
+                              style: MyThemes.txtStyle(
+                                  fontSize: 3.4,
+                                  color: Theme.of(context).colorScheme.error),
+                            ),
+                          ),
+                        ),
+                        DefaultButton(
+                          isButtonEnabled: true,
+                          text: "Ok",
+                          onPress: () => AppNavigation.pop(),
+                        ),
                       ],
                     );
                   }
