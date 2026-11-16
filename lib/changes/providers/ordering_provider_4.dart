@@ -813,7 +813,7 @@ class OrderingProvider4 extends ChangeNotifier {
                     isMarkingDialogDisplaying = false;
 
                     if (v.isNotEmpty && v.length > 15) {
-                      v = _markirovka(v);
+                      v = MarkCleaner.fromDialog(v);
                       await _markingCheck(item, v, context);
                     } else {
                       return;
@@ -823,7 +823,7 @@ class OrderingProvider4 extends ChangeNotifier {
                 onAddButtonPressed: (v) async {
                   if (v.isNotEmpty && v.length > 15) {
                     isMarkingDialogDisplaying = false;
-                    v = _markirovka(v);
+                    v = MarkCleaner.fromDialog(v);
 
                     AppNavigation.pop();
 
@@ -1150,9 +1150,9 @@ class OrderingProvider4 extends ChangeNotifier {
     final markValue = product.mark;
 
     if (markValue != null && markValue.isNotEmpty) {
-      final alreadyAdded = _currentClient.orderedProducts.any(
-        (e) => !(e.isDeleted ?? false) && e.mark != null && e.mark == markValue,
-      );
+      final alreadyAdded = MarkedCart.indexOfMark(
+              _currentClient.orderedProducts, markValue) !=
+          -1;
       if (alreadyAdded) {
         if (!dialogForMark) {
           dialogForMark = true;

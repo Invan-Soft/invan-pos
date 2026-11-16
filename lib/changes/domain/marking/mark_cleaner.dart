@@ -11,6 +11,8 @@
 //
 // Testlar: test/marking_paren_strip_test.dart, test/mark_cleaner_test.dart
 
+import 'package:invan2/changes/domain/barcode/barcode_classifier.dart';
+import 'package:invan2/changes/domain/barcode/keyboard_layout.dart';
 import 'package:invan2/changes/domain/marking/gs1.dart';
 
 class MarkCleaner {
@@ -62,6 +64,21 @@ class MarkCleaner {
 
     return clean;
   }
+
+  /// Markirovka DIALOGIGA (matn maydoniga) kiritilgan KM ni tozalash.
+  ///
+  /// Asosiy ekran skani `MyBarcodeListener` dan o'tadi: `trim` + rus
+  /// tartibidagi harflarni lotinga o'girish (`KeyboardLayout.ruLettersToEn`),
+  /// keyin `BarcodeClassifier.sanitize` va [scanTime]. Dialog maydoni esa
+  /// matnni to'g'ridan oladi — kassada rus tartibi yoqiq bo'lsa KM harflari
+  /// KIRILL bo'lib kelardi (`...217U7цуНК`): soliqqa buzuq KM ketardi va
+  /// savatdagi (to'g'ridan skanerlangan, lotin) KM bilan teng chiqmagani
+  /// uchun bitta KM ikkinchi marta qo'shilardi (2026-11-16, do'kondan).
+  ///
+  /// Shuning uchun dialog ham AYNAN asosiy skaner zanjiridan o'tadi — bitta
+  /// KM qaysi yo'ldan kirsa ham savatga bir xil satr bo'lib tushadi.
+  static String fromDialog(String raw) => scanTime(
+      BarcodeClassifier.sanitize(KeyboardLayout.ruLettersToEn(raw.trim())));
 
   /// Fiskal chekka (OFD) yuborishdan oldingi tozalash.
   static String forFiscal(String rawMark) {
