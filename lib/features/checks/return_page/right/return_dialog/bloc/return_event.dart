@@ -8,7 +8,12 @@ class ReturnReturnEvent extends ReturnEvent {
   final AppLocalizations loc;
   final ReceiptModel4 receiptModel4;
   final List<ReceiptModelSoldItem4> rightList;
+
+  /// Vozvrat sahifasi ochilgan vaqt (ms). Shundan keyin shu chek bo'yicha
+  /// lokal vozvrat saqlangan bo'lsa sahifa eskirgan (`RefundPreflight`).
+  final int? pageOpenedAt;
   ReturnReturnEvent({required this.isRetry, 
+    this.pageOpenedAt,
     required this.clientNumber,
     required this.receiptModel4,
     required this.rightList,

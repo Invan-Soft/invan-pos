@@ -1795,6 +1795,18 @@ abstract class AppLocalizations {
   /// In ru, this message translates to:
   /// **'Эта маркировка другого товара — выберите строку этого товара'**
   String get vozvrat_km_boshqa_mahsulot;
+
+  /// No description provided for @vozvrat_sahifa_eskirgan.
+  ///
+  /// In ru, this message translates to:
+  /// **'По этому чеку возврат уже выполнен — список устарел. Возврат не выполнен. Откройте чек заново и проверьте.'**
+  String get vozvrat_sahifa_eskirgan;
+
+  /// No description provided for @vozvrat_qoldiqdan_kop.
+  ///
+  /// In ru, this message translates to:
+  /// **'«{name}» уже возвращён (другая касса или админка). Возврат не выполнен. Откройте чек заново и проверьте.'**
+  String vozvrat_qoldiqdan_kop(String name);
 }
 
 class _AppLocalizationsDelegate

@@ -13,6 +13,10 @@ class ReturnPageProviderr extends ChangeNotifier {
         _refundedMarks = refundedMarks;
 
   final ReceiptModel4 _receiptModel4;
+
+  /// Sahifa ochilgan vaqt — `ReturnBloc` shundan keyin shu chek bo'yicha
+  /// vozvrat saqlanganini (ro'yxat eskirganini) aniqlaydi.
+  final int openedAt = DateTime.now().millisecondsSinceEpoch;
   final List<ReceiptModelSoldItem4> _leftList;
   final List<ReceiptModelSoldItem4> _rightList = [];
 

@@ -98,6 +98,7 @@ class Right extends StatelessWidget {
             returnBloc.add(
               ReturnReturnEvent(
                 isRetry: false,
+                pageOpenedAt: returnPageProvider.openedAt,
                 clientNumber: receiptModel4.clientPhone,
                 receiptModel4: receiptModel4,
                 rightList: returnPageProvider.getRightList,
@@ -108,6 +109,7 @@ class Right extends StatelessWidget {
               context: context,
               pageBuilder: (context, x, y) {
                 return ReturnDialog(
+                  pageOpenedAt: returnPageProvider.openedAt,
                   clientNumber: receiptModel4.clientPhone,
                   receiptModel4: receiptModel4,
                   rightList: returnPageProvider.getRightList,
