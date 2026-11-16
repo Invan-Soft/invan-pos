@@ -43,6 +43,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 18 | 2026-10-21 | Telegram log'idagi `Employee` joriy kassir (`static final` qotib qolardi). Vozvrat OFD xatosi 65274 tahlili: bizniki emas, fiskal modul OFD serveriga ulana olmagan | 1.1.2+130 (Shorebird Patch 2, stable) | Patch chiqdi (2026-10-21); do'kon sinovi kutilmoqda | `4de89e6` |
 | 19 | 2026-10-27 | Vozvratda markirovka: KM (dona + blok) serverdan; kassir qaytayotgan mahsulotni skanerlaydi, faqat shu chekdagi qaytarilmagan KM o'tadi (`refunded_*`); fiskalga sotuvdagidek har KM alohida pozitsiya; `refund_order_items` ga KM; rus klaviatura tartibi; boshqa kassa blok cheki token → dona | 1.1.2+130 (Shorebird Patch 3, stable) | Patch chiqdi (2026-10-28); Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `73ecadc` (merge `815d9d8`) |
 | 21 | 2026-11-03 | OPD: qty kamaytirish va narx tahriri ruxsatsiz o'tardi (tez Saqlash, Backspace, 0, klaviatura `-`); ruxsat Saqlashda tekshiriladi, taymer savat qatorini o'zgartirmaydi; statik `4615@` kodi olib tashlandi; og'irlik kiritish `deleted_items` ga yozilmaydi | relizda emas | Commit bor; Windows sinovi kutilmoqda | `75fbf20`, `fd369e9` |
+| 22 | 2026-11-16 | Bitta chek ikki marta vozvrat qilinardi (server `refund amount is greater than expected amount`): "Qaytarish" ikki bosilsa ikki vozvrat sahifasi; endi bitta sahifa, fiskaldan oldin lokal + server qoldiq tekshiruvi (`RefundPreflight`), "Bekor qilish" vozvratni to'xtatadi | relizda emas | `fix/vozvrat-ikki-marta` (merge kutilmoqda); Mac DEV sinovi o'tdi, Windows sinalmagan | `ef631a8` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -105,6 +106,7 @@ d5b6432 2026-10-20 fix(terminal): karta raqami yangi terminal formatlarida ham o
 815d9d8 2026-10-28 merge: fix/vozvrat-markirovka → ayyubxon; Shorebird Patch 3 → 1.1.2+130 stable
 75fbf20 2026-11-03 fix(opd): qty kamaytirish va narx tahriri ruxsatsiz o'tmaydi            ← 21-task
 fd369e9 2026-11-03 fix(pin): statik 4615 kodi; og'irlik kiritish o'chirilgan deb yozilmaydi ← 21-task
+ef631a8 2026-11-16 fix(vozvrat): bitta chek ikki marta vozvrat qilinmaydi                 ← 22-task (fix/vozvrat-ikki-marta)
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -32409,6 +32411,953 @@ void main() {
 | `docs/shorebird-qoidalari.md` | Shorebird: nima patch bilan o'tadi / nima reliz talab qiladi, patch chiqarish (staging → preview → promote), rollback, Mac sinovi, xavflar (2026-10-02) | 8-task ishlatilsa — InVan 1 o'z relizlari va `app_id` si bilan moslab oladi |
 | `docs/fiskal-tolov-turlari-qisqa.md` | To'lov turlari → fiskal maydon (`Cash`/`Card`/`Other`), QQS va provayderga qaytarish — qisqa jadval (9-task holatida) | Ma'lumot uchun |
 | `docs/bhm-naqd-chegara-port.md`, `docs/fiskal-mxik-fallback-port.md` | 1- va 2-taskning per-task port hujjatlari — yuqorida to'liq kiritilgan | Dublikat, alohida kerak emas |
+
+---
+
+# 22-TASK — Bitta chek ikki marta vozvrat qilinardi: "refund amount is greater than expected amount" (relizda emas)
+
+> **Commit:** `ef631a8` (2026-11-16), reliz yo'q, Shorebird'ga chiqarilmagan.
+> **Sessiya hujjati:** docs/sessions/2026-11-16-vozvrat-ikki-marta.md
+> **Holat 2026-11-16:** `fix/vozvrat-ikki-marta` branchida (ayyubxon'ga merge kutilmoqda); testlar o'tdi, Mac DEV kassasida sinaldi, Windows'da sinalmagan.
+
+## 1. Nima va nima uchun
+
+Do'konda server vozvratni `refund amount is greater than expected amount` bilan rad etardi: chekdagi hamma tovar allaqachon qaytarilgan, kassa esa yangi chek raqami bilan yana vozvrat yuborgan (ikkinchi fiskal vozvrat cheki ham chiqqan, naqd ikki marta qaytishi mumkin).
+
+Sabab (kassada qayta chiqarilgan): chek ko'rinishidagi "Qaytarish" tugmasi serverdan chekni so'raydi va javob kelganda vozvrat sahifasini ochadi; so'rov paytida tugma o'chirilmagan, `ReUpdateBloc` esa hodisalarni parallel ishlaydi. Ikki marta bosilsa ikkita vozvrat sahifasi ustma-ust ochiladi. Kassir ustkisida vozvrat qiladi; u yopilgach tagidan ikkinchisi chiqadi — ro'yxati sahifa ochilganda bir marta hisoblangan, tovarlar hali ham turibdi. Kassir "bo'lmadi" deb yana qaytaradi. Xuddi shunday natija ustma-ust ochilgan ikki Cheklar sahifasida bitta bosish bilan ham chiqadi (ikkalasi bitta global `ReUpdateBloc` ni eshitadi).
+
+Yechim ikki qatlam: (1) ikki sahifa ochilmaydi; (2) eskirgan sahifa qaysi yo'l bilan paydo bo'lmasin (boshqa kassa, adminka), vozvrat fiskaldan OLDIN tekshiriladi va boshlanmaydi.
+
+## 2. Qanday ishlaydi
+
+- `ReUpdateBloc`: so'rov ketayotganda (`_busy`) keyingi `GetReUpdateEvent` tashlab yuboriladi. Success'dan keyin Failure chiqarilmaydi.
+- `check_view_content`: `ReUpdateSuccesState` da sahifa faqat `ModalRoute.of(context).isCurrent` bo'lsa ochiladi.
+- `ReturnBloc`: bir vaqtda bitta vozvrat (`_running`). Internet tekshiruvidan keyin, chek raqami va fiskaldan oldin `_preflight`:
+  1. `RefundPreflight.isPageStale` — `pageOpenedAt` dan keyin shu chek (`returnForCheck`) bo'yicha lokal vozvrat saqlanganmi;
+  2. server tirik bo'lsa chek qayta so'raladi (`serverRemaining`: order item id → `value − refund_amount`), `RefundPreflight.firstOverdrawn` so'ralgan miqdorni (bir xil `refundItemId` qatorlari yig'indisi) qoldiq minus serverga yetmagan lokal vozvratlar bilan solishtiradi.
+  Rad etilsa `ReturnBlockedState(message)` — oynada xabar va bitta "Ok" ("Qayta urinish" yo'q). Hech narsa o'zgarmagan.
+  Server javob bermasa 2-tekshiruv o'tkazib yuboriladi (oflayn vozvrat ishlaydi).
+- "Bekor qilish" ("Internet tekshirilmoqda" paytida): `ReturnBloc.cancelBeforeStart()` — handler internet tekshiruvidan keyin to'xtaydi (`ReturnInitial`). Ilgari oyna yopilar, vozvrat orqa fonda davom etardi.
+- `ReturnPageProviderr.openedAt` → `ReturnReturnEvent.pageOpenedAt` (tugma va "Qayta urinish").
+
+## 3. O'zgarishlar ro'yxati
+
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/domain/receipt/refund_preflight.dart` | YANGI | `isPageStale`, `firstOverdrawn` — sof hisob |
+| `lib/changes/providers/return_page_provider.dart` | o'zgargan | `openedAt` |
+| `lib/features/checks/features/check_view/bloc/re_update_bloc.dart` | o'zgargan | `_busy`; Success'dan keyin `return` |
+| `lib/features/checks/features/check_view/check_view_content.dart` | o'zgargan | listener: faqat `isCurrent` sahifa push qiladi |
+| `lib/features/checks/return_page/right/return_dialog/bloc/return_bloc.dart` | o'zgargan | `_running`, `cancelBeforeStart`, `_preflight`; `ReturnBlocDeps.localRefundsOf` / `serverRemaining` |
+| `lib/features/checks/return_page/right/return_dialog/bloc/return_event.dart` | o'zgargan | `pageOpenedAt` |
+| `lib/features/checks/return_page/right/return_dialog/bloc/return_state.dart` | o'zgargan | `ReturnBlockedState` |
+| `lib/features/checks/return_page/right/return_dialog/return_dialog.dart` | o'zgargan | Blocked oynasi; "Bekor qilish" → `cancelBeforeStart`; `pageOpenedAt` |
+| `lib/features/checks/return_page/right/right.dart` | o'zgargan | `pageOpenedAt` uzatiladi |
+| `lib/utils/l10n/app_localizations.dart` | o'zgargan | gen-l10n natijasi |
+| `lib/utils/l10n/app_localizations_ru.dart` | o'zgargan | gen-l10n natijasi |
+| `lib/utils/l10n/app_localizations_uz.dart` | o'zgargan | gen-l10n natijasi |
+| `lib/utils/l10n/app_ru.arb` | o'zgargan | xuddi shu kalitlar |
+| `lib/utils/l10n/app_uz.arb` | o'zgargan | `vozvrat_sahifa_eskirgan`, `vozvrat_qoldiqdan_kop` |
+| `test/refund_double_guard_test.dart` | YANGI | 10 ta test |
+
+## 4. Bog'liqliklar
+
+- `ReturnBloc` + `ReturnBlocDeps` (3-task, vozvrat tartibi fiskal → lokal → server) — bo'lmasa `_preflight` ni vozvrat boshlanadigan joyga, fiskaldan oldin qo'ying.
+- `SearchReceiptService.getReceiptss(orderId)` + `GlobalReceipt` / `ItemsGTR` (`value` blok itemida donaga o'girilgan, `refund_amount` dona) — `serverRemaining` shundan. Boshqa backend'da: buyurtma qatorlari bo'yicha "sotilgan − qaytarilgan" ni beradigan so'rov; bo'lmasa `null` qaytaring (faqat lokal tekshiruv ishlaydi).
+- `ReceiptModelSoldItem4.refundItemId` — server order item id'si (vozvrat qatorlarida saqlanadi).
+- `MyObjectbox.saleStore` — lokal vozvratlar (`isRefund && returnForCheck == asl chek raqami`), `date` — vozvrat vaqti (ms).
+- Lokalizatsiya: arb + `flutter gen-l10n`.
+
+## 5. Qo'llash tartibi
+
+1. `refund_preflight.dart` ni qo'shing (6.1).
+2. `return_event.dart`, `return_state.dart`, `return_bloc.dart` diffi (6.2).
+3. `return_page_provider.dart`, `right.dart`, `return_dialog.dart` diffi.
+4. `re_update_bloc.dart`, `check_view_content.dart` diffi.
+5. arb kalitlari → `flutter gen-l10n`.
+6. Testlar (6.3) — `return_bloc_flow_test.dart` dagi yordamchilardan foydalanadi (3-task).
+
+## 6. Kod
+
+### 6.1 Yangi fayllar
+
+#### `lib/changes/domain/receipt/refund_preflight.dart` (YANGI)
+
+```dart
+/*
+    Vozvratni BOSHLASHDAN OLDINGI tekshiruv (fiskal chekdan oldin).
+
+    Nima uchun kerak: vozvrat sahifasi ochilganda qoldiq bir marta hisoblanadi
+    va keyin yangilanmaydi. Sahifa ochiq turgan paytda shu chek bo'yicha boshqa
+    vozvrat bajarilsa (ustma-ust ochilgan ikkinchi sahifa, boshqa kassa,
+    adminka) — eskirgan sahifadan yana vozvrat qilinardi: fiskal chek chiqib,
+    server "refund amount is greater than expected amount" bilan rad etardi.
+
+    Bu yerda faqat sof hisob — tarmoq va ObjectBox `ReturnBlocDeps` orqali.
+*/
+
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+
+class RefundPreflight {
+  RefundPreflight._();
+
+  static const double _eps = 1e-6;
+
+  /// Sahifa ochilgandan KEYIN shu chek bo'yicha lokal vozvrat saqlanganmi.
+  /// Ha bo'lsa sahifadagi qoldiq eskirgan.
+  static bool isPageStale({
+    required int? pageOpenedAt,
+    required List<ReceiptModel4> localRefunds,
+  }) {
+    if (pageOpenedAt == null) return false;
+    return localRefunds.any((r) => r.date >= pageOpenedAt);
+  }
+
+  /// So'ralgan miqdor server qoldig'idan oshgan birinchi qator (yo'q bo'lsa
+  /// `null`).
+  ///
+  /// [serverRemaining] — `order item id → qoldiq (dona)`. Serverga hali
+  /// yetmagan lokal vozvratlar ([localRefunds] ichida `uploaded == false`)
+  /// qoldiqdan ayiriladi. Server ro'yxatida yo'q id tekshirilmaydi.
+  static ReceiptModelSoldItem4? firstOverdrawn({
+    required List<ReceiptModelSoldItem4> requested,
+    required Map<String, double> serverRemaining,
+    required List<ReceiptModel4> localRefunds,
+  }) {
+    final Map<String, double> pending = {};
+    for (final refund in localRefunds) {
+      if (refund.uploaded) continue;
+      for (final it in refund.soldItemList) {
+        final id = it.refundItemId ?? '';
+        if (id.isEmpty) continue;
+        pending[id] = (pending[id] ?? 0) + it.value;
+      }
+    }
+    final Map<String, double> asked = {};
+    for (final it in requested) {
+      final id = it.refundItemId ?? '';
+      if (id.isEmpty) continue;
+      asked[id] = (asked[id] ?? 0) + it.value;
+    }
+    for (final it in requested) {
+      final id = it.refundItemId ?? '';
+      final double? remaining = serverRemaining[id];
+      if (id.isEmpty || remaining == null) continue;
+      if (asked[id]! > remaining - (pending[id] ?? 0) + _eps) return it;
+    }
+    return null;
+  }
+}
+```
+
+### 6.2 O'zgargan fayllar
+
+#### `lib/changes/providers/return_page_provider.dart` (o'zgargan)
+
+```diff
+diff --git a/lib/changes/providers/return_page_provider.dart b/lib/changes/providers/return_page_provider.dart
+index d59ae7a..c4e111b 100644
+--- a/lib/changes/providers/return_page_provider.dart
++++ b/lib/changes/providers/return_page_provider.dart
+@@ -13,6 +13,10 @@ class ReturnPageProviderr extends ChangeNotifier {
+         _refundedMarks = refundedMarks;
+ 
+   final ReceiptModel4 _receiptModel4;
++
++  /// Sahifa ochilgan vaqt — `ReturnBloc` shundan keyin shu chek bo'yicha
++  /// vozvrat saqlanganini (ro'yxat eskirganini) aniqlaydi.
++  final int openedAt = DateTime.now().millisecondsSinceEpoch;
+   final List<ReceiptModelSoldItem4> _leftList;
+   final List<ReceiptModelSoldItem4> _rightList = [];
+ 
+```
+
+#### `lib/features/checks/features/check_view/bloc/re_update_bloc.dart` (o'zgargan)
+
+```diff
+diff --git a/lib/features/checks/features/check_view/bloc/re_update_bloc.dart b/lib/features/checks/features/check_view/bloc/re_update_bloc.dart
+index 2ecbf51..4c2e8b5 100644
+--- a/lib/features/checks/features/check_view/bloc/re_update_bloc.dart
++++ b/lib/features/checks/features/check_view/bloc/re_update_bloc.dart
+@@ -17,9 +17,28 @@ class ReUpdateBloc extends Bloc<ReUpdateEvent, ReUpdateState> {
+     on<GetReUpdateEvent>(reUpdate);
+   }
+ 
++  /// So'rov ketayotgan paytda ikkinchi bosish qabul qilinmaydi. Ilgari
++  /// "Qaytarish" ikki marta bosilsa ikkita so'rov ketib, ikkita vozvrat
++  /// sahifasi ustma-ust ochilardi: birinchisida vozvrat qilingach tagidan
++  /// eski (to'la) ro'yxatli ikkinchisi chiqar va kassir yana qaytarardi.
++  bool _busy = false;
++
+   Future<void> reUpdate(
+     GetReUpdateEvent event,
+     Emitter<ReUpdateState> emit,
++  ) async {
++    if (_busy) return;
++    _busy = true;
++    try {
++      await _reUpdate(event, emit);
++    } finally {
++      _busy = false;
++    }
++  }
++
++  Future<void> _reUpdate(
++    GetReUpdateEvent event,
++    Emitter<ReUpdateState> emit,
+   ) async {
+     emit(ReUpdateProccesState());
+ 
+@@ -50,6 +69,7 @@ class ReUpdateBloc extends Bloc<ReUpdateEvent, ReUpdateState> {
+             receiptModel4: rMod,
+             refundedMarks: refundedMarks,
+           ));
++          return;
+         }
+       }
+       emit(ReUpdateFailureState());
+```
+
+#### `lib/features/checks/features/check_view/check_view_content.dart` (o'zgargan)
+
+```diff
+diff --git a/lib/features/checks/features/check_view/check_view_content.dart b/lib/features/checks/features/check_view/check_view_content.dart
+index 0626e2b..5510c7f 100644
+--- a/lib/features/checks/features/check_view/check_view_content.dart
++++ b/lib/features/checks/features/check_view/check_view_content.dart
+@@ -255,7 +255,14 @@ class _CheckViewContentState extends State<CheckViewContent> {
+                                   child:
+                                       BlocConsumer<ReUpdateBloc, ReUpdateState>(
+                                     listener: (context, state) {
+-                                      if (state is ReUpdateSuccesState) {
++                                      // `ReUpdateBloc` butun ilova uchun bitta:
++                                      // ustma-ust ochilgan ikkinchi Cheklar
++                                      // sahifasi ham shu holatni eshitadi.
++                                      // Faqat ekrandagi (ustki) sahifa
++                                      // vozvrat sahifasini ochadi.
++                                      if (state is ReUpdateSuccesState &&
++                                          (ModalRoute.of(context)?.isCurrent ??
++                                              true)) {
+                                         AppNavigation.push(
+                                           ReturnPage(
+                                             receiptModel4: state.receiptModel4,
+```
+
+#### `lib/features/checks/return_page/right/return_dialog/bloc/return_bloc.dart` (o'zgargan)
+
+```diff
+diff --git a/lib/features/checks/return_page/right/return_dialog/bloc/return_bloc.dart b/lib/features/checks/return_page/right/return_dialog/bloc/return_bloc.dart
+index b90459a..5e2d1f7 100644
+--- a/lib/features/checks/return_page/right/return_dialog/bloc/return_bloc.dart
++++ b/lib/features/checks/return_page/right/return_dialog/bloc/return_bloc.dart
+@@ -2,12 +2,17 @@ import 'dart:convert';
+ 
+ import 'package:flutter_bloc/flutter_bloc.dart';
+ import 'package:internet_connection_checker/internet_connection_checker.dart';
++import 'package:invan2/changes/domain/receipt/refund_preflight.dart';
+ import 'package:invan2/changes/models/ofd/epos_response_model.dart';
++import 'package:invan2/changes/models/receipts_get_model.dart';
++import 'package:invan2/changes/services/api/result_http_model.dart';
+ import 'package:invan2/changes/services/health/backend_health.dart';
+ import 'package:invan2/changes/services/local_selling_service.dart';
+ import 'package:invan2/changes/services/receipt/refund_upload_queue.dart';
++import 'package:invan2/changes/services/search_receipt_sevice.dart';
+ import 'package:invan2/features/checks/return_page/right/return_dialog/return_dialog.dart';
+ import 'package:invan2/features/features.dart';
++import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
+ import 'package:invan2/utils/util_functions.dart';
+ import 'package:invan2/utils/utils.dart';
+ 
+@@ -31,7 +36,32 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
+ 
+   final ReturnBlocDeps _deps;
+ 
+-  _return(ReturnReturnEvent event, Emitter<ReturnState> emit) async {
++  /// Vozvrat ketayotgan paytda ikkinchi hodisa (ikki marta bosish, eskirgan
++  /// sahifa) qabul qilinmaydi — aks holda ikkita fiskal vozvrat chiqardi.
++  bool _running = false;
++
++  /// Kassir "Internet tekshirilmoqda" paytida "Bekor qilish" bosdi.
++  bool _cancelRequested = false;
++
++  /// "Bekor qilish": fiskal chek hali boshlanmagan bo'lsa vozvrat to'xtaydi.
++  /// Ilgari oyna yopilar, vozvrat esa orqa fonda davom etardi — kassir bekor
++  /// qildim deb chekka qayta kirib ikkinchi vozvrat qilardi.
++  void cancelBeforeStart() => _cancelRequested = true;
++
++  Future<void> _return(
++      ReturnReturnEvent event, Emitter<ReturnState> emit) async {
++    if (_running) return;
++    _running = true;
++    _cancelRequested = false;
++    try {
++      await _doReturn(event, emit);
++    } finally {
++      _running = false;
++    }
++  }
++
++  Future<void> _doReturn(
++      ReturnReturnEvent event, Emitter<ReturnState> emit) async {
+     Log.d(event, name: 'return_bloc');
+ 
+     final bool ofd = _deps.withOfd();
+@@ -142,6 +172,12 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
+       await Future.delayed(const Duration(milliseconds: 500));
+     }
+ 
++    if (_cancelRequested) {
++      // Hali hech narsa (na fiskal, na lokal, na server) o'zgarmagan.
++      emit(ReturnInitial());
++      return;
++    }
++
+     if (!internet) {
+       emit(ReturnNoInternetState());
+       return;
+@@ -149,6 +185,13 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
+ 
+     emit(ReturnLoadingState(message: ReturnMessage.returnig));
+ 
++    // Fiskaldan OLDIN: sahifa eskirmaganmi va serverda qoldiq yetarlimi.
++    final String? blocked = await _preflight(event, serverUp: serverUp);
++    if (blocked != null) {
++      emit(ReturnBlockedState(message: blocked));
++      return;
++    }
++
+     // Yangi check raqami generate qilib APIga ham, local DBga ham bir xil
+     // yuboramiz. Raqam lokal hisoblagichdan olinadi — serverga bog'liq emas.
+     newReceiptModel41.externalId = await _deps.nextCheckNo();
+@@ -203,6 +246,46 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
+     emit(ReturnSuccedState(warning: warning));
+   }
+ 
++  /// Vozvratni boshlash mumkinmi. `null` — mumkin; aks holda kassirga
++  /// ko'rsatiladigan sabab. Bu nuqtada hali hech narsa o'zgarmagan.
++  ///
++  /// 1. Sahifa ochilgandan keyin shu chek bo'yicha lokal vozvrat saqlangan —
++  ///    sahifadagi qoldiq eskirgan (ustma-ust ochilgan ikkinchi sahifa).
++  /// 2. Server tirik bo'lsa chek qayta so'raladi: so'ralgan miqdor server
++  ///    qoldig'idan (minus serverga yetmagan lokal vozvratlar) oshmasligi
++  ///    kerak — boshqa kassa yoki adminkada qaytarilgan holat.
++  ///
++  /// Server javob bermasa tekshiruv o'tkazib yuboriladi: oflayn vozvrat
++  /// (`RefundUploadQueue`) ishlashda davom etadi.
++  Future<String?> _preflight(
++    ReturnReturnEvent event, {
++    required bool serverUp,
++  }) async {
++    final String original = event.receiptModel4.returnForCheck;
++    final List<ReceiptModel4> localRefunds =
++        original.isEmpty ? const [] : _deps.localRefundsOf(original);
++
++    if (RefundPreflight.isPageStale(
++      pageOpenedAt: event.pageOpenedAt,
++      localRefunds: localRefunds,
++    )) {
++      return event.loc.vozvrat_sahifa_eskirgan;
++    }
++
++    final String orderId = event.receiptModel4.orderId;
++    if (!serverUp || orderId.isEmpty) return null;
++    final Map<String, double>? remaining = await _deps.serverRemaining(orderId);
++    if (remaining == null) return null;
++
++    final ReceiptModelSoldItem4? over = RefundPreflight.firstOverdrawn(
++      requested: event.rightList,
++      serverRemaining: remaining,
++      localRefunds: localRefunds,
++    );
++    if (over == null) return null;
++    return event.loc.vozvrat_qoldiqdan_kop(over.productName);
++  }
++
+   /// Fiskal (OFD) vozvrat. Muvaffaqiyatda modelga vozvratning o'z
+   /// `url`/`refundInfo`/fiskal maydonlari yoziladi. Fiskal kerak bo'lmasa yoki
+   /// xato bersa — asl sotuvdan nusxalangan fiskal maydonlar TOZALANADI,
+@@ -301,6 +384,13 @@ class ReturnBlocDeps {
+   /// Serverga yuborish (`RefundUploadQueue.uploadOne`).
+   final Future<RefundUploadResult> Function(ReceiptModel4 refund) uploadToServer;
+ 
++  /// Shu sotuv cheki (`externalId`) bo'yicha ObjectBox'dagi vozvratlar.
++  final List<ReceiptModel4> Function(String originalExternalId) localRefundsOf;
++
++  /// Serverdagi qoldiq: `order item id → dona`. `null` — server javob
++  /// bermadi yoki chek topilmadi (tekshiruv o'tkazib yuboriladi).
++  final Future<Map<String, double>?> Function(String orderId) serverRemaining;
++
+   const ReturnBlocDeps({
+     required this.hasInternet,
+     required this.isServerUp,
+@@ -309,8 +399,48 @@ class ReturnBlocDeps {
+     required this.fiscalSell,
+     required this.saveLocal,
+     required this.uploadToServer,
++    this.localRefundsOf = _noLocalRefunds,
++    this.serverRemaining = _unknownRemaining,
+   });
+ 
++  static List<ReceiptModel4> _noLocalRefunds(String _) => const [];
++
++  static Future<Map<String, double>?> _unknownRemaining(String _) async => null;
++
++  static List<ReceiptModel4> _localRefundsFromBox(String originalExternalId) {
++    try {
++      return MyObjectbox.saleStore
++          .box<ReceiptModel4>()
++          .getAll()
++          .where((r) => r.isRefund && r.returnForCheck == originalExternalId)
++          .toList();
++    } catch (_) {
++      return const [];
++    }
++  }
++
++  static Future<Map<String, double>?> _remainingFromServer(
++      String orderId) async {
++    try {
++      final HttpResult res = await SearchReceiptService.getReceiptss(orderId);
++      if (!res.isSuccess) return null;
++      final data = json.decode(utf8.decode(res.reBytes))['data'];
++      if (data is! List) return null;
++      for (final e in data) {
++        final GlobalReceipt receipt = GlobalReceipt.fromJson(e);
++        if (receipt.id != orderId) continue;
++        return {
++          for (final it in receipt.items ?? <ItemsGTR>[])
++            if ((it.id ?? '').isNotEmpty && it.value != null)
++              it.id!: (it.value! - (it.refundAmount ?? 0)).toDouble(),
++        };
++      }
++      return null;
++    } catch (_) {
++      return null;
++    }
++  }
++
+   factory ReturnBlocDeps.production() => ReturnBlocDeps(
+         hasInternet: () => InternetConnectionChecker().hasConnection,
+         isServerUp: () => BackendHealth.isUp,
+@@ -324,5 +454,7 @@ class ReturnBlocDeps {
+         ),
+         uploadToServer: (refund) =>
+             RefundUploadQueue.uploadOne(refund, reason: 'return_bloc'),
++        localRefundsOf: _localRefundsFromBox,
++        serverRemaining: _remainingFromServer,
+       );
+ }
+```
+
+#### `lib/features/checks/return_page/right/return_dialog/bloc/return_event.dart` (o'zgargan)
+
+```diff
+diff --git a/lib/features/checks/return_page/right/return_dialog/bloc/return_event.dart b/lib/features/checks/return_page/right/return_dialog/bloc/return_event.dart
+index eaa4865..ca4f897 100644
+--- a/lib/features/checks/return_page/right/return_dialog/bloc/return_event.dart
++++ b/lib/features/checks/return_page/right/return_dialog/bloc/return_event.dart
+@@ -8,7 +8,12 @@ class ReturnReturnEvent extends ReturnEvent {
+   final AppLocalizations loc;
+   final ReceiptModel4 receiptModel4;
+   final List<ReceiptModelSoldItem4> rightList;
++
++  /// Vozvrat sahifasi ochilgan vaqt (ms). Shundan keyin shu chek bo'yicha
++  /// lokal vozvrat saqlangan bo'lsa sahifa eskirgan (`RefundPreflight`).
++  final int? pageOpenedAt;
+   ReturnReturnEvent({required this.isRetry, 
++    this.pageOpenedAt,
+     required this.clientNumber,
+     required this.receiptModel4,
+     required this.rightList,
+```
+
+#### `lib/features/checks/return_page/right/return_dialog/bloc/return_state.dart` (o'zgargan)
+
+```diff
+diff --git a/lib/features/checks/return_page/right/return_dialog/bloc/return_state.dart b/lib/features/checks/return_page/right/return_dialog/bloc/return_state.dart
+index 83e4f3b..871cb56 100644
+--- a/lib/features/checks/return_page/right/return_dialog/bloc/return_state.dart
++++ b/lib/features/checks/return_page/right/return_dialog/bloc/return_state.dart
+@@ -27,3 +27,12 @@ class ReturnFailedState extends ReturnState {
+   ReturnFailedState(
+       {required this.error});
+ }
++
++/// Vozvrat BOSHLANMADI: sahifa eskirgan yoki serverda qoldiq yetmaydi
++/// (`ReturnBloc._preflight`). Fiskal chek chiqmagan, hech narsa saqlanmagan.
++/// "Qayta urinish" yo'q — kassir chekni qayta ochishi kerak.
++class ReturnBlockedState extends ReturnState {
++  final String message;
++
++  ReturnBlockedState({required this.message});
++}
+```
+
+#### `lib/features/checks/return_page/right/return_dialog/return_dialog.dart` (o'zgargan)
+
+```diff
+diff --git a/lib/features/checks/return_page/right/return_dialog/return_dialog.dart b/lib/features/checks/return_page/right/return_dialog/return_dialog.dart
+index 1404d68..fd9f230 100644
+--- a/lib/features/checks/return_page/right/return_dialog/return_dialog.dart
++++ b/lib/features/checks/return_page/right/return_dialog/return_dialog.dart
+@@ -15,7 +15,11 @@ class ReturnDialog extends StatelessWidget {
+   final String clientNumber;
+   final ReceiptModel4 receiptModel4;
+   final List<ReceiptModelSoldItem4> rightList;
++
++  /// Vozvrat sahifasi ochilgan vaqt ("Qayta urinish" ham shuni yuboradi).
++  final int? pageOpenedAt;
+   const ReturnDialog({
++    this.pageOpenedAt,
+     required this.rightList,
+     super.key,
+     required this.clientNumber,
+@@ -79,7 +83,12 @@ class ReturnDialog extends StatelessWidget {
+                             ? DefaultButton(
+                                 text: loc.bekor_qilish,
+                                 isButtonEnabled: true,
+-                                onPress: () => AppNavigation.pop(),
++                                // Oynani yopish yetmaydi: vozvratning o'zi
++                                // ham to'xtashi kerak (fiskaldan oldin).
++                                onPress: () {
++                                  returnBloc.cancelBeforeStart();
++                                  AppNavigation.pop();
++                                },
+                               )
+                             : const SizedBox()
+                       ],
+@@ -119,6 +128,7 @@ class ReturnDialog extends StatelessWidget {
+                                 onPress: () => returnBloc.add(
+                                   ReturnReturnEvent(
+                                     isRetry: true,
++                                    pageOpenedAt: pageOpenedAt,
+                                     clientNumber: clientNumber,
+                                     receiptModel4: receiptModel4,
+                                     rightList: rightList,
+@@ -180,6 +190,7 @@ class ReturnDialog extends StatelessWidget {
+                                 onPress: () => returnBloc.add(
+                                   ReturnReturnEvent(
+                                     isRetry: true,
++                                    pageOpenedAt: pageOpenedAt,
+                                     clientNumber: clientNumber,
+                                     receiptModel4: receiptModel4,
+                                     rightList: rightList,
+@@ -193,6 +204,30 @@ class ReturnDialog extends StatelessWidget {
+                       ],
+                     );
+                   }
++                  if (state is ReturnBlockedState) {
++                    // Vozvrat boshlanmadi (fiskal chek chiqmagan). "Qayta
++                    // urinish" yo'q: ro'yxat eskirgan, chek qayta ochiladi.
++                    return Column(
++                      children: [
++                        Expanded(
++                          child: Center(
++                            child: Text(
++                              state.message,
++                              textAlign: TextAlign.center,
++                              style: MyThemes.txtStyle(
++                                  fontSize: 3.4,
++                                  color: Theme.of(context).colorScheme.error),
++                            ),
++                          ),
++                        ),
++                        DefaultButton(
++                          isButtonEnabled: true,
++                          text: "Ok",
++                          onPress: () => AppNavigation.pop(),
++                        ),
++                      ],
++                    );
++                  }
+                   if (state is ReturnSuccedState) {
+                     return Column(
+                       children: [
+```
+
+#### `lib/features/checks/return_page/right/right.dart` (o'zgargan)
+
+```diff
+diff --git a/lib/features/checks/return_page/right/right.dart b/lib/features/checks/return_page/right/right.dart
+index a38e3e5..e30ad1d 100644
+--- a/lib/features/checks/return_page/right/right.dart
++++ b/lib/features/checks/return_page/right/right.dart
+@@ -98,6 +98,7 @@ class Right extends StatelessWidget {
+             returnBloc.add(
+               ReturnReturnEvent(
+                 isRetry: false,
++                pageOpenedAt: returnPageProvider.openedAt,
+                 clientNumber: receiptModel4.clientPhone,
+                 receiptModel4: receiptModel4,
+                 rightList: returnPageProvider.getRightList,
+@@ -108,6 +109,7 @@ class Right extends StatelessWidget {
+               context: context,
+               pageBuilder: (context, x, y) {
+                 return ReturnDialog(
++                  pageOpenedAt: returnPageProvider.openedAt,
+                   clientNumber: receiptModel4.clientPhone,
+                   receiptModel4: receiptModel4,
+                   rightList: returnPageProvider.getRightList,
+```
+
+#### `lib/utils/l10n/app_localizations.dart` (o'zgargan)
+
+```diff
+diff --git a/lib/utils/l10n/app_localizations.dart b/lib/utils/l10n/app_localizations.dart
+index 0f5971d..beef776 100644
+--- a/lib/utils/l10n/app_localizations.dart
++++ b/lib/utils/l10n/app_localizations.dart
+@@ -1795,6 +1795,18 @@ abstract class AppLocalizations {
+   /// In ru, this message translates to:
+   /// **'Эта маркировка другого товара — выберите строку этого товара'**
+   String get vozvrat_km_boshqa_mahsulot;
++
++  /// No description provided for @vozvrat_sahifa_eskirgan.
++  ///
++  /// In ru, this message translates to:
++  /// **'По этому чеку возврат уже выполнен — список устарел. Возврат не выполнен. Откройте чек заново и проверьте.'**
++  String get vozvrat_sahifa_eskirgan;
++
++  /// No description provided for @vozvrat_qoldiqdan_kop.
++  ///
++  /// In ru, this message translates to:
++  /// **'«{name}» уже возвращён (другая касса или админка). Возврат не выполнен. Откройте чек заново и проверьте.'**
++  String vozvrat_qoldiqdan_kop(String name);
+ }
+ 
+ class _AppLocalizationsDelegate
+```
+
+#### `lib/utils/l10n/app_localizations_ru.dart` (o'zgargan)
+
+```diff
+diff --git a/lib/utils/l10n/app_localizations_ru.dart b/lib/utils/l10n/app_localizations_ru.dart
+index 32d02d5..e61f195 100644
+--- a/lib/utils/l10n/app_localizations_ru.dart
++++ b/lib/utils/l10n/app_localizations_ru.dart
+@@ -893,4 +893,13 @@ class AppLocalizationsRu extends AppLocalizations {
+   @override
+   String get vozvrat_km_boshqa_mahsulot =>
+       'Эта маркировка другого товара — выберите строку этого товара';
++
++  @override
++  String get vozvrat_sahifa_eskirgan =>
++      'По этому чеку возврат уже выполнен — список устарел. Возврат не выполнен. Откройте чек заново и проверьте.';
++
++  @override
++  String vozvrat_qoldiqdan_kop(String name) {
++    return '«$name» уже возвращён (другая касса или админка). Возврат не выполнен. Откройте чек заново и проверьте.';
++  }
+ }
+```
+
+#### `lib/utils/l10n/app_localizations_uz.dart` (o'zgargan)
+
+```diff
+diff --git a/lib/utils/l10n/app_localizations_uz.dart b/lib/utils/l10n/app_localizations_uz.dart
+index 1ca7580..007eecc 100644
+--- a/lib/utils/l10n/app_localizations_uz.dart
++++ b/lib/utils/l10n/app_localizations_uz.dart
+@@ -906,4 +906,13 @@ class AppLocalizationsUz extends AppLocalizations {
+   @override
+   String get vozvrat_km_boshqa_mahsulot =>
+       'Bu markirovka boshqa mahsulotniki — o\'sha mahsulot qatorini tanlang';
++
++  @override
++  String get vozvrat_sahifa_eskirgan =>
++      'Bu chek bo\'yicha qaytarish allaqachon bajarilgan — ro\'yxat eskirgan. Qaytarish bajarilmadi. Chekni qayta ochib tekshiring.';
++
++  @override
++  String vozvrat_qoldiqdan_kop(String name) {
++    return '«$name» allaqachon qaytarilgan (boshqa kassa yoki adminka). Qaytarish bajarilmadi. Chekni qayta ochib tekshiring.';
++  }
+ }
+```
+
+#### `lib/utils/l10n/app_ru.arb` (o'zgargan)
+
+```diff
+diff --git a/lib/utils/l10n/app_ru.arb b/lib/utils/l10n/app_ru.arb
+index 0b73f68..45e6019 100644
+--- a/lib/utils/l10n/app_ru.arb
++++ b/lib/utils/l10n/app_ru.arb
+@@ -648,5 +648,14 @@
+       }
+     }
+   },
+-  "vozvrat_km_boshqa_mahsulot": "Эта маркировка другого товара — выберите строку этого товара"
++  "vozvrat_km_boshqa_mahsulot": "Эта маркировка другого товара — выберите строку этого товара",
++  "vozvrat_sahifa_eskirgan": "По этому чеку возврат уже выполнен — список устарел. Возврат не выполнен. Откройте чек заново и проверьте.",
++  "vozvrat_qoldiqdan_kop": "«{name}» уже возвращён (другая касса или админка). Возврат не выполнен. Откройте чек заново и проверьте.",
++  "@vozvrat_qoldiqdan_kop": {
++    "placeholders": {
++      "name": {
++        "type": "String"
++      }
++    }
++  }
+ }
+```
+
+#### `lib/utils/l10n/app_uz.arb` (o'zgargan)
+
+```diff
+diff --git a/lib/utils/l10n/app_uz.arb b/lib/utils/l10n/app_uz.arb
+index 731ae44..eebe3c1 100644
+--- a/lib/utils/l10n/app_uz.arb
++++ b/lib/utils/l10n/app_uz.arb
+@@ -285,5 +285,7 @@
+   "vozvrat_km_qisqa": "Markirovka kodi uzunroq bo'lishi kerak",
+   "vozvrat_km_yopish": "Yopish",
+   "vozvrat_km_blok_qator": "Blok ({count} dona)",
+-  "vozvrat_km_boshqa_mahsulot": "Bu markirovka boshqa mahsulotniki — o'sha mahsulot qatorini tanlang"
++  "vozvrat_km_boshqa_mahsulot": "Bu markirovka boshqa mahsulotniki — o'sha mahsulot qatorini tanlang",
++  "vozvrat_sahifa_eskirgan": "Bu chek bo'yicha qaytarish allaqachon bajarilgan — ro'yxat eskirgan. Qaytarish bajarilmadi. Chekni qayta ochib tekshiring.",
++  "vozvrat_qoldiqdan_kop": "«{name}» allaqachon qaytarilgan (boshqa kassa yoki adminka). Qaytarish bajarilmadi. Chekni qayta ochib tekshiring."
+ }
+```
+
+### 6.3 Testlar
+
+<details>
+<summary><code>test/refund_double_guard_test.dart</code> (YANGI)</summary>
+
+```dart
+// Bitta chek ikki marta vozvrat qilinishiga qarshi himoyalar.
+//
+// Do'kondagi xato (2026-11-14, Tiin Optom): server "refund amount is greater
+// than expected amount" — chekdagi hamma tovar allaqachon qaytarilgan, kassa
+// esa yana vozvrat yuborgan. Sabab: "Qaytarish" ikki marta bosilganda ikkita
+// vozvrat sahifasi ustma-ust ochilardi; birinchisida vozvrat qilingach
+// tagidan eski ro'yxatli ikkinchisi chiqar, kassir yana qaytarardi (ikkinchi
+// fiskal chek + server rad etishi). Mac DEV kassasida qayta chiqarilgan
+// (2026-11-16).
+//
+//   1. sahifa ochilgandan keyin lokal vozvrat saqlangan → Blocked, fiskal YO'Q
+//   2. serverda qoldiq 0 (boshqa kassa/adminka)          → Blocked, fiskal YO'Q
+//   3. server qoldig'i yetarli                           → vozvrat o'tadi
+//   4. server qoldig'i 1, serverga yetmagan lokal 1      → Blocked
+//   5. server javob bermadi (qoldiq noma'lum)            → vozvrat o'tadi
+//   6. sahifa ochilishidan OLDINGI lokal vozvrat         → eskirgan emas
+//   7. ikki hodisa ketma-ket (ikki marta bosish)         → fiskal BIR marta
+//   8. "Bekor qilish" internet tekshiruvi paytida        → hech narsa chaqirilmaydi
+import 'package:flutter_test/flutter_test.dart';
+import 'package:invan2/changes/domain/receipt/refund_preflight.dart';
+import 'package:invan2/features/checks/return_page/right/return_dialog/bloc/return_bloc.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+import 'package:invan2/utils/constants/pref_keys.dart';
+import 'package:invan2/utils/helpers/prefs.dart';
+import 'package:invan2/utils/l10n/app_localizations_uz.dart';
+
+import 'return_bloc_flow_test.dart' as base;
+import 'support/provider_harness.dart';
+
+const int kOpenedAt = 1000000;
+
+ReceiptModelSoldItem4 item(String id, double qty) =>
+    base.row(productId: 'p-$id', value: qty)..refundItemId = id;
+
+/// Vozvrat sahifasidagi model: `returnForCheck` = asl chek raqami.
+ReceiptModel4 pageReceipt() => base.sale()..returnForCheck = 'DN-100';
+
+ReceiptModel4 localRefund({
+  required int date,
+  bool uploaded = true,
+  List<ReceiptModelSoldItem4> items = const [],
+}) {
+  final r = base.sale()
+    ..isRefund = true
+    ..returnForCheck = 'DN-100'
+    ..date = date
+    ..uploaded = uploaded;
+  r.soldItemList
+    ..clear()
+    ..addAll(items);
+  return r;
+}
+
+class Guarded {
+  final base.FakeDeps fake = base.FakeDeps();
+  List<ReceiptModel4> locals = [];
+  Map<String, double>? remaining;
+  int remainingCalls = 0;
+  Duration internetDelay = Duration.zero;
+
+  ReturnBlocDeps build() {
+    final b = fake.build();
+    return ReturnBlocDeps(
+      hasInternet: () async {
+        await Future<void>.delayed(internetDelay);
+        return fake.internet;
+      },
+      isServerUp: b.isServerUp,
+      withOfd: b.withOfd,
+      nextCheckNo: b.nextCheckNo,
+      fiscalSell: b.fiscalSell,
+      saveLocal: b.saveLocal,
+      uploadToServer: b.uploadToServer,
+      localRefundsOf: (_) => locals,
+      serverRemaining: (_) async {
+        remainingCalls++;
+        return remaining;
+      },
+    );
+  }
+}
+
+ReturnReturnEvent event(List<ReceiptModelSoldItem4> right) => ReturnReturnEvent(
+      isRetry: false,
+      pageOpenedAt: kOpenedAt,
+      clientNumber: '',
+      receiptModel4: pageReceipt(),
+      rightList: right,
+      loc: AppLocalizationsUz(),
+    );
+
+Future<List<ReturnState>> drive(
+  Guarded g,
+  void Function(ReturnBloc bloc) act,
+) async {
+  final bloc = ReturnBloc(deps: g.build());
+  final states = <ReturnState>[];
+  final sub = bloc.stream.listen(states.add);
+  act(bloc);
+  await Future<void>.delayed(const Duration(milliseconds: 400));
+  await sub.cancel();
+  await bloc.close();
+  return states;
+}
+
+void main() {
+  setUpAll(() => setUpPosTestEnv('refund_double_guard', withEmployee: false));
+  tearDownAll(tearDownPosTestEnv);
+
+  setUp(() async {
+    await Pref.setString(PrefKeys.cashId, 'cash-id');
+  });
+
+  test('1. sahifa ochilgandan keyin lokal vozvrat bor — Blocked, fiskal yo\'q',
+      () async {
+    final g = Guarded()..locals = [localRefund(date: kOpenedAt + 5000)];
+    final states = await drive(g, (b) => b.add(event([item('i1', 1)])));
+    expect(states.last, isA<ReturnBlockedState>());
+    expect((states.last as ReturnBlockedState).message,
+        AppLocalizationsUz().vozvrat_sahifa_eskirgan);
+    expect(g.fake.calls, isEmpty,
+        reason: 'fiskal chek chiqmasligi, hech narsa saqlanmasligi kerak');
+  });
+
+  test('2. serverda qoldiq 0 — Blocked, fiskal yo\'q', () async {
+    final g = Guarded()..remaining = {'i1': 0, 'i2': 0};
+    final states = await drive(
+        g, (b) => b.add(event([item('i1', 1), item('i2', 2)])));
+    expect(states.last, isA<ReturnBlockedState>());
+    expect((states.last as ReturnBlockedState).message, contains('Test tovar'));
+    expect(g.fake.calls, isEmpty);
+  });
+
+  test('3. server qoldig\'i yetarli — vozvrat o\'tadi', () async {
+    final g = Guarded()..remaining = {'i1': 2};
+    final states = await drive(g, (b) => b.add(event([item('i1', 2)])));
+    expect(states.last, isA<ReturnSuccedState>());
+    expect(g.fake.calls, ['fiscal', 'save', 'upload']);
+  });
+
+  test('4. server qoldig\'i 1, serverga yetmagan lokal vozvrat 1 — Blocked',
+      () async {
+    final g = Guarded()
+      ..remaining = {'i1': 1}
+      ..locals = [
+        localRefund(
+            date: kOpenedAt - 5000, uploaded: false, items: [item('i1', 1)]),
+      ];
+    final states = await drive(g, (b) => b.add(event([item('i1', 1)])));
+    expect(states.last, isA<ReturnBlockedState>());
+    expect(g.fake.calls, isEmpty);
+  });
+
+  test('5. server javob bermadi — tekshiruv o\'tkazib yuboriladi', () async {
+    final g = Guarded()..remaining = null;
+    final states = await drive(g, (b) => b.add(event([item('i1', 1)])));
+    expect(g.remainingCalls, 1);
+    expect(states.last, isA<ReturnSuccedState>());
+  });
+
+  test('5b. server yiqilgani ma\'lum — serverdan so\'ralmaydi, vozvrat o\'tadi',
+      () async {
+    final g = Guarded()..fake.serverUp = false;
+    final states = await drive(g, (b) => b.add(event([item('i1', 1)])));
+    expect(g.remainingCalls, 0);
+    expect(states.last, isA<ReturnSuccedState>());
+    expect(g.fake.calls, ['fiscal', 'save']);
+  });
+
+  test('6. sahifa ochilishidan oldingi lokal vozvrat — eskirgan emas',
+      () async {
+    final g = Guarded()
+      ..remaining = {'i1': 1}
+      ..locals = [
+        localRefund(date: kOpenedAt - 5000, items: [item('i1', 1)]),
+      ];
+    final states = await drive(g, (b) => b.add(event([item('i1', 1)])));
+    expect(states.last, isA<ReturnSuccedState>());
+  });
+
+  test('7. ikki hodisa ketma-ket — fiskal bir marta', () async {
+    final g = Guarded()..remaining = {'i1': 1};
+    await drive(g, (b) {
+      b.add(event([item('i1', 1)]));
+      b.add(event([item('i1', 1)]));
+    });
+    expect(g.fake.calls.where((c) => c == 'fiscal').length, 1);
+    expect(g.fake.calls.where((c) => c == 'save').length, 1);
+  });
+
+  test('8. "Bekor qilish" internet tekshiruvi paytida — vozvrat to\'xtaydi',
+      () async {
+    final g = Guarded()..internetDelay = const Duration(milliseconds: 100);
+    final states = await drive(g, (b) {
+      b.add(event([item('i1', 1)]));
+      Future<void>.delayed(
+          const Duration(milliseconds: 30), b.cancelBeforeStart);
+    });
+    expect(g.fake.calls, isEmpty);
+    expect(states.last, isA<ReturnInitial>());
+  });
+
+  test('RefundPreflight: bitta id ikki qatorda — yig\'indisi tekshiriladi', () {
+    final over = RefundPreflight.firstOverdrawn(
+      requested: [item('i1', 6), item('i1', 1)],
+      serverRemaining: {'i1': 6},
+      localRefunds: const [],
+    );
+    expect(over, isNotNull);
+    expect(
+      RefundPreflight.firstOverdrawn(
+        requested: [item('i1', 6), item('i1', 1)],
+        serverRemaining: {'i1': 7},
+        localRefunds: const [],
+      ),
+      isNull,
+    );
+  });
+}
+```
+
+</details>
+
+## 7. Tekshirish
+
+- `test/refund_double_guard_test.dart` (10) + `test/return_bloc_flow_test.dart` va boshqa refund/return/check testlari: 123 o'tdi, 6 skip. `flutter analyze` — xato yo'q.
+- Xato Mac DEV kassasida qayta chiqarildi (1.1.2+129): sotuv DT35 → "Qaytarish" ikki marta (150 ms) → ikki sahifa → DT36 qabul qilindi → tagidagi sahifadan DT37 → server 400 `refund amount is greater than expected amount ... sold=1, already_refunded=1, requested=1`.
+- Tuzatilgan build, o'sha qadamlar: DT38 → ikki bosish → bitta sahifa → DT39 qabul qilindi → "Ok" → Cheklar sahifasi.
+- Kassada sinalmagan: `ReturnBlockedState` oynasi, server qoldig'i tekshiruvi, "Bekor qilish", ustma-ust Cheklar sahifalari (testlar bilan qoplangan). Windows / do'kon: sinalmagan.
+
+## 8. Eslatmalar va ochiq savollar
+
+- **Odoo forkiga: kerak.** UI himoyalari va `RefundPreflight` backend'ga bog'liq emas. `ReturnBlocDeps._remainingFromServer` InVan API'si (`api/v1/order?search=`) — Odoo'da buyurtma qatorlarining qaytarilgan miqdorini beradigan so'rovga almashtiriladi yoki `null` (faqat lokal tekshiruv).
+- Vozvrat miqdori/summasidagi boshqa tirqichlar tuzatilmagan (sessiya hujjati, "Ochiq savollar"): kg da yaxlitlanmagan double, bir xil `productId` ikki qatorda, chek darajasidagi chegirma nisbati, rad etilgan vozvratni qo'lda qayta yuborishda 409.
+- Rad etilgan vozvrat "Yangilash" bosilganda har safar qayta yuboriladi va yana 400 + Telegram log beradi.
 
 ---
 
