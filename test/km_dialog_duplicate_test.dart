@@ -52,8 +52,14 @@ const kRaw1NoGs = '${kClean1}93dGVz'; // GS umuman kelmagan
 const kRaw1Gs029 = '${kClean1}02993dGVz'; // GS `029` raqamlari bo'lib kelgan
 const kRaw2Gs = '$kClean2${kGs}93aBcD';
 
+/// Seriyasida rus tartibida BOSHQA belgi beradigan tugmalar bor KM
+/// (`&`→`?`, `/`→`.`, `?`→`,`, `$`→`;`, `@`→`"`, `^`→`:`, `#`→`№`, `|`→`/`).
+const kSerialSym = r'aB&c/D?e$F@';
+const kCleanSym = '010$kEan' '21$kSerialSym';
+const kRawSym = '$kCleanSym${kGs}93x^#|';
+
 /// Kod rus (Windows ЙЦУКЕН) tartibi yoqiq kassada matn maydoniga skanerlansa
-/// nima yoziladi (harf tugmalari).
+/// nima yoziladi (harf va belgi tugmalari).
 String typedOnRu(String en) {
   const map = {
     'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г',
@@ -66,14 +72,16 @@ String typedOnRu(String en) {
     'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д',
     ':': 'Ж', '"': 'Э', 'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И',
     'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '~': 'Ё',
+    // belgi tugmalari (Windows "Русская")
+    '@': '"', '#': '№', r'$': ';', '^': ':', '&': '?', '/': '.', '?': ',',
+    '|': '/',
   };
   return en.split('').map((c) => map[c] ?? c).join();
 }
 
 /// Asosiy ekran skaneri zanjiri (`MyBarcodeListener` → `onBarcodeScanned`):
 /// provayderga kod shu ko'rinishda keladi.
-String viaListener(String typed) =>
-    KeyboardLayout.ruLettersToEn(typed.trim());
+String viaListener(String typed) => KeyboardLayout.fixScan(typed.trim());
 
 ItemModel drPepper() {
   final m = ItemModel();
@@ -208,6 +216,64 @@ void main() {
     });
   });
 
+  group('KeyboardLayout.fixScan — rus tartibidan tiklash qoidasi', () {
+    test('lotin tartibidagi kod umuman o\'zgarmaydi', () {
+      for (final c in [
+        kRaw1Gs,
+        kRawSym,
+        kEan,
+        '2812345001234',
+        'AB.12,3/4?5',
+        'https://payme.uz/x?y=1&z=2',
+        '',
+      ]) {
+        expect(KeyboardLayout.fixScan(c), c, reason: c);
+      }
+    });
+
+    test('KM + kirill harf: harflar HAM, belgilar HAM tiklanadi', () {
+      final typed = typedOnRu(kRawSym);
+      expect(typed, isNot(kRawSym));
+      expect(KeyboardLayout.fixScan(typed), kRawSym);
+      // eski qoida (faqat harflar) belgilarni tiklamasdi
+      expect(KeyboardLayout.ruLettersToEn(typed), isNot(kRawSym));
+    });
+
+    test('KM shakllari: qavsli, `-` prefiksli, AIM ]d2', () {
+      const paren = '(01)0$kEan(21)$kSerialSym(93)x^#|';
+      expect(KeyboardLayout.fixScan(typedOnRu(paren)), paren);
+      const dash = '-$kCleanSym-93abcd';
+      expect(KeyboardLayout.fixScan(typedOnRu(dash)), dash);
+      const aim = ']d2$kRawSym';
+      expect(KeyboardLayout.fixScan(typedOnRu(aim)), aim);
+    });
+
+    test('KM, lekin kirill harf yo\'q — tartib noma\'lum, tegilmaydi', () {
+      const digitsOnly = '010${kEan}211234.567/89';
+      expect(KeyboardLayout.fixScan(digitsOnly), digitsOnly);
+    });
+
+    test('KM EMAS + kirill: avvalgidek faqat harflar (belgilar tegilmaydi)',
+        () {
+      // mijoz kartasi / to'lov QR i / ichki kod — eski xatti-harakat
+      for (final c in ['ФИ.12,3', 'зфньу.гя?ч=1', 'Й123/45', '12345ф.6']) {
+        expect(KeyboardLayout.fixScan(c), KeyboardLayout.ruLettersToEn(c),
+            reason: c);
+      }
+      expect(KeyboardLayout.fixScan('ФИ.12,3'), 'AB.12,3');
+    });
+
+    test('`01` bilan boshlanadi, lekin GTIN14 emas — KM deb olinmaydi', () {
+      const c = '0123ф.5';
+      expect(KeyboardLayout.fixScan(c), '0123a.5');
+    });
+
+    test('ikki marta chaqirilsa natija o\'zgarmaydi', () {
+      final once = KeyboardLayout.fixScan(typedOnRu(kRawSym));
+      expect(KeyboardLayout.fixScan(once), once);
+    });
+  });
+
   group('MarkedCart.sameMark — bitta KM ning turli yozilishi', () {
     test('aynan teng', () {
       expect(MarkedCart.sameMark(kClean1, kClean1), isTrue);
@@ -339,6 +405,63 @@ void main() {
       await Pref.setBool(PrefKeys.autoGenerate, false);
       await HiveBoxes.getDiscounts().clear();
       DiscountSingleton.resetAll();
+    });
+
+    testWidgets(
+        'RU tartib, seriyada belgi tugmalari: to\'g\'ridan skan — KM aynan '
+        'yorliqdagidek saqlanadi', (tester) async {
+      useCatalog([drPepper()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, typedOnRu(kRawSym));
+
+      expect(active(p), hasLength(1));
+      expect(active(p).single.mark, kCleanSym);
+    });
+
+    testWidgets(
+        'RU tartib, seriyada belgi tugmalari: dialog — KM aynan yorliqdagidek',
+        (tester) async {
+      useCatalog([drPepper()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scanIntoDialog(tester, p, key, typedOnRu(kRawSym));
+
+      expect(active(p), hasLength(1));
+      expect(active(p).single.mark, kCleanSym);
+    });
+
+    testWidgets(
+        'RU tartib, seriyada belgi tugmalari: to\'g\'ridan → dialog — rad',
+        (tester) async {
+      useCatalog([drPepper()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, typedOnRu(kRawSym));
+      await scanIntoDialog(tester, p, key, typedOnRu(kRawSym));
+
+      expect(find.textContaining('oldin qo\'shilgan'), findsOneWidget);
+      await tapOk(tester);
+      expect(active(p), hasLength(1));
+    });
+
+    testWidgets(
+        'lotin tartibda sotilgan KM rus tartibda qayta skanerlansa — rad',
+        (tester) async {
+      useCatalog([drPepper()]);
+      final key = await pumpApp(tester);
+      final p = freshProvider();
+
+      await scan(tester, p, key, kRawSym);
+      await scanIntoDialog(tester, p, key, typedOnRu(kRawSym));
+
+      expect(find.textContaining('oldin qo\'shilgan'), findsOneWidget);
+      await tapOk(tester);
+      expect(active(p), hasLength(1));
+      expect(active(p).single.mark, kCleanSym);
     });
 
     // Videodagi holat: rus tartibi yoqiq kassa.

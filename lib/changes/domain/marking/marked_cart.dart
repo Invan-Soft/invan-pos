@@ -49,8 +49,8 @@ class MarkedCart {
   static bool sameMark(String? a, String? b) {
     if (a == null || b == null || a.isEmpty || b.isEmpty) return false;
     if (a == b) return true;
-    final x = KeyboardLayout.ruLettersToEn(a.trim());
-    final y = KeyboardLayout.ruLettersToEn(b.trim());
+    final x = KeyboardLayout.fixScan(a.trim());
+    final y = KeyboardLayout.fixScan(b.trim());
     if (x == y) return true;
     if (x.length == y.length) return false;
     final longer = x.length > y.length ? x : y;

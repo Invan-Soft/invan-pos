@@ -68,7 +68,7 @@ class MarkCleaner {
   /// Markirovka DIALOGIGA (matn maydoniga) kiritilgan KM ni tozalash.
   ///
   /// Asosiy ekran skani `MyBarcodeListener` dan o'tadi: `trim` + rus
-  /// tartibidagi harflarni lotinga o'girish (`KeyboardLayout.ruLettersToEn`),
+  /// tartibidan tiklash (`KeyboardLayout.fixScan`),
   /// keyin `BarcodeClassifier.sanitize` va [scanTime]. Dialog maydoni esa
   /// matnni to'g'ridan oladi — kassada rus tartibi yoqiq bo'lsa KM harflari
   /// KIRILL bo'lib kelardi (`...217U7цуНК`): soliqqa buzuq KM ketardi va
@@ -78,7 +78,7 @@ class MarkCleaner {
   /// Shuning uchun dialog ham AYNAN asosiy skaner zanjiridan o'tadi — bitta
   /// KM qaysi yo'ldan kirsa ham savatga bir xil satr bo'lib tushadi.
   static String fromDialog(String raw) => scanTime(
-      BarcodeClassifier.sanitize(KeyboardLayout.ruLettersToEn(raw.trim())));
+      BarcodeClassifier.sanitize(KeyboardLayout.fixScan(raw.trim())));
 
   /// Fiskal chekka (OFD) yuborishdan oldingi tozalash.
   static String forFiscal(String rawMark) {

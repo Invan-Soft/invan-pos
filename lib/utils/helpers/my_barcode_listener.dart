@@ -207,8 +207,9 @@ class MyBarcodeListenerState extends State<MyBarcodeListener> {
   //---------------------------------
 
   DateTime lastEnter = DateTime.now();
-// Jadval: KeyboardLayout.ruLettersToEn (vozvratdagi KM skani ham shuni ishlatadi).
-String fixKeyboardLayout(String input) => KeyboardLayout.ruLettersToEn(input);
+// Qoida: KeyboardLayout.fixScan — harflar har doim, markirovka kodida (kirill
+// harf bo'lsa) belgi tugmalari ham. Markirovka dialogi ham shuni ishlatadi.
+String fixKeyboardLayout(String input) => KeyboardLayout.fixScan(input);
 
   void onKeyEvent(int charCode) {
     if (!(blBloc.isVisible && blBloc.status != BLStatus.other)) {

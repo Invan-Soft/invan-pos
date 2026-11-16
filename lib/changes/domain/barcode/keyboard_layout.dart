@@ -17,6 +17,26 @@ class KeyboardLayout {
   /// `,`→`?` va `?`→`&` bir-biriga ulanib ketmasin.
   static String ruToEnFull(String input) => _map(input, _full);
 
+  static final _gs1Km = RegExp(r'^(?:-+|\][dCQ]\d)?(?:01\d{14}|\(01\)\d{14})');
+
+  /// Skanerdan kelgan kodni rus tartibidan tiklash — asosiy ekran skaneri va
+  /// markirovka dialogi uchun BITTA qoida (ikkalasi bir xil satr bersin).
+  ///
+  ///   * Markirovka kodi (GS1: `01` + GTIN14) va ichida kirill harf bor —
+  ///     kassada rus tartibi yoqiq ekani aniq, shuning uchun TO'LIQ tiklanadi
+  ///     ([ruToEnFull]): harflar ham, boshqa belgi beradigan tugmalar ham
+  ///     (`&`→`?`, `/`→`.`, `$`→`;` ...). Aks holda seriyasida shunday belgi
+  ///     bo'lgan KM soliqqa noto'g'ri ketardi.
+  ///   * Boshqa hamma kod (oddiy shtrix-kod, tarozi, mijoz kartasi, to'lov
+  ///     QR i) va kirill harfsiz KM — avvalgidek faqat harflar
+  ///     ([ruLettersToEn]). Kirill harf bo'lmasa tartibni aniqlab bo'lmaydi:
+  ///     `.` haqiqiy nuqta ham bo'lishi mumkin.
+  static String fixScan(String input) {
+    final letters = ruLettersToEn(input);
+    if (letters == input) return input;
+    return _gs1Km.hasMatch(letters) ? ruToEnFull(input) : letters;
+  }
+
   static String _map(String input, Map<String, String> table) {
     if (input.isEmpty) return input;
     final buf = StringBuffer();
