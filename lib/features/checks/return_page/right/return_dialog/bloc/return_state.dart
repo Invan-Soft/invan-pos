@@ -27,3 +27,12 @@ class ReturnFailedState extends ReturnState {
   ReturnFailedState(
       {required this.error});
 }
+
+/// Vozvrat BOSHLANMADI: sahifa eskirgan yoki serverda qoldiq yetmaydi
+/// (`ReturnBloc._preflight`). Fiskal chek chiqmagan, hech narsa saqlanmagan.
+/// "Qayta urinish" yo'q — kassir chekni qayta ochishi kerak.
+class ReturnBlockedState extends ReturnState {
+  final String message;
+
+  ReturnBlockedState({required this.message});
+}

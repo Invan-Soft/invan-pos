@@ -285,5 +285,7 @@
   "vozvrat_km_qisqa": "Markirovka kodi uzunroq bo'lishi kerak",
   "vozvrat_km_yopish": "Yopish",
   "vozvrat_km_blok_qator": "Blok ({count} dona)",
-  "vozvrat_km_boshqa_mahsulot": "Bu markirovka boshqa mahsulotniki — o'sha mahsulot qatorini tanlang"
+  "vozvrat_km_boshqa_mahsulot": "Bu markirovka boshqa mahsulotniki — o'sha mahsulot qatorini tanlang",
+  "vozvrat_sahifa_eskirgan": "Bu chek bo'yicha qaytarish allaqachon bajarilgan — ro'yxat eskirgan. Qaytarish bajarilmadi. Chekni qayta ochib tekshiring.",
+  "vozvrat_qoldiqdan_kop": "«{name}» allaqachon qaytarilgan (boshqa kassa yoki adminka). Qaytarish bajarilmadi. Chekni qayta ochib tekshiring."
 }

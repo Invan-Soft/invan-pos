@@ -2,12 +2,17 @@ import 'dart:convert';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
+import 'package:invan2/changes/domain/receipt/refund_preflight.dart';
 import 'package:invan2/changes/models/ofd/epos_response_model.dart';
+import 'package:invan2/changes/models/receipts_get_model.dart';
+import 'package:invan2/changes/services/api/result_http_model.dart';
 import 'package:invan2/changes/services/health/backend_health.dart';
 import 'package:invan2/changes/services/local_selling_service.dart';
 import 'package:invan2/changes/services/receipt/refund_upload_queue.dart';
+import 'package:invan2/changes/services/search_receipt_sevice.dart';
 import 'package:invan2/features/checks/return_page/right/return_dialog/return_dialog.dart';
 import 'package:invan2/features/features.dart';
+import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
 import 'package:invan2/utils/util_functions.dart';
 import 'package:invan2/utils/utils.dart';
 
@@ -31,7 +36,32 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
 
   final ReturnBlocDeps _deps;
 
-  _return(ReturnReturnEvent event, Emitter<ReturnState> emit) async {
+  /// Vozvrat ketayotgan paytda ikkinchi hodisa (ikki marta bosish, eskirgan
+  /// sahifa) qabul qilinmaydi — aks holda ikkita fiskal vozvrat chiqardi.
+  bool _running = false;
+
+  /// Kassir "Internet tekshirilmoqda" paytida "Bekor qilish" bosdi.
+  bool _cancelRequested = false;
+
+  /// "Bekor qilish": fiskal chek hali boshlanmagan bo'lsa vozvrat to'xtaydi.
+  /// Ilgari oyna yopilar, vozvrat esa orqa fonda davom etardi — kassir bekor
+  /// qildim deb chekka qayta kirib ikkinchi vozvrat qilardi.
+  void cancelBeforeStart() => _cancelRequested = true;
+
+  Future<void> _return(
+      ReturnReturnEvent event, Emitter<ReturnState> emit) async {
+    if (_running) return;
+    _running = true;
+    _cancelRequested = false;
+    try {
+      await _doReturn(event, emit);
+    } finally {
+      _running = false;
+    }
+  }
+
+  Future<void> _doReturn(
+      ReturnReturnEvent event, Emitter<ReturnState> emit) async {
     Log.d(event, name: 'return_bloc');
 
     final bool ofd = _deps.withOfd();
@@ -142,12 +172,25 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
       await Future.delayed(const Duration(milliseconds: 500));
     }
 
+    if (_cancelRequested) {
+      // Hali hech narsa (na fiskal, na lokal, na server) o'zgarmagan.
+      emit(ReturnInitial());
+      return;
+    }
+
     if (!internet) {
       emit(ReturnNoInternetState());
       return;
     }
 
     emit(ReturnLoadingState(message: ReturnMessage.returnig));
+
+    // Fiskaldan OLDIN: sahifa eskirmaganmi va serverda qoldiq yetarlimi.
+    final String? blocked = await _preflight(event, serverUp: serverUp);
+    if (blocked != null) {
+      emit(ReturnBlockedState(message: blocked));
+      return;
+    }
 
     // Yangi check raqami generate qilib APIga ham, local DBga ham bir xil
     // yuboramiz. Raqam lokal hisoblagichdan olinadi — serverga bog'liq emas.
@@ -201,6 +244,46 @@ class ReturnBloc extends Bloc<ReturnEvent, ReturnState> {
     // avtomatik yuboriladi.
 
     emit(ReturnSuccedState(warning: warning));
+  }
+
+  /// Vozvratni boshlash mumkinmi. `null` — mumkin; aks holda kassirga
+  /// ko'rsatiladigan sabab. Bu nuqtada hali hech narsa o'zgarmagan.
+  ///
+  /// 1. Sahifa ochilgandan keyin shu chek bo'yicha lokal vozvrat saqlangan —
+  ///    sahifadagi qoldiq eskirgan (ustma-ust ochilgan ikkinchi sahifa).
+  /// 2. Server tirik bo'lsa chek qayta so'raladi: so'ralgan miqdor server
+  ///    qoldig'idan (minus serverga yetmagan lokal vozvratlar) oshmasligi
+  ///    kerak — boshqa kassa yoki adminkada qaytarilgan holat.
+  ///
+  /// Server javob bermasa tekshiruv o'tkazib yuboriladi: oflayn vozvrat
+  /// (`RefundUploadQueue`) ishlashda davom etadi.
+  Future<String?> _preflight(
+    ReturnReturnEvent event, {
+    required bool serverUp,
+  }) async {
+    final String original = event.receiptModel4.returnForCheck;
+    final List<ReceiptModel4> localRefunds =
+        original.isEmpty ? const [] : _deps.localRefundsOf(original);
+
+    if (RefundPreflight.isPageStale(
+      pageOpenedAt: event.pageOpenedAt,
+      localRefunds: localRefunds,
+    )) {
+      return event.loc.vozvrat_sahifa_eskirgan;
+    }
+
+    final String orderId = event.receiptModel4.orderId;
+    if (!serverUp || orderId.isEmpty) return null;
+    final Map<String, double>? remaining = await _deps.serverRemaining(orderId);
+    if (remaining == null) return null;
+
+    final ReceiptModelSoldItem4? over = RefundPreflight.firstOverdrawn(
+      requested: event.rightList,
+      serverRemaining: remaining,
+      localRefunds: localRefunds,
+    );
+    if (over == null) return null;
+    return event.loc.vozvrat_qoldiqdan_kop(over.productName);
   }
 
   /// Fiskal (OFD) vozvrat. Muvaffaqiyatda modelga vozvratning o'z
@@ -301,6 +384,13 @@ class ReturnBlocDeps {
   /// Serverga yuborish (`RefundUploadQueue.uploadOne`).
   final Future<RefundUploadResult> Function(ReceiptModel4 refund) uploadToServer;
 
+  /// Shu sotuv cheki (`externalId`) bo'yicha ObjectBox'dagi vozvratlar.
+  final List<ReceiptModel4> Function(String originalExternalId) localRefundsOf;
+
+  /// Serverdagi qoldiq: `order item id → dona`. `null` — server javob
+  /// bermadi yoki chek topilmadi (tekshiruv o'tkazib yuboriladi).
+  final Future<Map<String, double>?> Function(String orderId) serverRemaining;
+
   const ReturnBlocDeps({
     required this.hasInternet,
     required this.isServerUp,
@@ -309,7 +399,47 @@ class ReturnBlocDeps {
     required this.fiscalSell,
     required this.saveLocal,
     required this.uploadToServer,
+    this.localRefundsOf = _noLocalRefunds,
+    this.serverRemaining = _unknownRemaining,
   });
+
+  static List<ReceiptModel4> _noLocalRefunds(String _) => const [];
+
+  static Future<Map<String, double>?> _unknownRemaining(String _) async => null;
+
+  static List<ReceiptModel4> _localRefundsFromBox(String originalExternalId) {
+    try {
+      return MyObjectbox.saleStore
+          .box<ReceiptModel4>()
+          .getAll()
+          .where((r) => r.isRefund && r.returnForCheck == originalExternalId)
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static Future<Map<String, double>?> _remainingFromServer(
+      String orderId) async {
+    try {
+      final HttpResult res = await SearchReceiptService.getReceiptss(orderId);
+      if (!res.isSuccess) return null;
+      final data = json.decode(utf8.decode(res.reBytes))['data'];
+      if (data is! List) return null;
+      for (final e in data) {
+        final GlobalReceipt receipt = GlobalReceipt.fromJson(e);
+        if (receipt.id != orderId) continue;
+        return {
+          for (final it in receipt.items ?? <ItemsGTR>[])
+            if ((it.id ?? '').isNotEmpty && it.value != null)
+              it.id!: (it.value! - (it.refundAmount ?? 0)).toDouble(),
+        };
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   factory ReturnBlocDeps.production() => ReturnBlocDeps(
         hasInternet: () => InternetConnectionChecker().hasConnection,
@@ -324,5 +454,7 @@ class ReturnBlocDeps {
         ),
         uploadToServer: (refund) =>
             RefundUploadQueue.uploadOne(refund, reason: 'return_bloc'),
+        localRefundsOf: _localRefundsFromBox,
+        serverRemaining: _remainingFromServer,
       );
 }

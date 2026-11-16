@@ -255,7 +255,14 @@ class _CheckViewContentState extends State<CheckViewContent> {
                                   child:
                                       BlocConsumer<ReUpdateBloc, ReUpdateState>(
                                     listener: (context, state) {
-                                      if (state is ReUpdateSuccesState) {
+                                      // `ReUpdateBloc` butun ilova uchun bitta:
+                                      // ustma-ust ochilgan ikkinchi Cheklar
+                                      // sahifasi ham shu holatni eshitadi.
+                                      // Faqat ekrandagi (ustki) sahifa
+                                      // vozvrat sahifasini ochadi.
+                                      if (state is ReUpdateSuccesState &&
+                                          (ModalRoute.of(context)?.isCurrent ??
+                                              true)) {
                                         AppNavigation.push(
                                           ReturnPage(
                                             receiptModel4: state.receiptModel4,

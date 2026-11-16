@@ -17,7 +17,26 @@ class ReUpdateBloc extends Bloc<ReUpdateEvent, ReUpdateState> {
     on<GetReUpdateEvent>(reUpdate);
   }
 
+  /// So'rov ketayotgan paytda ikkinchi bosish qabul qilinmaydi. Ilgari
+  /// "Qaytarish" ikki marta bosilsa ikkita so'rov ketib, ikkita vozvrat
+  /// sahifasi ustma-ust ochilardi: birinchisida vozvrat qilingach tagidan
+  /// eski (to'la) ro'yxatli ikkinchisi chiqar va kassir yana qaytarardi.
+  bool _busy = false;
+
   Future<void> reUpdate(
+    GetReUpdateEvent event,
+    Emitter<ReUpdateState> emit,
+  ) async {
+    if (_busy) return;
+    _busy = true;
+    try {
+      await _reUpdate(event, emit);
+    } finally {
+      _busy = false;
+    }
+  }
+
+  Future<void> _reUpdate(
     GetReUpdateEvent event,
     Emitter<ReUpdateState> emit,
   ) async {
@@ -50,6 +69,7 @@ class ReUpdateBloc extends Bloc<ReUpdateEvent, ReUpdateState> {
             receiptModel4: rMod,
             refundedMarks: refundedMarks,
           ));
+          return;
         }
       }
       emit(ReUpdateFailureState());

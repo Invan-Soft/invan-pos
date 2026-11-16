@@ -893,4 +893,13 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get vozvrat_km_boshqa_mahsulot =>
       'Эта маркировка другого товара — выберите строку этого товара';
+
+  @override
+  String get vozvrat_sahifa_eskirgan =>
+      'По этому чеку возврат уже выполнен — список устарел. Возврат не выполнен. Откройте чек заново и проверьте.';
+
+  @override
+  String vozvrat_qoldiqdan_kop(String name) {
+    return '«$name» уже возвращён (другая касса или админка). Возврат не выполнен. Откройте чек заново и проверьте.';
+  }
 }

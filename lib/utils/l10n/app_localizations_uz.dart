@@ -906,4 +906,13 @@ class AppLocalizationsUz extends AppLocalizations {
   @override
   String get vozvrat_km_boshqa_mahsulot =>
       'Bu markirovka boshqa mahsulotniki — o\'sha mahsulot qatorini tanlang';
+
+  @override
+  String get vozvrat_sahifa_eskirgan =>
+      'Bu chek bo\'yicha qaytarish allaqachon bajarilgan — ro\'yxat eskirgan. Qaytarish bajarilmadi. Chekni qayta ochib tekshiring.';
+
+  @override
+  String vozvrat_qoldiqdan_kop(String name) {
+    return '«$name» allaqachon qaytarilgan (boshqa kassa yoki adminka). Qaytarish bajarilmadi. Chekni qayta ochib tekshiring.';
+  }
 }
