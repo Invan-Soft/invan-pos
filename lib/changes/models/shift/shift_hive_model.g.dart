@@ -191,13 +191,14 @@ class SalesSummaryHiveAdapter extends TypeAdapter<SalesSummaryHive> {
       uzCard: fields[16] as num?,
       humoCard: fields[17] as num?,
       other: fields[18] as num?,
+      yagonaQr: fields[20] as num?,
     );
   }
 
   @override
   void write(BinaryWriter writer, SalesSummaryHive obj) {
     writer
-      ..writeByte(19)
+      ..writeByte(20)
       ..writeByte(0)
       ..write(obj.grossSales)
       ..writeByte(1)
@@ -235,7 +236,9 @@ class SalesSummaryHiveAdapter extends TypeAdapter<SalesSummaryHive> {
       ..writeByte(17)
       ..write(obj.humoCard)
       ..writeByte(18)
-      ..write(obj.other);
+      ..write(obj.other)
+      ..writeByte(20)
+      ..write(obj.yagonaQr);
   }
 
   @override

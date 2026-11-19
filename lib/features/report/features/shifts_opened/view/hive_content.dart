@@ -137,6 +137,11 @@ class ShiftContennt extends StatelessWidget {
                         (shift.salesSummary!.uzCard ?? 0) +
                             (shift.salesSummary!.humoCard ?? 0),
                         context),
+                    // YagonaQr — alohida qator (Plastik ichida emas).
+                    (shift.salesSummary?.yagonaQr ?? 0) > 0
+                        ? _textInRow('Yagona QR',
+                            (shift.salesSummary?.yagonaQr ?? 0), context)
+                        : SizedBox.shrink(),
                     _textInRow(loc.keshbek_tolov,
                         shift.salesSummary!.cashbackOut!, context),
                     _textInRow(
