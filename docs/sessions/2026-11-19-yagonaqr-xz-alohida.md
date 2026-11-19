@@ -37,10 +37,11 @@ Namuna: 24-task Kaftpay (`b154fc1`, `feat/kaftpay-xz-alohida`, merge kutilmoqda)
   (ziddiyat: +130 da `case 'kaftpay'` yo'q — qo'lda; kaftpay testi +130 da yo'q — olib tashlandi)
 - [x] Mac DEV jonli sinov +130 kodi bilan (worktree `.claude/worktrees/yqr-130`): sotuvlar, aralash, vozvrat, X, Z — "Test" bo'limida
 - [x] port-changelog 26-task bo'limi + jadval + xronologiya
+- [x] Shorebird **Patch 7** → 1.1.2+130 stable (2026-11-19, run 44484471027, id 821393) — foydalanuvchi: "patchni chiqar prodda"
+  → `patch/130-yagonaqr-xz` (`6263d54`) GitHub + GitLab'ga push qilindi
 
 ## Keyingi qadamlar (prioritet bo'yicha)
-- [ ] Foydalanuvchi qarori: GitLab/GitHub push (`feat/yagonaqr-xz-alohida`, `patch/130-yagonaqr-xz`), MR → `ayyubxon`
-- [ ] Shorebird patch +130 (`patch/130-yagonaqr-xz` dan, Patch 7) — foydalanuvchi aytganda
+- [ ] `feat/yagonaqr-xz-alohida` push + MR → `ayyubxon` — foydalanuvchi aytganda
 - [ ] Windows / do'kon sinovi (X/Z chop etilgan chekda "Yagona QR" qatori)
 - [ ] `feat/kaftpay-xz-alohida` merge bo'lganda: Kaftpay 19 + YagonaQr 20 (`writeByte(21)`), switch'da ikkala case
 

@@ -44,7 +44,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 19 | 2026-10-27 | Vozvratda markirovka: KM (dona + blok) serverdan; kassir qaytayotgan mahsulotni skanerlaydi, faqat shu chekdagi qaytarilmagan KM o'tadi (`refunded_*`); fiskalga sotuvdagidek har KM alohida pozitsiya; `refund_order_items` ga KM; rus klaviatura tartibi; boshqa kassa blok cheki token → dona | 1.1.2+130 (Shorebird Patch 3, stable) | Patch chiqdi (2026-10-28); Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `73ecadc` (merge `815d9d8`) |
 | 21 | 2026-11-03 | OPD: qty kamaytirish va narx tahriri ruxsatsiz o'tardi (tez Saqlash, Backspace, 0, klaviatura `-`); ruxsat Saqlashda tekshiriladi, taymer savat qatorini o'zgartirmaydi; statik `4615@` kodi olib tashlandi; og'irlik kiritish `deleted_items` ga yozilmaydi | relizda emas | Commit bor; Windows sinovi kutilmoqda | `75fbf20`, `fd369e9` |
 | 22 | 2026-11-16 | Bitta chek ikki marta vozvrat qilinardi (server `refund amount is greater than expected amount`): "Qaytarish" ikki bosilsa ikki vozvrat sahifasi; endi bitta sahifa, fiskaldan oldin lokal + server qoldiq tekshiruvi (`RefundPreflight`), "Bekor qilish" vozvratni to'xtatadi | 1.1.2+130 (Shorebird Patch 4, stable) | Patch chiqdi (2026-11-16); Mac DEV sinovi o'tdi, Windows / do'kon sinovi kutilmoqda | `ef631a8` |
-| 26 | 2026-11-19 | YagonaQr X/Z hisobotda ALOHIDA "Yagona QR" qatori — "Plastik" (Uzcard + HUMO) ichida emas (`SalesSummaryHive.yagonaQr`, HiveField 20); nom variantlari bitta qatorga (`YagonaQr.isName`); fiskal/server/vozvrat o'zgarmagan | relizda emas (+130 patch manbasi tayyor: `patch/130-yagonaqr-xz` `6263d54`) | Commit bor; testlar o'tdi; Mac DEV kassasida +130 kodi bilan jonli sinaldi (sotuv, aralash, vozvrat, X, Z/smena yopish); Windows / do'kon sinovi kutilmoqda | `c609f7e` |
+| 26 | 2026-11-19 | YagonaQr X/Z hisobotda ALOHIDA "Yagona QR" qatori — "Plastik" (Uzcard + HUMO) ichida emas (`SalesSummaryHive.yagonaQr`, HiveField 20); nom variantlari bitta qatorga (`YagonaQr.isName`); fiskal/server/vozvrat o'zgarmagan | 1.1.2+130 (Shorebird Patch 7, stable — `6263d54`) | Patch chiqdi (2026-11-19); Mac DEV kassasida +130 kodi bilan jonli sinaldi (sotuv, aralash, vozvrat, X, Z/smena yopish); Windows / do'kon sinovi kutilmoqda; `ayyubxon` ga merge kutilmoqda | `c609f7e` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -108,7 +108,7 @@ d5b6432 2026-10-20 fix(terminal): karta raqami yangi terminal formatlarida ham o
 75fbf20 2026-11-03 fix(opd): qty kamaytirish va narx tahriri ruxsatsiz o'tmaydi            ← 21-task
 fd369e9 2026-11-03 fix(pin): statik 4615 kodi; og'irlik kiritish o'chirilgan deb yozilmaydi ← 21-task
 ef631a8 2026-11-16 fix(vozvrat): bitta chek ikki marta vozvrat qilinmaydi                 ← 22-task (Patch 4: cherry-pick 07139fc)
-c609f7e 2026-11-19 feat(yagonaqr): X/Z hisobotda Yagona QR alohida qator                 ← 26-task (+130 manbasi: cherry-pick 6263d54)
+c609f7e 2026-11-19 feat(yagonaqr): X/Z hisobotda Yagona QR alohida qator                 ← 26-task (Patch 7: cherry-pick 6263d54)
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -33364,10 +33364,10 @@ void main() {
 
 ---
 
-# 26-TASK — YagonaQr X/Z hisobotda alohida qator, "Plastik" ichida emas (relizda emas)
+# 26-TASK — YagonaQr X/Z hisobotda alohida qator, "Plastik" ichida emas (1.1.2+130 ga Shorebird Patch 7)
 
 > **Commit:** `c609f7e` (2026-11-19), branch `feat/yagonaqr-xz-alohida` (asos `ayyubxon` `aae7500`).
-> **+130 patch manbasi:** `patch/130-yagonaqr-xz` = Patch 6 manbasi `aa674a8` + cherry-pick `6263d54` (Kaftpay `case` i yo'q — ziddiyat qo'lda hal qilingan, `test/kaftpay_shift_report_test.dart` +130 da yo'q). Shorebird patch chiqarilmagan.
+> **+130 patch manbasi:** `patch/130-yagonaqr-xz` = Patch 6 manbasi `aa674a8` + cherry-pick `6263d54` (Kaftpay `case` i yo'q — ziddiyat qo'lda hal qilingan, `test/kaftpay_shift_report_test.dart` +130 da yo'q). Shorebird **Patch 7** → 1.1.2+130 stable (2026-11-19, GitHub Actions run 44484471027, patch id 821393).
 > **Sessiya hujjati:** docs/sessions/2026-11-19-yagonaqr-xz-alohida.md
 > **Holat 2026-11-19:** testlar o'tdi (`ayyubxon` asosida 2595, +130 manbasida 2304; yangi smena testi 13/13); Mac DEV kassasida +130 kodi bilan jonli sinaldi; Windows / do'konda sinalmagan.
 
