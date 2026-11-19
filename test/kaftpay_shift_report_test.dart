@@ -1,5 +1,6 @@
 // Kaftpay — smena (X/Z) hisoboti: summa karta ("Plastik" = uzCard +
-// humoCard) ichida, YagonaQr kabi (2026-11-02; oldin "Other" ga tushardi).
+// humoCard) ichida (2026-11-02; oldin "Other" ga tushardi). YagonaQr esa
+// 2026-11-19 dan alohida qator (test/yagonaqr_shift_report_test.dart).
 //
 // `ShiftSingleton4.getCurrentHiveShift` smenani ObjectBox'dagi cheklardan
 // qayta hisoblaydi (`case 'kaftpay'` → `uzCardPayment`).
@@ -116,7 +117,8 @@ void main() {
       expect(s.other, 0);
     });
 
-    test('YagonaQr + Kaftpay bitta chekda — ikkalasi Plastik', () {
+    test('YagonaQr + Kaftpay bitta chekda — Kaftpay Plastik, YagonaQr alohida '
+        '(2026-11-19)', () {
       final box = MyObjectbox.saleStore.box<ReceiptModel4>();
       box.removeAll();
       box.put(receiptOf([
@@ -127,8 +129,10 @@ void main() {
       ]));
 
       final s = ShiftSingleton4.getCurrentHiveShift()!.salesSummary!;
-      expect(s.uzCard, 100000);
+      expect(s.uzCard, 60000);
+      expect(s.yagonaQr, 40000);
       expect(s.other, 0);
+      expect(s.grossSales, 100000);
     });
   });
 }

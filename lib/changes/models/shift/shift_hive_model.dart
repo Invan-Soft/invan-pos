@@ -245,6 +245,13 @@ class SalesSummaryHive {
   @HiveField(18)
   num? other;
 
+  /// YagonaQr — X/Z da ALOHIDA qator, "Plastik" ichida emas (2026-11-19).
+  /// Eski smena yozuvlarida yo'q → null.
+  ///
+  /// 20 (19 emas): 19 — `feat/kaftpay-xz-alohida` da `kaftpay` uchun band.
+  @HiveField(20)
+  num? yagonaQr;
+
   SalesSummaryHive({
     this.grossSales,
     this.refunds,
@@ -265,6 +272,7 @@ class SalesSummaryHive {
     this.uzCard,
     this.humoCard,
     this.other,
+    this.yagonaQr,
   });
 
   SalesSummaryHive.fromJson(Map<String, dynamic> json) {
@@ -308,6 +316,7 @@ class SalesSummaryHive {
     data["uzcard"] = uzCard;
     data["humocard"] = humoCard;
     data["other"] = other;
+    data["yagonaqr"] = yagonaQr;
 
     return data;
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:invan2/changes/domain/payment/yagona_qr.dart';
 import 'package:invan2/changes/models/shift/shift_hive_model.dart';
 import 'package:invan2/changes/repository/log_repository.dart';
 import 'package:invan2/changes/services/api/result_http_model.dart';
@@ -507,6 +508,7 @@ class ShiftSingleton4 {
     /// Payment turlari
     double fromCashback = 0, cashPayment = 0, cardPayment = 0, otherPayment = 0;
     double uzCardPayment = 0, humoCardPayment = 0;
+    double yagonaQrPayment = 0;
     double clickPayment = 0, clickQrPayment = 0;
     double uzumPayment = 0, uzumQrPayment = 0;
     double paymePayment = 0, paymeQrPayment = 0;
@@ -518,7 +520,10 @@ class ShiftSingleton4 {
       }
 
       for (var p in e.payment) {
-        final name = p.name.toLowerCase();
+        // YagonaQr nomi har xil yozilgan bo'lishi mumkin ("YAGONAQR",
+        // "Yagona Qr", ...) — hammasi bitta qatorga (`YagonaQr.isName`).
+        final name =
+            YagonaQr.isName(p.name) ? 'yagonaqr' : p.name.toLowerCase();
 
         switch (name) {
           case 'cashback':
@@ -548,9 +553,13 @@ class ShiftSingleton4 {
           case 'humo':
             humoCardPayment += p.value;
             break;
-          case 'uzcard':
-          // YagonaQr — fiskalda karta: hisobotda karta (Plastik) ichida.
+          // YagonaQr — hisobotda ALOHIDA qator (foydalanuvchi, 2026-11-19).
+          // Plastik (Uzcard/HUMO) ga ham, "Other" ga ham qo'shilmaydi.
+          // Fiskalga esa karta bo'lib ketadi (`ReceivedCard`) — o'zgarmagan.
           case 'yagonaqr':
+            yagonaQrPayment += p.value;
+            break;
+          case 'uzcard':
           // Kaftpay — pul mijozning kartasidan: ham Plastik ichida
           // (foydalanuvchi, 2026-11-02; oldin "Other" ga tushardi).
           case 'kaftpay':
@@ -592,11 +601,13 @@ class ShiftSingleton4 {
       ..paymeQr = paymeQrPayment
       ..uzum = uzumPayment
       ..uzumQr = uzumQrPayment
-      ..other = otherPayment;
+      ..other = otherPayment
+      ..yagonaQr = yagonaQrPayment;
 
     final grossSales = discountAmount +
         fromCashback +
         cardPayment +
+        yagonaQrPayment +
         clickPayment +
         clickQrPayment +
         paymeQrPayment +

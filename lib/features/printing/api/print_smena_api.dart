@@ -270,6 +270,17 @@ class PrintSmenaApi {
           MoneyFormatter.formatter.format(shift.salesSummary!.humoCard),
           style,
         ),
+        // YagonaQr — alohida qator (Plastik ichida emas). Faqat shu smenada
+        // YagonaQr to'lovi bo'lsa chiqadi: ishlatmaydigan do'kon chekida
+        // ortiqcha qator bo'lmasin.
+        if ((shift.salesSummary!.yagonaQr ?? 0) > 0) ...[
+          _buildDashes(style),
+          _buildCustomRow(
+            'Yagona QR',
+            MoneyFormatter.formatter.format(shift.salesSummary!.yagonaQr),
+            style,
+          ),
+        ],
         _buildDashes(style),
         _buildCustomRow(
           'Click',
