@@ -44,6 +44,7 @@ Undan OLDINGI tasklar (masalan BackendHealth oflayn rejim 2026-09-02, OrderingPr
 | 19 | 2026-10-27 | Vozvratda markirovka: KM (dona + blok) serverdan; kassir qaytayotgan mahsulotni skanerlaydi, faqat shu chekdagi qaytarilmagan KM o'tadi (`refunded_*`); fiskalga sotuvdagidek har KM alohida pozitsiya; `refund_order_items` ga KM; rus klaviatura tartibi; boshqa kassa blok cheki token → dona | 1.1.2+130 (Shorebird Patch 3, stable) | Patch chiqdi (2026-10-28); Mac (DEV) sinalgan, do'kon sinovi kutilmoqda | `73ecadc` (merge `815d9d8`) |
 | 21 | 2026-11-03 | OPD: qty kamaytirish va narx tahriri ruxsatsiz o'tardi (tez Saqlash, Backspace, 0, klaviatura `-`); ruxsat Saqlashda tekshiriladi, taymer savat qatorini o'zgartirmaydi; statik `4615@` kodi olib tashlandi; og'irlik kiritish `deleted_items` ga yozilmaydi | relizda emas | Commit bor; Windows sinovi kutilmoqda | `75fbf20`, `fd369e9` |
 | 22 | 2026-11-16 | Bitta chek ikki marta vozvrat qilinardi (server `refund amount is greater than expected amount`): "Qaytarish" ikki bosilsa ikki vozvrat sahifasi; endi bitta sahifa, fiskaldan oldin lokal + server qoldiq tekshiruvi (`RefundPreflight`), "Bekor qilish" vozvratni to'xtatadi | 1.1.2+130 (Shorebird Patch 4, stable) | Patch chiqdi (2026-11-16); Mac DEV sinovi o'tdi, Windows / do'kon sinovi kutilmoqda | `ef631a8` |
+| 26 | 2026-11-19 | YagonaQr X/Z hisobotda ALOHIDA "Yagona QR" qatori — "Plastik" (Uzcard + HUMO) ichida emas (`SalesSummaryHive.yagonaQr`, HiveField 20); nom variantlari bitta qatorga (`YagonaQr.isName`); fiskal/server/vozvrat o'zgarmagan | 1.1.2+130 (Shorebird Patch 7, stable — `6263d54`) | Patch chiqdi (2026-11-19); Mac DEV kassasida +130 kodi bilan jonli sinaldi (sotuv, aralash, vozvrat, X, Z/smena yopish); Windows / do'kon sinovi kutilmoqda; `ayyubxon` ga merge kutilmoqda | `c609f7e` |
 
 Kod o'zgarishisiz hujjatlar (oxirgi bo'limda): `docs/fiskal-tolov-turlari-va-qqs.md` (tahlil, 5-taskka olib keldi), `docs/invan1-mac-github-release-port.md` (InVan 1 uchun Mac + GitHub Actions reliz tartibi), `docs/fiscal-sale-integration.md` (fiskal spec, VAT formulasi yangilandi), `docs/sessions/2026-09-24-ws-notification-gap-audit.md` (6-taskning to'liq tahlili), `docs/shorebird-qoidalari.md` (8-task: patch chiqarish qoidalari, rollback), `docs/fiskal-tolov-turlari-qisqa.md` (9-task: to'lov turlari → fiskal maydon, qisqa jadval).
 
@@ -107,6 +108,7 @@ d5b6432 2026-10-20 fix(terminal): karta raqami yangi terminal formatlarida ham o
 75fbf20 2026-11-03 fix(opd): qty kamaytirish va narx tahriri ruxsatsiz o'tmaydi            ← 21-task
 fd369e9 2026-11-03 fix(pin): statik 4615 kodi; og'irlik kiritish o'chirilgan deb yozilmaydi ← 21-task
 ef631a8 2026-11-16 fix(vozvrat): bitta chek ikki marta vozvrat qilinmaydi                 ← 22-task (Patch 4: cherry-pick 07139fc)
+c609f7e 2026-11-19 feat(yagonaqr): X/Z hisobotda Yagona QR alohida qator                 ← 26-task (Patch 7: cherry-pick 6263d54)
 ```
 
 InVan 2 repo'si qo'lda bo'lsa diffni bevosita olish mumkin: `git show <commit> -- lib/ test/` yoki 6-task uchun `git diff 3a3afdf..7e2d6e9 -- <fayl>`. Bo'lmasa — quyidagi bo'limlar yetarli.
@@ -33359,6 +33361,659 @@ void main() {
 - **Odoo forkiga: kerak.** UI himoyalari va `RefundPreflight` backend'ga bog'liq emas. `ReturnBlocDeps._remainingFromServer` InVan API'si (`api/v1/order?search=`) — Odoo'da buyurtma qatorlarining qaytarilgan miqdorini beradigan so'rovga almashtiriladi yoki `null` (faqat lokal tekshiruv).
 - Vozvrat miqdori/summasidagi boshqa tirqichlar tuzatilmagan (sessiya hujjati, "Ochiq savollar"): kg da yaxlitlanmagan double, bir xil `productId` ikki qatorda, chek darajasidagi chegirma nisbati, rad etilgan vozvratni qo'lda qayta yuborishda 409.
 - Rad etilgan vozvrat "Yangilash" bosilganda har safar qayta yuboriladi va yana 400 + Telegram log beradi.
+
+---
+
+# 26-TASK — YagonaQr X/Z hisobotda alohida qator, "Plastik" ichida emas (1.1.2+130 ga Shorebird Patch 7)
+
+> **Commit:** `c609f7e` (2026-11-19), branch `feat/yagonaqr-xz-alohida` (asos `ayyubxon` `aae7500`).
+> **+130 patch manbasi:** `patch/130-yagonaqr-xz` = Patch 6 manbasi `aa674a8` + cherry-pick `6263d54` (Kaftpay `case` i yo'q — ziddiyat qo'lda hal qilingan, `test/kaftpay_shift_report_test.dart` +130 da yo'q). Shorebird **Patch 7** → 1.1.2+130 stable (2026-11-19, GitHub Actions run 44484471027, patch id 821393).
+> **Sessiya hujjati:** docs/sessions/2026-11-19-yagonaqr-xz-alohida.md
+> **Holat 2026-11-19:** testlar o'tdi (`ayyubxon` asosida 2595, +130 manbasida 2304; yangi smena testi 13/13); Mac DEV kassasida +130 kodi bilan jonli sinaldi; Windows / do'konda sinalmagan.
+
+## 1. Nima va nima uchun
+YagonaQr to'lovi (15-task) smena hisobida `uzCard` ga qo'shilardi — X/Z hisobotda "Plastik" ichida ko'rinardi. Foydalanuvchi
+talabi (2026-11-19): "yagona qrdan to'lansa alohida Yagona Qr ga tushsin, plastik kartaga aralashtirmaylik". Endi alohida summa
+`SalesSummaryHive.yagonaQr` va X/Z ekrani hamda chop etilgan X/Z chekida (57 va 80 mm) "Yagona QR" qatori. Fiskal (karta,
+`ReceivedCard`), serverga sotuv (`payment_type_id`) va vozvrat (hammasi naqd) o'zgarmagan.
+
+## 2. Qanday ishlaydi
+- `ShiftSingleton4.getCurrentHiveShift` smenani ObjectBox cheklaridan qayta hisoblaydi. To'lov nomi `YagonaQr.isName` bo'lsa
+  (`YAGONAQR`, `Yagona Qr`, `Yagona QR`, `yagona_qr` ...) → `yagonaQrPayment`; aks holda eski `switch`. Avval `case 'yagonaqr'`
+  `uzCardPayment` ga qo'shardi, bo'sh joyli nom esa `default` → `other` ga tushardi.
+- `yagonaQrPayment` `card` (`cardPayment` = uzCard + humo + other) ga kirmaydi, lekin `grossSales` ga qo'shiladi — jami sotuv o'zgarmaydi.
+- Ekran (`ShiftContennt`): "Plastik" = uzCard + humoCard (o'zgarmagan), undan keyin `yagonaQr > 0` bo'lsa "Yagona QR" qatori.
+- Chek (`PrintSmenaApi._buildSalesSummary`, 57/80 umumiy): "HUMO" qatoridan keyin `yagonaQr > 0` bo'lsa chiziq + "Yagona QR".
+- Hive: `SalesSummaryHive` ga HiveField **20** (`yagonaQr`). 19 ATAYLAB bo'sh: `feat/kaftpay-xz-alohida` (24-task, merge
+  qilinmagan) `kaftpay` ni 19 da saqlaydi. Eski yozuvlar (19 maydon) o'qiladi — `yagonaQr` null; ekran/chek `?? 0` bilan.
+- Smena yopilishi serverga summa yubormaydi (`ShiftApi4.closeShift` faqat vaqt/kassir/kassa) — backend o'zgarishi kerak emas.
+
+## 3. O'zgarishlar ro'yxati
+| Fayl | Tur | Nima |
+|---|---|---|
+| `lib/changes/models/shift/shift_hive_model.dart` | o'zgargan | `@HiveField(20) num? yagonaQr`, konstruktor, `toJson` `"yagonaqr"` |
+| `lib/changes/models/shift/shift_hive_model.g.dart` | o'zgargan | adapter: `fields[20]` o'qish, 20 ta maydon yozish |
+| `lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart` | o'zgargan | `YagonaQr.isName` → `yagonaQrPayment`; `..yagonaQr`; `grossSales` ga qo'shiladi |
+| `lib/features/report/features/shifts_opened/view/hive_content.dart` | o'zgargan | "Yagona QR" qatori (summa > 0) |
+| `lib/features/printing/api/print_smena_api.dart` | o'zgargan | "Yagona QR" qatori (summa > 0) |
+| `test/yagonaqr_shift_report_test.dart` | o'zgargan (qayta yozilgan) | 13 test: aralash, nom variantlari, Click QR/Payme/cashback/qarz bilan, vozvrat, ekran, PDF X/Z 57/80, adapter (eski 19 maydon, 19-maydonli yozuv) |
+| `test/kaftpay_shift_report_test.dart` | o'zgargan | YagonaQr + Kaftpay: Kaftpay Plastik (ayyubxon'da), YagonaQr alohida |
+
+## 4. Bog'liqliklar
+- `YagonaQr.isName` (`lib/changes/domain/payment/yagona_qr.dart`, 15-task). InVan 1 da bo'lmasa — 15-task bo'limidagi to'liq faylni
+  oling yoki minimal variant: `name.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '').contains('yagonaqr')`.
+- Hive generator ishlatilmagan — `.g.dart` qo'lda (diffdagi kabi). `build_runner` bilan qayta yaratilsa natija bir xil bo'lishi kerak.
+
+## 5. Qo'llash tartibi
+1. Model + adapter (6-bo'lim, `shift_hive_model*.dart`). HiveField raqami boshqa nusxada band bo'lsa — bo'sh raqam oling, lekin
+   InVan 2 bilan bir xil raqam bo'lgani yaxshi (20).
+2. `shift_singleton_4.dart` — hisob.
+3. `hive_content.dart`, `print_smena_api.dart` — qatorlar.
+4. Testlar (`<details>`). ObjectBox kutubxonasi kerak (fayl boshidagi izoh).
+5. Agar 24-task (Kaftpay alohida) ham olinsa: Kaftpay 19, YagonaQr 20 — ikkalasi adapterda bo'ladi (21 maydon yoziladi).
+
+## 6. Kod
+
+```diff
+diff --git a/lib/changes/models/shift/shift_hive_model.dart b/lib/changes/models/shift/shift_hive_model.dart
+index 9cd87c9..d0fc098 100644
+--- a/lib/changes/models/shift/shift_hive_model.dart
++++ b/lib/changes/models/shift/shift_hive_model.dart
+@@ -245,6 +245,13 @@ class SalesSummaryHive {
+   @HiveField(18)
+   num? other;
+ 
++  /// YagonaQr — X/Z da ALOHIDA qator, "Plastik" ichida emas (2026-11-19).
++  /// Eski smena yozuvlarida yo'q → null.
++  ///
++  /// 20 (19 emas): 19 — `feat/kaftpay-xz-alohida` da `kaftpay` uchun band.
++  @HiveField(20)
++  num? yagonaQr;
++
+   SalesSummaryHive({
+     this.grossSales,
+     this.refunds,
+@@ -265,6 +272,7 @@ class SalesSummaryHive {
+     this.uzCard,
+     this.humoCard,
+     this.other,
++    this.yagonaQr,
+   });
+ 
+   SalesSummaryHive.fromJson(Map<String, dynamic> json) {
+@@ -308,6 +316,7 @@ class SalesSummaryHive {
+     data["uzcard"] = uzCard;
+     data["humocard"] = humoCard;
+     data["other"] = other;
++    data["yagonaqr"] = yagonaQr;
+ 
+     return data;
+   }
+diff --git a/lib/changes/models/shift/shift_hive_model.g.dart b/lib/changes/models/shift/shift_hive_model.g.dart
+index a65c29a..f1bcfbb 100644
+--- a/lib/changes/models/shift/shift_hive_model.g.dart
++++ b/lib/changes/models/shift/shift_hive_model.g.dart
+@@ -191,13 +191,14 @@ class SalesSummaryHiveAdapter extends TypeAdapter<SalesSummaryHive> {
+       uzCard: fields[16] as num?,
+       humoCard: fields[17] as num?,
+       other: fields[18] as num?,
++      yagonaQr: fields[20] as num?,
+     );
+   }
+ 
+   @override
+   void write(BinaryWriter writer, SalesSummaryHive obj) {
+     writer
+-      ..writeByte(19)
++      ..writeByte(20)
+       ..writeByte(0)
+       ..write(obj.grossSales)
+       ..writeByte(1)
+@@ -235,7 +236,9 @@ class SalesSummaryHiveAdapter extends TypeAdapter<SalesSummaryHive> {
+       ..writeByte(17)
+       ..write(obj.humoCard)
+       ..writeByte(18)
+-      ..write(obj.other);
++      ..write(obj.other)
++      ..writeByte(20)
++      ..write(obj.yagonaQr);
+   }
+ 
+   @override
+diff --git a/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart b/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart
+index efcd793..997f3dc 100644
+--- a/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart
++++ b/lib/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart
+@@ -3,6 +3,7 @@ import 'dart:async';
+ import 'package:flutter/material.dart';
+ import 'package:hive_flutter/hive_flutter.dart';
+ import 'package:intl/intl.dart';
++import 'package:invan2/changes/domain/payment/yagona_qr.dart';
+ import 'package:invan2/changes/models/shift/shift_hive_model.dart';
+ import 'package:invan2/changes/repository/log_repository.dart';
+ import 'package:invan2/changes/services/api/result_http_model.dart';
+@@ -507,6 +508,7 @@ class ShiftSingleton4 {
+     /// Payment turlari
+     double fromCashback = 0, cashPayment = 0, cardPayment = 0, otherPayment = 0;
+     double uzCardPayment = 0, humoCardPayment = 0;
++    double yagonaQrPayment = 0;
+     double clickPayment = 0, clickQrPayment = 0;
+     double uzumPayment = 0, uzumQrPayment = 0;
+     double paymePayment = 0, paymeQrPayment = 0;
+@@ -518,7 +520,10 @@ class ShiftSingleton4 {
+       }
+ 
+       for (var p in e.payment) {
+-        final name = p.name.toLowerCase();
++        // YagonaQr nomi har xil yozilgan bo'lishi mumkin ("YAGONAQR",
++        // "Yagona Qr", ...) — hammasi bitta qatorga (`YagonaQr.isName`).
++        final name =
++            YagonaQr.isName(p.name) ? 'yagonaqr' : p.name.toLowerCase();
+ 
+         switch (name) {
+           case 'cashback':
+@@ -548,9 +553,13 @@ class ShiftSingleton4 {
+           case 'humo':
+             humoCardPayment += p.value;
+             break;
+-          case 'uzcard':
+-          // YagonaQr — fiskalda karta: hisobotda karta (Plastik) ichida.
++          // YagonaQr — hisobotda ALOHIDA qator (foydalanuvchi, 2026-11-19).
++          // Plastik (Uzcard/HUMO) ga ham, "Other" ga ham qo'shilmaydi.
++          // Fiskalga esa karta bo'lib ketadi (`ReceivedCard`) — o'zgarmagan.
+           case 'yagonaqr':
++            yagonaQrPayment += p.value;
++            break;
++          case 'uzcard':
+           // Kaftpay — pul mijozning kartasidan: ham Plastik ichida
+           // (foydalanuvchi, 2026-11-02; oldin "Other" ga tushardi).
+           case 'kaftpay':
+@@ -592,11 +601,13 @@ class ShiftSingleton4 {
+       ..paymeQr = paymeQrPayment
+       ..uzum = uzumPayment
+       ..uzumQr = uzumQrPayment
+-      ..other = otherPayment;
++      ..other = otherPayment
++      ..yagonaQr = yagonaQrPayment;
+ 
+     final grossSales = discountAmount +
+         fromCashback +
+         cardPayment +
++        yagonaQrPayment +
+         clickPayment +
+         clickQrPayment +
+         paymeQrPayment +
+diff --git a/lib/features/printing/api/print_smena_api.dart b/lib/features/printing/api/print_smena_api.dart
+index 6c17f8e..3984da0 100644
+--- a/lib/features/printing/api/print_smena_api.dart
++++ b/lib/features/printing/api/print_smena_api.dart
+@@ -270,6 +270,17 @@ class PrintSmenaApi {
+           MoneyFormatter.formatter.format(shift.salesSummary!.humoCard),
+           style,
+         ),
++        // YagonaQr — alohida qator (Plastik ichida emas). Faqat shu smenada
++        // YagonaQr to'lovi bo'lsa chiqadi: ishlatmaydigan do'kon chekida
++        // ortiqcha qator bo'lmasin.
++        if ((shift.salesSummary!.yagonaQr ?? 0) > 0) ...[
++          _buildDashes(style),
++          _buildCustomRow(
++            'Yagona QR',
++            MoneyFormatter.formatter.format(shift.salesSummary!.yagonaQr),
++            style,
++          ),
++        ],
+         _buildDashes(style),
+         _buildCustomRow(
+           'Click',
+diff --git a/lib/features/report/features/shifts_opened/view/hive_content.dart b/lib/features/report/features/shifts_opened/view/hive_content.dart
+index 799c143..aa14fdc 100644
+--- a/lib/features/report/features/shifts_opened/view/hive_content.dart
++++ b/lib/features/report/features/shifts_opened/view/hive_content.dart
+@@ -137,6 +137,11 @@ class ShiftContennt extends StatelessWidget {
+                         (shift.salesSummary!.uzCard ?? 0) +
+                             (shift.salesSummary!.humoCard ?? 0),
+                         context),
++                    // YagonaQr — alohida qator (Plastik ichida emas).
++                    (shift.salesSummary?.yagonaQr ?? 0) > 0
++                        ? _textInRow('Yagona QR',
++                            (shift.salesSummary?.yagonaQr ?? 0), context)
++                        : SizedBox.shrink(),
+                     _textInRow(loc.keshbek_tolov,
+                         shift.salesSummary!.cashbackOut!, context),
+                     _textInRow(
+```
+
+<details><summary>Testlar (diff)</summary>
+
+```diff
+diff --git a/test/kaftpay_shift_report_test.dart b/test/kaftpay_shift_report_test.dart
+index 73800d5..94b6f87 100644
+--- a/test/kaftpay_shift_report_test.dart
++++ b/test/kaftpay_shift_report_test.dart
+@@ -1,5 +1,6 @@
+ // Kaftpay — smena (X/Z) hisoboti: summa karta ("Plastik" = uzCard +
+-// humoCard) ichida, YagonaQr kabi (2026-11-02; oldin "Other" ga tushardi).
++// humoCard) ichida (2026-11-02; oldin "Other" ga tushardi). YagonaQr esa
++// 2026-11-19 dan alohida qator (test/yagonaqr_shift_report_test.dart).
+ //
+ // `ShiftSingleton4.getCurrentHiveShift` smenani ObjectBox'dagi cheklardan
+ // qayta hisoblaydi (`case 'kaftpay'` → `uzCardPayment`).
+@@ -116,7 +117,8 @@ void main() {
+       expect(s.other, 0);
+     });
+ 
+-    test('YagonaQr + Kaftpay bitta chekda — ikkalasi Plastik', () {
++    test('YagonaQr + Kaftpay bitta chekda — Kaftpay Plastik, YagonaQr alohida '
++        '(2026-11-19)', () {
+       final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+       box.removeAll();
+       box.put(receiptOf([
+@@ -127,8 +129,10 @@ void main() {
+       ]));
+ 
+       final s = ShiftSingleton4.getCurrentHiveShift()!.salesSummary!;
+-      expect(s.uzCard, 100000);
++      expect(s.uzCard, 60000);
++      expect(s.yagonaQr, 40000);
+       expect(s.other, 0);
++      expect(s.grossSales, 100000);
+     });
+   });
+ }
+diff --git a/test/yagonaqr_shift_report_test.dart b/test/yagonaqr_shift_report_test.dart
+index 3c41dcb..b26124a 100644
+--- a/test/yagonaqr_shift_report_test.dart
++++ b/test/yagonaqr_shift_report_test.dart
+@@ -1,24 +1,37 @@
+-// YagonaQr — smena (X/Z) hisoboti: alohida qator YO'Q, summa karta
+-// ("Plastik" = uzCard + humoCard) ichida.
++// YagonaQr — smena (X/Z) hisoboti: ALOHIDA summa (`salesSummary.yagonaQr`),
++// "Plastik" (uzCard + humoCard) ichida ham, "Other" da ham emas
++// (foydalanuvchi, 2026-11-19; 2026-10-20 dan beri Plastik ichida edi).
++// Fiskalga avvalgidek karta bo'lib ketadi — bu fayl faqat hisobotni sinaydi.
+ //
+ // `ShiftSingleton4.getCurrentHiveShift` smenani ObjectBox'dagi cheklardan
+-// qayta hisoblaydi (`case 'yagonaqr'` → `uzCardPayment`).
++// qayta hisoblaydi (`case 'yagonaqr'` → `yagonaQrPayment`).
+ //
+ // ObjectBox native kutubxonasi kerak (`libobjectbox.dylib` / `.so` / `.dll`
+-// loyiha ildizida yoki tizimda). Topilmasa testlar SKIP qilinadi. Mac'da:
++// loyiha ildizida yoki tizimda). Topilmasa ObjectBox guruhi SKIP qilinadi
++// (adapter testlari baribir ishlaydi). Mac'da:
+ //   cp build/macos/Build/Products/Debug/invan2.app/Contents/Frameworks/ObjectBox.framework/Versions/A/ObjectBox libobjectbox.dylib
+ import 'dart:io';
+ 
++import 'package:flutter/material.dart';
+ import 'package:flutter_test/flutter_test.dart';
+ import 'package:hive/hive.dart';
++// ignore: implementation_imports
++import 'package:hive/src/binary/binary_reader_impl.dart';
++// ignore: implementation_imports
++import 'package:hive/src/binary/binary_writer_impl.dart';
+ import 'package:invan2/changes/models/shift/shift_hive_model.dart';
+ import 'package:invan2/features/hive_repository/hive_boxes.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/api/receipt_4/model/receipt_model_4.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/api/shift_4/singleton/shift_singleton_4.dart';
+ import 'package:invan2/features/hive_repository/tiin/singletons/my_objectbox/my_objectbox.dart';
++import 'package:invan2/features/printing/api/print_smena_api.dart';
++import 'package:invan2/features/report/features/shifts_opened/view/hive_content.dart';
+ import 'package:invan2/objectbox.g.dart' hide Box;
+ import 'package:invan2/utils/constants/pref_keys.dart';
++import 'package:invan2/utils/helpers/money_formatter.dart';
+ import 'package:invan2/utils/helpers/prefs.dart';
++import 'package:invan2/utils/helpers/size_config.dart';
++import 'package:invan2/utils/l10n/app_localizations.dart';
+ 
+ import 'support/epay_fixtures.dart';
+ import 'support/provider_harness.dart';
+@@ -35,14 +48,17 @@ Store? _tryOpenStore() {
+ ReceiptModelPaymentType4 p(String name, String id, double v) =>
+     ReceiptModelPaymentType4(name: name, payId: id, value: v);
+ 
++const kYagonaId = 'pay-yagona';
++
+ void main() {
+   TestWidgetsFlutterBinding.ensureInitialized();
+ 
+   final Store? store = _tryOpenStore();
+ 
+-  group('Smena hisoboti: YagonaQr "Plastik" ichida', skip: store == null
+-      ? "ObjectBox kutubxonasi topilmadi (libobjectbox) — fayl boshidagi izohga qarang"
+-      : false, () {
++  group('Smena hisoboti: YagonaQr alohida',
++      skip: store == null
++          ? "ObjectBox kutubxonasi topilmadi (libobjectbox) — fayl boshidagi izohga qarang"
++          : false, () {
+     setUpAll(() async {
+       await setUpPosTestEnv('yagonaqr_shift_report', withEmployee: false);
+       if (!Hive.isAdapterRegistered(ShiftModelHiveAdapter().typeId)) {
+@@ -63,7 +79,8 @@ void main() {
+       // Ochiq smena (Hive'da yozuv yo'q — getCurrentHiveShift tiklaydi).
+       final opened = DateTime.now().subtract(const Duration(hours: 1));
+       await Pref.setInt(PrefKeys.currentShiftKey, 7);
+-      await Pref.setInt(PrefKeys.shiftOpenedTime, opened.millisecondsSinceEpoch);
++      await Pref.setInt(
++          PrefKeys.shiftOpenedTime, opened.millisecondsSinceEpoch);
+       await Pref.setBool(PrefKeys.shiftsOpened, true);
+     });
+     tearDownAll(() async {
+@@ -71,58 +88,264 @@ void main() {
+       await tearDownPosTestEnv();
+     });
+ 
+-    test('naqd + YagonaQr, Uzcard, Humo + YagonaQr — YagonaQr uzCard ga qo\'shiladi',
+-        () {
++    SalesSummaryHive summaryOf(List<ReceiptModel4> receipts) {
+       final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+       box.removeAll();
+-      box.putMany([
++      box.putMany(receipts);
++      return ShiftSingleton4.getCurrentHiveShift()!.salesSummary!;
++    }
++
++    test('naqd + YagonaQr, Uzcard, Humo + YagonaQr — YagonaQr alohida, '
++        'Plastik faqat Uzcard + HUMO', () {
++      final s = summaryOf([
+         receiptOf([row(realPrice: 100000)], [
+           p('CASH', ids.cash, 30000),
+-          p('YAGONAQR', 'pay-yagona', 70000),
++          p('YAGONAQR', kYagonaId, 70000),
+         ]),
+         receiptOf([row(realPrice: 50000)], [p('UZCARD', ids.card, 50000)]),
+         receiptOf([row(realPrice: 50000)], [
+           p('HUMO', '@${ids.card}', 20000),
+-          p('YAGONAQR', 'pay-yagona', 30000),
++          p('YAGONAQR', kYagonaId, 30000),
+         ]),
+       ]);
+-
+-      final s = ShiftSingleton4.getCurrentHiveShift()!.salesSummary!;
+-      expect(s.uzCard, 150000); // 50 000 Uzcard + 70 000 + 30 000 YagonaQr
++      expect(s.yagonaQr, 100000); // 70 000 + 30 000
++      expect(s.uzCard, 50000, reason: 'YagonaQr endi Uzcard ga qo\'shilmaydi');
+       expect(s.humoCard, 20000);
+-      // "Plastik" (X hisobot ekrani va chop etiladigan "Пластик").
+-      expect((s.uzCard ?? 0) + (s.humoCard ?? 0), 170000);
+-      expect(s.card, 170000);
++      expect((s.uzCard ?? 0) + (s.humoCard ?? 0), 70000); // "Plastik"
++      expect(s.card, 70000);
+       expect(s.cash, 30000);
+-      expect(s.other, 0); // alohida qator / "Other" ga tushmaydi
+-      expect(s.grossSales, 200000);
++      expect(s.other, 0);
++      expect(s.grossSales, 200000, reason: 'jami sotuv o\'zgarmaydi');
+     });
+ 
+-    test('nom normallashmagan eski chek: "YagonaQr" (registr farqi) — baribir Plastik',
+-        () {
+-      final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+-      box.removeAll();
+-      box.put(receiptOf(
+-          [row(realPrice: 40000)], [p('YagonaQr', 'pay-yagona', 40000)]));
++    test('100% YagonaQr cheki — hammasi YagonaQr qatorida', () {
++      final s = summaryOf([
++        receiptOf([row(realPrice: 77050)], [p('YAGONAQR', kYagonaId, 77050)]),
++      ]);
++      expect(s.yagonaQr, 77050);
++      expect(s.uzCard, 0);
++      expect(s.card, 0);
++      expect(s.cash, 0);
++      expect(s.grossSales, 77050);
++    });
+ 
+-      final s = ShiftSingleton4.getCurrentHiveShift()!.salesSummary!;
+-      expect(s.uzCard, 40000); // switch nomni kichik harfga o'giradi
+-      expect(s.card, 40000);
++    test('nom har xil yozilgan ("YagonaQr", "Yagona QR", "Yagona Qr", '
++        '"yagona_qr") — hammasi bitta YagonaQr qatorida', () {
++      final s = summaryOf([
++        receiptOf([row(realPrice: 10000)], [p('YagonaQr', kYagonaId, 10000)]),
++        receiptOf([row(realPrice: 20000)], [p('Yagona QR', kYagonaId, 20000)]),
++        receiptOf([row(realPrice: 30000)], [p('Yagona Qr', kYagonaId, 30000)]),
++        receiptOf([row(realPrice: 40000)], [p('yagona_qr', kYagonaId, 40000)]),
++      ]);
++      expect(s.yagonaQr, 100000);
++      expect(s.other, 0, reason: 'avval bo\'sh joyli nom "Other" ga tushardi');
++      expect(s.uzCard, 0);
++      expect(s.grossSales, 100000);
++    });
++
++    test('YagonaQr + Click QR + Payme Go + cashback + qarz bitta chekda — '
++        'har biri o\'z qatorida', () {
++      final s = summaryOf([
++        receiptOf([row(realPrice: 100000)], [
++          p('YAGONAQR', kYagonaId, 50000),
++          p('CLICK QR', '@${ids.click}', 20000),
++          p('PAYME GO', ids.payme, 10000),
++          p('CASHBACK', ids.cashback, 5000),
++          p('DEBT', ids.debt, 15000),
++        ]),
++      ]);
++      expect(s.yagonaQr, 50000);
++      expect(s.clickQr, 20000);
++      expect(s.payme, 10000);
++      expect(s.cashbackOut, 5000);
++      expect(s.debt, 15000);
++      expect(s.uzCard, 0);
+       expect(s.other, 0);
++      expect(s.grossSales, 100000);
+     });
+ 
+-    test('nom normallashmagan, bo\'sh joyli ("Yagona QR") — "Other", lekin karta jamida',
+-        () {
++    test('YagonaQr cheki vozvrati — naqd qaytim, YagonaQr summasi kamaymaydi '
++        '(vozvrat hammasi naqd)', () {
++      final sale = receiptOf(
++          [row(realPrice: 40000)], [p('YAGONAQR', kYagonaId, 40000)]);
++      final refund =
++          receiptOf([row(realPrice: 40000)], [p('CASH', ids.cash, 40000)])
++            ..isRefund = true;
+       final box = MyObjectbox.saleStore.box<ReceiptModel4>();
+       box.removeAll();
+-      box.put(receiptOf(
+-          [row(realPrice: 40000)], [p('Yagona QR', 'pay-yagona', 40000)]));
++      box.putMany([sale, refund]);
+ 
+-      final s = ShiftSingleton4.getCurrentHiveShift()!.salesSummary!;
+-      expect(s.other, 40000);
+-      expect(s.uzCard, 0);
+-      expect(s.card, 40000);
+-      expect(s.grossSales, 40000);
++      final shift = ShiftSingleton4.getCurrentHiveShift()!;
++      final s = shift.salesSummary!;
++      expect(s.yagonaQr, 40000);
++      expect(s.refunds, 40000);
++      expect(s.cash, 0);
++      expect(s.grossSales, 0);
++      // Kassadagi naqd: qaytim naqd puldan berilgan.
++      expect(shift.cashDrawerHive!.cashRefund, 40000);
++    });
++
++    test('YagonaQr yo\'q smena — yagonaQr 0, qolgani o\'zgarmagan', () {
++      final s = summaryOf([
++        receiptOf([row(realPrice: 50000)], [p('UZCARD', ids.card, 50000)]),
++        receiptOf([row(realPrice: 20000)], [p('CASH', ids.cash, 20000)]),
++      ]);
++      expect(s.yagonaQr, 0);
++      expect(s.uzCard, 50000);
++      expect(s.cash, 20000);
++      expect(s.grossSales, 70000);
++    });
++
++    group('X/Z ekrani va cheki: "Yagona QR" qatori', () {
++      Future<void> pumpReport(WidgetTester tester) async {
++        tester.view.physicalSize = const Size(1920, 2400);
++        tester.view.devicePixelRatio = 1;
++        addTearDown(tester.view.reset);
++        await tester.pumpWidget(MaterialApp(
++          locale: const Locale('uz'),
++          localizationsDelegates: AppLocalizations.localizationsDelegates,
++          supportedLocales: AppLocalizations.supportedLocales,
++          home: Scaffold(
++            body: Builder(builder: (c) {
++              SizeConfig().init(c);
++              return SingleChildScrollView(child: ShiftContennt());
++            }),
++          ),
++        ));
++        await tester.pump();
++      }
++
++      String fmt(num v) => MoneyFormatter.formatter.format(v);
++
++      /// "Sarlavha" matni turgan qatordagi summa matni.
++      String amountOf(WidgetTester tester, String label) {
++        final rowFinder = find
++            .ancestor(of: find.text(label), matching: find.byType(Row))
++            .first;
++        final texts = tester
++            .widgetList<Text>(
++                find.descendant(of: rowFinder, matching: find.byType(Text)))
++            .map((t) => t.data)
++            .toList();
++        return texts.last!;
++      }
++
++      testWidgets('YagonaQr bor: alohida qator, Plastik faqat Uzcard + HUMO',
++          (tester) async {
++        final box = MyObjectbox.saleStore.box<ReceiptModel4>();
++        box.removeAll();
++        box.putMany([
++          receiptOf([row(realPrice: 50000)], [p('UZCARD', ids.card, 50000)]),
++          receiptOf(
++              [row(realPrice: 20000)], [p('HUMO', '@${ids.card}', 20000)]),
++          receiptOf([row(realPrice: 77050)], [
++            p('CASH', ids.cash, 30000),
++            p('YAGONAQR', kYagonaId, 47050),
++          ]),
++        ]);
++
++        await pumpReport(tester);
++
++        expect(find.text('Yagona QR'), findsOneWidget);
++        expect(amountOf(tester, 'Yagona QR'), fmt(47050));
++        final loc = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
++        expect(amountOf(tester, loc.plastik), fmt(70000),
++            reason: 'Plastik = 50 000 Uzcard + 20 000 HUMO, YagonaQr siz');
++        expect(amountOf(tester, loc.naqdPulda), fmt(30000));
++        expect(amountOf(tester, loc.savdolar), fmt(147050));
++      });
++
++      testWidgets('YagonaQr yo\'q: qator chiqmaydi', (tester) async {
++        final box = MyObjectbox.saleStore.box<ReceiptModel4>();
++        box.removeAll();
++        box.put(
++            receiptOf([row(realPrice: 50000)], [p('UZCARD', ids.card, 50000)]));
++
++        await pumpReport(tester);
++
++        expect(find.text('Yagona QR'), findsNothing);
++      });
++
++      test('chek (PDF 57 va 80 mm, X va Z): YagonaQr bilan ham, usiz ham '
++          'yasaladi', () async {
++        final loc = lookupAppLocalizations(const Locale('uz'));
++        final box = MyObjectbox.saleStore.box<ReceiptModel4>();
++        for (final withYagona in [true, false]) {
++          box.removeAll();
++          box.put(receiptOf([
++            row(realPrice: 70000)
++          ], [
++            withYagona
++                ? p('YAGONAQR', kYagonaId, 70000)
++                : p('UZCARD', ids.card, 70000)
++          ]));
++          final shift = ShiftSingleton4.getCurrentHiveShift()!;
++          expect(shift.salesSummary!.yagonaQr, withYagona ? 70000 : 0);
++          for (final isZ in [true, false]) {
++            expect((await PrintSmenaApi.generatePdf80(shift, loc, isZ)).length,
++                greaterThan(1000));
++            expect((await PrintSmenaApi.generatePdf57(shift, loc, isZ)).length,
++                greaterThan(1000));
++          }
++        }
++        // Yangilanishdan oldin ochilgan smena: yagonaQr maydoni null.
++        final old = ShiftSingleton4.getCurrentHiveShift()!
++          ..salesSummary!.yagonaQr = null;
++        expect((await PrintSmenaApi.generatePdf80(old, loc, true)).length,
++            greaterThan(1000));
++      });
++    });
++  });
++
++  group('SalesSummaryHive adapteri — yagonaQr maydoni (20)', () {
++    test('yozib-o\'qish: yagonaQr saqlanadi', () async {
++      final dir = Directory.systemTemp.createTempSync('yagonaqr_hive_rw');
++      Hive.init(dir.path);
++      if (!Hive.isAdapterRegistered(SalesSummaryHiveAdapter().typeId)) {
++        Hive.registerAdapter<SalesSummaryHive>(SalesSummaryHiveAdapter());
++      }
++      final box = await Hive.openBox<SalesSummaryHive>('ss_rw');
++      await box.put(1, SalesSummaryHive(uzCard: 5, other: 2, yagonaQr: 77));
++      await box.close();
++      final again = await Hive.openBox<SalesSummaryHive>('ss_rw');
++      expect(again.get(1)!.yagonaQr, 77);
++      expect(again.get(1)!.uzCard, 5);
++      expect(again.get(1)!.other, 2);
++      await again.close();
++    });
++
++    test('eski yozuv (19 maydon, yagonaQr yo\'q) — o\'qiladi, yagonaQr null',
++        () {
++      // Yangilanishdan oldingi adapter yozgan baytlar: 19 ta maydon (0..18).
++      final w = BinaryWriterImpl(Hive);
++      w.writeByte(19);
++      for (var i = 0; i < 19; i++) {
++        w.writeByte(i);
++        w.write(i == 16 ? 150000 : (i == 18 ? 0 : i));
++      }
++      final s = SalesSummaryHiveAdapter().read(BinaryReaderImpl(w.toBytes(), Hive));
++      expect(s.uzCard, 150000);
++      expect(s.yagonaQr, isNull);
++      expect(s.other, 0);
++    });
++
++    test('19-maydon (Kaftpay branchi) bor yozuv ham buzilmaydi — yagonaQr '
++        '20 dan o\'qiladi', () {
++      // `feat/kaftpay-xz-alohida` merge bo'lgach adapter 19 (kaftpay) ni ham
++      // yozadi; bu versiya uni o'tkazib yuborishi va 20 ni to'g'ri o'qishi kerak.
++      final w = BinaryWriterImpl(Hive);
++      w.writeByte(21);
++      for (var i = 0; i < 21; i++) {
++        w.writeByte(i);
++        w.write(i == 19 ? 1111 : (i == 20 ? 2222 : i));
++      }
++      final s = SalesSummaryHiveAdapter().read(BinaryReaderImpl(w.toBytes(), Hive));
++      expect(s.yagonaQr, 2222);
++      expect(s.other, 18);
++    });
++
++    test('toJson da yagonaqr bor', () {
++      expect(SalesSummaryHive(yagonaQr: 12).toJson()['yagonaqr'], 12);
+     });
+   });
+ }
+```
+
+</details>
+
+## 7. Tekshirish
+- `flutter test test/yagonaqr_shift_report_test.dart` — 13/13; `test/kaftpay_shift_report_test.dart` — o'tdi.
+- To'liq to'plam: `ayyubxon` asosida 2595 o'tdi / 11 skip; +130 manbasida (`patch/130-yagonaqr-xz`) 2304 o'tdi / 4 skip.
+- Mac DEV kassasida +130 kodi (`aa674a8` + `6263d54`) bilan jonli (2026-11-19, fiskal emulyator):
+  - eski smena cheklari qayta hisoblanganda Plastik 124 100 → 0, "Yagona QR" 124 100;
+  - #172: YagonaQr 50 000 + Uzcard 30 000 + naqd 14 050 → fiskal karta 80 000, naqd 14 050; server 3 to'lov turi, 201;
+  - #173: YagonaQr 40 000 + Click QR 20 000 + Payme QR 17 050 → fiskal karta 40 000, `Other` 37 050 (Click/Payme QR avvalgi qoida);
+  - vozvrat #174 (100% YagonaQr cheki, 77 050) va #175 (aralash chekdan 1 mahsulot, 9 050) → fiskal naqd, serverga CASH (200);
+  - X ekrani va chop etilgan Z (80 mm) / X (57 mm) matni: Пластик 30 000 (Uzcard), Yagona QR 214 100, Click QR, Payme QR alohida;
+  - smena yopildi (`shift_pos` 200), Hive'dagi yopilgan smenada `yagonaQr` 214 100; yangi smena 0 dan, #176 HUMO 50 000 + YagonaQr
+    27 050 → X: Plastik 50 000, Yagona QR 27 050.
+
+## 8. Eslatmalar va ochiq savollar
+- Odoo forkiga: **kerak** (smena hisobi va X/Z UI mantig'i; InVan backend'iga bog'liq emas).
+- `feat/kaftpay-xz-alohida` merge qilinganda `shift_singleton_4.dart` `switch` va `.g.dart` da ziddiyat bo'ladi: ikkalasini qoldiring
+  (Kaftpay 19, YagonaQr 20, `writeByte(21)`), `kaftpay_shift_report_test.dart` dagi "YagonaQr + Kaftpay" testida YagonaQr alohida.
+- Vozvrat qoidasi o'zgarmagan: YagonaQr cheki ham naqd qaytariladi — X/Z da "Naqd pulda qaytimlar", "Yagona QR" summasi kamaymaydi.
 
 ---
 
