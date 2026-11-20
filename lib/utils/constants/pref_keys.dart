@@ -173,6 +173,10 @@ class PrefKeys {
 
   ////////////////
   static const String terminalID = "terminalID";
+
+  /// Fiskal drayverdan olingan oxirgi TerminalID (ONKM so'rovi uchun zaxira —
+  /// drayver javob bermaganda). Qo'lda kiritiladigan [terminalID] emas.
+  static const String fiscalTerminalIdCache = "fiscal_terminal_id_cache";
   static const String isSwitchTerminal = "isSwitchTerminal";
 
   static const String innLength = "innLength";

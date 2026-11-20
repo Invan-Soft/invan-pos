@@ -29,14 +29,20 @@ class OnkmValidator {
 
   /// ONKM so'rovining tanasi. Sof funksiya — testlanadi.
   ///
-  /// [ownerTin] — do'kon INN si, [km] — skanerlangan markirovka kodi.
+  /// [ownerTin] — do'kon INN si, [km] — skanerlangan markirovka kodi,
+  /// [terminalId] — fiskal modul raqami. Soliq uni talab qiladi (usiz
+  /// "Fiskal modul raqami noto'g'ri ko'rsatilgan"); aniqlab bo'lmagan bo'lsa
+  /// (bo'sh) maydon umuman qo'shilmaydi — so'rov avvalgi shaklda ketadi.
   static Map<String, dynamic> buildBody({
     required String ownerTin,
     required String km,
     required ItemModel item,
+    String? terminalId,
   }) {
+    final String tid = (terminalId ?? '').trim();
     return {
       "ownerTin": ownerTin,
+      if (tid.isNotEmpty) "terminalId": tid,
       "refund": 0,
       "products": [
         {
@@ -84,12 +90,18 @@ class OnkmValidator {
     required ItemModel item,
     required String km,
     required String ownerTin,
+    String? terminalId,
     void Function(http.Response response)? onResponse,
   }) async {
     final response = await http
         .post(
           Uri.parse(endpoint),
-          body: jsonEncode(buildBody(ownerTin: ownerTin, km: km, item: item)),
+          body: jsonEncode(buildBody(
+            ownerTin: ownerTin,
+            km: km,
+            item: item,
+            terminalId: terminalId,
+          )),
           headers: headers,
         )
         .timeout(timeout);

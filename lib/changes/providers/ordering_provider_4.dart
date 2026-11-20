@@ -39,6 +39,7 @@ import 'package:invan2/changes/domain/cart/client_discount.dart';
 import 'package:invan2/changes/domain/cart/invoice_row_builder.dart';
 import 'package:invan2/changes/domain/cart/marked_row_builder.dart';
 import 'package:invan2/changes/domain/cart/sold_item_builder.dart';
+import 'package:invan2/changes/services/fiscal_terminal_id.dart';
 import 'package:invan2/changes/services/onkm_validator.dart';
 import 'package:invan2/changes/domain/marking/mark_validator.dart';
 import 'package:invan2/changes/domain/marking/marked_cart.dart';
@@ -1010,6 +1011,7 @@ class OrderingProvider4 extends ChangeNotifier {
               item: item,
               km: v,
               ownerTin: Pref.getString(PrefKeys.organizationINN, ''),
+              terminalId: await FiscalTerminalId.get(),
               onResponse: alice.onHttpResponse,
             );
 

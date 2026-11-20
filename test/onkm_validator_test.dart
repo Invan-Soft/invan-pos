@@ -81,6 +81,31 @@ void main() {
       expect(p['packageCode'], isNull);
     });
 
+    test('terminalId berilsa ownerTin dan keyin ketadi (soliq namunasi)', () {
+      final b = OnkmValidator.buildBody(
+          ownerTin: '305123456',
+          km: 'KM-001',
+          item: item(),
+          terminalId: 'UZ191211501012');
+      expect(b['terminalId'], 'UZ191211501012');
+      expect(b.keys.take(3).toList(), ['ownerTin', 'terminalId', 'refund']);
+    });
+
+    test('terminalId atrofidagi bo\'shliq olib tashlanadi', () {
+      final b = OnkmValidator.buildBody(
+          ownerTin: '1', km: 'k', item: item(), terminalId: ' UZ191211501012 ');
+      expect(b['terminalId'], 'UZ191211501012');
+    });
+
+    test('terminalId yo\'q/bo\'sh bo\'lsa maydon umuman qo\'shilmaydi', () {
+      expect(body().containsKey('terminalId'), isFalse);
+      for (final t in ['', '   ']) {
+        final b = OnkmValidator.buildBody(
+            ownerTin: '1', km: 'k', item: item(), terminalId: t);
+        expect(b.containsKey('terminalId'), isFalse, reason: '"$t"');
+      }
+    });
+
     test('JSON ga o\'giriladi (jsonEncode xato bermaydi)', () {
       expect(() => jsonEncode(body()), returnsNormally);
     });
